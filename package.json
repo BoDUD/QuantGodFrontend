@@ -17,7 +17,8 @@
     "mt5-workspace": "node scripts/frontend_mt5_workspace_guard.mjs",
     "governance-workspace": "node scripts/frontend_governance_workspace_guard.mjs",
     "paramlab-workspace": "node scripts/frontend_paramlab_workspace_guard.mjs",
-    "research-workspace": "node scripts/frontend_research_workspace_guard.mjs"
+    "research-workspace": "node scripts/frontend_research_workspace_guard.mjs",
+    "polymarket-workspace": "node scripts/frontend_polymarket_workspace_guard.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",
