@@ -36,6 +36,9 @@ jobs:
 
       - name: Domain workspace guard
         run: npm run domain-workspace
+
+      - name: Dashboard workspace guard
+        run: npm run dashboard-workspace
       - name: Unit tests
         run: npm test
       - name: Build
