@@ -42,6 +42,9 @@ jobs:
 
       - name: MT5 workspace guard
         run: npm run mt5-workspace
+      - name: Governance workspace guard
+        run: npm run governance-workspace
+
       - name: Unit tests
         run: npm test
       - name: Build
