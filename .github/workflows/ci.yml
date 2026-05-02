@@ -39,6 +39,9 @@ jobs:
 
       - name: Dashboard workspace guard
         run: npm run dashboard-workspace
+
+      - name: MT5 workspace guard
+        run: npm run mt5-workspace
       - name: Unit tests
         run: npm test
       - name: Build

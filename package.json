@@ -13,7 +13,8 @@
     "structure": "node scripts/frontend_structure_guard.mjs",
     "workspace-boundary": "node scripts/frontend_workspace_boundary_guard.mjs",
     "domain-workspace": "node scripts/frontend_domain_workspace_guard.mjs",
-    "dashboard-workspace": "node scripts/frontend_dashboard_workspace_guard.mjs"
+    "dashboard-workspace": "node scripts/frontend_dashboard_workspace_guard.mjs",
+    "mt5-workspace": "node scripts/frontend_mt5_workspace_guard.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",
