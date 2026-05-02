@@ -58,3 +58,11 @@ python scripts\qg-workspace.py --workspace workspace\quantgod.workspace.json syn
 ## 样式要求
 
 QuantGod 工作台以深色、高密度、可扫描为主。新页面必须适配 Mac、桌面、平板和窄屏，不允许文字溢出、卡片嵌套卡片、白底默认组件或无意义大空白。
+
+响应式巡检脚本属于前端仓库：
+
+```powershell
+npm run responsive:check
+```
+
+默认会检查 `http://127.0.0.1:8080/vue/`，也可以用 `QUANTGOD_RESPONSIVE_URL` 指向 Vite dev server。

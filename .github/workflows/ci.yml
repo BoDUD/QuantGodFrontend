@@ -28,6 +28,8 @@ jobs:
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
       - name: Build
         run: npm run build
+      - name: Responsive checker syntax
+        run: node --check scripts/responsive_check.mjs
       - name: Check source-only split
         run: |
           test ! -d Dashboard
