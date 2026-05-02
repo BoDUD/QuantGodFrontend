@@ -15,23 +15,35 @@ concurrency:
 
 jobs:
   build:
-    name: Vue build
+    name: Vue build and frontend contract guards
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
+
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: API contract guard
+        run: npm run contract
+
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npm run build
+
       - name: Responsive checker syntax
         run: node --check scripts/responsive_check.mjs
+
       - name: Check source-only split
         run: |
           test ! -d Dashboard
           test ! -d MQL5
           test ! -d tools
+          test ! -d cloudflare
