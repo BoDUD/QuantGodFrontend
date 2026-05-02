@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: LF integrity guard
+        run: npm run lf-integrity
+
       - name: API contract guard
         run: npm run contract
       - name: Structure guard

@@ -34,3 +34,13 @@
 *.zip binary
 *.ex4 binary
 *.ex5 binary
+# QuantGod frontend split-repo line ending policy
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary

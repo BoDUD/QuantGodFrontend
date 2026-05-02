@@ -19,7 +19,8 @@
     "paramlab-workspace": "node scripts/frontend_paramlab_workspace_guard.mjs",
     "research-workspace": "node scripts/frontend_research_workspace_guard.mjs",
     "polymarket-workspace": "node scripts/frontend_polymarket_workspace_guard.mjs",
-    "legacy-deprecation": "node scripts/frontend_legacy_deprecation_guard.mjs"
+    "legacy-deprecation": "node scripts/frontend_legacy_deprecation_guard.mjs",
+    "lf-integrity": "node scripts/frontend_lf_integrity_guard.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",
