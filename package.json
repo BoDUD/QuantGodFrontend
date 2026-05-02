@@ -9,7 +9,8 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "responsive:check": "node scripts/responsive_check.mjs",
     "contract": "node scripts/frontend_api_contract_guard.mjs",
-    "test": "node --test tests/*.mjs"
+    "test": "node --test tests/*.mjs",
+    "structure": "node scripts/frontend_structure_guard.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",
