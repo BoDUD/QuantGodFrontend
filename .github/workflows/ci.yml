@@ -46,6 +46,8 @@ jobs:
         run: npm run governance-workspace
       - name: ParamLab workspace guard
         run: npm run paramlab-workspace
+      - name: Research workspace guard
+        run: npm run research-workspace
 
       - name: Unit tests
         run: npm test
