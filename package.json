@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "responsive:check": "node scripts/responsive_check.mjs",
+    "git-blob-integrity": "node scripts/frontend_git_blob_integrity_guard.mjs",
     "remote-ci-integrity": "node scripts/frontend_remote_ci_integrity_guard.mjs",
     "lf-integrity": "node scripts/frontend_lf_integrity_guard.mjs",
     "contract": "node scripts/frontend_api_contract_guard.mjs",
