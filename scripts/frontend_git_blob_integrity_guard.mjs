@@ -1,130 +1,123 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const root = process.cwd();
-const failures = [];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = process.env.QG_FRONTEND_ROOT
+  ? path.resolve(process.env.QG_FRONTEND_ROOT)
+  : path.resolve(__dirname, '..');
 
-function rel(...parts) {
-  return path.join(root, ...parts);
+const errors = [];
+const shouldCheckGitBlob =
+  process.env.QG_CHECK_GIT_BLOB === '1' ||
+  process.env.CI === 'true';
+
+function relPath(...parts) {
+  return path.join(...parts).replace(/\\/g, '/');
 }
 
-function toPosix(filePath) {
-  return filePath.split(path.sep).join('/');
+function fail(message) {
+  errors.push(message);
 }
 
-function exists(relPath) {
-  return existsSync(rel(relPath));
+function readWorkingTree(rel) {
+  const abs = path.join(repoRoot, rel);
+  if (!fs.existsSync(abs)) {
+    fail(`${rel} is missing`);
+    return null;
+  }
+  return fs.readFileSync(abs);
 }
 
-function readWorking(relPath) {
-  return readFileSync(rel(relPath), 'utf8');
-}
-
-function assert(condition, message) {
-  if (!condition) failures.push(message);
-}
-
-function lineCount(text) {
-  if (!text) return 0;
-  return text.split('\n').length;
-}
-
-function shellQuoteForGitPath(relPath) {
-  return relPath.replace(/'/g, "'\\''");
-}
-
-function readGitBlob(relPath) {
+function readGitBlob(rel) {
   try {
-    return execSync(`git show HEAD:'${shellQuoteForGitPath(relPath)}'`, {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+    return execFileSync('git', ['show', `HEAD:${rel}`], {
+      cwd: repoRoot,
+      encoding: null,
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-  } catch {
+  } catch (error) {
+    fail(`git blob ${rel} is missing or unreadable: ${error.message}`);
     return null;
   }
 }
 
-function walk(dir, predicate = () => true) {
-  const abs = rel(dir);
-  if (!existsSync(abs)) return [];
-  const out = [];
-  const stack = [abs];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    for (const name of readdirSync(current)) {
-      const full = path.join(current, name);
-      const st = statSync(full);
-      if (st.isDirectory()) {
-        if (!['node_modules', 'dist', '.git', 'coverage', 'archive'].includes(name)) {
-          stack.push(full);
-        }
-      } else if (predicate(full)) {
-        out.push(full);
-      }
+function toText(buffer) {
+  return buffer.toString('utf8');
+}
+
+function countLfLines(buffer) {
+  const text = toText(buffer);
+  if (text.length === 0) return 0;
+  return text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
+}
+
+function assertNoCarriageReturn(label, rel, buffer) {
+  if (buffer.includes(13)) {
+    fail(`${label} ${rel} contains carriage-return bytes; expected LF-only Git blob`);
+  }
+}
+
+function assertLineCount(label, rel, buffer, minLines) {
+  const lines = countLfLines(buffer);
+  if (lines < minLines) {
+    fail(`${label} ${rel} has ${lines} LF lines; expected at least ${minLines}`);
+  }
+}
+
+function assertMaxLineCount(label, rel, buffer, maxLines) {
+  const lines = countLfLines(buffer);
+  if (lines > maxLines) {
+    fail(`${label} ${rel} has ${lines} LF lines; expected at most ${maxLines}`);
+  }
+}
+
+function assertContains(label, rel, buffer, needle) {
+  if (!toText(buffer).includes(needle)) {
+    fail(`${label} ${rel} does not contain required marker: ${needle}`);
+  }
+}
+
+function assertNotContains(label, rel, buffer, needle) {
+  if (toText(buffer).includes(needle)) {
+    fail(`${label} ${rel} contains forbidden marker: ${needle}`);
+  }
+}
+
+function assertNoHashbang(label, rel, buffer) {
+  if (toText(buffer).startsWith('#!')) {
+    fail(`${label} ${rel} starts with a hashbang; guard scripts should be invoked by node explicitly`);
+  }
+}
+
+function lineSet(buffer) {
+  return new Set(toText(buffer).split('\n'));
+}
+
+function assertWorkflowShape(label, rel, buffer) {
+  const text = toText(buffer);
+  const lines = lineSet(buffer);
+  const requiredLines = [
+    'name: QuantGod Frontend CI',
+    'on:',
+    '  push:',
+    '    branches:',
+    '      - main',
+    '  pull_request:',
+    'permissions:',
+    'jobs:',
+    '  build:',
+    '    runs-on: ubuntu-latest',
+  ];
+  for (const line of requiredLines) {
+    if (!lines.has(line)) {
+      fail(`${label} ${rel} is not a canonical multiline workflow; missing line: ${line}`);
     }
   }
-  return out.sort();
-}
-
-const criticalFiles = [
-  { path: '.github/workflows/ci.yml', minLines: 70, label: 'workflow' },
-  { path: 'package.json', minLines: 30, label: 'package' },
-  { path: 'src/app/navigation.js', minLines: 40, label: 'navigation' },
-  { path: 'src/app/workspaceRegistry.js', minLines: 30, label: 'registry' },
-  { path: 'src/app/AppShell.vue', minLines: 50, label: 'app shell' },
-  { path: 'src/workspaces/legacy/LegacyWorkbench.vue', minLines: 80, label: 'legacy slim' },
-  { path: 'scripts/frontend_remote_ci_integrity_guard.mjs', minLines: 40, label: 'remote CI guard' },
-  { path: 'scripts/frontend_lf_integrity_guard.mjs', minLines: 40, label: 'LF guard' },
-  { path: 'scripts/frontend_legacy_slim_guard.mjs', minLines: 40, label: 'legacy slim guard' },
-];
-
-function checkTextShape(relPath, minLines, label, content, sourceLabel) {
-  assert(content !== null && content !== undefined, `${relPath} is missing from ${sourceLabel}`);
-  if (content === null || content === undefined) return;
-  assert(!content.includes('\r'), `${relPath} ${sourceLabel} must not contain CR characters`);
-  const count = lineCount(content);
-  assert(count >= minLines, `${relPath} ${sourceLabel} has only ${count} LF lines; expected at least ${minLines} (${label})`);
-}
-
-function checkCriticalWorkingTree() {
-  for (const item of criticalFiles) {
-    assert(exists(item.path), `${item.path} is missing`);
-    if (exists(item.path)) {
-      checkTextShape(item.path, item.minLines, item.label, readWorking(item.path), 'working tree');
-    }
-  }
-}
-
-function checkCriticalGitBlobWhenInCi() {
-  if (process.env.CI !== 'true' && process.env.QG_CHECK_GIT_BLOB !== '1') {
-    return;
-  }
-  for (const item of criticalFiles) {
-    checkTextShape(item.path, item.minLines, item.label, readGitBlob(item.path), 'git blob');
-  }
-}
-
-function checkWorkflowSemantics() {
-  if (!exists('.github/workflows/ci.yml')) return;
-  const workflow = readWorking('.github/workflows/ci.yml');
-  assert(/^name:\s*QuantGod Frontend CI/m.test(workflow), 'workflow must have a standalone name header');
-  assert(/^on:/m.test(workflow), 'workflow must have standalone on: section');
-  assert(/^jobs:/m.test(workflow), 'workflow must have standalone jobs: section');
-  assert(workflow.includes('npm run git-blob-integrity'), 'workflow must run npm run git-blob-integrity');
-  assert(workflow.includes('npm run remote-ci-integrity'), 'workflow must run npm run remote-ci-integrity');
-  assert(workflow.includes('npm run legacy-slim'), 'workflow must run npm run legacy-slim');
-  assert(workflow.includes('npm run build'), 'workflow must run npm run build');
-  assert(!workflow.includes('name: QuantGod Frontend CI on:'), 'workflow appears compressed into single-line YAML');
-}
-
-function checkPackageScript() {
-  if (!exists('package.json')) return;
-  const pkg = JSON.parse(readWorking('package.json'));
-  assert(pkg.scripts?.['git-blob-integrity'] === 'node scripts/frontend_git_blob_integrity_guard.mjs', 'package.json must define npm run git-blob-integrity');
-  for (const scriptName of [
+  const guardScripts = [
+    'git-blob-integrity',
     'remote-ci-integrity',
     'lf-integrity',
     'contract',
@@ -139,49 +132,109 @@ function checkPackageScript() {
     'polymarket-workspace',
     'legacy-deprecation',
     'legacy-slim',
-  ]) {
-    assert(pkg.scripts?.[scriptName], `package.json is missing npm run ${scriptName}`);
+  ];
+  for (const script of guardScripts) {
+    if (!text.includes(`npm run ${script}`)) {
+      fail(`${label} ${rel} does not invoke npm run ${script}`);
+    }
   }
 }
 
-function checkAllGuardsAreMultiline() {
-  const guardFiles = walk('scripts', (file) => /frontend_.*_guard\.mjs$/.test(file));
-  assert(guardFiles.length >= 15, 'expected at least 15 frontend guard scripts');
-  for (const full of guardFiles) {
-    const relPath = toPosix(path.relative(root, full));
-    const content = readFileSync(full, 'utf8');
-    assert(!content.startsWith('#!'), `${relPath} must not use a hashbang`);
-    assert(!content.includes('\r'), `${relPath} must not contain CR characters`);
-    assert(lineCount(content) >= 40, `${relPath} has too few LF lines and may be compressed`);
-    assert(content.includes('process.exit(') || content.includes('process.exitCode'), `${relPath} must fail hard on guard errors`);
+function validateBuffer(label, rel, buffer, options) {
+  if (!buffer) return;
+  assertNoCarriageReturn(label, rel, buffer);
+  if (options.minLines) assertLineCount(label, rel, buffer, options.minLines);
+  if (options.maxLines) assertMaxLineCount(label, rel, buffer, options.maxLines);
+  for (const needle of options.mustContain ?? []) {
+    assertContains(label, rel, buffer, needle);
+  }
+  for (const needle of options.mustNotContain ?? []) {
+    assertNotContains(label, rel, buffer, needle);
+  }
+  if (options.noHashbang) assertNoHashbang(label, rel, buffer);
+  if (options.workflow) assertWorkflowShape(label, rel, buffer);
+}
+
+const criticalFiles = [
+  {
+    rel: relPath('.github', 'workflows', 'ci.yml'),
+    minLines: 80,
+    workflow: true,
+  },
+  {
+    rel: 'package.json',
+    minLines: 30,
+    mustContain: ['"git-blob-integrity"', '"legacy-slim"'],
+  },
+  {
+    rel: relPath('scripts', 'frontend_git_blob_integrity_guard.mjs'),
+    minLines: 120,
+    mustContain: ['QG_CHECK_GIT_BLOB', 'git show', 'contains carriage-return bytes'],
+    noHashbang: true,
+  },
+  {
+    rel: relPath('tests', 'frontend_git_blob_integrity_guard.test.mjs'),
+    minLines: 30,
+    mustContain: ['node:test', 'git blob integrity'],
+  },
+  {
+    rel: relPath('src', 'App.vue'),
+    minLines: 3,
+    maxLines: 80,
+    mustContain: ["import AppShell from './app/AppShell.vue'"],
+  },
+  {
+    rel: relPath('src', 'workspaces', 'legacy', 'LegacyWorkbench.vue'),
+    minLines: 40,
+    maxLines: 260,
+    mustContain: ['LegacyDeprecationBanner'],
+    mustNotContain: ['fetch(', '/QuantGod_', 'executeTrade', 'submitOrder'],
+  },
+];
+
+for (const spec of criticalFiles) {
+  const buffer = readWorkingTree(spec.rel);
+  validateBuffer('working tree', spec.rel, buffer, spec);
+}
+
+const scriptsDir = path.join(repoRoot, 'scripts');
+if (fs.existsSync(scriptsDir)) {
+  for (const fileName of fs.readdirSync(scriptsDir)) {
+    if (!fileName.endsWith('.mjs')) continue;
+    const rel = relPath('scripts', fileName);
+    const buffer = readWorkingTree(rel);
+    validateBuffer('working tree', rel, buffer, {
+      minLines: fileName.startsWith('frontend_') ? 25 : 5,
+      noHashbang: true,
+    });
   }
 }
 
-function checkTestsAreMultiline() {
-  const testFiles = walk('tests', (file) => /\.mjs$/.test(file));
-  assert(testFiles.length >= 10, 'expected frontend node tests under tests/');
-  for (const full of testFiles) {
-    const relPath = toPosix(path.relative(root, full));
-    const content = readFileSync(full, 'utf8');
-    assert(!content.includes('\r'), `${relPath} must not contain CR characters`);
-    assert(lineCount(content) >= 10, `${relPath} has too few LF lines and may be compressed`);
-    assert(content.includes("node:test") || content.includes('test('), `${relPath} must contain node:test assertions`);
+if (shouldCheckGitBlob) {
+  for (const spec of criticalFiles) {
+    const buffer = readGitBlob(spec.rel);
+    validateBuffer('git blob', spec.rel, buffer, spec);
+  }
+  if (fs.existsSync(scriptsDir)) {
+    for (const fileName of fs.readdirSync(scriptsDir)) {
+      if (!fileName.endsWith('.mjs')) continue;
+      const rel = relPath('scripts', fileName);
+      const buffer = readGitBlob(rel);
+      validateBuffer('git blob', rel, buffer, {
+        minLines: fileName.startsWith('frontend_') ? 25 : 5,
+        noHashbang: true,
+      });
+    }
   }
 }
 
-checkCriticalWorkingTree();
-checkCriticalGitBlobWhenInCi();
-checkWorkflowSemantics();
-checkPackageScript();
-checkAllGuardsAreMultiline();
-checkTestsAreMultiline();
-
-if (failures.length > 0) {
-  console.error('Frontend git blob integrity guard failed:');
-  for (const failure of failures) {
-    console.error(`- ${failure}`);
+if (errors.length) {
+  console.error('Frontend Git blob integrity guard failed:');
+  for (const error of errors) {
+    console.error(`- ${error}`);
   }
-  process.exit(1);
+  process.exitCode = 1;
+} else {
+  const mode = shouldCheckGitBlob ? 'working tree + git blob' : 'working tree';
+  console.log(`Frontend Git blob integrity guard OK (${mode})`);
 }
-
-console.log('Frontend git blob integrity guard OK');

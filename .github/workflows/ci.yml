@@ -36,6 +36,8 @@ jobs:
           fi
 
       - name: Git blob integrity guard
+        env:
+          QG_CHECK_GIT_BLOB: "1"
         run: npm run git-blob-integrity
 
       - name: Remote CI integrity guard
