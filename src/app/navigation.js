@@ -1,12 +1,37 @@
 export const WORKSPACE_GROUPS = [
   {
-    key: 'core',
-    label: '核心工作区',
+    key: 'operations',
+    label: '运营工作区',
     items: [
       {
-        key: 'legacy',
-        label: '完整工作台',
-        description: '保留现有 App.vue 的完整功能，作为迁移期间的安全回退。',
+        key: 'dashboard',
+        label: '总览 Dashboard',
+        description: '本地运行状态、日报、自动驾驶和 backtest summary。',
+      },
+      {
+        key: 'mt5',
+        label: 'MT5 Monitor',
+        description: 'MT5 read-only bridge、账户、持仓、订单和 Symbol Registry。',
+      },
+      {
+        key: 'governance',
+        label: 'Governance',
+        description: 'Governance Advisor、Version Registry、Promotion Gate 与 Optimizer V2。',
+      },
+      {
+        key: 'paramlab',
+        label: 'ParamLab',
+        description: 'ParamLab 状态、批处理结果、调度、恢复和 Tester Window。',
+      },
+      {
+        key: 'research',
+        label: 'Research',
+        description: 'Shadow、交易历史、策略评估、Regime 与手动 Alpha。',
+      },
+      {
+        key: 'polymarket',
+        label: 'Polymarket',
+        description: 'Polymarket radar、AI score、canary、cross-linkage 与市场机会。',
       },
     ],
   },
@@ -31,13 +56,24 @@ export const WORKSPACE_GROUPS = [
       },
     ],
   },
+  {
+    key: 'legacy',
+    label: '迁移回退',
+    items: [
+      {
+        key: 'legacy',
+        label: '完整 Legacy Workbench',
+        description: '保留原 App.vue 的完整工作台，作为拆分期间的安全回退。',
+      },
+    ],
+  },
 ];
 
 export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((group) =>
   group.items.map((item) => ({ ...item, group: group.key, groupLabel: group.label })),
 );
 
-export const DEFAULT_WORKSPACE = 'legacy';
+export const DEFAULT_WORKSPACE = 'dashboard';
 
 export function findWorkspace(key) {
   return FLAT_WORKSPACES.find((workspace) => workspace.key === key) || FLAT_WORKSPACES[0];

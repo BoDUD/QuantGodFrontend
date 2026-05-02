@@ -33,6 +33,9 @@ jobs:
 
       - name: Workspace boundary guard
         run: npm run workspace-boundary
+
+      - name: Domain workspace guard
+        run: npm run domain-workspace
       - name: Unit tests
         run: npm test
       - name: Build

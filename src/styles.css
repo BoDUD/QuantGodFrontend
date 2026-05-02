@@ -4935,3 +4935,164 @@ tbody tr:hover td {
     padding: 12px;
   }
 }
+
+/* QuantGod domain workspace split */
+.qg-domain-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.qg-domain-workspace__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.68);
+}
+
+.qg-domain-workspace__header h1 {
+  margin: 4px 0 8px;
+  font-size: 26px;
+}
+
+.qg-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+.qg-button {
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  border-radius: 12px;
+  padding: 9px 14px;
+  color: #dbeafe;
+  background: rgba(30, 64, 175, 0.32);
+  cursor: pointer;
+}
+
+.qg-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.qg-alert {
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.qg-metric-grid,
+.qg-domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.qg-metric-card,
+.qg-json-preview,
+.qg-ledger-table {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.58);
+  overflow: hidden;
+}
+
+.qg-metric-card {
+  padding: 14px;
+}
+
+.qg-metric-card__label {
+  display: block;
+  margin-bottom: 8px;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.qg-metric-card strong {
+  display: block;
+  font-size: 24px;
+  color: #f8fafc;
+}
+
+.qg-metric-card small {
+  color: #94a3b8;
+}
+
+.qg-json-preview header,
+.qg-ledger-table header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.qg-json-preview h3,
+.qg-ledger-table h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.qg-json-preview__source,
+.qg-ledger-table header span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.qg-json-preview pre {
+  margin: 0;
+  padding: 14px;
+  max-height: 340px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #dbeafe;
+  font-size: 12px;
+}
+
+.qg-ledger-table__scroll {
+  overflow: auto;
+}
+
+.qg-ledger-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.qg-ledger-table th,
+.qg-ledger-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  text-align: left;
+  font-size: 12px;
+}
+
+.qg-empty {
+  padding: 14px;
+  color: #94a3b8;
+}
+
+.qg-search-row {
+  display: flex;
+  gap: 10px;
+}
+
+.qg-search-row input {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #e5e7eb;
+  background: rgba(15, 23, 42, 0.68);
+}
