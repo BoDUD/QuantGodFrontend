@@ -95,3 +95,9 @@ export function legacyMigrationCounts() {
     feature: domains.filter((d) => d.status === 'workspace_migrated').length,
   };
 }
+
+export const legacyArchive = Object.freeze({
+  status: 'archived-outside-src',
+  path: 'archive/legacy-workbench/LegacyWorkbenchFull.vue',
+  routedLegacyMode: 'slim-migration-hub',
+});

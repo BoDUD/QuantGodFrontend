@@ -42,3 +42,18 @@ canOverrideKillSwitch=false
 5. 删除 Research / Shadow / Trades 重复块。
 6. 删除 Polymarket 重复块。
 7. 确认所有独有功能已迁移后，再删除 `LegacyWorkbench.vue`。
+
+## Legacy Slim
+
+`LegacyWorkbench.vue` 已从完整旧单体页面缩为迁移入口。完整旧源码归档在：
+
+```text
+archive/legacy-workbench/LegacyWorkbenchFull.vue
+```
+
+后续维护规则：
+
+1. 新功能必须进入 `src/workspaces/*`。
+2. routed Legacy 只允许保留冻结提示、迁移清单和跳转入口。
+3. 归档源码不能放在 `src/` 下，避免被 build 或 contract guard 扫描。
+4. 禁止在 Legacy 中恢复直接文件读取、交易执行、资金操作、preset mutation 或治理授权入口。

@@ -56,6 +56,9 @@ jobs:
       - name: Legacy deprecation guard
         run: npm run legacy-deprecation
 
+      - name: Legacy slim guard
+        run: npm run legacy-slim
+
       - name: Unit tests
         run: npm test
       - name: Build

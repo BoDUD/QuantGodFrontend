@@ -20,7 +20,8 @@
     "research-workspace": "node scripts/frontend_research_workspace_guard.mjs",
     "polymarket-workspace": "node scripts/frontend_polymarket_workspace_guard.mjs",
     "legacy-deprecation": "node scripts/frontend_legacy_deprecation_guard.mjs",
-    "lf-integrity": "node scripts/frontend_lf_integrity_guard.mjs"
+    "lf-integrity": "node scripts/frontend_lf_integrity_guard.mjs",
+    "legacy-slim": "node scripts/frontend_legacy_slim_guard.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",
