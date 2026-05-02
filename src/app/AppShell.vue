@@ -40,7 +40,7 @@
           class="qg-app-shell__notice"
           type="info"
           show-icon
-          message="完整工作台已移入 LegacyWorkbench"
+          message="完整工作台已移入 Legacy 回退区"
           description="这是前端模块化第一阶段：先把大型 App.vue 降为轻量 shell，同时保留原工作台作为安全回退。后续再逐个把 legacy 面板迁入 workspaces/*。"
         />
         <component :is="activeComponent" />

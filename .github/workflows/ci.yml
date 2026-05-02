@@ -50,6 +50,8 @@ jobs:
         run: npm run research-workspace
       - name: Polymarket workspace guard
         run: npm run polymarket-workspace
+      - name: Legacy deprecation guard
+        run: npm run legacy-deprecation
 
       - name: Unit tests
         run: npm test

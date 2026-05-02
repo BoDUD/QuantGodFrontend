@@ -1,4 +1,5 @@
 <script setup>
+import LegacyDeprecationBanner from './LegacyDeprecationBanner.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
   Activity,
@@ -2993,6 +2994,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <LegacyDeprecationBanner />
   <div class="app-shell" :class="{ 'sidebar-collapsed': state.sidebarCollapsed }">
     <aside class="sidebar">
       <div class="brand">
