@@ -48,6 +48,8 @@ jobs:
 
       - name: API contract guard
         run: npm run contract
+      - name: API client guard
+        run: npm run api-client
 
       - name: Structure guard
         run: npm run structure

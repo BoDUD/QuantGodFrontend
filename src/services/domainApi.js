@@ -1,51 +1,10 @@
-const JSON_HEADERS = { Accept: 'application/json' };
-
-async function fetchJson(url, fallback = null, options = {}) {
-  try {
-    const response = await fetch(url, { headers: JSON_HEADERS, cache: 'no-store', ...options });
-    if (!response.ok) return fallback;
-    return await response.json();
-  } catch (_) {
-    return fallback;
-  }
-}
-
-async function postJson(url, payload = {}, fallback = null, options = {}) {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json' },
-      cache: 'no-store',
-      body: JSON.stringify(payload || {}),
-      ...options,
-    });
-    if (!response.ok) return fallback;
-    return await response.json();
-  } catch (_) {
-    return fallback;
-  }
-}
-
-function rowsFromPayload(payload) {
-  if (Array.isArray(payload?.data?.rows)) return payload.data.rows;
-  if (Array.isArray(payload?.rows)) return payload.rows;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload)) return payload;
-  return [];
-}
-
-async function fetchRows(url) {
-  return rowsFromPayload(await fetchJson(url, null));
-}
-
-function params(query = {}) {
-  const search = new URLSearchParams();
-  Object.entries(query || {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
-  });
-  const text = search.toString();
-  return text ? `?${text}` : '';
-}
+import {
+  fetchJson,
+  fetchRows,
+  postJson,
+  queryString as params,
+  rowsFromPayload,
+} from './apiClient.js';
 
 export async function loadDashboardWorkspace() {
   const [latest, state, backtest, dailyReview, dailyAutopilot] = await Promise.all([
