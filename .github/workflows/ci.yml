@@ -30,6 +30,9 @@ jobs:
         run: npm run contract
       - name: Structure guard
         run: npm run structure
+
+      - name: Workspace boundary guard
+        run: npm run workspace-boundary
       - name: Unit tests
         run: npm test
       - name: Build
