@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * QuantGod frontend guard for the Polymarket workspace.
  *

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { spawn } from "node:child_process";

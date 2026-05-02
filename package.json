@@ -8,8 +8,9 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "responsive:check": "node scripts/responsive_check.mjs",
+    "remote-ci-integrity": "node scripts/frontend_remote_ci_integrity_guard.mjs",
+    "lf-integrity": "node scripts/frontend_lf_integrity_guard.mjs",
     "contract": "node scripts/frontend_api_contract_guard.mjs",
-    "test": "node --test tests/*.mjs",
     "structure": "node scripts/frontend_structure_guard.mjs",
     "workspace-boundary": "node scripts/frontend_workspace_boundary_guard.mjs",
     "domain-workspace": "node scripts/frontend_domain_workspace_guard.mjs",
@@ -20,8 +21,8 @@
     "research-workspace": "node scripts/frontend_research_workspace_guard.mjs",
     "polymarket-workspace": "node scripts/frontend_polymarket_workspace_guard.mjs",
     "legacy-deprecation": "node scripts/frontend_legacy_deprecation_guard.mjs",
-    "lf-integrity": "node scripts/frontend_lf_integrity_guard.mjs",
-    "legacy-slim": "node scripts/frontend_legacy_slim_guard.mjs"
+    "legacy-slim": "node scripts/frontend_legacy_slim_guard.mjs",
+    "test": "node --test tests/*.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",

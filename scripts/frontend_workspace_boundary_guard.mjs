@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * QuantGodFrontend workspace boundary guard.
  *

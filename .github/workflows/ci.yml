@@ -23,14 +23,24 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
       - name: Install dependencies
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Remote CI integrity guard
+        run: npm run remote-ci-integrity
+
       - name: LF integrity guard
         run: npm run lf-integrity
 
       - name: API contract guard
         run: npm run contract
+
       - name: Structure guard
         run: npm run structure
 
@@ -45,14 +55,19 @@ jobs:
 
       - name: MT5 workspace guard
         run: npm run mt5-workspace
+
       - name: Governance workspace guard
         run: npm run governance-workspace
+
       - name: ParamLab workspace guard
         run: npm run paramlab-workspace
+
       - name: Research workspace guard
         run: npm run research-workspace
+
       - name: Polymarket workspace guard
         run: npm run polymarket-workspace
+
       - name: Legacy deprecation guard
         run: npm run legacy-deprecation
 
@@ -61,10 +76,13 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
       - name: Build
         run: npm run build
+
       - name: Responsive checker syntax
         run: node --check scripts/responsive_check.mjs
+
       - name: Check source-only split
         run: |
           test ! -d Dashboard

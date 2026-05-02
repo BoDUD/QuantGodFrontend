@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * QuantGodFrontend dashboard workspace guard.
  *

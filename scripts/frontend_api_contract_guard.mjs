@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * QuantGodFrontend API contract guard.
  *
