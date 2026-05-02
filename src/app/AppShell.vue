@@ -1,69 +1,79 @@
 <template>
-  <a-layout class="qg-app-shell">
-    <a-layout-sider
-      v-model:collapsed="collapsed"
-      class="qg-app-shell__sider"
-      collapsible
-      breakpoint="lg"
-      :width="260"
-    >
-      <div class="qg-app-shell__brand">
-        <div class="qg-app-shell__brand-title">QuantGod</div>
-        <div v-if="!collapsed" class="qg-app-shell__brand-subtitle">Split Workspace</div>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar" aria-label="QuantGod workspace navigation">
+      <div class="app-shell__brand">
+        <span class="app-shell__eyebrow">QuantGod</span>
+        <strong>Operator Workbench</strong>
+        <small>local-first · API-only · read-only evidence</small>
       </div>
 
-      <a-menu
-        class="qg-app-shell__menu"
-        mode="inline"
-        theme="dark"
-        :selected-keys="[activeWorkspace]"
-        @click="handleMenuClick"
-      >
-        <a-menu-item v-for="workspace in workspaces" :key="workspace.key">
-          <span>{{ workspace.label }}</span>
-        </a-menu-item>
-      </a-menu>
-    </a-layout-sider>
+      <nav class="app-shell__nav">
+        <section v-for="group in workspaceGroups" :key="group.key" class="app-shell__nav-group">
+          <h2>{{ group.label }}</h2>
+          <button
+            v-for="item in group.items"
+            :key="item.key"
+            type="button"
+            class="app-shell__nav-item"
+            :class="{ 'app-shell__nav-item--active': item.key === activeWorkspace }"
+            :aria-current="item.key === activeWorkspace ? 'page' : undefined"
+            @click="selectWorkspace(item.key)"
+          >
+            <span>{{ item.label }}</span>
+            <small>{{ item.description }}</small>
+          </button>
+        </section>
+      </nav>
+    </aside>
 
-    <a-layout>
-      <a-layout-header class="qg-app-shell__header">
+    <main class="app-shell__main">
+      <header class="app-shell__topbar">
         <div>
-          <div class="qg-app-shell__title">{{ currentWorkspace.label }}</div>
-          <div class="qg-app-shell__description">{{ currentWorkspace.description }}</div>
+          <p class="app-shell__eyebrow">{{ activeMeta.groupLabel }}</p>
+          <h1>{{ activeMeta.label }}</h1>
+          <p>{{ activeMeta.description }}</p>
         </div>
-        <a-tag color="blue">/api/* only</a-tag>
-      </a-layout-header>
+        <div class="app-shell__actions">
+          <code class="app-shell__workspace-url">{{ activeWorkspaceUrl }}</code>
+          <button type="button" class="app-shell__secondary-button" @click="copyLink">
+            {{ copyState }}
+          </button>
+        </div>
+      </header>
 
-      <a-layout-content class="qg-app-shell__content">
-        <a-alert
-          v-if="activeWorkspace === 'legacy'"
-          class="qg-app-shell__notice"
-          type="info"
-          show-icon
-          message="完整工作台已移入 Legacy 回退区"
-          description="这是前端模块化第一阶段：先把大型 App.vue 降为轻量 shell，同时保留原工作台作为安全回退。后续再逐个把 legacy 面板迁入 workspaces/*。"
-        />
-        <component :is="activeComponent" />
-      </a-layout-content>
-    </a-layout>
-  </a-layout>
+      <component :is="activeComponent" />
+    </main>
+  </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
-
+import { computed, onMounted, ref } from 'vue';
+import { WORKSPACE_GROUPS } from './navigation.js';
 import { resolveWorkspaceComponent, workspaceMeta } from './workspaceRegistry.js';
 import { useWorkspaceStore } from '../stores/workspaceStore.js';
 
-const collapsed = ref(false);
-const workspaceStore = useWorkspaceStore();
+const store = useWorkspaceStore();
+const copyState = ref('复制链接');
 
-const activeWorkspace = computed(() => workspaceStore.activeWorkspace.value);
-const workspaces = workspaceStore.workspaces;
-const currentWorkspace = computed(() => workspaceMeta(activeWorkspace.value));
+const workspaceGroups = WORKSPACE_GROUPS;
+const activeWorkspace = computed(() => store.activeWorkspace.value);
+const activeMeta = computed(() => workspaceMeta(activeWorkspace.value));
 const activeComponent = computed(() => resolveWorkspaceComponent(activeWorkspace.value));
+const activeWorkspaceUrl = computed(() => store.workspaceUrl(activeWorkspace.value));
 
-function handleMenuClick(event) {
-  workspaceStore.setActiveWorkspace(event.key);
+onMounted(() => {
+  store.initializeWorkspaceUrlSync();
+});
+
+function selectWorkspace(key) {
+  store.setActiveWorkspace(key);
+}
+
+async function copyLink() {
+  const copied = await store.copyWorkspaceLink(activeWorkspace.value);
+  copyState.value = copied ? '已复制' : '复制失败';
+  window.setTimeout(() => {
+    copyState.value = '复制链接';
+  }, 1600);
 }
 </script>

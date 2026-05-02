@@ -5306,3 +5306,40 @@ tbody tr:hover td {
 .qg-reason-list li + li {
   margin-top: 0.35rem;
 }
+
+/* Workspace deep-link controls */
+.app-shell__actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: min(100%, 24rem);
+}
+
+.app-shell__workspace-url {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  color: #cbd5e1;
+  display: inline-block;
+  font-size: 0.76rem;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0.42rem 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell__secondary-button {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.32);
+  border-radius: 999px;
+  color: #bfdbfe;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.48rem 0.82rem;
+}
+
+.app-shell__secondary-button:hover {
+  background: rgba(59, 130, 246, 0.22);
+}

@@ -58,6 +58,8 @@ jobs:
       - name: Domain workspace guard
         run: npm run domain-workspace
 
+      - name: Workspace deep-link guard
+        run: npm run deeplink
       - name: Dashboard workspace guard
         run: npm run dashboard-workspace
 
