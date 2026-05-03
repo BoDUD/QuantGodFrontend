@@ -77,6 +77,7 @@ for (const key of [
   'paramlab',
   'research',
   'polymarket',
+  'backtest-ai',
   'phase1',
   'phase2',
   'phase3',

@@ -37,6 +37,7 @@ export function runCodeSplittingGuard(root = process.cwd()) {
     'ParamLabWorkspace',
     'ResearchWorkspace',
     'PolymarketWorkspace',
+    'BacktestAiWorkspace',
     'LegacyWorkbench',
     'Phase1Workspace',
     'Phase2OperationsWorkspace',
@@ -46,6 +47,11 @@ export function runCodeSplittingGuard(root = process.cwd()) {
     failIf(errors, staticImport.test(registry), `workspaceRegistry.js statically imports ${workspace}`);
   }
 
+  failIf(
+    errors,
+    !registry.includes('../workspaces/backtest-ai/BacktestAiWorkspace.vue'),
+    'Backtest AI workspace must be lazy-loaded from src/workspaces/backtest-ai',
+  );
   failIf(
     errors,
     !phase1.includes("import('./kline/KlineWorkspace.vue')"),

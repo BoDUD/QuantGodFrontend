@@ -20,6 +20,8 @@ const foundationFiles = [
   'src/workspaces/polymarket/PolymarketWorkspace.vue',
   'src/workspaces/polymarket/polymarketModel.js',
   'src/services/phase1Api.js',
+  'src/services/backtestAiApi.js',
+  'src/workspaces/backtest-ai/BacktestAiWorkspace.vue',
   'src/workspaces/phase1/AiAnalysisWorkspace.vue',
   'src/workspaces/phase1/Phase1Workspace.vue',
   'src/workspaces/phase1/kline/KlineChart.vue',
@@ -32,6 +34,7 @@ const foundationFiles = [
   'scripts/frontend_ux_foundation_guard.mjs',
   'tests/frontend_code_splitting_guard.test.mjs',
   'tests/frontend_ux_foundation_guard.test.mjs',
+  'tests/backtest_ai_api.test.mjs',
   'tests/number_format.test.mjs',
   'tests/unit/**/*.test.js',
 ];

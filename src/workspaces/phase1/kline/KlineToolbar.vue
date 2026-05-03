@@ -14,17 +14,22 @@
       </label>
     </div>
     <div class="kline-toolbar__indicators" aria-label="指标开关">
-      <button
-        v-for="item in indicatorOptions"
-        :key="item.key"
-        type="button"
-        :class="{ active: innerIndicators.includes(item.key) }"
-        @click="toggleIndicator(item.key)"
-      >
-        {{ item.label }}
-      </button>
+      <span>指标叠加</span>
+      <div>
+        <button
+          v-for="item in indicatorOptions"
+          :key="item.key"
+          type="button"
+          :class="{ active: innerIndicators.includes(item.key) }"
+          @click="toggleIndicator(item.key)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
     </div>
-    <button class="kline-toolbar__refresh" type="button" @click="$emit('refresh')">刷新</button>
+    <div class="kline-toolbar__actions">
+      <button class="kline-toolbar__refresh" type="button" @click="$emit('refresh')">刷新图表</button>
+    </div>
   </header>
 </template>
 
@@ -96,19 +101,19 @@ function toggleIndicator(key) {
 <style scoped>
 .kline-toolbar {
   display: grid;
-  grid-template-columns: minmax(280px, 0.85fr) minmax(280px, 1fr) auto;
-  align-items: end;
-  gap: 10px;
+  grid-template-columns: minmax(360px, 1fr) minmax(260px, 0.9fr) auto;
+  align-items: stretch;
+  gap: 12px;
   min-width: 0;
-  padding: 10px;
+  padding: 12px;
   border-bottom: 1px solid rgb(148, 163, 184, 0.16);
   background: rgb(2, 6, 23, 0.42);
 }
 
 .kline-toolbar__market {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) 92px 92px;
-  gap: 8px;
+  grid-template-columns: minmax(180px, 1fr) minmax(92px, 0.34fr) minmax(104px, 0.38fr);
+  gap: 10px;
   min-width: 0;
 }
 
@@ -133,6 +138,19 @@ function toggleIndicator(key) {
 }
 
 .kline-toolbar__indicators {
+  display: grid;
+  align-content: end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.kline-toolbar__indicators > span {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.kline-toolbar__indicators > div {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -144,7 +162,7 @@ function toggleIndicator(key) {
   min-width: 0;
   border: 1px solid rgb(148, 163, 184, 0.24);
   border-radius: 999px;
-  padding: 9px 12px;
+  padding: 9px 13px;
   background: rgb(15, 23, 42, 0.84);
   color: #cbd5e1;
   cursor: pointer;
@@ -158,14 +176,25 @@ function toggleIndicator(key) {
 }
 
 .kline-toolbar__refresh {
+  min-width: 96px;
   background: rgb(37, 99, 235, 0.22);
   color: #bfdbfe;
   white-space: nowrap;
 }
 
+.kline-toolbar__actions {
+  display: grid;
+  align-content: end;
+  justify-items: end;
+}
+
 @media (width <= 1100px) {
   .kline-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .kline-toolbar__actions {
+    justify-items: start;
   }
 
   .kline-toolbar__refresh {

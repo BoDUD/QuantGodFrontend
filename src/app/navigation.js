@@ -36,6 +36,17 @@ export const WORKSPACE_GROUPS = [
     ],
   },
   {
+    key: 'automation',
+    label: '自动闭环',
+    items: [
+      {
+        key: 'backtest-ai',
+        label: 'AI 回测推送',
+        description: '一键只读回测、DeepSeek 中文复核，并把结论推送到 Telegram。',
+      },
+    ],
+  },
+  {
     key: 'advanced',
     label: '分析与工具',
     items: [

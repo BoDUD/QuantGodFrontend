@@ -253,9 +253,9 @@ onMounted(bootstrap);
 
 .kline-workspace__header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(260px, 0.55fr);
+  grid-template-columns: minmax(0, 1fr) minmax(120px, max-content) minmax(220px, max-content);
   gap: 14px;
-  align-items: end;
+  align-items: stretch;
   min-width: 0;
 }
 
@@ -290,6 +290,7 @@ onMounted(bootstrap);
 
 .kline-workspace__status {
   display: grid;
+  align-content: center;
   min-width: 110px;
   border: 1px solid rgb(56, 189, 248, 0.28);
   border-radius: var(--qg-radius-md);
@@ -483,9 +484,12 @@ onMounted(bootstrap);
 }
 
 @media (width <= 1180px) {
-  .kline-workspace__header,
   .kline-workspace__terminal {
     grid-template-columns: 1fr;
+  }
+
+  .kline-workspace__header {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .kline-workspace__rail {

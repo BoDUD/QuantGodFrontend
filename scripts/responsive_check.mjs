@@ -20,6 +20,7 @@ const ROUTES = [
   { name: 'polymarket-analysis', path: '?workspace=polymarket#polymarket-analysis' },
   { name: 'polymarket-execution', path: '?workspace=polymarket#polymarket-execution' },
   { name: 'polymarket-ledger', path: '?workspace=polymarket#polymarket-ledger' },
+  { name: 'backtest-ai', path: '?workspace=backtest-ai' },
   { name: 'paramlab', path: '?workspace=paramlab' },
   { name: 'research', path: '?workspace=research' },
   { name: 'governance', path: '?workspace=governance' },
