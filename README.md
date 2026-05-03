@@ -66,3 +66,16 @@ npm run responsive:check
 ```
 
 默认会检查 `http://127.0.0.1:8080/vue/`，也可以用 `QUANTGOD_RESPONSIVE_URL` 指向 Vite dev server。
+
+## UX foundation upgrade
+
+The first frontend design-book upgrade layer lives in `FRONTEND_UX_FOUNDATION.md`. It adds design tokens, theme switching, a lightweight zh-CN/en-US command surface, tabular number utilities, shared state components, and a Dashboard operator scan panel while preserving `/api/*`-only data access.
+
+Verification:
+
+```powershell
+npm run ux-foundation
+npm test
+npm run build
+```
+

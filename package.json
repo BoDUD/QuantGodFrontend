@@ -25,7 +25,9 @@
     "polymarket-workspace": "node scripts/frontend_polymarket_workspace_guard.mjs",
     "legacy-deprecation": "node scripts/frontend_legacy_deprecation_guard.mjs",
     "legacy-slim": "node scripts/frontend_legacy_slim_guard.mjs",
-    "test": "node --test tests/*.mjs"
+    "test": "node --test tests/*.mjs",
+    "ux-foundation": "node scripts/frontend_ux_foundation_guard.mjs",
+    "test:ux": "node --test tests/frontend_ux_foundation_guard.test.mjs"
   },
   "dependencies": {
     "klinecharts": "^9.8.12",

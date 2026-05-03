@@ -9,6 +9,8 @@
     <MetricGrid :items="metrics" />
     <EndpointHealthGrid :items="endpointHealth" />
 
+  <DashboardUpgradePanel :state="state" :snapshot="snapshot" :metrics="metrics" />
+
     <div class="qg-dashboard-grid">
       <section class="qg-domain-panel qg-domain-panel--primary">
         <div class="qg-domain-panel__header">
@@ -85,6 +87,7 @@ import JsonPreview from '../shared/JsonPreview.vue';
 import StatusPill from '../shared/StatusPill.vue';
 import KeyValueList from '../shared/KeyValueList.vue';
 import EndpointHealthGrid from '../shared/EndpointHealthGrid.vue';
+import DashboardUpgradePanel from './DashboardUpgradePanel.vue';
 import {
   normalizeDashboardSnapshot,
   buildDashboardMetrics,
