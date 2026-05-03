@@ -168,3 +168,29 @@ export function loadNotifyHistory(limit = 50) {
 export function sendNotifyTest(message, dryRun = false) {
   return apiPost('/api/notify/test', { message, dryRun }, { ok: false, error: 'notify_test_failed' });
 }
+
+export function sendNotifyDailyDigest(dryRun = false) {
+  return apiPost('/api/notify/daily-digest', { dryRun }, { ok: false, error: 'daily_digest_failed' });
+}
+
+export function sendNotifyRuntimeScan(dryRun = true) {
+  return apiPost('/api/notify/runtime-scan', { dryRun }, { ok: false, error: 'runtime_scan_failed' });
+}
+
+export function loadAiMonitorConfig() {
+  return apiGet('/api/notify/mt5-ai-monitor/config', { ok: false, error: 'ai_monitor_config_failed' });
+}
+
+export function runMt5AiMonitor({
+  send = false,
+  dryRun = true,
+  symbols = 'USDJPYc,EURUSDc,XAUUSDc',
+  timeframes = 'M15,H1',
+  noDeepseek = false,
+} = {}) {
+  return apiPost(
+    '/api/notify/mt5-ai-monitor/run',
+    { send, dryRun, symbols, timeframes, noDeepseek },
+    { ok: false, error: 'mt5_ai_monitor_failed' },
+  );
+}
