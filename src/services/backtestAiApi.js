@@ -1,4 +1,5 @@
 const JSON_HEADERS = { Accept: 'application/json' };
+const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
 
 export const DEFAULT_BACKTEST_SYMBOLS = ['USDJPYc', 'EURUSDc', 'XAUUSDc'];
 export const DEFAULT_BACKTEST_TIMEFRAMES = ['M15', 'H1', 'H4', 'D1'];
@@ -37,7 +38,7 @@ async function fetchJson(url, fallback = null, options = {}) {
 async function postJson(url, body = {}, fallback = null) {
   return fetchJson(url, fallback, {
     method: 'POST',
-    headers: { ...JSON_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', ...CSRF_HEADERS },
     body: JSON.stringify(body || {}),
   });
 }

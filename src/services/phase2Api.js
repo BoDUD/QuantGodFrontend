@@ -1,6 +1,7 @@
 import { formatDisplayValue, humanizeLabel } from '../utils/displayText.js';
 
 const JSON_HEADERS = { Accept: 'application/json' };
+const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
 
 export const PHASE2_ENDPOINTS = Object.freeze({
   governance: [
@@ -59,7 +60,7 @@ export async function apiPost(url, payload = {}, fallback = null) {
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json' },
+      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', ...CSRF_HEADERS },
       cache: 'no-store',
       body: JSON.stringify(payload || {}),
     });
