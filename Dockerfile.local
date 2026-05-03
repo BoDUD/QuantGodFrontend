@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+COPY . .
+
+RUN node --check vite.config.local.js \
+  && node --test tests/*.mjs
+
+ENV QG_DOCKER_LOCAL_DEV=1
+ENV QG_BACKEND_API_BASE_URL=http://backend:8080
+ENV VITE_QG_API_BASE=/api
+
+EXPOSE 5173
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "const http=require('http'); const req=http.get('http://127.0.0.1:5173/', (res)=>{res.resume(); process.exit(res.statusCode < 500 ? 0 : 1);}); req.on('error',()=>process.exit(1)); req.setTimeout(4000,()=>{req.destroy(); process.exit(1);});"
+
+CMD ["npx", "vite", "--config", "vite.config.local.js", "--host", "0.0.0.0", "--port", "5173"]
