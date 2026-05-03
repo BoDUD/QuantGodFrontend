@@ -7,7 +7,7 @@
         <p>{{ description }}</p>
       </div>
       <button type="button" class="qg-button" :disabled="loading" @click="$emit('refresh')">
-        {{ loading ? 'Loading…' : 'Refresh' }}
+        {{ loading ? '刷新中…' : '刷新' }}
       </button>
     </header>
     <div v-if="error" class="qg-alert">{{ error }}</div>

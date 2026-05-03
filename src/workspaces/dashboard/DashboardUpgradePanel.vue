@@ -2,11 +2,11 @@
   <section class="qg-ux-dashboard" aria-label="QuantGod dashboard UX upgrade panel">
     <div class="qg-ux-dashboard__header">
       <div>
-        <p class="qg-eyebrow">UX Foundation</p>
+        <p class="qg-eyebrow">运营扫描</p>
         <h2>{{ labels.upgradeTitle }}</h2>
         <p>{{ labels.upgradeHint }}</p>
       </div>
-      <span class="qg-ux-pill">API-only · read-only</span>
+      <span class="qg-ux-pill">只读证据</span>
     </div>
 
     <div class="qg-kpi-row">
@@ -37,9 +37,9 @@
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.aiSummary }}</h3>
-            <p>DeepSeek / AI Analysis / Journal 摘要占位，后端未返回时显示本地复核提醒。</p>
+            <p>汇总 AI 建议、交易日志和运行状态；这里只显示建议，不触发交易。</p>
           </div>
-          <span class="qg-ux-pill">advisory-only</span>
+          <span class="qg-ux-pill">仅建议</span>
         </div>
         <ul class="qg-ux-list">
           <li v-for="item in summaryItems" :key="item.key">
@@ -53,9 +53,9 @@
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.alertTimeline }}</h3>
-            <p>把治理、MT5 runtime、AI journal 的异常做成可扫描时间线。</p>
+            <p>把治理、MT5、Polymarket 和自动闭环异常合并成可扫描时间线。</p>
           </div>
-          <span class="qg-ux-pill">{{ alertRows.length }} rows</span>
+          <span class="qg-ux-pill">{{ alertRows.length }} 条</span>
         </div>
         <ul v-if="alertRows.length" class="qg-ux-list">
           <li v-for="row in alertRows" :key="row.id">
@@ -63,16 +63,16 @@
             <strong :class="row.toneClass">{{ row.status }}</strong>
           </li>
         </ul>
-        <EmptyState v-else title="暂无告警" description="没有从 dashboard payload 中发现异常项。" />
+        <EmptyState v-else title="暂无告警" description="没有从本地运行证据中发现异常项。" />
       </article>
 
       <article class="qg-ux-widget qg-ux-widget--span-8">
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.positionSnapshot }}</h3>
-            <p>持仓快照先用 inline sparkline 占位，后续可替换为 KLineCharts mini mode。</p>
+            <p>实时持仓来自 HFM MT5 EA 快照；无持仓时显示空状态。</p>
           </div>
-          <span class="qg-ux-pill">mini K</span>
+          <span class="qg-ux-pill">MT5 实盘</span>
         </div>
         <ul v-if="positionRows.length" class="qg-ux-list">
           <li v-for="row in positionRows" :key="row.id">
@@ -88,7 +88,7 @@
         <EmptyState
           v-else
           title="暂无持仓快照"
-          description="等待 /api/mt5-readonly 或 dashboard payload 返回 positions。"
+          description="等待 MT5 只读快照返回持仓；无持仓时保持空状态。"
         />
       </article>
 
@@ -96,7 +96,7 @@
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.systemHealth }}</h3>
-            <p>只读运行健康聚合。</p>
+            <p>本地运行健康聚合。</p>
           </div>
         </div>
         <ul class="qg-ux-list">
@@ -176,18 +176,38 @@ function countRows(paths) {
   return 0;
 }
 
+function numberOrZero(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function friendlySource(value) {
+  const raw = String(value || '');
+  if (!raw || raw === 'unknown') return '本地运行证据';
+  if (raw.includes('hfm_ea')) return 'HFM EA 快照';
+  if (raw.includes('dashboard')) return '本地看板快照';
+  return raw;
+}
+
 const kpis = computed(() => {
   const positions = countRows([
     'latest.positions',
+    'latest.openTrades',
+    'mt5Snapshot.positions.items',
     'state.positions',
     'latest.data.positions',
     'state.data.positions',
   ]);
   const signals =
-    countRows(['dailyReview.signals', 'dailyReview.data.signals', 'latest.signals', 'latest.signal_rows']) ||
-    Number(first(['dailyReview.signals_24h', 'dailyReview.signal_count_24h'], 0));
+    countRows([
+      'dailyReview.signals',
+      'dailyReview.data.signals',
+      'polyRadar.radar',
+      'latest.signals',
+      'latest.signal_rows',
+    ]) || Number(first(['dailyReview.signals_24h', 'dailyReview.signal_count_24h'], 0));
   const alerts = alertRows.value.length;
-  const pnl = Number(
+  const pnl = numberOrZero(
     first(['dailyPnl', 'latest.daily_pnl', 'latest.pnl.daily', 'state.daily_pnl', 'state.pnl.daily'], 0),
   );
   return {
@@ -195,9 +215,9 @@ const kpis = computed(() => {
     dailyPnl: pnl,
     signals24h: Number.isFinite(signals) ? signals : 0,
     alerts,
-    positionDetail: positions ? '来自只读 runtime evidence' : '等待 MT5 runtime',
-    pnlDetail: 'shadow / journal 评分前不视为实盘结论',
-    signalDetail: 'AI fusion + journal 只做建议',
+    positionDetail: positions ? '来自 HFM MT5 实盘快照' : '当前无持仓',
+    pnlDetail: 'MT5 与 Polymarket 复盘合并显示',
+    signalDetail: 'AI 与市场雷达只做建议',
     alertDetail: alerts ? '需要人工复核' : '当前无未读异常',
   };
 });
@@ -206,12 +226,14 @@ const summaryItems = computed(() => [
   {
     key: 'snapshot',
     label: '快照来源',
-    value: first(['source', 'snapshotSource', 'latest.source'], 'runtime evidence'),
+    value: friendlySource(
+      first(['mt5Snapshot.source.type', 'source', 'snapshotSource', 'latest.source'], '本地运行证据'),
+    ),
   },
   {
     key: 'fresh',
     label: '运行快照新鲜',
-    value: String(first(['runtimeFresh', 'latest.runtimeFresh'], 'unknown')),
+    value: String(first(['runtimeFresh', 'latest.runtimeFresh'], '待确认')),
   },
   { key: 'pnl', label: '今日 PnL', value: formatPnl(kpis.value.dailyPnl, { currency: true }) },
   { key: 'metrics', label: '现有指标卡片', value: formatNumber(props.metrics?.length || 0) },
@@ -233,7 +255,7 @@ const alertRows = computed(() => {
     });
   }
   if (String(dryRun).toLowerCase() === 'false') {
-    rows.push({ id: 'dry-run', label: 'Dry-run 关闭', status: '需要复核', toneClass: 'qg-text-warning' });
+    rows.push({ id: 'dry-run', label: '模拟保护关闭', status: '需要复核', toneClass: 'qg-text-warning' });
   }
   const rawAlerts = asArray(
     first(['latest.alerts', 'state.alerts', 'dailyReview.alerts', 'dailyAutopilot.alerts'], []),
@@ -251,7 +273,17 @@ const alertRows = computed(() => {
 
 const positionRows = computed(() => {
   const rows = asArray(
-    first(['latest.positions', 'state.positions', 'latest.data.positions', 'state.data.positions'], []),
+    first(
+      [
+        'latest.openTrades',
+        'mt5Snapshot.positions.items',
+        'latest.positions',
+        'state.positions',
+        'latest.data.positions',
+        'state.data.positions',
+      ],
+      [],
+    ),
   );
   return rows.slice(0, 6).map((row, index) => {
     const pnl = Number(row?.pnl ?? row?.profit ?? row?.floating_pnl ?? 0);
@@ -270,17 +302,17 @@ const positionRows = computed(() => {
 });
 
 const healthRows = computed(() => [
-  { key: 'api', label: '/api facade', value: 'OK', toneClass: 'qg-text-positive' },
+  { key: 'api', label: '本地数据面', value: '正常', toneClass: 'qg-text-positive' },
   {
     key: 'runtime',
-    label: 'Runtime',
-    value: first(['runtimeState', 'status', 'latest.status'], 'unknown'),
+    label: '运行状态',
+    value: first(['runtimeState', 'status', 'latest.status'], '待确认'),
     toneClass: 'qg-text-muted',
   },
   {
     key: 'kill',
-    label: 'Kill Switch',
-    value: first(['killSwitchLabel', 'killSwitchStatus'], 'unknown'),
+    label: '熔断保护',
+    value: first(['killSwitchLabel', 'killSwitchStatus'], '待确认'),
     toneClass: 'qg-text-warning',
   },
   {

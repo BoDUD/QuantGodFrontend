@@ -7,26 +7,33 @@ import {
 } from './apiClient.js';
 
 export async function loadDashboardWorkspace() {
-  const [latest, state, backtest, dailyReview, dailyAutopilot] = await Promise.all([
+  const [latest, state, backtest, dailyReview, dailyAutopilot, mt5Snapshot, polyRadar, polyMarkets] = await Promise.all([
     fetchJson('/api/latest'),
     fetchJson('/api/dashboard/state'),
     fetchJson('/api/dashboard/backtest-summary'),
     fetchJson('/api/daily-review'),
     fetchJson('/api/daily-autopilot'),
+    fetchJson('/api/mt5-readonly/snapshot'),
+    fetchJson('/api/polymarket/radar?limit=8'),
+    fetchJson('/api/polymarket/markets?limit=8&sort=volume'),
   ]);
-  return { latest, state, backtest, dailyReview, dailyAutopilot };
+  return { latest, state, backtest, dailyReview, dailyAutopilot, mt5Snapshot, polyRadar, polyMarkets };
 }
 
 export async function loadMt5Workspace() {
-  const [status, account, positions, orders, symbols, snapshot] = await Promise.all([
+  const [status, account, positions, orders, symbols, snapshot, closeHistory, tradeJournal, dailyReview, dailyAutopilot] = await Promise.all([
     fetchJson('/api/mt5-readonly/status'),
     fetchJson('/api/mt5-readonly/account'),
     fetchJson('/api/mt5-readonly/positions'),
     fetchJson('/api/mt5-readonly/orders'),
     fetchJson('/api/mt5-symbol-registry/symbols'),
     fetchJson('/api/mt5-readonly/snapshot'),
+    fetchRows('/api/trades/close-history?limit=80'),
+    fetchRows('/api/trades/journal?limit=120'),
+    fetchJson('/api/daily-review'),
+    fetchJson('/api/daily-autopilot'),
   ]);
-  return { status, account, positions, orders, symbols, snapshot };
+  return { status, account, positions, orders, symbols, snapshot, closeHistory, tradeJournal, dailyReview, dailyAutopilot };
 }
 
 export async function loadGovernanceWorkspace() {

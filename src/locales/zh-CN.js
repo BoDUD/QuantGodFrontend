@@ -20,10 +20,10 @@ export default {
   },
   dashboard: {
     upgradeTitle: '运营扫描面板',
-    upgradeHint: '设计书 P1/P2 Quick Win：KPI、告警、持仓和 AI 摘要先聚合在一个高密度只读面板。',
+    upgradeHint: '把账户、持仓、AI 建议、告警和跨市场研究合并成一个日常可读面板。',
     kpiPositions: '当前持仓',
-    kpiPnl: '今日 PnL',
-    kpiSignals: '信号 24h',
+    kpiPnl: '今日盈亏',
+    kpiSignals: '研究信号',
     kpiAlerts: '未读告警',
     aiSummary: 'AI 运营摘要',
     alertTimeline: '告警时间线',

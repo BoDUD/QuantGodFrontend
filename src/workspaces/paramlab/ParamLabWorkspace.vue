@@ -1,14 +1,14 @@
 <template>
   <WorkspaceFrame
     eyebrow="ParamLab"
-    title="ParamLab Operations"
-    description="批处理、结果、调度、恢复与 Tester Window 的结构化只读监控面板。"
+    title="参数实验与报告回灌"
+    description="查看批处理、实验结果、调度、失败恢复和测试器窗口证据；全部只读，不写入实盘配置。"
     :loading="loading"
     :error="error"
     @refresh="load"
   >
-    <section class="qg-readonly-banner" aria-label="ParamLab safety boundary">
-      <StatusPill status="locked" label="tester-only evidence" />
+    <section class="qg-readonly-banner" aria-label="ParamLab 安全边界">
+      <StatusPill status="locked" label="仅测试器证据" />
       <span>
         ParamLab 工作区仅展示实验、调度和恢复证据；不会写 live preset，也不会触发实盘交易或治理升级。
       </span>
@@ -20,15 +20,15 @@
     <div class="qg-domain-grid qg-domain-grid--balanced">
       <section class="qg-domain-card">
         <header class="qg-domain-card__header">
-          <h2>Safety Envelope</h2>
-          <StatusPill status="locked" label="manual gate required" />
+          <h2>安全边界</h2>
+          <StatusPill status="locked" label="需要人工闸门" />
         </header>
         <KeyValueList :items="viewModel.safety" />
       </section>
 
       <section class="qg-domain-card">
         <header class="qg-domain-card__header">
-          <h2>Batch Status</h2>
+          <h2>批次状态</h2>
           <StatusPill :status="viewModel.batch.status" :label="viewModel.batch.statusLabel" />
         </header>
         <KeyValueList :items="viewModel.batch.rows" />
@@ -36,7 +36,7 @@
 
       <section class="qg-domain-card">
         <header class="qg-domain-card__header">
-          <h2>Scheduler</h2>
+          <h2>排队调度</h2>
           <StatusPill :status="viewModel.scheduler.status" :label="viewModel.scheduler.statusLabel" />
         </header>
         <KeyValueList :items="viewModel.scheduler.rows" />
@@ -44,18 +44,18 @@
 
       <section class="qg-domain-card">
         <header class="qg-domain-card__header">
-          <h2>Recovery / Tester Window</h2>
+          <h2>失败恢复与测试窗口</h2>
           <StatusPill :status="viewModel.recovery.status" :label="viewModel.recovery.statusLabel" />
         </header>
         <KeyValueList :items="viewModel.recovery.rows" />
       </section>
     </div>
 
-    <LedgerTable title="Top ParamLab Results" :rows="viewModel.resultRows" :limit="20" />
-    <LedgerTable title="Scheduler Ledger" :rows="viewModel.schedulerRows" :limit="20" />
+    <LedgerTable title="实验结果排行" :rows="viewModel.resultRows" :limit="20" />
+    <LedgerTable title="调度流水" :rows="viewModel.schedulerRows" :limit="20" />
 
     <details class="qg-raw-evidence">
-      <summary>Raw ParamLab evidence</summary>
+      <summary>技术证据</summary>
       <div class="qg-domain-grid">
         <JsonPreview
           v-for="item in viewModel.rawEvidence"
@@ -104,7 +104,7 @@ async function load() {
     const nextState = await loadParamLabWorkspace({ limit: 250 });
     Object.assign(state, nextState || {});
   } catch (exc) {
-    error.value = exc?.message || 'Failed to load ParamLab workspace';
+    error.value = exc?.message || '参数实验加载失败';
   } finally {
     loading.value = false;
   }

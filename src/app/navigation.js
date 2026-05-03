@@ -1,69 +1,69 @@
 export const WORKSPACE_GROUPS = [
   {
     key: 'operations',
-    label: '运营工作区',
+    label: '核心运营',
     items: [
       {
         key: 'dashboard',
-        label: '总览 Dashboard',
-        description: '本地运行状态、日报、自动驾驶和 backtest summary。',
+        label: '全局总览',
+        description: '账户、待办、复盘、风险和跨市场状态一屏查看。',
       },
       {
         key: 'mt5',
-        label: 'MT5 Monitor',
-        description: 'MT5 read-only bridge、账户、持仓、订单和 Symbol Registry。',
+        label: 'MT5 实盘监控',
+        description: '账户净值、实时持仓、历史成交、策略状态和交易边界。',
       },
       {
         key: 'governance',
-        label: 'Governance',
-        description: 'Governance Advisor、Version Registry、Promotion Gate 与 Optimizer V2。',
+        label: '策略治理',
+        description: '升降级建议、版本门槛、优化计划和人工复核依据。',
       },
       {
         key: 'paramlab',
-        label: 'ParamLab',
-        description: 'ParamLab 状态、批处理结果、调度、恢复和 Tester Window。',
+        label: '参数实验',
+        description: '候选参数、批次报告、失败恢复和测试窗口。',
       },
       {
         key: 'research',
-        label: 'Research',
-        description: 'Shadow、交易历史、策略评估、Regime 与手动 Alpha。',
+        label: '模拟研究',
+        description: '模拟信号、交易历史、策略评估、行情状态和人工 Alpha。',
       },
       {
         key: 'polymarket',
-        label: 'Polymarket',
-        description: 'Polymarket radar、AI score、canary、cross-linkage 与市场机会。',
+        label: 'Polymarket 研究',
+        description: '市场雷达、概率、成交量、流动性、亏损隔离和跨市场联动。',
       },
     ],
   },
   {
-    key: 'phases',
-    label: 'Phase 工作区',
+    key: 'advanced',
+    label: '分析与工具',
     items: [
       {
         key: 'phase1',
-        label: 'Phase 1 · AI/K线',
-        description: 'AI Analysis V1 与 Kline 基础工作区。',
+        label: 'AI 分析与K线',
+        description: '专业图表、交易点、模拟信号和 DeepSeek 中文分析。',
       },
       {
         key: 'phase2',
-        label: 'Phase 2 · Operations',
-        description: '统一 API、通知和运维操作台。',
+        label: '运维通知中心',
+        description: 'Telegram 推送、只读状态文件和通知记录。',
       },
       {
         key: 'phase3',
-        label: 'Phase 3 · Vibe/AI V2',
-        description: 'Vibe Coding、AI 多智能体 V2 与 K线增强。',
+        label: '策略创作与AI辩论',
+        description: '策略草案、回测分析、多智能体辩论和图表增强。',
       },
     ],
   },
   {
     key: 'legacy',
-    label: '迁移回退',
+    label: '归档入口',
     items: [
       {
         key: 'legacy',
-        label: '完整 Legacy Workbench',
-        description: '保留原 App.vue 的完整工作台，作为拆分期间的安全回退。',
+        label: '旧版归档',
+        description: '只保留旧单页入口用于对照，不再作为日常操作页面。',
       },
     ],
   },

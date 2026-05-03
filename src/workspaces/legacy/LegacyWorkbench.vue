@@ -3,15 +3,15 @@
     <LegacyDeprecationBanner />
 
     <div class="legacy-slim-hero panel-card">
-      <p class="eyebrow">Legacy fallback archived</p>
-      <h1>Legacy Workbench 已退役为归档入口</h1>
+      <p class="eyebrow">归档入口</p>
+      <h1>旧完整工作台已归档</h1>
       <p class="muted">
-        6 个运营业务域和 Phase 1/2/3 工作区已经迁移到独立 workspace。
-        旧单体页面不再承载新功能，也不再作为默认入口。
+        MT5、Polymarket、每日复盘、通知和 AI 工具已经迁移到独立运营页面。
+        这里仅保留跳转和回退说明，不再承载新功能。
       </p>
       <div class="legacy-slim-counts">
-        <span>{{ counts.migrated ?? counts.complete ?? 9 }} migrated</span>
-        <span>{{ counts.total ?? 9 }} tracked</span>
+        <span>{{ counts.migrated ?? counts.complete ?? 9 }} 个页面已迁移</span>
+        <span>{{ counts.total ?? 9 }} 个模块已跟踪</span>
         <span>{{ archiveLabel }}</span>
       </div>
     </div>
@@ -33,8 +33,8 @@
       <summary>归档说明</summary>
       <ul>
         <li>完整旧单体源码已移至 <code>archive/legacy-workbench/LegacyWorkbenchFull.vue</code>。</li>
-        <li>当前 routed Legacy workspace 只作为迁移说明和跳转入口。</li>
-        <li>后续修改必须落到对应 <code>src/workspaces/*</code>，不能写回 Legacy。</li>
+        <li>当前归档入口只作为迁移说明和跳转入口。</li>
+        <li>后续修改必须落到对应业务页面，不能写回旧单体页面。</li>
       </ul>
     </details>
   </section>
@@ -47,62 +47,62 @@ import { useWorkspaceStore } from '../../stores/workspaceStore.js';
 
 const { setActiveWorkspace } = useWorkspaceStore();
 const counts = legacyMigrationCounts();
-const archiveLabel = 'full source archived';
+const archiveLabel = '旧源码已归档';
 
 const migratedWorkspaces = [
   {
     key: 'dashboard',
-    group: 'Operations',
-    title: 'Dashboard',
-    description: '运行状态、Endpoint health、Daily loop 和 Route Watchlist。',
+    group: '核心运营',
+    title: '全局总览',
+    description: '账户、待办、复盘、风险和跨市场状态。',
   },
   {
     key: 'mt5',
-    group: 'Operations',
-    title: 'MT5 Monitor',
-    description: '账户、持仓、订单、Symbol Registry 和只读安全 envelope。',
+    group: '核心运营',
+    title: 'MT5 实盘监控',
+    description: '账户、持仓、订单、品种状态和只读安全边界。',
   },
   {
     key: 'governance',
-    group: 'Operations',
-    title: 'Governance',
-    description: 'Advisor、Version Gate、Optimizer V2 和治理证据。',
+    group: '核心运营',
+    title: '策略治理',
+    description: '升降级建议、版本闸门、优化器和治理证据。',
   },
   {
     key: 'paramlab',
-    group: 'Operations',
+    group: '核心运营',
     title: 'ParamLab',
-    description: '参数实验、Scheduler、Recovery 和 tester-only evidence。',
+    description: '参数实验、排队调度、失败恢复和报告回灌。',
   },
   {
     key: 'research',
-    group: 'Research',
-    title: 'Research',
-    description: 'Shadow、交易历史、Strategy / Regime evaluation。',
+    group: '研究分析',
+    title: '模拟研究',
+    description: '模拟信号、交易历史、策略评估和行情环境评估。',
   },
   {
     key: 'polymarket',
-    group: 'Research',
+    group: '研究分析',
     title: 'Polymarket',
-    description: 'Radar、AI score、Canary evidence 和 cross-linkage。',
+    description: '公开市场雷达、AI 评分、亏损隔离和跨市场联动。',
   },
   {
     key: 'phase1',
-    group: 'Phase',
-    title: 'Phase 1 · AI/K线',
-    description: 'AI Analysis V1 和 Kline workspace。',
+    group: '分析工具',
+    title: 'AI 分析与K线',
+    description: 'AI 分析、专业 K 线、交易点和模拟信号叠加。',
   },
   {
     key: 'phase2',
-    group: 'Phase',
-    title: 'Phase 2 · Ops',
-    description: '统一 API、通知和操作状态面板。',
+    group: '分析工具',
+    title: '运维通知中心',
+    description: '本地运行证据、Telegram 推送和运维记录。',
   },
   {
     key: 'phase3',
-    group: 'Phase',
-    title: 'Phase 3 · Vibe/AI V2',
-    description: 'Vibe Coding、AI V2 debate 和 Kline 增强。',
+    group: '分析工具',
+    title: '策略创作与AI辩论',
+    description: '策略草稿、AI 多观点辩论和图表增强。',
   },
 ];
 

@@ -49,11 +49,19 @@ function makeFixture() {
   );
   write(
     'src/app/AppShell.vue',
-    '<template><code class="app-shell__workspace-url">{{ activeWorkspaceUrl }}</code></template><script setup>const activeWorkspaceUrl = ""; function copyLink(){} function initializeWorkspaceUrlSync(){}</script>',
+    '<template><span class="app-shell__workspace-url" :data-url="activeWorkspaceUrl"></span></template><script setup>const activeWorkspaceUrl = ""; function copyLink(){} function initializeWorkspaceUrlSync(){}</script>',
     root,
   );
-  write('package.json', '{"scripts":{"deeplink":"node scripts/frontend_workspace_deeplink_guard.mjs"}}', root);
-  write('.github/workflows/ci.yml', 'name: ci\njobs:\n  build:\n    steps:\n      - run: npm run deeplink\n', root);
+  write(
+    'package.json',
+    '{"scripts":{"deeplink":"node scripts/frontend_workspace_deeplink_guard.mjs"}}',
+    root,
+  );
+  write(
+    '.github/workflows/ci.yml',
+    'name: ci\njobs:\n  build:\n    steps:\n      - run: npm run deeplink\n',
+    root,
+  );
   return root;
 }
 

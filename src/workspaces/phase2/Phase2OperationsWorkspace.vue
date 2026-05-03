@@ -4,9 +4,9 @@
       <div>
         <p>只读运维 / 推送通知</p>
         <h2>运维通知中心</h2>
-        <small>统一只读 API、Telegram 推送与 CI 集成状态</small>
+        <small>查看状态文件、Telegram 推送和本地运维记录</small>
       </div>
-      <a-tag class="phase2-safety-tag">read-only / push-only</a-tag>
+      <a-tag class="phase2-safety-tag">只读 / 只推送</a-tag>
     </header>
 
     <nav class="phase2-nav" aria-label="运维通知分组">
@@ -30,7 +30,7 @@
         </template>
 
         <label class="phase2-field">
-          <span>Endpoint</span>
+          <span>数据类型</span>
           <a-select
             v-model:value="activeEndpoint"
             :options="endpointOptions"
@@ -64,9 +64,8 @@
       </a-card>
 
       <aside class="phase2-side">
-        <a-card title="统一 API 状态" :bordered="false" class="phase2-card">
+        <a-card title="当前数据状态" :bordered="false" class="phase2-card">
           <dl class="phase2-summary">
-            <div><dt>Endpoint</dt><dd>{{ summary.endpoint }}</dd></div>
             <div><dt>文件</dt><dd>{{ summary.fileName }}</dd></div>
             <div><dt>更新时间</dt><dd>{{ summary.mtimeIso }}</dd></div>
             <div><dt>返回行数</dt><dd>{{ summary.returnedRows }}</dd></div>
@@ -76,7 +75,7 @@
             type="info"
             show-icon
             message="只读数据面"
-            description="统一 API 只读读取 runtime 文件；通知端点只推送消息，不接受 Telegram 命令，也不触发交易。"
+            description="这里仅查看本地运行证据和推送通知记录，不接受 Telegram 命令，也不触发交易。"
           />
         </a-card>
 
@@ -92,13 +91,13 @@
             <a-input v-model:value="testMessage" placeholder="测试消息" />
             <div class="phase2-button-row">
               <a-button type="primary" @click="sendTest(false)" :loading="notifyLoading">发送测试</a-button>
-              <a-button @click="sendTest(true)" :loading="notifyLoading">Dry-run</a-button>
+              <a-button @click="sendTest(true)" :loading="notifyLoading">演练发送</a-button>
             </div>
             <div class="phase2-notify-list">
               <article v-for="row in notifyRows.slice(0, 6)" :key="row.key" class="phase2-notify-item">
-                <strong>{{ row.eventType || 'EVENT' }}</strong>
+                <strong>{{ row.eventType || '事件' }}</strong>
                 <small>{{ row.timestamp || '--' }}</small>
-                <span>{{ row.sent ? 'sent' : row.error || 'pending' }}</span>
+                <span>{{ row.sent ? '已发送' : row.error || '等待中' }}</span>
               </article>
               <p v-if="!notifyRows.length" class="phase2-empty">暂无通知历史。</p>
             </div>

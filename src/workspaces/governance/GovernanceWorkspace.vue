@@ -1,15 +1,15 @@
 <template>
   <WorkspaceFrame
-    eyebrow="Governance"
-    title="Governance Advisor"
-    description="治理、版本门禁与优化计划独立入口。这里只展示 evidence，不执行 promote/demote，也不改变实盘 preset。"
+    eyebrow="策略治理"
+    title="策略治理与升实盘闸门"
+    description="查看治理建议、版本门禁与优化计划；这里只展示证据，不执行升降级，也不改变实盘配置。"
     :loading="loading"
     :error="error"
     @refresh="load"
   >
     <div class="qg-safety-banner qg-safety-banner--locked">
       <strong>治理安全边界：</strong>
-      advisory-only / read-only evidence。Version Gate 必须人工授权，前端不能直接执行 promote、demote、preset mutation 或任何交易动作。
+      这里只给建议和只读证据。升实盘闸门必须人工授权，前端不能直接执行升降级、修改配置或任何交易动作。
     </div>
 
     <MetricGrid :items="view.metrics" />
@@ -19,7 +19,7 @@
       <section class="qg-panel">
         <header class="qg-panel__header">
           <div>
-            <p class="qg-panel__eyebrow">Advisor</p>
+            <p class="qg-panel__eyebrow">治理建议</p>
             <h3>治理顾问摘要</h3>
           </div>
           <StatusPill :status="view.advisor.status" />
@@ -33,10 +33,10 @@
       <section class="qg-panel">
         <header class="qg-panel__header">
           <div>
-            <p class="qg-panel__eyebrow">Safety Envelope</p>
+            <p class="qg-panel__eyebrow">安全边界</p>
             <h3>只读治理边界</h3>
           </div>
-          <StatusPill status="locked" label="manual gate" />
+          <StatusPill status="locked" label="人工闸门" />
         </header>
         <KeyValueList :items="view.safety" />
       </section>
@@ -46,7 +46,7 @@
       <section class="qg-panel">
         <header class="qg-panel__header">
           <div>
-            <p class="qg-panel__eyebrow">Version Gate</p>
+            <p class="qg-panel__eyebrow">版本闸门</p>
             <h3>升级门禁证据</h3>
           </div>
           <StatusPill :status="view.promotionGate.status" />
@@ -60,7 +60,7 @@
       <section class="qg-panel">
         <header class="qg-panel__header">
           <div>
-            <p class="qg-panel__eyebrow">Optimizer V2</p>
+            <p class="qg-panel__eyebrow">优化计划</p>
             <h3>优化计划摘要</h3>
           </div>
           <StatusPill :status="view.optimizer.status" />
@@ -72,10 +72,10 @@
       </section>
     </div>
 
-    <LedgerTable title="Version Registry" :rows="view.versionRows" :limit="20" />
+    <LedgerTable title="策略版本登记" :rows="view.versionRows" :limit="20" />
 
     <details class="qg-raw-details">
-      <summary>Raw governance evidence</summary>
+      <summary>技术证据</summary>
       <div class="qg-domain-grid qg-domain-grid--two">
         <JsonPreview
           v-for="item in view.rawEvidence"
@@ -118,7 +118,7 @@ async function load() {
   try {
     Object.assign(state, await loadGovernanceWorkspace());
   } catch (exc) {
-    error.value = exc?.message || 'Failed to load governance workspace';
+    error.value = exc?.message || '策略治理加载失败';
   } finally {
     loading.value = false;
   }

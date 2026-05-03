@@ -2,9 +2,9 @@
   <section class="qg-ledger-table">
     <header>
       <h3>{{ title }}</h3>
-      <span>{{ rows.length }} rows</span>
+      <span>{{ rows.length }} 条</span>
     </header>
-    <div v-if="!rows.length" class="qg-empty">No rows</div>
+    <div v-if="!rows.length" class="qg-empty">暂无记录</div>
     <div v-else class="qg-ledger-table__scroll">
       <table>
         <thead>

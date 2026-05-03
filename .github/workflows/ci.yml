@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
@@ -37,7 +37,7 @@ jobs:
 
       - name: Git blob integrity guard
         env:
-          QG_CHECK_GIT_BLOB: "1"
+          QG_CHECK_GIT_BLOB: '1'
         run: npm run git-blob-integrity
 
       - name: Remote CI integrity guard
@@ -56,6 +56,9 @@ jobs:
 
       - name: Workspace boundary guard
         run: npm run workspace-boundary
+
+      - name: Code-splitting guard
+        run: npm run code-splitting
 
       - name: Domain workspace guard
         run: npm run domain-workspace

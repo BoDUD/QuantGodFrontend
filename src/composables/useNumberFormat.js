@@ -14,7 +14,7 @@ export function formatNumber(value, options = {}) {
   if (value === undefined || value === null || value === '') return '—';
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return String(value);
-  const digits = options.maximumFractionDigits ?? (Math.abs(numeric) >= 100 ? 1 : 2);
+  const digits = options.maximumFractionDigits ?? 2;
   return new Intl.NumberFormat(options.locale || DEFAULT_LOCALE, {
     maximumFractionDigits: digits,
     minimumFractionDigits: options.minimumFractionDigits ?? 0,

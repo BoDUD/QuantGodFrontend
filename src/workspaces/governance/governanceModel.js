@@ -128,10 +128,10 @@ function compactReasonList(payload, limit = 5) {
 
 export function buildEndpointItems(state = {}) {
   return [
-    { name: 'Advisor', source: '/api/governance/advisor', status: statusFromAvailability(state.advisor), detail: state.advisor ? 'evidence loaded' : 'missing' },
-    { name: 'Version Registry', source: '/api/governance/version-registry', status: statusFromAvailability(state.versionRegistry), detail: state.versionRegistry ? 'registry loaded' : 'missing' },
-    { name: 'Promotion Gate', source: '/api/governance/promotion-gate', status: statusFromAvailability(state.promotionGate), detail: state.promotionGate ? 'gate evidence loaded' : 'missing' },
-    { name: 'Optimizer V2', source: '/api/governance/optimizer-v2', status: statusFromAvailability(state.optimizerV2), detail: state.optimizerV2 ? 'plan loaded' : 'missing' },
+    { label: '治理建议', endpoint: '/api/governance/advisor', status: statusFromAvailability(state.advisor), description: state.advisor ? '证据已读取' : '缺失' },
+    { label: '策略版本登记', endpoint: '/api/governance/version-registry', status: statusFromAvailability(state.versionRegistry), description: state.versionRegistry ? '版本已读取' : '缺失' },
+    { label: '升实盘闸门', endpoint: '/api/governance/promotion-gate', status: statusFromAvailability(state.promotionGate), description: state.promotionGate ? '闸门证据已读取' : '缺失' },
+    { label: '优化计划', endpoint: '/api/governance/optimizer-v2', status: statusFromAvailability(state.optimizerV2), description: state.optimizerV2 ? '计划已读取' : '缺失' },
   ];
 }
 
@@ -141,22 +141,22 @@ export function buildSafetyEnvelope(state = {}) {
   const merged = { ...GOVERNANCE_SAFETY_DEFAULTS, ...advisorSafety, ...gateSafety };
 
   const rows = [
-    ['Advisory only', boolFrom(merged.advisoryOnly, true), 'ok'],
-    ['Read-only data plane', boolFrom(merged.readOnlyDataPlane, true), 'ok'],
-    ['Order send allowed', boolFrom(merged.orderSendAllowed, false), boolFrom(merged.orderSendAllowed, false) ? 'error' : 'ok'],
-    ['Close allowed', boolFrom(merged.closeAllowed, false), boolFrom(merged.closeAllowed, false) ? 'error' : 'ok'],
-    ['Cancel allowed', boolFrom(merged.cancelAllowed, false), boolFrom(merged.cancelAllowed, false) ? 'error' : 'ok'],
-    ['Credential storage', boolFrom(merged.credentialStorageAllowed, false), boolFrom(merged.credentialStorageAllowed, false) ? 'error' : 'ok'],
-    ['Live preset mutation', boolFrom(merged.livePresetMutationAllowed, false), boolFrom(merged.livePresetMutationAllowed, false) ? 'error' : 'ok'],
-    ['Override Kill Switch', boolFrom(merged.canOverrideKillSwitch, false), boolFrom(merged.canOverrideKillSwitch, false) ? 'error' : 'ok'],
-    ['Mutate governance decision', boolFrom(merged.canMutateGovernanceDecision, false), boolFrom(merged.canMutateGovernanceDecision, false) ? 'error' : 'ok'],
-    ['Promote/demote route', boolFrom(merged.canPromoteOrDemoteRoute, false), boolFrom(merged.canPromoteOrDemoteRoute, false) ? 'error' : 'ok'],
-    ['Manual authorization', boolFrom(merged.requiresManualAuthorization, true), boolFrom(merged.requiresManualAuthorization, true) ? 'locked' : 'warn'],
+    ['仅给建议', boolFrom(merged.advisoryOnly, true), 'ok'],
+    ['只读数据面', boolFrom(merged.readOnlyDataPlane, true), 'ok'],
+    ['允许下单', boolFrom(merged.orderSendAllowed, false), boolFrom(merged.orderSendAllowed, false) ? 'error' : 'ok'],
+    ['允许平仓', boolFrom(merged.closeAllowed, false), boolFrom(merged.closeAllowed, false) ? 'error' : 'ok'],
+    ['允许撤单', boolFrom(merged.cancelAllowed, false), boolFrom(merged.cancelAllowed, false) ? 'error' : 'ok'],
+    ['保存凭据', boolFrom(merged.credentialStorageAllowed, false), boolFrom(merged.credentialStorageAllowed, false) ? 'error' : 'ok'],
+    ['修改实盘配置', boolFrom(merged.livePresetMutationAllowed, false), boolFrom(merged.livePresetMutationAllowed, false) ? 'error' : 'ok'],
+    ['绕过熔断', boolFrom(merged.canOverrideKillSwitch, false), boolFrom(merged.canOverrideKillSwitch, false) ? 'error' : 'ok'],
+    ['修改治理结论', boolFrom(merged.canMutateGovernanceDecision, false), boolFrom(merged.canMutateGovernanceDecision, false) ? 'error' : 'ok'],
+    ['升降级路线', boolFrom(merged.canPromoteOrDemoteRoute, false), boolFrom(merged.canPromoteOrDemoteRoute, false) ? 'error' : 'ok'],
+    ['需要人工授权', boolFrom(merged.requiresManualAuthorization, true), boolFrom(merged.requiresManualAuthorization, true) ? 'locked' : 'warn'],
   ];
 
   return rows.map(([label, value, status]) => ({
     label,
-    value: typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value),
+    value: typeof value === 'boolean' ? (value ? '是' : '否') : String(value),
     status,
   }));
 }
@@ -179,12 +179,12 @@ export function buildAdvisorSummary(advisor = null) {
     status: decisionStatus(recommendation),
     reasonList: compactReasonList(payload),
     rows: [
-      { label: 'Recommendation', value: recommendation, status: decisionStatus(recommendation) },
-      { label: 'Route', value: route, status: route !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Risk level', value: riskLevel, status: decisionStatus(riskLevel) },
-      { label: 'Confidence', value: formatPercent(confidence), status: confidence === null ? 'unknown' : 'ok' },
-      { label: 'Updated at', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Reasoning', value: reasoning, status: reasoning !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '建议', value: recommendation, status: decisionStatus(recommendation) },
+      { label: '路线', value: route, status: route !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '风险级别', value: riskLevel, status: decisionStatus(riskLevel) },
+      { label: '置信度', value: formatPercent(confidence), status: confidence === null ? 'unknown' : 'ok' },
+      { label: '更新时间', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '理由', value: reasoning, status: reasoning !== EMPTY_TEXT ? 'ok' : 'unknown' },
     ],
   };
 }
@@ -213,12 +213,12 @@ export function buildPromotionGateSummary(gate = null) {
     status: boolFrom(allowed, false) ? 'warn' : decisionStatus(gateState || 'locked'),
     reasonList: compactReasonList(payload),
     rows: [
-      { label: 'Gate state', value: gateState, status: decisionStatus(gateState) },
-      { label: 'Candidate route', value: route, status: route !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Candidate version', value: version, status: version !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Promotion allowed', value: boolFrom(allowed, false) ? 'true' : 'false', status: boolFrom(allowed, false) ? 'warn' : 'locked' },
-      { label: 'Manual authorization required', value: boolFrom(manualRequired, true) ? 'true' : 'false', status: boolFrom(manualRequired, true) ? 'locked' : 'warn' },
-      { label: 'Updated at', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '闸门状态', value: gateState, status: decisionStatus(gateState) },
+      { label: '候选路线', value: route, status: route !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '候选版本', value: version, status: version !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '允许升实盘', value: boolFrom(allowed, false) ? '是' : '否', status: boolFrom(allowed, false) ? 'warn' : 'locked' },
+      { label: '需要人工授权', value: boolFrom(manualRequired, true) ? '是' : '否', status: boolFrom(manualRequired, true) ? 'locked' : 'warn' },
+      { label: '更新时间', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
     ],
   };
 }
@@ -236,12 +236,12 @@ export function buildOptimizerSummary(optimizer = null) {
     status: decisionStatus(mode || nextAction),
     reasonList: compactReasonList(payload),
     rows: [
-      { label: 'Mode', value: mode, status: decisionStatus(mode) },
-      { label: 'Objective', value: objective, status: objective !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Route', value: route, status: route !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Next action', value: nextAction, status: decisionStatus(nextAction) },
-      { label: 'Risk note', value: riskNote, status: decisionStatus(riskNote) },
-      { label: 'Updated at', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '模式', value: mode, status: decisionStatus(mode) },
+      { label: '目标', value: objective, status: objective !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '路线', value: route, status: route !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '下一步', value: nextAction, status: decisionStatus(nextAction) },
+      { label: '风险备注', value: riskNote, status: decisionStatus(riskNote) },
+      { label: '更新时间', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
     ],
   };
 }
@@ -252,12 +252,12 @@ export function buildVersionRows(versionRegistry = null, limit = 20) {
     const source = row?.data || row || {};
     return {
       '#': index + 1,
-      route: pick(source, ['route', 'route_name', 'strategy', 'name'], `route-${index + 1}`),
-      version: pick(source, ['version', 'current_version', 'active_version', 'candidate_version']),
-      state: pick(source, ['state', 'status', 'decision', 'gate_state']),
-      preset: pick(source, ['preset', 'preset_name', 'set_file']),
-      score: pick(source, ['score', 'pf', 'profit_factor', 'rank']),
-      updated: pick(source, ['updated_at', 'timestamp', 'generated_at']),
+      路线: pick(source, ['route', 'route_name', 'strategy', 'name'], `路线-${index + 1}`),
+      版本: pick(source, ['version', 'current_version', 'active_version', 'candidate_version']),
+      状态: pick(source, ['state', 'status', 'decision', 'gate_state']),
+      配置: pick(source, ['preset', 'preset_name', 'set_file']),
+      评分: pick(source, ['score', 'pf', 'profit_factor', 'rank']),
+      更新时间: pick(source, ['updated_at', 'timestamp', 'generated_at']),
     };
   });
 }
@@ -269,10 +269,10 @@ export function buildMetricItems(state = {}) {
   const versions = buildVersionRows(state.versionRegistry, 200);
 
   return [
-    { label: 'Advisor', value: advisor.rows[0]?.value || UNKNOWN, hint: 'governance recommendation', status: advisor.status },
-    { label: 'Promotion Gate', value: gate.rows[0]?.value || UNKNOWN, hint: 'manual gate evidence', status: gate.status },
-    { label: 'Registered routes', value: versions.length, hint: 'version registry rows', status: versions.length ? 'ok' : 'unknown' },
-    { label: 'Optimizer V2', value: optimizer.rows[0]?.value || UNKNOWN, hint: 'plan status', status: optimizer.status },
+    { label: '治理建议', value: advisor.rows[0]?.value || UNKNOWN, hint: '综合建议', status: advisor.status },
+    { label: '升实盘闸门', value: gate.rows[0]?.value || UNKNOWN, hint: '人工闸门证据', status: gate.status },
+    { label: '登记路线', value: versions.length, hint: '版本登记记录', status: versions.length ? 'ok' : 'unknown' },
+    { label: '优化计划', value: optimizer.rows[0]?.value || UNKNOWN, hint: '计划状态', status: optimizer.status },
   ];
 }
 
@@ -286,10 +286,10 @@ export function buildGovernanceViewModel(state = {}) {
     optimizer: buildOptimizerSummary(state.optimizerV2),
     versionRows: buildVersionRows(state.versionRegistry),
     rawEvidence: [
-      { title: 'Advisor raw evidence', source: '/api/governance/advisor', payload: state.advisor },
-      { title: 'Version registry raw evidence', source: '/api/governance/version-registry', payload: state.versionRegistry },
-      { title: 'Promotion gate raw evidence', source: '/api/governance/promotion-gate', payload: state.promotionGate },
-      { title: 'Optimizer V2 raw evidence', source: '/api/governance/optimizer-v2', payload: state.optimizerV2 },
+      { title: '治理建议证据', source: '/api/governance/advisor', payload: state.advisor },
+      { title: '版本登记证据', source: '/api/governance/version-registry', payload: state.versionRegistry },
+      { title: '升实盘闸门证据', source: '/api/governance/promotion-gate', payload: state.promotionGate },
+      { title: '优化计划证据', source: '/api/governance/optimizer-v2', payload: state.optimizerV2 },
     ],
   };
 }

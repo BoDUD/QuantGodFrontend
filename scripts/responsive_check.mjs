@@ -1,42 +1,42 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
-import { spawn } from "node:child_process";
-import { join } from "node:path";
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import { spawn } from 'node:child_process';
+import { join } from 'node:path';
 
-const ROOT_URL = process.env.QUANTGOD_RESPONSIVE_URL || "http://127.0.0.1:8080/vue/";
-const CHROME = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const OUT_DIR = process.env.QUANTGOD_RESPONSIVE_OUT || "runtime/responsive-check";
+const ROOT_URL = process.env.QUANTGOD_RESPONSIVE_URL || 'http://127.0.0.1:8080/vue/';
+const CHROME = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const OUT_DIR = process.env.QUANTGOD_RESPONSIVE_OUT || 'runtime/responsive-check';
 const ROUTES = [
-  "",
-  "#ai",
-  "#phase3",
-  "#phase2",
-  "#mt5",
-  "#mt5-strategy",
-  "#mt5-trades",
-  "#polymarket",
-  "#polymarket-market-browser",
-  "#polymarket-radar",
-  "#polymarket-analysis",
-  "#polymarket-execution",
-  "#polymarket-ledger",
-  "#paramlab",
-  "#charts",
-  "#reports",
+  { name: 'home', path: '' },
+  { name: 'phase1', path: '?workspace=phase1' },
+  { name: 'phase3', path: '?workspace=phase3' },
+  { name: 'phase2', path: '?workspace=phase2' },
+  { name: 'mt5', path: '?workspace=mt5' },
+  { name: 'mt5-strategy', path: '?workspace=mt5#mt5-strategy' },
+  { name: 'mt5-trades', path: '?workspace=mt5#mt5-trades' },
+  { name: 'polymarket', path: '?workspace=polymarket' },
+  { name: 'polymarket-market-browser', path: '?workspace=polymarket#polymarket-market-browser' },
+  { name: 'polymarket-radar', path: '?workspace=polymarket#polymarket-radar' },
+  { name: 'polymarket-analysis', path: '?workspace=polymarket#polymarket-analysis' },
+  { name: 'polymarket-execution', path: '?workspace=polymarket#polymarket-execution' },
+  { name: 'polymarket-ledger', path: '?workspace=polymarket#polymarket-ledger' },
+  { name: 'paramlab', path: '?workspace=paramlab' },
+  { name: 'research', path: '?workspace=research' },
+  { name: 'governance', path: '?workspace=governance' },
 ];
 const SCROLL_STEPS = [
-  { name: "top", ratio: 0 },
-  { name: "middle", ratio: 0.5 },
-  { name: "bottom", ratio: 1 },
+  { name: 'top', ratio: 0 },
+  { name: 'middle', ratio: 0.5 },
+  { name: 'bottom', ratio: 1 },
 ];
 const VIEWPORTS = [
-  { name: "narrow-320", width: 320, height: 720, mobile: true },
-  { name: "phone-360", width: 360, height: 780, mobile: true },
-  { name: "phone-390", width: 390, height: 844, mobile: true },
-  { name: "iab-612", width: 612, height: 677, mobile: false },
-  { name: "tablet-900", width: 900, height: 900, mobile: false },
-  { name: "macbook-1280", width: 1280, height: 800, mobile: false },
-  { name: "desktop-1512", width: 1512, height: 900, mobile: false },
+  { name: 'narrow-320', width: 320, height: 720, mobile: true },
+  { name: 'phone-360', width: 360, height: 780, mobile: true },
+  { name: 'phone-390', width: 390, height: 844, mobile: true },
+  { name: 'iab-612', width: 612, height: 677, mobile: false },
+  { name: 'tablet-900', width: 900, height: 900, mobile: false },
+  { name: 'macbook-1280', width: 1280, height: 800, mobile: false },
+  { name: 'desktop-1512', width: 1512, height: 900, mobile: false },
 ];
 
 const CHECK_EXPR = String.raw`
@@ -68,6 +68,8 @@ const CHECK_EXPR = String.raw`
 
   const allowedClip = (el) => el.closest([
     ".table-panel",
+    ".qg-ledger-table__scroll",
+    ".qg-route-table-wrap",
     ".qd-radar-track",
     ".sidebar",
     ".nav-structured",
@@ -105,6 +107,8 @@ const CHECK_EXPR = String.raw`
 
   const scrollTargets = [
     ".table-panel",
+    ".qg-ledger-table__scroll",
+    ".qg-route-table-wrap",
     ".data-table-card .table-panel",
     ".poly-real-trade-ledger .table-panel",
     ".qd-left-list",
@@ -242,7 +246,7 @@ const CHECK_EXPR = String.raw`
 
 async function getFreePort() {
   const server = createServer();
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address();
   await new Promise((resolve) => server.close(resolve));
   return port;
@@ -271,7 +275,7 @@ function createCdpSocket(wsUrl) {
   const events = [];
   const waiters = [];
 
-  ws.addEventListener("message", (event) => {
+  ws.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
     if (message.id && pending.has(message.id)) {
       const { resolve, reject } = pending.get(message.id);
@@ -293,8 +297,8 @@ function createCdpSocket(wsUrl) {
   });
 
   const open = new Promise((resolve, reject) => {
-    ws.addEventListener("open", resolve, { once: true });
-    ws.addEventListener("error", reject, { once: true });
+    ws.addEventListener('open', resolve, { once: true });
+    ws.addEventListener('error', reject, { once: true });
   });
 
   return {
@@ -328,17 +332,21 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
   const port = await getFreePort();
-  const profile = join("/tmp", `quantgod-responsive-${Date.now()}`);
-  const chrome = spawn(CHROME, [
-    "--headless=new",
-    "--disable-gpu",
-    "--hide-scrollbars=false",
-    "--no-first-run",
-    "--no-default-browser-check",
-    `--user-data-dir=${profile}`,
-    `--remote-debugging-port=${port}`,
-    "about:blank",
-  ], { stdio: ["ignore", "pipe", "pipe"] });
+  const profile = join('/tmp', `quantgod-responsive-${Date.now()}`);
+  const chrome = spawn(
+    CHROME,
+    [
+      '--headless=new',
+      '--disable-gpu',
+      '--hide-scrollbars=false',
+      '--no-first-run',
+      '--no-default-browser-check',
+      `--user-data-dir=${profile}`,
+      `--remote-debugging-port=${port}`,
+      'about:blank',
+    ],
+    { stdio: ['ignore', 'pipe', 'pipe'] },
+  );
 
   try {
     await waitForJson(`http://127.0.0.1:${port}/json/version`);
@@ -346,61 +354,77 @@ async function main() {
 
     for (const viewport of VIEWPORTS) {
       for (const route of ROUTES) {
-        const label = `${viewport.name}-${route ? route.slice(1) : "home"}`;
-        const target = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(ROOT_URL + route)}`, { method: "PUT" }).then((r) => r.json());
+        const label = `${viewport.name}-${route.name}`;
+        const targetUrl = ROOT_URL + route.path;
+        const target = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(targetUrl)}`, {
+          method: 'PUT',
+        }).then((r) => r.json());
         const cdp = createCdpSocket(target.webSocketDebuggerUrl);
         await cdp.open;
-        await cdp.send("Page.enable");
-        await cdp.send("Runtime.enable");
-        await cdp.send("Emulation.setDeviceMetricsOverride", {
+        await cdp.send('Page.enable');
+        await cdp.send('Runtime.enable');
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
           width: viewport.width,
           height: viewport.height,
           deviceScaleFactor: 1,
           mobile: viewport.mobile,
         });
-        const load = cdp.waitFor("Page.loadEventFired", 10000).catch(() => null);
-        await cdp.send("Page.navigate", { url: ROOT_URL + route });
+        const load = cdp.waitFor('Page.loadEventFired', 10000).catch(() => null);
+        await cdp.send('Page.navigate', { url: targetUrl });
         await load;
         await new Promise((resolve) => setTimeout(resolve, 350));
 
         for (const step of SCROLL_STEPS) {
-          await cdp.send("Runtime.evaluate", {
+          await cdp.send('Runtime.evaluate', {
             expression: `(() => { const root = document.scrollingElement || document.documentElement; window.scrollTo(0, Math.max(0, (root.scrollHeight - innerHeight) * ${step.ratio})); })()`,
           });
           await new Promise((resolve) => setTimeout(resolve, 80));
-          const evaluated = await cdp.send("Runtime.evaluate", {
+          const evaluated = await cdp.send('Runtime.evaluate', {
             expression: CHECK_EXPR,
             returnByValue: true,
             awaitPromise: true,
           });
           const metrics = evaluated.result.value;
-          const shot = await cdp.send("Page.captureScreenshot", {
-            format: "png",
+          const shot = await cdp.send('Page.captureScreenshot', {
+            format: 'png',
             captureBeyondViewport: false,
           });
           const stepLabel = `${label}-${step.name}`;
-          await writeFile(join(OUT_DIR, `${stepLabel}.png`), Buffer.from(shot.data, "base64"));
-          const failed = metrics.hasPageHorizontalOverflow
-            || metrics.offscreenCount > 0
-            || metrics.oversizedCount > 0
-            || metrics.scrollIssueCount > 0
-            || metrics.textClipCount > 0
-            || metrics.blankAreaCount > 0;
-          results.push({ label: stepLabel, viewport, route: route || "#home", scrollStep: step.name, failed, metrics });
+          await writeFile(join(OUT_DIR, `${stepLabel}.png`), Buffer.from(shot.data, 'base64'));
+          const failed =
+            metrics.hasPageHorizontalOverflow ||
+            metrics.offscreenCount > 0 ||
+            metrics.oversizedCount > 0 ||
+            metrics.scrollIssueCount > 0 ||
+            metrics.textClipCount > 0 ||
+            metrics.blankAreaCount > 0;
+          results.push({
+            label: stepLabel,
+            viewport,
+            route: route.path || '#home',
+            scrollStep: step.name,
+            failed,
+            metrics,
+          });
         }
         cdp.close();
         await fetch(`http://127.0.0.1:${port}/json/close/${target.id}`).catch(() => null);
       }
     }
 
-    const reportPath = join(OUT_DIR, "report.json");
-    await writeFile(reportPath, JSON.stringify({ generatedAt: new Date().toISOString(), rootUrl: ROOT_URL, results }, null, 2));
+    const reportPath = join(OUT_DIR, 'report.json');
+    await writeFile(
+      reportPath,
+      JSON.stringify({ generatedAt: new Date().toISOString(), rootUrl: ROOT_URL, results }, null, 2),
+    );
 
     const failures = results.filter((result) => result.failed);
     for (const result of results) {
-      const status = result.failed ? "FAIL" : "PASS";
+      const status = result.failed ? 'FAIL' : 'PASS';
       const { metrics } = result;
-      console.log(`${status} ${result.label} pageW=${metrics.pageScrollWidth}/${metrics.viewportWidth} off=${metrics.offscreenCount} wide=${metrics.oversizedCount} scroll=${metrics.scrollIssueCount} text=${metrics.textClipCount} blank=${metrics.blankAreaCount} columns=${metrics.layout.appShell}`);
+      console.log(
+        `${status} ${result.label} pageW=${metrics.pageScrollWidth}/${metrics.viewportWidth} off=${metrics.offscreenCount} wide=${metrics.oversizedCount} scroll=${metrics.scrollIssueCount} text=${metrics.textClipCount} blank=${metrics.blankAreaCount} columns=${metrics.layout.appShell}`,
+      );
     }
     console.log(`\nReport: ${reportPath}`);
     console.log(`Screenshots: ${OUT_DIR}`);
@@ -408,7 +432,7 @@ async function main() {
       process.exitCode = 1;
     }
   } finally {
-    chrome.kill("SIGTERM");
+    chrome.kill('SIGTERM');
     await rm(profile, { recursive: true, force: true }).catch(() => {});
   }
 }

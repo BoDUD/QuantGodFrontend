@@ -111,14 +111,14 @@ function normalizeRows(rows, limit = 200) {
     const source = row?.data || row || {};
     return {
       '#': index + 1,
-      route: rowValue(source, ['route', 'route_name', 'strategy', 'name', 'preset'], `item-${index + 1}`),
-      symbol: rowValue(source, ['symbol', 'pair', 'instrument']),
-      tf: rowValue(source, ['tf', 'timeframe', 'time_frame']),
-      status: rowValue(source, ['status', 'state', 'result', 'decision']),
-      pf: rowValue(source, ['pf', 'profit_factor', 'profitFactor', 'score']),
-      winRate: rowValue(source, ['win_rate', 'winRate', 'wr']),
-      trades: rowValue(source, ['trades', 'trade_count', 'n_trades']),
-      updated: rowValue(source, ['updated_at', 'timestamp', 'generated_at', 'as_of']),
+      路线: rowValue(source, ['route', 'route_name', 'strategy', 'name', 'preset'], `项目-${index + 1}`),
+      品种: rowValue(source, ['symbol', 'pair', 'instrument']),
+      周期: rowValue(source, ['tf', 'timeframe', 'time_frame']),
+      状态: rowValue(source, ['status', 'state', 'result', 'decision']),
+      PF: rowValue(source, ['pf', 'profit_factor', 'profitFactor', 'score']),
+      胜率: rowValue(source, ['win_rate', 'winRate', 'wr']),
+      交易数: rowValue(source, ['trades', 'trade_count', 'n_trades']),
+      更新时间: rowValue(source, ['updated_at', 'timestamp', 'generated_at', 'as_of']),
     };
   });
 }
@@ -129,14 +129,14 @@ function statusFromAvailability(value) {
 
 export function buildEndpointItems(state = {}) {
   return [
-    { label: 'Status', endpoint: '/api/paramlab/status', status: statusFromAvailability(state.status) },
-    { label: 'Results', endpoint: '/api/paramlab/results', status: statusFromAvailability(state.results) },
-    { label: 'Scheduler', endpoint: '/api/paramlab/scheduler', status: statusFromAvailability(state.scheduler) },
-    { label: 'Recovery', endpoint: '/api/paramlab/recovery', status: statusFromAvailability(state.recovery) },
-    { label: 'Report Watcher', endpoint: '/api/paramlab/report-watcher', status: statusFromAvailability(state.reportWatcher) },
-    { label: 'Tester Window', endpoint: '/api/paramlab/tester-window', status: statusFromAvailability(state.testerWindow) },
-    { label: 'Results Ledger', endpoint: '/api/paramlab/results-ledger', status: state.resultRows?.length ? 'ok' : 'unknown' },
-    { label: 'Scheduler Ledger', endpoint: '/api/paramlab/scheduler-ledger', status: state.schedulerRows?.length ? 'ok' : 'unknown' },
+    { label: '实验状态', endpoint: '/api/paramlab/status', status: statusFromAvailability(state.status), description: '当前批次和排队状态' },
+    { label: '实验结果', endpoint: '/api/paramlab/results', status: statusFromAvailability(state.results), description: '候选参数结果' },
+    { label: '排队调度', endpoint: '/api/paramlab/scheduler', status: statusFromAvailability(state.scheduler), description: '自动排队与窗口安排' },
+    { label: '失败恢复', endpoint: '/api/paramlab/recovery', status: statusFromAvailability(state.recovery), description: '异常恢复证据' },
+    { label: '报告回灌', endpoint: '/api/paramlab/report-watcher', status: statusFromAvailability(state.reportWatcher), description: '测试报告解析状态' },
+    { label: '测试器窗口', endpoint: '/api/paramlab/tester-window', status: statusFromAvailability(state.testerWindow), description: '隔离测试器窗口状态' },
+    { label: '结果流水', endpoint: '/api/paramlab/results-ledger', status: state.resultRows?.length ? 'ok' : 'unknown', description: '已回灌结果记录' },
+    { label: '调度流水', endpoint: '/api/paramlab/scheduler-ledger', status: state.schedulerRows?.length ? 'ok' : 'unknown', description: '调度执行记录' },
   ];
 }
 
@@ -146,23 +146,23 @@ export function buildSafetyEnvelope(state = {}) {
   const testerSafety = state.testerWindow?.safety || state.testerWindow?.data?.safety || {};
   const merged = { ...PARAMLAB_SAFETY_DEFAULTS, ...statusSafety, ...schedulerSafety, ...testerSafety };
   const rows = [
-    ['Research only', boolFrom(merged.researchOnly, true), 'ok'],
-    ['Tester only', boolFrom(merged.testerOnly, true), 'locked'],
-    ['Read-only data plane', boolFrom(merged.readOnlyDataPlane, true), 'ok'],
-    ['Order send allowed', boolFrom(merged.orderSendAllowed, false), boolFrom(merged.orderSendAllowed, false) ? 'error' : 'ok'],
-    ['Close allowed', boolFrom(merged.closeAllowed, false), boolFrom(merged.closeAllowed, false) ? 'error' : 'ok'],
-    ['Cancel allowed', boolFrom(merged.cancelAllowed, false), boolFrom(merged.cancelAllowed, false) ? 'error' : 'ok'],
-    ['Credential storage', boolFrom(merged.credentialStorageAllowed, false), boolFrom(merged.credentialStorageAllowed, false) ? 'error' : 'ok'],
-    ['Live preset mutation', boolFrom(merged.livePresetMutationAllowed, false), boolFrom(merged.livePresetMutationAllowed, false) ? 'error' : 'ok'],
-    ['Override Kill Switch', boolFrom(merged.canOverrideKillSwitch, false), boolFrom(merged.canOverrideKillSwitch, false) ? 'error' : 'ok'],
-    ['Mutate governance decision', boolFrom(merged.canMutateGovernanceDecision, false), boolFrom(merged.canMutateGovernanceDecision, false) ? 'error' : 'ok'],
-    ['Promote/demote route', boolFrom(merged.canPromoteOrDemoteRoute, false), boolFrom(merged.canPromoteOrDemoteRoute, false) ? 'error' : 'ok'],
-    ['Auto promotion', boolFrom(merged.autoPromotionAllowed, false), boolFrom(merged.autoPromotionAllowed, false) ? 'error' : 'ok'],
-    ['Manual authorization', boolFrom(merged.requiresManualAuthorization, true), boolFrom(merged.requiresManualAuthorization, true) ? 'locked' : 'warn'],
+    ['只读研究', boolFrom(merged.researchOnly, true), 'ok'],
+    ['仅测试器', boolFrom(merged.testerOnly, true), 'locked'],
+    ['只读数据面', boolFrom(merged.readOnlyDataPlane, true), 'ok'],
+    ['允许下单', boolFrom(merged.orderSendAllowed, false), boolFrom(merged.orderSendAllowed, false) ? 'error' : 'ok'],
+    ['允许平仓', boolFrom(merged.closeAllowed, false), boolFrom(merged.closeAllowed, false) ? 'error' : 'ok'],
+    ['允许撤单', boolFrom(merged.cancelAllowed, false), boolFrom(merged.cancelAllowed, false) ? 'error' : 'ok'],
+    ['保存凭据', boolFrom(merged.credentialStorageAllowed, false), boolFrom(merged.credentialStorageAllowed, false) ? 'error' : 'ok'],
+    ['修改实盘配置', boolFrom(merged.livePresetMutationAllowed, false), boolFrom(merged.livePresetMutationAllowed, false) ? 'error' : 'ok'],
+    ['绕过熔断', boolFrom(merged.canOverrideKillSwitch, false), boolFrom(merged.canOverrideKillSwitch, false) ? 'error' : 'ok'],
+    ['修改治理结论', boolFrom(merged.canMutateGovernanceDecision, false), boolFrom(merged.canMutateGovernanceDecision, false) ? 'error' : 'ok'],
+    ['升降级路线', boolFrom(merged.canPromoteOrDemoteRoute, false), boolFrom(merged.canPromoteOrDemoteRoute, false) ? 'error' : 'ok'],
+    ['自动升实盘', boolFrom(merged.autoPromotionAllowed, false), boolFrom(merged.autoPromotionAllowed, false) ? 'error' : 'ok'],
+    ['需要人工授权', boolFrom(merged.requiresManualAuthorization, true), boolFrom(merged.requiresManualAuthorization, true) ? 'locked' : 'warn'],
   ];
   return rows.map(([label, value, status]) => ({
     label,
-    value: typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value),
+    value: typeof value === 'boolean' ? (value ? '是' : '否') : String(value),
     status,
   }));
 }
@@ -187,13 +187,13 @@ export function buildBatchSummary(state = {}) {
     status: statusFromText(stateText || lastResult),
     statusLabel: stateText || lastResult || UNKNOWN,
     rows: [
-      { label: 'ParamLab state', value: stateText, status: statusFromText(stateText) },
-      { label: 'Active route', value: activeRoute, status: activeRoute !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Current run', value: currentRun, status: currentRun !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Queue length', value: numberFrom(queueLength, rows.length), status: Number(numberFrom(queueLength, rows.length)) > 0 ? 'warn' : 'ok' },
-      { label: 'Result rows', value: rows.length, status: rows.length ? 'ok' : 'unknown' },
-      { label: 'Last result', value: lastResult, status: statusFromText(lastResult) },
-      { label: 'Updated at', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '实验状态', value: stateText, status: statusFromText(stateText) },
+      { label: '当前路线', value: activeRoute, status: activeRoute !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '当前批次', value: currentRun, status: currentRun !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '排队数量', value: numberFrom(queueLength, rows.length), status: Number(numberFrom(queueLength, rows.length)) > 0 ? 'warn' : 'ok' },
+      { label: '结果记录', value: rows.length, status: rows.length ? 'ok' : 'unknown' },
+      { label: '最新结果', value: lastResult, status: statusFromText(lastResult) },
+      { label: '更新时间', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
     ],
     resultRows: rows,
   };
@@ -213,12 +213,12 @@ export function buildSchedulerSummary(state = {}) {
     status: statusFromText(label),
     statusLabel: label,
     rows: [
-      { label: 'Scheduler state', value: schedulerState, status: statusFromText(schedulerState) },
-      { label: 'Enabled', value: enabled === null ? EMPTY_TEXT : (boolFrom(enabled, false) ? 'true' : 'false'), status: enabled === null ? 'unknown' : (boolFrom(enabled, false) ? 'warn' : 'locked') },
-      { label: 'Next action', value: nextAction, status: statusFromText(nextAction) },
-      { label: 'Active route', value: activeRoute, status: activeRoute !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Pending jobs', value: numberFrom(pending, schedulerRows.length), status: Number(numberFrom(pending, schedulerRows.length)) > 0 ? 'warn' : 'ok' },
-      { label: 'Updated at', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '调度状态', value: schedulerState, status: statusFromText(schedulerState) },
+      { label: '已启用', value: enabled === null ? EMPTY_TEXT : (boolFrom(enabled, false) ? '是' : '否'), status: enabled === null ? 'unknown' : (boolFrom(enabled, false) ? 'warn' : 'locked') },
+      { label: '下一步', value: nextAction, status: statusFromText(nextAction) },
+      { label: '当前路线', value: activeRoute, status: activeRoute !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '待处理任务', value: numberFrom(pending, schedulerRows.length), status: Number(numberFrom(pending, schedulerRows.length)) > 0 ? 'warn' : 'ok' },
+      { label: '更新时间', value: updatedAt, status: updatedAt !== EMPTY_TEXT ? 'ok' : 'unknown' },
     ],
     schedulerRows,
   };
@@ -240,13 +240,13 @@ export function buildRecoverySummary(state = {}) {
     status: statusFromText(statusLabel),
     statusLabel: statusLabel || UNKNOWN,
     rows: [
-      { label: 'Recovery state', value: recoveryState, status: statusFromText(recoveryState) },
-      { label: 'Last recovered', value: lastRecovered, status: lastRecovered !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Report watcher', value: watcherState, status: statusFromText(watcherState) },
-      { label: 'Latest report', value: reportPath, status: reportPath !== EMPTY_TEXT ? 'ok' : 'unknown' },
-      { label: 'Tester window', value: testerState, status: statusFromText(testerState) },
-      { label: 'Tester open', value: testerOpen === null ? EMPTY_TEXT : (boolFrom(testerOpen, false) ? 'true' : 'false'), status: testerOpen === null ? 'unknown' : (boolFrom(testerOpen, false) ? 'warn' : 'locked') },
-      { label: 'Next tester window', value: nextWindow, status: nextWindow !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '恢复状态', value: recoveryState, status: statusFromText(recoveryState) },
+      { label: '最近恢复', value: lastRecovered, status: lastRecovered !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '报告监听', value: watcherState, status: statusFromText(watcherState) },
+      { label: '最新报告', value: reportPath, status: reportPath !== EMPTY_TEXT ? 'ok' : 'unknown' },
+      { label: '测试器窗口', value: testerState, status: statusFromText(testerState) },
+      { label: '测试器已打开', value: testerOpen === null ? EMPTY_TEXT : (boolFrom(testerOpen, false) ? '是' : '否'), status: testerOpen === null ? 'unknown' : (boolFrom(testerOpen, false) ? 'warn' : 'locked') },
+      { label: '下个测试窗口', value: nextWindow, status: nextWindow !== EMPTY_TEXT ? 'ok' : 'unknown' },
     ],
   };
 }
@@ -260,12 +260,12 @@ export function buildMetricItems(state = {}) {
     return value === null ? best : Math.max(best, value);
   }, null);
   return [
-    { label: 'Result rows', value: batch.resultRows.length, hint: 'ParamLab result ledger', status: batch.resultRows.length ? 'ok' : 'unknown' },
-    { label: 'Scheduler rows', value: scheduler.schedulerRows.length, hint: 'scheduled experiments', status: scheduler.schedulerRows.length ? 'ok' : 'unknown' },
-    { label: 'Scheduler', value: scheduler.statusLabel || UNKNOWN, hint: 'automation state', status: scheduler.status },
-    { label: 'Best PF', value: bestPf === null ? EMPTY_TEXT : bestPf.toFixed(2), hint: 'from visible result rows', status: bestPf === null ? 'unknown' : (bestPf >= 1 ? 'ok' : 'warn') },
-    { label: 'Recovery', value: recovery.statusLabel || UNKNOWN, hint: 'run recovery state', status: recovery.status },
-    { label: 'Safety', value: 'tester-only', hint: 'no live preset write', status: 'locked' },
+    { label: '结果记录', value: batch.resultRows.length, hint: 'ParamLab 结果流水', status: batch.resultRows.length ? 'ok' : 'unknown' },
+    { label: '调度记录', value: scheduler.schedulerRows.length, hint: '已安排实验', status: scheduler.schedulerRows.length ? 'ok' : 'unknown' },
+    { label: '调度状态', value: scheduler.statusLabel || UNKNOWN, hint: '自动化状态', status: scheduler.status },
+    { label: '最佳 PF', value: bestPf === null ? EMPTY_TEXT : bestPf.toFixed(2), hint: '当前可见结果', status: bestPf === null ? 'unknown' : (bestPf >= 1 ? 'ok' : 'warn') },
+    { label: '恢复状态', value: recovery.statusLabel || UNKNOWN, hint: '运行恢复状态', status: recovery.status },
+    { label: '安全边界', value: '仅测试器', hint: '不写实盘配置', status: 'locked' },
   ];
 }
 
@@ -283,12 +283,12 @@ export function buildParamLabViewModel(state = {}) {
     resultRows: batch.resultRows,
     schedulerRows: scheduler.schedulerRows,
     rawEvidence: [
-      { title: 'Status raw evidence', source: '/api/paramlab/status', payload: state.status },
-      { title: 'Results raw evidence', source: '/api/paramlab/results', payload: state.results },
-      { title: 'Scheduler raw evidence', source: '/api/paramlab/scheduler', payload: state.scheduler },
-      { title: 'Recovery raw evidence', source: '/api/paramlab/recovery', payload: state.recovery },
-      { title: 'Report watcher raw evidence', source: '/api/paramlab/report-watcher', payload: state.reportWatcher },
-      { title: 'Tester window raw evidence', source: '/api/paramlab/tester-window', payload: state.testerWindow },
+      { title: '实验状态证据', source: '/api/paramlab/status', payload: state.status },
+      { title: '实验结果证据', source: '/api/paramlab/results', payload: state.results },
+      { title: '调度证据', source: '/api/paramlab/scheduler', payload: state.scheduler },
+      { title: '恢复证据', source: '/api/paramlab/recovery', payload: state.recovery },
+      { title: '报告监听证据', source: '/api/paramlab/report-watcher', payload: state.reportWatcher },
+      { title: '测试器窗口证据', source: '/api/paramlab/tester-window', payload: state.testerWindow },
     ],
   };
 }

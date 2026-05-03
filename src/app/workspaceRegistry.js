@@ -1,26 +1,25 @@
-import DashboardWorkspace from '../workspaces/dashboard/DashboardWorkspace.vue';
-import Mt5Workspace from '../workspaces/mt5/Mt5Workspace.vue';
-import GovernanceWorkspace from '../workspaces/governance/GovernanceWorkspace.vue';
-import ParamLabWorkspace from '../workspaces/paramlab/ParamLabWorkspace.vue';
-import ResearchWorkspace from '../workspaces/research/ResearchWorkspace.vue';
-import PolymarketWorkspace from '../workspaces/polymarket/PolymarketWorkspace.vue';
-import LegacyWorkbench from '../workspaces/legacy/LegacyWorkbench.vue';
-import Phase1Workspace from '../workspaces/phase1/Phase1Workspace.vue';
-import Phase2OperationsWorkspace from '../workspaces/phase2/Phase2OperationsWorkspace.vue';
-import Phase3Workspace from '../workspaces/phase3/Phase3Workspace.vue';
+import { defineAsyncComponent } from 'vue';
 import { DEFAULT_WORKSPACE, FLAT_WORKSPACES, findWorkspace } from './navigation.js';
 
+function lazyWorkspace(loader) {
+  return defineAsyncComponent({
+    loader,
+    delay: 80,
+    timeout: 30000,
+  });
+}
+
 export const WORKSPACE_COMPONENTS = {
-  dashboard: DashboardWorkspace,
-  mt5: Mt5Workspace,
-  governance: GovernanceWorkspace,
-  paramlab: ParamLabWorkspace,
-  research: ResearchWorkspace,
-  polymarket: PolymarketWorkspace,
-  legacy: LegacyWorkbench,
-  phase1: Phase1Workspace,
-  phase2: Phase2OperationsWorkspace,
-  phase3: Phase3Workspace,
+  dashboard: lazyWorkspace(() => import('../workspaces/dashboard/DashboardWorkspace.vue')),
+  mt5: lazyWorkspace(() => import('../workspaces/mt5/Mt5Workspace.vue')),
+  governance: lazyWorkspace(() => import('../workspaces/governance/GovernanceWorkspace.vue')),
+  paramlab: lazyWorkspace(() => import('../workspaces/paramlab/ParamLabWorkspace.vue')),
+  research: lazyWorkspace(() => import('../workspaces/research/ResearchWorkspace.vue')),
+  polymarket: lazyWorkspace(() => import('../workspaces/polymarket/PolymarketWorkspace.vue')),
+  legacy: lazyWorkspace(() => import('../workspaces/legacy/LegacyWorkbench.vue')),
+  phase1: lazyWorkspace(() => import('../workspaces/phase1/Phase1Workspace.vue')),
+  phase2: lazyWorkspace(() => import('../workspaces/phase2/Phase2OperationsWorkspace.vue')),
+  phase3: lazyWorkspace(() => import('../workspaces/phase3/Phase3Workspace.vue')),
 };
 
 export function resolveWorkspaceComponent(key) {

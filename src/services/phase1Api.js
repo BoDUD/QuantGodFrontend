@@ -7,8 +7,8 @@ async function fetchJson(url, options = {}) {
   if (text) {
     try {
       payload = JSON.parse(text);
-    } catch (error) {
-      throw new Error(`Non-JSON response from ${url}: ${text.slice(0, 200)}`);
+    } catch (parseError) {
+      throw new Error(`Non-JSON response from ${url}: ${text.slice(0, 200)}`, { cause: parseError });
     }
   }
   if (!response.ok) {
@@ -43,6 +43,33 @@ export function getAiConfig() {
   return fetchJson('/api/ai-analysis/config');
 }
 
+export function getDeepSeekTelegramLatest() {
+  return fetchJson('/api/ai-analysis/deepseek-telegram/latest');
+}
+
+export async function runDeepSeekTelegram({
+  symbols = [],
+  symbol = '',
+  timeframes = ['M15', 'H1', 'H4', 'D1'],
+  send = true,
+  force = true,
+  noDeepseek = false,
+} = {}) {
+  const normalizedSymbols = Array.isArray(symbols) && symbols.length ? symbols : [symbol].filter(Boolean);
+  return fetchJson('/api/ai-analysis/deepseek-telegram/run', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({
+      symbols: normalizedSymbols,
+      timeframes,
+      send,
+      force,
+      noDeepseek,
+      minIntervalSeconds: force ? 0 : 900,
+    }),
+  });
+}
+
 export function getKline({ symbol, tf = 'H1', bars = 200 }) {
   const params = new URLSearchParams({ symbol, tf, bars: String(bars) });
   return fetchJson(`/api/mt5-readonly/kline?${params.toString()}`);
@@ -71,7 +98,7 @@ export async function getSymbolRegistry() {
         }))
         .filter((item) => item.symbol);
     }
-  } catch (error) {
+  } catch (_error) {
     // Keep Phase 1 usable even when the MT5 symbol registry is not running.
   }
   return [
