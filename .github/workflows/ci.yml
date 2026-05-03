@@ -86,6 +86,12 @@ jobs:
       - name: Legacy slim guard
         run: npm run legacy-slim
 
+      - name: Frontend UX foundation guard
+        run: npm run ux-foundation
+
+      - name: P0 frontend toolchain
+        run: npm run p0-toolchain
+
       - name: Unit tests
         run: npm test
 

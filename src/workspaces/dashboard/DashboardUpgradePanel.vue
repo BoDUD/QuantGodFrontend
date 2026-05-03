@@ -23,12 +23,7 @@
         :currency="true"
         :detail="kpis.pnlDetail"
       />
-      <KpiCard
-        :title="labels.kpiSignals"
-        :value="kpis.signals24h"
-        :detail="kpis.signalDetail"
-        badge="AI"
-      />
+      <KpiCard :title="labels.kpiSignals" :value="kpis.signals24h" :detail="kpis.signalDetail" badge="AI" />
       <KpiCard
         :title="labels.kpiAlerts"
         :value="kpis.alerts"
@@ -82,11 +77,19 @@
         <ul v-if="positionRows.length" class="qg-ux-list">
           <li v-for="row in positionRows" :key="row.id">
             <span>{{ row.symbol }} · {{ row.side }} · {{ row.volume }}</span>
-            <MiniSparkline :values="row.spark" :label="`${row.symbol} mini sparkline`" :class="row.toneClass" />
+            <MiniSparkline
+              :values="row.spark"
+              :label="`${row.symbol} mini sparkline`"
+              :class="row.toneClass"
+            />
             <strong :class="row.toneClass">{{ row.pnl }}</strong>
           </li>
         </ul>
-        <EmptyState v-else title="暂无持仓快照" description="等待 /api/mt5-readonly 或 dashboard payload 返回 positions。" />
+        <EmptyState
+          v-else
+          title="暂无持仓快照"
+          description="等待 /api/mt5-readonly 或 dashboard payload 返回 positions。"
+        />
       </article>
 
       <article class="qg-ux-widget qg-ux-widget--span-4">
@@ -112,7 +115,12 @@ import { computed } from 'vue';
 import KpiCard from '../../components/KpiCard.vue';
 import EmptyState from '../../components/EmptyState.vue';
 import MiniSparkline from '../../components/MiniSparkline.vue';
-import { formatCurrency, formatNumber, formatPnl, numberToneClass } from '../../composables/useNumberFormat.js';
+import {
+  formatCurrency,
+  formatNumber,
+  formatPnl,
+  numberToneClass,
+} from '../../composables/useNumberFormat.js';
 import { t } from '../../i18n/index.js';
 
 const props = defineProps({
@@ -121,7 +129,9 @@ const props = defineProps({
   metrics: { type: Array, default: () => [] },
 });
 
-const locale = computed(() => (typeof document !== 'undefined' ? document.documentElement?.dataset?.locale || 'zh-CN' : 'zh-CN'));
+const locale = computed(() =>
+  typeof document !== 'undefined' ? document.documentElement?.dataset?.locale || 'zh-CN' : 'zh-CN',
+);
 const labels = computed(() => ({
   upgradeTitle: t('dashboard.upgradeTitle', locale.value),
   upgradeHint: t('dashboard.upgradeHint', locale.value),
@@ -167,10 +177,19 @@ function countRows(paths) {
 }
 
 const kpis = computed(() => {
-  const positions = countRows(['latest.positions', 'state.positions', 'latest.data.positions', 'state.data.positions']);
-  const signals = countRows(['dailyReview.signals', 'dailyReview.data.signals', 'latest.signals', 'latest.signal_rows']) || Number(first(['dailyReview.signals_24h', 'dailyReview.signal_count_24h'], 0));
+  const positions = countRows([
+    'latest.positions',
+    'state.positions',
+    'latest.data.positions',
+    'state.data.positions',
+  ]);
+  const signals =
+    countRows(['dailyReview.signals', 'dailyReview.data.signals', 'latest.signals', 'latest.signal_rows']) ||
+    Number(first(['dailyReview.signals_24h', 'dailyReview.signal_count_24h'], 0));
   const alerts = alertRows.value.length;
-  const pnl = Number(first(['dailyPnl', 'latest.daily_pnl', 'latest.pnl.daily', 'state.daily_pnl', 'state.pnl.daily'], 0));
+  const pnl = Number(
+    first(['dailyPnl', 'latest.daily_pnl', 'latest.pnl.daily', 'state.daily_pnl', 'state.pnl.daily'], 0),
+  );
   return {
     positions,
     dailyPnl: pnl,
@@ -184,23 +203,41 @@ const kpis = computed(() => {
 });
 
 const summaryItems = computed(() => [
-  { key: 'snapshot', label: '快照来源', value: first(['source', 'snapshotSource', 'latest.source'], 'runtime evidence') },
-  { key: 'fresh', label: '运行快照新鲜', value: String(first(['runtimeFresh', 'latest.runtimeFresh'], 'unknown')) },
+  {
+    key: 'snapshot',
+    label: '快照来源',
+    value: first(['source', 'snapshotSource', 'latest.source'], 'runtime evidence'),
+  },
+  {
+    key: 'fresh',
+    label: '运行快照新鲜',
+    value: String(first(['runtimeFresh', 'latest.runtimeFresh'], 'unknown')),
+  },
   { key: 'pnl', label: '今日 PnL', value: formatPnl(kpis.value.dailyPnl, { currency: true }) },
   { key: 'metrics', label: '现有指标卡片', value: formatNumber(props.metrics?.length || 0) },
 ]);
 
 const alertRows = computed(() => {
   const rows = [];
-  const killSwitch = first(['killSwitchStatus', 'kill_switch_status', 'latest.kill_switch', 'state.kill_switch'], 'unknown');
+  const killSwitch = first(
+    ['killSwitchStatus', 'kill_switch_status', 'latest.kill_switch', 'state.kill_switch'],
+    'unknown',
+  );
   const dryRun = first(['dryRunStatus', 'dry_run_status', 'latest.dry_run', 'state.dry_run'], 'unknown');
   if (String(killSwitch).toLowerCase().includes('active') || String(killSwitch).toLowerCase() === 'true') {
-    rows.push({ id: 'kill-switch', label: '熔断状态', status: String(killSwitch), toneClass: 'qg-text-warning' });
+    rows.push({
+      id: 'kill-switch',
+      label: '熔断状态',
+      status: String(killSwitch),
+      toneClass: 'qg-text-warning',
+    });
   }
   if (String(dryRun).toLowerCase() === 'false') {
     rows.push({ id: 'dry-run', label: 'Dry-run 关闭', status: '需要复核', toneClass: 'qg-text-warning' });
   }
-  const rawAlerts = asArray(first(['latest.alerts', 'state.alerts', 'dailyReview.alerts', 'dailyAutopilot.alerts'], []));
+  const rawAlerts = asArray(
+    first(['latest.alerts', 'state.alerts', 'dailyReview.alerts', 'dailyAutopilot.alerts'], []),
+  );
   rawAlerts.slice(0, 5).forEach((row, index) => {
     rows.push({
       id: `raw-${index}`,
@@ -213,7 +250,9 @@ const alertRows = computed(() => {
 });
 
 const positionRows = computed(() => {
-  const rows = asArray(first(['latest.positions', 'state.positions', 'latest.data.positions', 'state.data.positions'], []));
+  const rows = asArray(
+    first(['latest.positions', 'state.positions', 'latest.data.positions', 'state.data.positions'], []),
+  );
   return rows.slice(0, 6).map((row, index) => {
     const pnl = Number(row?.pnl ?? row?.profit ?? row?.floating_pnl ?? 0);
     const seed = Number.isFinite(pnl) ? pnl : index;
@@ -232,8 +271,23 @@ const positionRows = computed(() => {
 
 const healthRows = computed(() => [
   { key: 'api', label: '/api facade', value: 'OK', toneClass: 'qg-text-positive' },
-  { key: 'runtime', label: 'Runtime', value: first(['runtimeState', 'status', 'latest.status'], 'unknown'), toneClass: 'qg-text-muted' },
-  { key: 'kill', label: 'Kill Switch', value: first(['killSwitchLabel', 'killSwitchStatus'], 'unknown'), toneClass: 'qg-text-warning' },
-  { key: 'review', label: labels.value.reviewQueue, value: `${alertRows.value.length} 条`, toneClass: alertRows.value.length ? 'qg-text-warning' : 'qg-text-positive' },
+  {
+    key: 'runtime',
+    label: 'Runtime',
+    value: first(['runtimeState', 'status', 'latest.status'], 'unknown'),
+    toneClass: 'qg-text-muted',
+  },
+  {
+    key: 'kill',
+    label: 'Kill Switch',
+    value: first(['killSwitchLabel', 'killSwitchStatus'], 'unknown'),
+    toneClass: 'qg-text-warning',
+  },
+  {
+    key: 'review',
+    label: labels.value.reviewQueue,
+    value: `${alertRows.value.length} 条`,
+    toneClass: alertRows.value.length ? 'qg-text-warning' : 'qg-text-positive',
+  },
 ]);
 </script>

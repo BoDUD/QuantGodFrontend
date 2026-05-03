@@ -119,7 +119,9 @@ function renderPalette(palette, query = '') {
   input.placeholder = t('operator.palettePlaceholder', locale);
   list.innerHTML = '';
 
-  const normalized = String(query || '').trim().toLowerCase();
+  const normalized = String(query || '')
+    .trim()
+    .toLowerCase();
   const matches = WORKSPACES.filter((workspace) => {
     const haystack = `${workspace.key} ${workspace.zh} ${workspace.en} ${workspace.hotkey}`.toLowerCase();
     return !normalized || haystack.includes(normalized);
@@ -173,6 +175,7 @@ function installKeyboard(palette, controls) {
 
   function clearPending() {
     pendingG = false;
+    controls.dataset.pendingShortcut = '';
     if (timer) window.clearTimeout(timer);
     timer = null;
   }
@@ -212,10 +215,7 @@ function installKeyboard(palette, controls) {
     if (key === 'g') {
       pendingG = true;
       controls.dataset.pendingShortcut = 'g';
-      timer = window.setTimeout(() => {
-        controls.dataset.pendingShortcut = '';
-        clearPending();
-      }, 1400);
+      timer = window.setTimeout(clearPending, 1400);
     }
   });
 
@@ -240,7 +240,11 @@ export function installOperatorExperience() {
   controls.className = 'qg-operator-controls';
   controls.dataset.qgOperatorExperience = 'true';
 
-  const search = createButton(t('operator.searchShort', initialLocale), t('operator.searchHelp', initialLocale), () => openPalette(palette));
+  const search = createButton(
+    t('operator.searchShort', initialLocale),
+    t('operator.searchHelp', initialLocale),
+    () => openPalette(palette),
+  );
   search.dataset.qgControl = 'search';
 
   const theme = createButton('', t('operator.themeHelp', initialLocale), () => {

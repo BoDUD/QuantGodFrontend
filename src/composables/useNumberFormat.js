@@ -1,5 +1,15 @@
 const DEFAULT_LOCALE = 'zh-CN';
 
+function resolveCurrencyCode(options = {}) {
+  if (typeof options.currency === 'string' && options.currency.trim()) {
+    return options.currency.trim().toUpperCase();
+  }
+  if (typeof options.currencyCode === 'string' && options.currencyCode.trim()) {
+    return options.currencyCode.trim().toUpperCase();
+  }
+  return 'USD';
+}
+
 export function formatNumber(value, options = {}) {
   if (value === undefined || value === null || value === '') return '—';
   const numeric = Number(value);
@@ -16,11 +26,20 @@ export function formatCurrency(value, options = {}) {
   if (value === undefined || value === null || value === '') return '—';
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return String(value);
-  return new Intl.NumberFormat(options.locale || DEFAULT_LOCALE, {
-    style: 'currency',
-    currency: options.currency || 'USD',
-    maximumFractionDigits: options.maximumFractionDigits ?? 2,
-  }).format(numeric);
+  const currency = resolveCurrencyCode(options);
+  try {
+    return new Intl.NumberFormat(options.locale || DEFAULT_LOCALE, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: options.maximumFractionDigits ?? 2,
+    }).format(numeric);
+  } catch (_) {
+    return `${formatNumber(numeric, {
+      ...options,
+      maximumFractionDigits: options.maximumFractionDigits ?? 2,
+      minimumFractionDigits: options.minimumFractionDigits ?? 2,
+    })} ${currency}`;
+  }
 }
 
 export function formatPercent(value, options = {}) {
@@ -38,7 +57,8 @@ export function formatPnl(value, options = {}) {
   if (value === undefined || value === null || value === '') return '—';
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return String(value);
-  const formatted = options.currency ? formatCurrency(numeric, options) : formatNumber(Math.abs(numeric), options);
+  const magnitude = Math.abs(numeric);
+  const formatted = options.currency ? formatCurrency(magnitude, options) : formatNumber(magnitude, options);
   if (numeric > 0) return `+${formatted}`;
   if (numeric < 0) return `-${formatted}`;
   return formatted;

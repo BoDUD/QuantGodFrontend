@@ -20,7 +20,8 @@ export default {
   },
   dashboard: {
     upgradeTitle: 'Operator Scan Panel',
-    upgradeHint: 'Design quick win: consolidate KPI, alerts, positions, and AI summary into a dense read-only panel.',
+    upgradeHint:
+      'Design quick win: consolidate KPI, alerts, positions, and AI summary into a dense read-only panel.',
     kpiPositions: 'Open Positions',
     kpiPnl: 'Today PnL',
     kpiSignals: 'Signals 24h',

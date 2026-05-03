@@ -27,17 +27,33 @@
     "legacy-slim": "node scripts/frontend_legacy_slim_guard.mjs",
     "test": "node --test tests/*.mjs",
     "ux-foundation": "node scripts/frontend_ux_foundation_guard.mjs",
-    "test:ux": "node --test tests/frontend_ux_foundation_guard.test.mjs"
+    "test:ux": "node --test tests/frontend_ux_foundation_guard.test.mjs",
+    "lint": "eslint src/main.js src/app/operatorExperience.js src/composables/useNumberFormat.js src/i18n/index.js src/locales src/components/EmptyState.vue src/components/ErrorState.vue src/components/KpiCard.vue src/components/LoadingState.vue src/components/MiniSparkline.vue src/workspaces/dashboard/DashboardUpgradePanel.vue scripts/frontend_ux_foundation_guard.mjs tests/frontend_ux_foundation_guard.test.mjs tests/number_format.test.mjs tests/unit",
+    "format:check": "prettier --check .prettierrc.json eslint.config.js stylelint.config.mjs vitest.config.js src/main.js src/app/operatorExperience.js src/composables/useNumberFormat.js src/i18n/index.js src/locales/*.js src/components/EmptyState.vue src/components/ErrorState.vue src/components/KpiCard.vue src/components/LoadingState.vue src/components/MiniSparkline.vue src/workspaces/dashboard/DashboardUpgradePanel.vue tests/number_format.test.mjs tests/unit/*.test.js",
+    "stylelint": "stylelint src/styles/tokens.css src/styles/themes.css src/components/EmptyState.vue src/components/ErrorState.vue src/components/KpiCard.vue src/components/LoadingState.vue src/components/MiniSparkline.vue src/workspaces/dashboard/DashboardUpgradePanel.vue",
+    "test:unit": "vitest run",
+    "p0-toolchain": "npm run lint && npm run format:check && npm run stylelint && npm run test:unit"
   },
   "dependencies": {
+    "ant-design-vue": "^4.2.6",
     "klinecharts": "^9.8.12",
     "lucide-vue-next": "^0.468.0",
     "monaco-editor": "^0.52.2",
-    "vue": "^3.5.13",
-    "ant-design-vue": "^4.2.6"
+    "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^5.2.1",
-    "vite": "^6.0.7"
+    "@vue/test-utils": "^2.4.10",
+    "eslint": "^10.3.0",
+    "eslint-plugin-vue": "^10.9.0",
+    "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
+    "postcss-html": "^1.8.1",
+    "prettier": "^3.8.3",
+    "stylelint": "^17.10.0",
+    "stylelint-config-standard": "^40.0.0",
+    "vite": "^6.0.7",
+    "vitest": "^4.1.5"
   }
 }

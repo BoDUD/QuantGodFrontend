@@ -15,7 +15,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { formatNumber, formatPnl, numberToneClass } from '../composables/useNumberFormat.js';
+import { formatCurrency, formatNumber, formatPnl, numberToneClass } from '../composables/useNumberFormat.js';
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -31,14 +31,14 @@ const props = defineProps({
 
 const displayValue = computed(() => {
   if (props.pnl) return formatPnl(props.value, { currency: props.currency });
-  if (props.currency) return formatPnl(props.value, { currency: true });
+  if (props.currency) return formatCurrency(props.value);
   return typeof props.value === 'number' ? formatNumber(props.value) : props.value;
 });
 
 const valueClass = computed(() => {
   if (props.tone === 'positive') return 'qg-text-positive';
   if (props.tone === 'negative') return 'qg-text-negative';
-  if (props.pnl || props.currency) return numberToneClass(props.value);
+  if (props.pnl) return numberToneClass(props.value);
   return '';
 });
 
