@@ -2,9 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const root = process.env.QG_FRONTEND_ROOT
-  ? path.resolve(process.env.QG_FRONTEND_ROOT)
-  : process.cwd();
+const root = process.env.QG_FRONTEND_ROOT ? path.resolve(process.env.QG_FRONTEND_ROOT) : process.cwd();
 
 const errors = [];
 
@@ -66,6 +64,11 @@ assertIncludes(navigation, "DEFAULT_WORKSPACE = 'dashboard'", 'src/app/navigatio
 assertIncludes(registry, 'workspaceExists', 'src/app/workspaceRegistry.js');
 assertNotIncludes(registry, 'vue-router', 'src/app/workspaceRegistry.js');
 assertNotIncludes(appShell, 'createRouter', 'src/app/AppShell.vue');
+assertIncludes(navigation, 'HIDDEN_WORKSPACES', 'src/app/navigation.js');
+
+const visibleNavigation = navigation.split('export const HIDDEN_WORKSPACES')[0] || navigation;
+assertNotIncludes(visibleNavigation, "key: 'legacy'", 'src/app/navigation.js visible navigation');
+assertNotIncludes(visibleNavigation, '旧版归档', 'src/app/navigation.js visible navigation');
 
 for (const key of [
   'dashboard',

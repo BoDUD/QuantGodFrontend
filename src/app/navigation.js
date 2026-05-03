@@ -56,22 +56,24 @@ export const WORKSPACE_GROUPS = [
       },
     ],
   },
+];
+
+export const HIDDEN_WORKSPACES = [
   {
     key: 'legacy',
-    label: '归档入口',
-    items: [
-      {
-        key: 'legacy',
-        label: '旧版归档',
-        description: '只保留旧单页入口用于对照，不再作为日常操作页面。',
-      },
-    ],
+    label: '旧版归档',
+    description: '旧单页归档只保留为手动回退入口，不在日常导航中展示。',
+    group: 'archive',
+    groupLabel: '归档入口',
   },
 ];
 
-export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((group) =>
-  group.items.map((item) => ({ ...item, group: group.key, groupLabel: group.label })),
-);
+export const FLAT_WORKSPACES = [
+  ...WORKSPACE_GROUPS.flatMap((group) =>
+    group.items.map((item) => ({ ...item, group: group.key, groupLabel: group.label })),
+  ),
+  ...HIDDEN_WORKSPACES,
+];
 
 export const DEFAULT_WORKSPACE = 'dashboard';
 
