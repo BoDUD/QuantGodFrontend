@@ -15,7 +15,7 @@
     <MetricGrid :items="view.metrics" />
     <EndpointHealthGrid :items="view.endpoints" />
 
-    <div class="qg-domain-grid qg-domain-grid--two">
+    <div class="qg-domain-grid qg-domain-grid--wide-tables">
       <article class="qg-panel">
         <header class="qg-panel__header">
           <h2>研究边界</h2>
@@ -79,8 +79,16 @@
         <JsonPreview title="模拟候选" source="/api/shadow/candidates" :payload="state.shadowCandidates" />
         <JsonPreview title="历史平仓" source="/api/trades/close-history" :payload="state.closeHistory" />
         <JsonPreview title="交易流水" source="/api/trades/journal" :payload="state.tradeJournal" />
-        <JsonPreview title="策略评估" source="/api/research/strategy-evaluation" :payload="state.strategyEvaluation" />
-        <JsonPreview title="行情环境评估" source="/api/research/regime-evaluation" :payload="state.regimeEvaluation" />
+        <JsonPreview
+          title="策略评估"
+          source="/api/research/strategy-evaluation"
+          :payload="state.strategyEvaluation"
+        />
+        <JsonPreview
+          title="行情环境评估"
+          source="/api/research/regime-evaluation"
+          :payload="state.regimeEvaluation"
+        />
         <JsonPreview title="人工 Alpha" source="/api/research/manual-alpha" :payload="state.manualAlpha" />
       </div>
     </details>

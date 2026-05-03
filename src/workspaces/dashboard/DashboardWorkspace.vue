@@ -2,7 +2,7 @@
   <WorkspaceFrame
     eyebrow="全局总览"
     title="今日运营总览"
-    description="把 MT5、Polymarket、参数实验、每日复盘和今日待办合在一张中文运营看板里。"
+    description="把 MT5、预测市场、参数实验、每日复盘和今日待办合在一张中文运营看板里。"
     :loading="loading"
     :error="error"
     @refresh="load"
@@ -18,7 +18,7 @@
           <p class="qg-eyebrow">每日闭环</p>
           <h2>今日待办与每日复盘</h2>
         </div>
-        <span class="qg-muted">MT5 + Polymarket + ParamLab 合并闭环</span>
+        <span class="qg-muted">MT5 + 预测市场 + ParamLab 合并闭环</span>
       </div>
       <div class="qg-domain-grid qg-domain-grid--two">
         <LedgerTable title="今日待办" :rows="todoRows" :limit="10" />
@@ -30,7 +30,7 @@
       <section class="qg-domain-panel qg-domain-panel--primary">
         <div class="qg-domain-panel__header">
           <div>
-          <p class="qg-eyebrow">运行健康</p>
+            <p class="qg-eyebrow">运行健康</p>
             <h2>本地运行健康</h2>
           </div>
           <StatusPill :status="snapshot.killSwitchStatus" :label="snapshot.killSwitchLabel" />

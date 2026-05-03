@@ -1,3 +1,5 @@
+import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
+
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -47,12 +49,7 @@ function present(value) {
 }
 
 function format(value) {
-  if (value === undefined || value === null || value === '') return '—';
-  if (typeof value === 'number') return Number.isFinite(value) ? value.toFixed(2) : '—';
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (Array.isArray(value)) return `${value.length} rows`;
-  if (isObject(value)) return `${Object.keys(value).length} keys`;
-  return String(value);
+  return formatDisplayValue(value);
 }
 
 function boolLike(value, trueStatus = 'ok', falseStatus = 'warn') {
@@ -154,7 +151,7 @@ export function normalizeMt5Snapshot(raw = {}) {
 
 export function buildMt5Metrics(snapshot) {
   return [
-    { label: '连接状态', value: format(snapshot.bridgeStatus), hint: 'HFM EA 快照' },
+    { label: '连接状态', value: humanizeStatus(snapshot.bridgeStatus), hint: 'HFM EA 快照' },
     { label: '账户净值', value: format(snapshot.equity), hint: snapshot.currency },
     { label: '账户余额', value: format(snapshot.balance), hint: snapshot.server },
     { label: '当前持仓', value: snapshot.positions.length, hint: '实盘账户' },
@@ -302,8 +299,8 @@ export function buildMt5TodoRows(snapshot) {
   return sourceRows.slice(0, 10).map((row) => ({
     任务: row.candidateId || row.type || '待办任务',
     路线: row.routeKey || row.strategy || '—',
-    状态: queue.length ? row.state || '待处理' : '已完成',
-    结论: row.resultStatus || row.statusLabel || '等待报告',
+    状态: queue.length ? humanizeStatus(row.state || '待处理') : '已完成',
+    结论: humanizeStatus(row.resultStatus || row.statusLabel || '等待报告'),
   }));
 }
 
@@ -346,6 +343,6 @@ export function buildEndpointHealth(raw = {}) {
     endpoint,
     description,
     status: present(payload) ? 'ok' : 'warn',
-    statusLabel: present(payload) ? 'available' : 'pending',
+    statusLabel: present(payload) ? '正常' : '待同步',
   }));
 }

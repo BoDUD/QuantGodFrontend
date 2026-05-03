@@ -17,11 +17,16 @@
         badge="MT5"
       />
       <KpiCard
-        :title="labels.kpiPnl"
-        :value="kpis.dailyPnl"
-        :pnl="true"
-        :currency="true"
-        :detail="kpis.pnlDetail"
+        title="MT5 今日盈亏"
+        :value="kpis.mt5DailyPnlText"
+        :tone="kpis.mt5DailyPnlTone"
+        detail="来自 MT5 平仓复盘"
+      />
+      <KpiCard
+        title="预测市场今日盈亏"
+        :value="kpis.polyDailyPnlText"
+        :tone="kpis.polyDailyPnlTone"
+        detail="来自预测市场亏损复盘"
       />
       <KpiCard :title="labels.kpiSignals" :value="kpis.signals24h" :detail="kpis.signalDetail" badge="AI" />
       <KpiCard
@@ -53,7 +58,7 @@
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.alertTimeline }}</h3>
-            <p>把治理、MT5、Polymarket 和自动闭环异常合并成可扫描时间线。</p>
+            <p>把治理、MT5、预测市场和自动闭环异常合并成可扫描时间线。</p>
           </div>
           <span class="qg-ux-pill">{{ alertRows.length }} 条</span>
         </div>
@@ -118,9 +123,10 @@ import MiniSparkline from '../../components/MiniSparkline.vue';
 import {
   formatCurrency,
   formatNumber,
-  formatPnl,
   numberToneClass,
+  numberTone,
 } from '../../composables/useNumberFormat.js';
+import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 import { t } from '../../i18n/index.js';
 
 const props = defineProps({
@@ -176,9 +182,19 @@ function countRows(paths) {
   return 0;
 }
 
-function numberOrZero(value) {
+function numberOrNull(value) {
   const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function formatSignedAmount(value, suffix = 'USD') {
+  const numeric = numberOrNull(value);
+  if (numeric === null) return '—';
+  const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
+  return `${sign}${Math.abs(numeric).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ${suffix}`;
 }
 
 function friendlySource(value) {
@@ -207,16 +223,41 @@ const kpis = computed(() => {
       'latest.signal_rows',
     ]) || Number(first(['dailyReview.signals_24h', 'dailyReview.signal_count_24h'], 0));
   const alerts = alertRows.value.length;
-  const pnl = numberOrZero(
-    first(['dailyPnl', 'latest.daily_pnl', 'latest.pnl.daily', 'state.daily_pnl', 'state.pnl.daily'], 0),
+  const mt5Pnl = numberOrNull(
+    first(
+      [
+        'dailyReview.dailyPnl.netUSC',
+        'dailyReview.summary.dailyNetUSC',
+        'dailyPnl',
+        'latest.daily_pnl',
+        'latest.pnl.daily',
+        'state.daily_pnl',
+        'state.pnl.daily',
+      ],
+      null,
+    ),
+  );
+  const polyPnl = numberOrNull(
+    first(
+      [
+        'dailyReview.polymarket.executedNetUSDC',
+        'dailyReview.summary.polymarketExecutedNetUSDC',
+        'dailyAutopilot.polymarket.executedNetUSDC',
+        'dailyAutopilot.summary.polymarketExecutedNetUSDC',
+      ],
+      null,
+    ),
   );
   return {
     positions,
-    dailyPnl: pnl,
+    dailyPnl: mt5Pnl ?? 0,
+    mt5DailyPnlText: formatSignedAmount(mt5Pnl, 'USC'),
+    mt5DailyPnlTone: numberTone(mt5Pnl),
+    polyDailyPnlText: formatSignedAmount(polyPnl, 'USDC'),
+    polyDailyPnlTone: numberTone(polyPnl),
     signals24h: Number.isFinite(signals) ? signals : 0,
     alerts,
     positionDetail: positions ? '来自 HFM MT5 实盘快照' : '当前无持仓',
-    pnlDetail: 'MT5 与 Polymarket 复盘合并显示',
     signalDetail: 'AI 与市场雷达只做建议',
     alertDetail: alerts ? '需要人工复核' : '当前无未读异常',
   };
@@ -233,9 +274,9 @@ const summaryItems = computed(() => [
   {
     key: 'fresh',
     label: '运行快照新鲜',
-    value: String(first(['runtimeFresh', 'latest.runtimeFresh'], '待确认')),
+    value: formatDisplayValue(first(['runtimeFresh', 'latest.runtimeFresh'], '待确认')),
   },
-  { key: 'pnl', label: '今日 PnL', value: formatPnl(kpis.value.dailyPnl, { currency: true }) },
+  { key: 'pnl', label: 'MT5 今日盈亏', value: kpis.value.mt5DailyPnlText },
   { key: 'metrics', label: '现有指标卡片', value: formatNumber(props.metrics?.length || 0) },
 ]);
 
@@ -250,7 +291,7 @@ const alertRows = computed(() => {
     rows.push({
       id: 'kill-switch',
       label: '熔断状态',
-      status: String(killSwitch),
+      status: humanizeStatus(killSwitch),
       toneClass: 'qg-text-warning',
     });
   }
@@ -264,7 +305,7 @@ const alertRows = computed(() => {
     rows.push({
       id: `raw-${index}`,
       label: row?.message || row?.label || row?.name || `告警 ${index + 1}`,
-      status: row?.status || row?.severity || 'active',
+      status: humanizeStatus(row?.status || row?.severity || 'active'),
       toneClass: 'qg-text-warning',
     });
   });
@@ -292,7 +333,7 @@ const positionRows = computed(() => {
     return {
       id: row?.ticket || row?.id || `${row?.symbol || 'symbol'}-${index}`,
       symbol: row?.symbol || row?.Symbol || 'UNKNOWN',
-      side: row?.type || row?.side || row?.direction || '—',
+      side: humanizeStatus(row?.type || row?.side || row?.direction, '—'),
       volume: row?.volume || row?.lots || row?.lot || '—',
       pnl: formatCurrency(pnl),
       toneClass: numberToneClass(pnl),
@@ -306,13 +347,13 @@ const healthRows = computed(() => [
   {
     key: 'runtime',
     label: '运行状态',
-    value: first(['runtimeState', 'status', 'latest.status'], '待确认'),
+    value: humanizeStatus(first(['runtimeState', 'status', 'latest.status'], '待确认')),
     toneClass: 'qg-text-muted',
   },
   {
     key: 'kill',
     label: '熔断保护',
-    value: first(['killSwitchLabel', 'killSwitchStatus'], '待确认'),
+    value: humanizeStatus(first(['killSwitchLabel', 'killSwitchStatus'], '待确认')),
     toneClass: 'qg-text-warning',
   },
   {

@@ -37,6 +37,7 @@ body {
   min-width: 0;
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-y: auto;
   background:
     linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px),
@@ -52,6 +53,11 @@ body {
   width: 100%;
   min-width: 0;
   min-height: 100vh;
+}
+
+html {
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 button,
@@ -5098,7 +5104,8 @@ tbody tr:hover td {
 .qg-ledger-table table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 640px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .qg-ledger-table th,
@@ -5107,6 +5114,23 @@ tbody tr:hover td {
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
   text-align: left;
   font-size: 12px;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.qg-ledger-table--important table {
+  table-layout: auto;
+}
+
+.qg-domain-grid--wide-tables {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1280px) {
+  .qg-domain-grid--wide-tables {
+    grid-template-columns: repeat(2, minmax(520px, 1fr));
+  }
 }
 
 .qg-empty {
@@ -5161,7 +5185,7 @@ tbody tr:hover td {
 .poly-evidence-console__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -5170,9 +5194,10 @@ tbody tr:hover td {
   align-items: center;
   gap: 8px;
   min-height: 38px;
+  flex: 0 1 auto;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 9px 16px;
   color: rgba(226, 232, 240, 0.76);
   background: rgba(15, 23, 42, 0.54);
   cursor: pointer;
@@ -5326,11 +5351,11 @@ tbody tr:hover td {
 
 .qg-key-value-list dd {
   display: grid;
-  justify-items: end;
+  justify-items: start;
   gap: 3px;
   min-width: 0;
   margin: 0;
-  text-align: right;
+  text-align: left;
   font-weight: 700;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -5360,7 +5385,6 @@ tbody tr:hover td {
   color: rgba(226, 232, 240, 0.9);
   font-size: 0.78rem;
   font-weight: 700;
-  text-transform: uppercase;
   overflow-wrap: anywhere;
   white-space: normal;
 }

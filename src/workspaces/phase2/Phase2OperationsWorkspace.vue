@@ -31,20 +31,10 @@
 
         <label class="phase2-field">
           <span>数据类型</span>
-          <a-select
-            v-model:value="activeEndpoint"
-            :options="endpointOptions"
-            class="phase2-select"
-          />
+          <a-select v-model:value="activeEndpoint" :options="endpointOptions" class="phase2-select" />
         </label>
 
-        <a-alert
-          v-if="error"
-          type="error"
-          show-icon
-          :message="error"
-          class="phase2-alert"
-        />
+        <a-alert v-if="error" type="error" show-icon :message="error" class="phase2-alert" />
 
         <div v-if="rows.length" class="phase2-record-list">
           <article v-for="row in rows.slice(0, 12)" :key="row._phase2RowId" class="phase2-record">
@@ -66,9 +56,18 @@
       <aside class="phase2-side">
         <a-card title="当前数据状态" :bordered="false" class="phase2-card">
           <dl class="phase2-summary">
-            <div><dt>文件</dt><dd>{{ summary.fileName }}</dd></div>
-            <div><dt>更新时间</dt><dd>{{ summary.mtimeIso }}</dd></div>
-            <div><dt>返回行数</dt><dd>{{ summary.returnedRows }}</dd></div>
+            <div>
+              <dt>文件</dt>
+              <dd>{{ summary.fileName }}</dd>
+            </div>
+            <div>
+              <dt>更新时间</dt>
+              <dd>{{ summary.mtimeIso }}</dd>
+            </div>
+            <div>
+              <dt>返回行数</dt>
+              <dd>{{ summary.returnedRows }}</dd>
+            </div>
           </dl>
           <a-alert
             class="phase2-alert"
@@ -86,7 +85,9 @@
               v-if="notifyConfig"
               :type="notifyConfig.telegramConfigured ? 'success' : 'warning'"
               show-icon
-              :message="notifyConfig.telegramConfigured ? 'Telegram 已配置' : 'Telegram Token / Chat ID 未配置'"
+              :message="
+                notifyConfig.telegramConfigured ? 'Telegram 已配置' : 'Telegram Token / Chat ID 未配置'
+              "
             />
             <a-input v-model:value="testMessage" placeholder="测试消息" />
             <div class="phase2-button-row">
@@ -95,9 +96,9 @@
             </div>
             <div class="phase2-notify-list">
               <article v-for="row in notifyRows.slice(0, 6)" :key="row.key" class="phase2-notify-item">
-                <strong>{{ row.eventType || '事件' }}</strong>
+                <strong>{{ formatEventType(row.eventType) }}</strong>
                 <small>{{ row.timestamp || '--' }}</small>
-                <span>{{ row.sent ? '已发送' : row.error || '等待中' }}</span>
+                <span>{{ formatNotifyStatus(row) }}</span>
               </article>
               <p v-if="!notifyRows.length" class="phase2-empty">暂无通知历史。</p>
             </div>
@@ -120,6 +121,7 @@ import {
   sendNotifyTest,
   tableColumns,
 } from '../../services/phase2Api';
+import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 
 const groups = [
   { key: 'governance', label: '治理状态', endpoints: PHASE2_ENDPOINTS.governance },
@@ -142,11 +144,17 @@ const notifyHistory = ref(null);
 const testMessage = ref('QuantGod 运维通知测试');
 
 const activeGroup = computed(() => groups.find((item) => item.key === selectedKeys.value[0]) || groups[0]);
-const endpointOptions = computed(() => activeGroup.value.endpoints.map(([value, label]) => ({ value, label })));
-const rows = computed(() => extractRows(payload.value).map((row, index) => ({ _phase2RowId: `${index}`, ...row })));
+const endpointOptions = computed(() =>
+  activeGroup.value.endpoints.map(([value, label]) => ({ value, label })),
+);
+const rows = computed(() =>
+  extractRows(payload.value).map((row, index) => ({ _phase2RowId: `${index}`, ...row })),
+);
 const columns = computed(() => tableColumns(rows.value));
 const summary = computed(() => endpointSummary(payload.value || {}));
-const notifyRows = computed(() => (notifyHistory.value?.items || []).map((row, index) => ({ key: `${index}`, ...row })).reverse());
+const notifyRows = computed(() =>
+  (notifyHistory.value?.items || []).map((row, index) => ({ key: `${index}`, ...row })).reverse(),
+);
 
 watch(selectedKeys, () => {
   activeEndpoint.value = activeGroup.value.endpoints[0]?.[0] || '';
@@ -183,9 +191,20 @@ async function sendTest(dryRun) {
 }
 
 function formatCell(value) {
-  if (value === null || value === undefined || value === '') return '--';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  return formatDisplayValue(value);
+}
+
+function formatEventType(value) {
+  return humanizeStatus(value, '通知事件');
+}
+
+function formatNotifyStatus(row) {
+  if (row?.sent) return '已发送到 Telegram';
+  if (row?.dryRun && row?.ok) return '演练记录，未真实发送';
+  if (row?.error === 'telegram_not_configured') return 'Telegram 未配置';
+  if (row?.error) return formatDisplayValue(row.error);
+  if (row?.ok === false) return '发送失败';
+  return '等待发送结果';
 }
 
 onMounted(() => {

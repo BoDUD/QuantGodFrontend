@@ -1,3 +1,5 @@
+import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
+
 const PATH_SETS = {
   runtimeState: [
     'latest.runtime_state',
@@ -83,18 +85,15 @@ function present(value) {
 }
 
 function boolStatus(value, truthyLabel = 'active', falseLabel = 'inactive') {
-  if (value === true || value === 'true' || value === '1' || value === 1 || value === 'ACTIVE') return truthyLabel;
-  if (value === false || value === 'false' || value === '0' || value === 0 || value === 'INACTIVE') return falseLabel;
+  if (value === true || value === 'true' || value === '1' || value === 1 || value === 'ACTIVE')
+    return truthyLabel;
+  if (value === false || value === 'false' || value === '0' || value === 0 || value === 'INACTIVE')
+    return falseLabel;
   return 'unknown';
 }
 
 function formatCompact(value) {
-  if (value === undefined || value === null || value === '') return '—';
-  if (typeof value === 'number') return Number.isFinite(value) ? value.toFixed(2) : '—';
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (Array.isArray(value)) return `${value.length} 条`;
-  if (isObject(value)) return `${Object.keys(value).length} keys`;
-  return String(value);
+  return formatDisplayValue(value);
 }
 
 function numberValue(value, fallback = 0) {
@@ -155,7 +154,11 @@ function chooseRoutes(raw) {
 }
 
 export function normalizeDashboardSnapshot(raw = {}) {
-  const runtimeState = firstValue(raw, PATH_SETS.runtimeState, present(raw.latest) || present(raw.state) ? 'available' : 'missing');
+  const runtimeState = firstValue(
+    raw,
+    PATH_SETS.runtimeState,
+    present(raw.latest) || present(raw.state) ? 'available' : 'missing',
+  );
   const killSwitch = firstValue(raw, PATH_SETS.killSwitch, null);
   const dryRun = firstValue(raw, PATH_SETS.dryRun, null);
   const activeRoute = firstValue(raw, PATH_SETS.activeRoute, '—');
@@ -187,12 +190,28 @@ export function buildDashboardMetrics(snapshot) {
   const equity = numberValue(snapshot.account?.equity, null);
   const polyCount = snapshot.polymarketRows?.length || 0;
   return [
-    { label: '账户净值', value: equity === null ? '—' : formatMoney(equity, currency), hint: snapshot.account?.server || 'HFM MT5' },
-    { label: '账户余额', value: balance === null ? '—' : formatMoney(balance, currency), hint: snapshot.account?.number || snapshot.account?.login || '实时快照' },
+    {
+      label: '账户净值',
+      value: equity === null ? '—' : formatMoney(equity, currency),
+      hint: snapshot.account?.server || 'HFM MT5',
+    },
+    {
+      label: '账户余额',
+      value: balance === null ? '—' : formatMoney(balance, currency),
+      hint: snapshot.account?.number || snapshot.account?.login || '实时快照',
+    },
     { label: '当前持仓', value: snapshot.positions?.length || 0, hint: 'MT5 实盘快照' },
-    { label: '今日净值', value: formatMoney(snapshot.dailyPnlEvidence?.netUSC ?? snapshot.dailyPnl, 'USC'), hint: '每日复盘' },
-    { label: '今日待办', value: snapshot.dailySummary?.todayTodoStatus === 'DONE_OR_NO_ACTIONS' ? '已完成' : '待处理', hint: `${snapshot.dailySummary?.paramReadyToRunCount || 0} 可运行 / ${snapshot.dailySummary?.polymarketTodoCount || 0} Polymarket` },
-    { label: '市场雷达', value: polyCount, hint: 'Polymarket 研究候选' },
+    {
+      label: '今日净值',
+      value: formatMoney(snapshot.dailyPnlEvidence?.netUSC ?? snapshot.dailyPnl, 'USC'),
+      hint: '每日复盘',
+    },
+    {
+      label: '今日待办',
+      value: snapshot.dailySummary?.todayTodoStatus === 'DONE_OR_NO_ACTIONS' ? '已完成' : '待处理',
+      hint: `${snapshot.dailySummary?.paramReadyToRunCount || 0} 可运行 / ${snapshot.dailySummary?.polymarketTodoCount || 0} 预测市场`,
+    },
+    { label: '市场雷达', value: polyCount, hint: '预测市场研究候选' },
   ];
 }
 
@@ -202,7 +221,7 @@ export function buildEndpointHealth(raw = {}) {
     ['每日复盘', '/api/daily-review', raw.dailyReview, 'MT5 与 Polymarket 的日终结论'],
     ['今日自动闭环', '/api/daily-autopilot', raw.dailyAutopilot, '今日待办执行、报告回灌和复盘'],
     ['MT5 只读桥', '/api/mt5-readonly/snapshot', raw.mt5Snapshot, '持仓、报价、账户只读快照'],
-    ['Polymarket 雷达', '/api/polymarket/radar', raw.polyRadar, '公开市场雷达与流动性证据'],
+    ['预测市场雷达', '/api/polymarket/radar', raw.polyRadar, '公开市场雷达与流动性证据'],
     ['策略回测摘要', '/api/dashboard/backtest-summary', raw.backtest, '候选策略研究结果'],
   ];
   return endpoints.map(([label, endpoint, payload, description]) => ({
@@ -210,25 +229,41 @@ export function buildEndpointHealth(raw = {}) {
     endpoint,
     description,
     status: present(payload) ? 'ok' : 'warn',
-    statusLabel: present(payload) ? 'available' : 'missing',
+    statusLabel: present(payload) ? '正常' : '缺失',
   }));
 }
 
 export function buildRuntimeItems(snapshot) {
   return [
-    { label: '运行状态', value: formatCompact(snapshot.runtimeState), status: snapshot.runtimeState === 'missing' ? 'warn' : 'ok' },
+    {
+      label: '运行状态',
+      value: humanizeStatus(snapshot.runtimeState),
+      status: snapshot.runtimeState === 'missing' ? 'warn' : 'ok',
+    },
     { label: '更新时间', value: snapshot.updatedAt },
-    { label: '熔断保护', value: snapshot.killSwitchLabel, status: snapshot.killSwitchStatus },
-    { label: '模拟保护', value: snapshot.dryRunLabel, status: snapshot.dryRunStatus },
+    { label: '熔断保护', value: humanizeStatus(snapshot.killSwitchLabel), status: snapshot.killSwitchStatus },
+    { label: '模拟保护', value: humanizeStatus(snapshot.dryRunLabel), status: snapshot.dryRunStatus },
     { label: '当前路线', value: formatCompact(snapshot.activeRoute) },
   ];
 }
 
 export function buildDailyItems(snapshot) {
   return [
-    { label: '每日复盘', value: snapshot.dailyReviewAvailable ? '已生成' : '缺失', status: snapshot.dailyReviewAvailable ? 'ok' : 'warn' },
-    { label: '今日自动闭环', value: snapshot.dailyAutopilotAvailable ? snapshot.autopilotStatus : '缺失', status: snapshot.dailyAutopilotAvailable ? 'ok' : 'warn' },
-    { label: '策略回测摘要', value: snapshot.backtestAvailable ? '已同步' : '缺失', status: snapshot.backtestAvailable ? 'ok' : 'warn' },
+    {
+      label: '每日复盘',
+      value: snapshot.dailyReviewAvailable ? '已生成' : '缺失',
+      status: snapshot.dailyReviewAvailable ? 'ok' : 'warn',
+    },
+    {
+      label: '今日自动闭环',
+      value: snapshot.dailyAutopilotAvailable ? snapshot.autopilotStatus : '缺失',
+      status: snapshot.dailyAutopilotAvailable ? 'ok' : 'warn',
+    },
+    {
+      label: '策略回测摘要',
+      value: snapshot.backtestAvailable ? '已同步' : '缺失',
+      status: snapshot.backtestAvailable ? 'ok' : 'warn',
+    },
   ];
 }
 
@@ -271,14 +306,15 @@ export function buildDailyTodoRows(raw = {}) {
 
   if (Number(summary.polymarketTodoCount || 0) > 0 || summary.polymarketLossQuarantine) {
     rows.push({
-      领域: 'Polymarket',
+      领域: '预测市场',
       任务: Number(summary.polymarketTodoCount || 0) > 0 ? '研究待办与亏损来源复查' : '亏损隔离保持',
-      状态: Number(summary.polymarketTodoCount || 0) > 0 ? `${summary.polymarketTodoCount} 项待处理` : '已隔离',
+      状态:
+        Number(summary.polymarketTodoCount || 0) > 0 ? `${summary.polymarketTodoCount} 项待处理` : '已隔离',
       结论: `实盘 PF ${formatCompact(summary.polymarketExecutedPF)} / 模拟 PF ${formatCompact(summary.polymarketShadowPF)}`,
     });
   } else if (polyRows.length) {
     rows.push({
-      领域: 'Polymarket',
+      领域: '预测市场',
       任务: '市场雷达与亏损来源观察',
       状态: `已同步 ${polyRows.length} 个候选`,
       结论: '只读研究，不自动下注',
@@ -290,7 +326,7 @@ export function buildDailyTodoRows(raw = {}) {
       领域: '全系统',
       任务: '今日待办',
       状态: summary.todayTodoStatus === 'DONE_OR_NO_ACTIONS' ? '已完成' : '暂无动作',
-      结论: 'MT5 与 Polymarket 今日没有未处理阻塞项',
+      结论: 'MT5 与预测市场今日没有未处理阻塞项',
     });
   }
   return rows.slice(0, 10);
@@ -302,7 +338,9 @@ export function buildDailyReviewRows(raw = {}) {
   const steps = rowsFromObjectList(raw?.dailyAutopilot?.steps);
   const polyRows = polymarketRows(raw);
   const polyStep = steps.find((step) => step.name === 'polymarket_readonly_cycle');
-  const testerTimeout = steps.find((step) => step.name === 'auto_tester_guarded_run' && step.status === 'TIMEOUT');
+  const testerTimeout = steps.find(
+    (step) => step.name === 'auto_tester_guarded_run' && step.status === 'TIMEOUT',
+  );
   return [
     {
       领域: 'MT5',
@@ -317,7 +355,7 @@ export function buildDailyReviewRows(raw = {}) {
       建议: summary.promotionReviewCount ? '存在升实盘复核候选' : '暂无可自动升实盘项',
     },
     {
-      领域: 'Polymarket',
+      领域: '预测市场',
       复盘: polyStep?.status === 'OK' ? '研究循环已执行' : '研究循环待确认',
       结果:
         summary.polymarketExecutedPF || summary.polymarketShadowPF

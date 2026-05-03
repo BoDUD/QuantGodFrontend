@@ -33,11 +33,19 @@
       </section>
     </div>
 
+    <div class="qg-domain-grid qg-domain-grid--wide-tables">
+      <LedgerTable
+        title="历史交易记录"
+        :rows="closeHistoryRows"
+        :limit="40"
+        class="qg-ledger-table--important"
+      />
+      <LedgerTable title="交易流水" :rows="tradeJournalRows" :limit="40" class="qg-ledger-table--important" />
+    </div>
+
     <div class="qg-domain-grid">
       <LedgerTable title="实时持仓" :rows="positionRows" :limit="30" />
       <LedgerTable title="挂单状态" :rows="orderRows" :limit="30" />
-      <LedgerTable title="历史交易记录" :rows="closeHistoryRows" :limit="40" />
-      <LedgerTable title="交易流水" :rows="tradeJournalRows" :limit="40" />
       <LedgerTable title="今日待办" :rows="todoRows" :limit="10" />
       <LedgerTable title="每日复盘" :rows="reviewRows" :limit="10" />
       <LedgerTable title="品种状态" :rows="symbolRows" :limit="40" />

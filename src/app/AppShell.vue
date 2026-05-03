@@ -217,6 +217,8 @@ async function copyLink() {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 100vh;
+  overflow: visible;
 }
 
 .app-shell__topbar {
@@ -250,6 +252,8 @@ async function copyLink() {
 
 .app-shell__content-frame {
   min-width: 0;
+  min-height: 0;
+  overflow: visible;
   padding: clamp(12px, 1.8vw, 24px);
 }
 
@@ -271,14 +275,46 @@ async function copyLink() {
   }
 
   .app-shell__sidebar {
-    position: relative;
+    position: sticky;
+    top: 0;
     height: auto;
     padding: 12px;
   }
 
+  .app-shell__brand {
+    padding: 10px 12px;
+  }
+
+  .app-shell__brand small {
+    display: none;
+  }
+
   .app-shell__nav {
-    overflow: visible;
+    display: flex;
+    gap: 8px;
+    overflow: auto hidden;
     padding-right: 0;
+    padding-bottom: 2px;
+  }
+
+  .app-shell__nav-group {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .app-shell__nav-group h2 {
+    display: none;
+  }
+
+  .app-shell__nav-item {
+    width: auto;
+    min-width: 132px;
+    padding: 9px 10px;
+  }
+
+  .app-shell__nav-item small {
+    display: none;
   }
 }
 

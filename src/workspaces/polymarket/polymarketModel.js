@@ -1,3 +1,10 @@
+import {
+  compactDisplay,
+  formatDisplayValue,
+  formatCurrencyDisplay,
+  humanizeStatus,
+} from '../../utils/displayText.js';
+
 const POLYMARKET_ENDPOINTS = [
   { key: 'search', label: '搜索结果', endpoint: '/api/polymarket/search', description: '关键词市场检索' },
   { key: 'radar', label: '执行雷达', endpoint: '/api/polymarket/radar', description: '机会评分与隔离证据' },
@@ -216,6 +223,9 @@ function friendlyModeLabel(payload) {
 
 function friendlyText(value, fallback = '—') {
   if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'object') return formatDisplayValue(value);
+  const translated = humanizeStatus(value, null);
+  if (translated && translated !== value) return translated;
   const raw = String(value);
   const normalized = raw.toLowerCase();
   if (normalized.includes('keep_dry_run') || normalized.includes('dry_run')) {
@@ -229,8 +239,31 @@ function friendlyText(value, fallback = '—') {
   if (normalized.includes('ok') || normalized.includes('available') || normalized.includes('ready'))
     return '正常';
   if (normalized.includes('fail') || normalized.includes('error')) return '异常';
-  if (normalized.startsWith('polymarket_')) return 'Polymarket 证据';
+  if (normalized.startsWith('polymarket_')) return '预测市场证据';
   return raw;
+}
+
+function walletBalance(payload) {
+  const paths = [
+    'walletBalanceUSDC',
+    'wallet.balanceUSDC',
+    'wallet.usdc',
+    'globalState.cashUSDC',
+    'globalState.walletUSDC',
+    'globalState.walletBalanceUSDC',
+    'summary.walletBalanceUSDC',
+    'summary.walletUSDC',
+    'data.walletBalanceUSDC',
+    'data.globalState.cashUSDC',
+    'data.summary.walletBalanceUSDC',
+    'data.wallet.balanceUSDC',
+  ];
+  for (const part of ['autoGovernance', 'realTrades', 'markets', 'history', 'aiScore', 'worker']) {
+    const value = getPath(payload?.[part], paths, null);
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
 }
 
 function bestScore(payload) {
@@ -289,12 +322,19 @@ function buildMetrics(payload) {
     0,
     ...allMarkets.map((row) => Number(row.volume24h || row.volume_24h || 0)).filter(Number.isFinite),
   );
+  const wallet = walletBalance(payload);
   return [
+    {
+      label: '钱包余额',
+      value: wallet === null ? '未同步' : formatCurrencyDisplay(wallet, 'USD'),
+      hint: wallet === null ? '只读钱包余额还没有回灌' : '真实钱包余额',
+      status: wallet === null ? 'warn' : 'ok',
+    },
     { label: '搜索结果', value: searchRows, hint: '关键词匹配' },
     { label: '雷达机会', value: radarRows, hint: '只读研究候选' },
     { label: '市场数量', value: marketRows, hint: '按成交量排序' },
     { label: '最高流动性', value: formatUsd(topLiquidity), hint: '公开市场数据' },
-    { label: '最高24h成交', value: formatUsd(topVolume24h), hint: 'Polymarket 成交量' },
+    { label: '最高24h成交', value: formatUsd(topVolume24h), hint: '公开市场成交量' },
     {
       label: 'AI评分',
       value: score === null ? '—' : formatNumber(score, 3),
@@ -336,7 +376,9 @@ function buildAiScoreItems(payload) {
     { label: '自动治理', value: friendlyModeLabel(governance), status: inferStatus(governance) },
     {
       label: '治理说明',
-      value: getPath(governance, ['note', 'reasoning', 'summary', 'next_action'], '仅保留证据，不自动下注'),
+      value: formatDisplayValue(
+        getPath(governance, ['note', 'reasoning', 'summary', 'next_action'], '仅保留证据，不自动下注'),
+      ),
     },
   ];
 }
@@ -383,7 +425,7 @@ function normalizeMarketRows(rows) {
     点差: row.clobSpread !== undefined ? formatPercent(row.clobSpread) : formatNumber(row.spread, 4),
     评分: row.aiRuleScore ?? row.ruleScore ?? row.score ?? '—',
     建议: friendlyText(row.recommendedAction || row.action, '只读观察'),
-    来源: friendlyText(row.source || row.category, 'Polymarket'),
+    来源: friendlyText(row.source || row.category, '预测市场'),
   }));
 }
 
@@ -394,7 +436,7 @@ function normalizeGenericRows(rows) {
     金额:
       row.amount !== undefined ? formatUsd(row.amount) : row.stake !== undefined ? formatUsd(row.stake) : '—',
     分数: row.score ?? row.aiScore ?? row.confidence ?? '—',
-    说明: friendlyText(row.reason || row.summary || row.note || row.source),
+    说明: compactDisplay(row.reason || row.summary || row.note || row.source || row, 160),
   }));
 }
 

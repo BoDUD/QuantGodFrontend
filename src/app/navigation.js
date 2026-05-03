@@ -30,7 +30,7 @@ export const WORKSPACE_GROUPS = [
       },
       {
         key: 'polymarket',
-        label: 'Polymarket 研究',
+        label: '预测市场研究',
         description: '市场雷达、概率、成交量、流动性、亏损隔离和跨市场联动。',
       },
     ],

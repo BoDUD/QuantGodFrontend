@@ -1,17 +1,15 @@
 <template>
   <WorkspaceFrame
-    eyebrow="Polymarket 研究"
-    title="Polymarket 研究工作台"
-    description="查看公开市场概率、流动性、成交量、AI 评分、亏损隔离和跨市场联动；全部只读研究，不自动下注。"
+    eyebrow="预测市场研究"
+    title="预测市场研究工作台"
+    description="查看预测市场概率、流动性、成交量、AI 评分、亏损隔离和跨市场联动；全部只读研究，不自动下注。"
     :loading="loading"
     :error="error"
     @refresh="load"
   >
     <div class="qg-readonly-banner">
       <StatusPill status="locked" label="只读研究" />
-      <span
-        >Polymarket 数据仅用于研究与治理证据。前端不允许下注、资金划转、提现、自动执行或绕过授权链路。</span
-      >
+      <span>预测市场数据仅用于研究与治理证据。前端不允许下注、资金划转、提现、自动执行或绕过授权链路。</span>
     </div>
 
     <div class="qg-search-row">
@@ -30,7 +28,7 @@
         </div>
         <strong>{{ evidenceRows.length }} 条</strong>
       </header>
-      <div class="poly-evidence-console__tabs" role="tablist" aria-label="Polymarket evidence modes">
+      <div class="poly-evidence-console__tabs" role="tablist" aria-label="预测市场证据视图">
         <button
           v-for="tabItem in evidenceTabs"
           :key="tabItem.key"
@@ -97,36 +95,32 @@
       <!-- Raw Polymarket evidence / research-only markers retained for the safety guard; the visible label stays Chinese. -->
       <summary>技术证据</summary>
       <div class="qg-domain-grid">
-        <JsonPreview title="Search" source="/api/polymarket/search" :payload="state.search" />
-        <JsonPreview title="Radar" source="/api/polymarket/radar" :payload="state.radar" />
-        <JsonPreview title="Radar Worker" source="/api/polymarket/radar-worker" :payload="state.worker" />
-        <JsonPreview title="AI Score" source="/api/polymarket/ai-score" :payload="state.aiScore" />
-        <JsonPreview title="History" source="/api/polymarket/history" :payload="state.history" />
+        <JsonPreview title="搜索结果" source="/api/polymarket/search" :payload="state.search" />
+        <JsonPreview title="执行雷达" source="/api/polymarket/radar" :payload="state.radar" />
+        <JsonPreview title="雷达后台" source="/api/polymarket/radar-worker" :payload="state.worker" />
+        <JsonPreview title="AI 评分" source="/api/polymarket/ai-score" :payload="state.aiScore" />
+        <JsonPreview title="历史复盘" source="/api/polymarket/history" :payload="state.history" />
         <JsonPreview
-          title="Auto Governance"
+          title="自动治理"
           source="/api/polymarket/auto-governance"
           :payload="state.autoGovernance"
         />
         <JsonPreview
-          title="Canary Contract"
+          title="模拟合约"
           source="/api/polymarket/canary-executor-contract"
           :payload="state.canary"
         />
         <JsonPreview
-          title="Canary Run"
+          title="模拟执行"
           source="/api/polymarket/canary-executor-run"
           :payload="state.canaryRun"
         />
-        <JsonPreview title="Real Trades" source="/api/polymarket/real-trades" :payload="state.realTrades" />
-        <JsonPreview title="Cross Linkage" source="/api/polymarket/cross-linkage" :payload="state.cross" />
-        <JsonPreview title="Markets" source="/api/polymarket/markets" :payload="state.markets" />
+        <JsonPreview title="真实交易证据" source="/api/polymarket/real-trades" :payload="state.realTrades" />
+        <JsonPreview title="跨市场联动" source="/api/polymarket/cross-linkage" :payload="state.cross" />
+        <JsonPreview title="市场金额" source="/api/polymarket/markets" :payload="state.markets" />
+        <JsonPreview title="资产候选" source="/api/polymarket/asset-opportunities" :payload="state.assets" />
         <JsonPreview
-          title="Asset Opportunities"
-          source="/api/polymarket/asset-opportunities"
-          :payload="state.assets"
-        />
-        <JsonPreview
-          title="Single Market Analysis"
+          title="单市场分析"
           source="/api/polymarket/single-market-analysis"
           :payload="state.singleAnalysis"
         />
@@ -147,6 +141,7 @@ import LedgerTable from '../shared/LedgerTable.vue';
 import JsonPreview from '../shared/JsonPreview.vue';
 import StatusPill from '../shared/StatusPill.vue';
 import { buildPolymarketModel } from './polymarketModel.js';
+import { compactDisplay, formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 
 const loading = ref(false);
 const error = ref('');
@@ -180,13 +175,13 @@ const evidenceBuckets = computed(() => {
   return {
     all: [
       ...toEvidenceRows(model.value.tables.search, '综合证据'),
-      ...toEvidenceRows(model.value.tables.radar, 'Radar'),
+      ...toEvidenceRows(model.value.tables.radar, '雷达'),
       ...toEvidenceRows(model.value.tables.history, '历史分析'),
-      ...toEvidenceRows(aiScoreRows, 'AI Score'),
+      ...toEvidenceRows(aiScoreRows, 'AI 评分'),
     ].slice(0, 16),
-    radar: toEvidenceRows(model.value.tables.radar, 'Radar'),
+    radar: toEvidenceRows(model.value.tables.radar, '雷达'),
     history: toEvidenceRows(model.value.tables.history, '历史分析'),
-    ai: toEvidenceRows(aiScoreRows, 'AI Score'),
+    ai: toEvidenceRows(aiScoreRows, 'AI 评分'),
   };
 });
 const evidenceRows = computed(() => evidenceBuckets.value[evidenceMode.value] || evidenceBuckets.value.all);
@@ -242,8 +237,8 @@ function toEvidenceRows(rows, fallbackSource) {
       return {
         key: `${fallbackSource}-${index}-${title}`,
         title: compactText(title, 120),
-        summary: compactText(summary, 180),
-        source: compactText(source, 48),
+        summary: compactText(humanizeStatus(summary, formatDisplayValue(summary)), 180),
+        source: compactText(humanizeStatus(source, formatDisplayValue(source)), 48),
       };
     });
 }
@@ -257,13 +252,10 @@ function firstValue(row, keys, fallback) {
 }
 
 function stringify(value) {
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  return formatDisplayValue(value);
 }
 
 function compactText(value, max) {
-  const text = stringify(value).replace(/\s+/g, ' ').trim();
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1)}…`;
+  return compactDisplay(stringify(value), max);
 }
 </script>

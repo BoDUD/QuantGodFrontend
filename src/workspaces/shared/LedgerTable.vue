@@ -9,7 +9,7 @@
       <table>
         <thead>
           <tr>
-            <th v-for="column in columns" :key="column">{{ column }}</th>
+            <th v-for="column in columns" :key="column">{{ humanizeLabel(column) }}</th>
           </tr>
         </thead>
         <tbody>
@@ -24,6 +24,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { formatDisplayValue, humanizeLabel } from '../../utils/displayText.js';
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -39,8 +40,6 @@ const columns = computed(() => {
 const visibleRows = computed(() => props.rows.slice(0, props.limit));
 
 function stringifyCell(value) {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  return formatDisplayValue(value);
 }
 </script>

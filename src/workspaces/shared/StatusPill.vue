@@ -7,6 +7,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { humanizeStatus, statusTone } from '../../utils/displayText.js';
 
 const props = defineProps({
   status: { type: String, default: 'unknown' },
@@ -14,13 +15,8 @@ const props = defineProps({
 });
 
 const normalizedStatus = computed(() => {
-  const value = String(props.status || 'unknown').toLowerCase();
-  if (['ok', 'healthy', 'active', 'online', 'available', 'pass', 'green'].includes(value)) return 'ok';
-  if (['warn', 'warning', 'degraded', 'caution', 'pending', 'yellow'].includes(value)) return 'warn';
-  if (['error', 'fail', 'failed', 'blocked', 'offline', 'critical', 'red'].includes(value)) return 'error';
-  if (['locked', 'disabled', 'dry-run', 'dryrun', 'read-only', 'readonly'].includes(value)) return 'locked';
-  return 'unknown';
+  return statusTone(props.status);
 });
 
-const labelText = computed(() => props.label || props.status || 'unknown');
+const labelText = computed(() => humanizeStatus(props.label || props.status, '未同步'));
 </script>

@@ -2,8 +2,6 @@ import { t } from '../i18n/index.js';
 
 const THEME_KEY = 'quantgod.ui.theme';
 const LOCALE_KEY = 'quantgod.ui.locale';
-const THEMES = ['dark', 'light', 'hc'];
-const LOCALES = ['zh-CN', 'en-US'];
 
 const WORKSPACES = [
   { key: 'dashboard', hotkey: 'd', zh: '总览', en: 'Dashboard' },
@@ -15,14 +13,6 @@ const WORKSPACES = [
   { key: 'phase3', hotkey: 'v', zh: 'AI / Vibe', en: 'AI / Vibe' },
 ];
 
-function safeGet(key, fallback) {
-  try {
-    return window.localStorage.getItem(key) || fallback;
-  } catch (_) {
-    return fallback;
-  }
-}
-
 function safeSet(key, value) {
   try {
     window.localStorage.setItem(key, value);
@@ -31,25 +21,19 @@ function safeSet(key, value) {
   }
 }
 
-function currentTheme() {
-  const value = safeGet(THEME_KEY, 'dark');
-  return THEMES.includes(value) ? value : 'dark';
-}
-
 function currentLocale() {
-  const value = safeGet(LOCALE_KEY, 'zh-CN');
-  return LOCALES.includes(value) ? value : 'zh-CN';
+  return 'zh-CN';
 }
 
-function applyTheme(theme) {
-  const next = THEMES.includes(theme) ? theme : 'dark';
+function applyTheme() {
+  const next = 'dark';
   document.documentElement.dataset.theme = next;
   safeSet(THEME_KEY, next);
   return next;
 }
 
-function applyLocale(locale) {
-  const next = LOCALES.includes(locale) ? locale : 'zh-CN';
+function applyLocale() {
+  const next = 'zh-CN';
   document.documentElement.dataset.locale = next;
   document.documentElement.lang = next;
   safeSet(LOCALE_KEY, next);
@@ -72,18 +56,14 @@ function createButton(label, title, onClick) {
   return button;
 }
 
-function workspaceLabel(workspace, locale) {
-  return locale === 'en-US' ? workspace.en : workspace.zh;
+function workspaceLabel(workspace) {
+  return workspace.zh;
 }
 
-function updateControlsText(root, locale, theme) {
+function updateControlsText(root, locale) {
   const searchButton = root.querySelector('[data-qg-control="search"]');
-  const themeButton = root.querySelector('[data-qg-control="theme"]');
-  const localeButton = root.querySelector('[data-qg-control="locale"]');
   const helpButton = root.querySelector('[data-qg-control="help"]');
   if (searchButton) searchButton.textContent = t('operator.searchShort', locale);
-  if (themeButton) themeButton.textContent = `${t('operator.theme', locale)} ${t(`theme.${theme}`, locale)}`;
-  if (localeButton) localeButton.textContent = locale === 'zh-CN' ? '中文' : 'EN';
   if (helpButton) helpButton.textContent = '?';
 }
 
@@ -233,7 +213,7 @@ export function installOperatorExperience() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   if (document.querySelector('[data-qg-operator-experience]')) return;
 
-  const initialTheme = applyTheme(currentTheme());
+  applyTheme();
   const initialLocale = applyLocale(currentLocale());
 
   const controls = document.createElement('div');
@@ -247,28 +227,13 @@ export function installOperatorExperience() {
   );
   search.dataset.qgControl = 'search';
 
-  const theme = createButton('', t('operator.themeHelp', initialLocale), () => {
-    const next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
-    const applied = applyTheme(next);
-    updateControlsText(controls, currentLocale(), applied);
-  });
-  theme.dataset.qgControl = 'theme';
-
-  const locale = createButton('', t('operator.localeHelp', initialLocale), () => {
-    const next = LOCALES[(LOCALES.indexOf(currentLocale()) + 1) % LOCALES.length];
-    const applied = applyLocale(next);
-    updateControlsText(controls, applied, currentTheme());
-    renderPalette(palette, palette.querySelector('[data-qg-palette-input]')?.value || '');
-  });
-  locale.dataset.qgControl = 'locale';
-
   const help = createButton('?', t('operator.helpHelp', initialLocale), () => openPalette(palette));
   help.dataset.qgControl = 'help';
 
-  controls.append(search, theme, locale, help);
+  controls.append(search, help);
   document.body.appendChild(controls);
 
   const palette = createPalette();
-  updateControlsText(controls, initialLocale, initialTheme);
+  updateControlsText(controls, initialLocale);
   installKeyboard(palette, controls);
 }

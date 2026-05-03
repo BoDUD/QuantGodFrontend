@@ -1,3 +1,5 @@
+import { formatDisplayValue, humanizeLabel } from '../utils/displayText.js';
+
 const JSON_HEADERS = { Accept: 'application/json' };
 
 export const PHASE2_ENDPOINTS = Object.freeze({
@@ -73,18 +75,75 @@ export async function apiPost(url, payload = {}, fallback = null) {
 
 export function extractRows(payload) {
   if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.rows)) return payload.rows;
-  if (Array.isArray(payload?.data?.rows)) return payload.data.rows;
-  if (Array.isArray(payload?.data?.items)) return payload.data.items;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (payload?.data && typeof payload.data === 'object') return [payload.data];
-  if (payload && typeof payload === 'object') return [payload];
+  const candidates = [
+    payload?.rows,
+    payload?.items,
+    payload?.routeDecisions,
+    payload?.governanceDecisions,
+    payload?.decisions,
+    payload?.routes,
+    payload?.data?.rows,
+    payload?.data?.items,
+    payload?.data?.routeDecisions,
+    payload?.data?.governanceDecisions,
+    payload?.data?.decisions,
+    payload?.data?.routes,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length) return candidate;
+  }
+  if (payload?.data && typeof payload.data === 'object') return readableRows(payload.data);
+  if (payload && typeof payload === 'object') return readableRows(payload);
   return [];
 }
 
+const SKIP_SUMMARY_KEYS = new Set([
+  'schemaVersion',
+  'endpoint',
+  'runtimeDir',
+  'filePath',
+  'sourcePath',
+  '_api',
+  '_phase2',
+  'safety',
+  'principles',
+  'hardGuards',
+  'systemHealth',
+  'files',
+]);
+
+function readableRows(source) {
+  const roots = [source.summary, source.globalState, source].filter(
+    (item) => item && typeof item === 'object' && !Array.isArray(item),
+  );
+  const rows = [];
+  for (const root of roots) {
+    for (const [key, value] of Object.entries(root)) {
+      if (SKIP_SUMMARY_KEYS.has(key) || value === undefined || value === null || value === '') continue;
+      if (Array.isArray(value)) {
+        rows.push({ 项目: humanizeLabel(key), 内容: `${value.length} 项` });
+      } else if (value && typeof value === 'object') {
+        rows.push({ 项目: humanizeLabel(key), 内容: formatDisplayValue(value, { max: 96 }) });
+      } else {
+        rows.push({ 项目: humanizeLabel(key), 内容: formatDisplayValue(value, { max: 96 }) });
+      }
+      if (rows.length >= 12) return rows;
+    }
+  }
+  return rows;
+}
+
 export function tableColumns(rows) {
-  const keys = [...new Set(rows.flatMap((row) => Object.keys(row || {})))].filter((key) => !key.startsWith('_')).slice(0, 8);
-  return keys.map((key) => ({ title: key, dataIndex: key, key, ellipsis: true, sorter: (a, b) => String(a?.[key] ?? '').localeCompare(String(b?.[key] ?? '')) }));
+  const keys = [...new Set(rows.flatMap((row) => Object.keys(row || {})))]
+    .filter((key) => !key.startsWith('_'))
+    .slice(0, 8);
+  return keys.map((key) => ({
+    title: humanizeLabel(key),
+    dataIndex: key,
+    key,
+    ellipsis: true,
+    sorter: (a, b) => String(a?.[key] ?? '').localeCompare(String(b?.[key] ?? '')),
+  }));
 }
 
 export function endpointSummary(payload) {
