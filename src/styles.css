@@ -5038,6 +5038,8 @@ tbody tr:hover td {
   display: block;
   font-size: 24px;
   color: #f8fafc;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .qg-metric-card small {
@@ -5104,8 +5106,8 @@ tbody tr:hover td {
 .qg-ledger-table table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 0;
-  table-layout: fixed;
+  min-width: 680px;
+  table-layout: auto;
 }
 
 .qg-ledger-table th,
@@ -5116,11 +5118,31 @@ tbody tr:hover td {
   font-size: 12px;
   vertical-align: top;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .qg-ledger-table--important table {
-  table-layout: auto;
+  min-width: 860px;
+}
+
+.qg-ledger-table__num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.qg-ledger-table__num--positive {
+  color: #86efac;
+  font-weight: 800;
+}
+
+.qg-ledger-table__num--negative {
+  color: #fca5a5;
+  font-weight: 800;
+}
+
+.qg-ledger-table__num--neutral {
+  color: rgba(203, 213, 225, 0.78);
 }
 
 .qg-domain-grid--wide-tables {
@@ -5131,6 +5153,28 @@ tbody tr:hover td {
   .qg-domain-grid--wide-tables {
     grid-template-columns: repeat(2, minmax(520px, 1fr));
   }
+}
+
+.qg-polymarket-tables {
+  grid-template-columns: 1fr;
+}
+
+.qg-polymarket-tables .qg-ledger-table table {
+  min-width: 1120px;
+}
+
+.qg-polymarket-tables .qg-ledger-table th,
+.qg-polymarket-tables .qg-ledger-table td {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.qg-polymarket-tables .qg-ledger-table th:first-child,
+.qg-polymarket-tables .qg-ledger-table td:first-child {
+  width: 34%;
+  min-width: 300px;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .qg-empty {

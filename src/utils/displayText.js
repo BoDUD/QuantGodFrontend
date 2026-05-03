@@ -54,6 +54,9 @@ const STATUS_LABELS = new Map([
   ['FILE_ONLY_REPORT_WATCHER', '只读取报告监听'],
   ['KEEP_DRY_RUN_UNTIL_POLICY_PASS', '保持只读研究，等待策略通过'],
   ['AI_SCORE_ONLY_NO_BETTING', '只做 AI 评分，不自动下注'],
+  ['WAIT_BAR', '等待下一根K线'],
+  ['ROUTE_DISABLED', '路线已关闭'],
+  ['FULL', '可交易'],
   ['LIVE_0_01', '0.01 手实盘观察'],
   ['SIMULATION_CANDIDATE', '模拟候选'],
   ['MACD_MOMENTUM_TURN', 'MACD 动量转折'],
@@ -171,6 +174,7 @@ function spaced(value) {
 export function humanizeStatus(value, fallback = EMPTY) {
   if (value === undefined || value === null || value === '') return fallback;
   if (typeof value === 'boolean') return value ? '是' : '否';
+  const original = String(value).trim();
   const raw = normalizeToken(value);
   const lower = raw.toLowerCase();
   if (STATUS_LABELS.has(raw)) return STATUS_LABELS.get(raw);
@@ -191,13 +195,14 @@ export function humanizeStatus(value, fallback = EMPTY) {
   if (lower.includes('missing')) return '缺失';
   if (lower.includes('unknown')) return '未同步';
   if (lower.includes('error') || lower.includes('failed')) return '异常';
-  if (raw.startsWith('/') || raw.includes('\\')) return String(value);
-  if (/[,/|]/.test(raw)) {
-    const parts = raw
+  if (original.startsWith('/') || original.includes('\\')) return original;
+  if (/^[+$¥€£]?\s*\d[\d,]*(\.\d+)?(\s*[A-Z]{3})?$/i.test(original)) return original;
+  if (/[,/|]/.test(original)) {
+    const parts = original
       .split(/[,/|]+/)
       .map((part) => humanizeStatus(part.trim(), part.trim()))
       .filter(Boolean);
-    if (parts.length > 1 && parts.join(' / ') !== raw) return parts.join(' / ');
+    if (parts.length > 1 && parts.join(' / ') !== original) return parts.join(' / ');
   }
   return String(value);
 }
@@ -240,6 +245,7 @@ export function formatDisplayValue(value, options = {}) {
     });
   }
   if (typeof value === 'string') {
+    if (value.trim().toLowerCase() === '[object object]') return '已有结构化说明';
     const translated = humanizeStatus(value, value);
     return translated.length > max ? `${translated.slice(0, max - 1)}…` : translated;
   }
@@ -278,12 +284,17 @@ export function formatCurrencyDisplay(value, currency = 'USD') {
   if (!Number.isFinite(numeric)) return formatDisplayValue(value);
   const code = String(currency || 'USD').toUpperCase();
   if (code === 'USC') return `${numeric.toFixed(2)} USC`;
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency: code,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(numeric);
+  if (!/^[A-Z]{3}$/.test(code)) return numeric.toFixed(2);
+  try {
+    return new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numeric);
+  } catch {
+    return `${numeric.toFixed(2)} ${code}`.trim();
+  }
 }
 
 export function compactDisplay(value, max = 120) {

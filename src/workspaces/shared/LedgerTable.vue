@@ -14,7 +14,9 @@
         </thead>
         <tbody>
           <tr v-for="(row, index) in visibleRows" :key="index">
-            <td v-for="column in columns" :key="column">{{ stringifyCell(row[column]) }}</td>
+            <td v-for="column in columns" :key="column" :class="cellClass(column, row[column])">
+              {{ stringifyCell(column, row[column]) }}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -39,7 +41,33 @@ const columns = computed(() => {
 
 const visibleRows = computed(() => props.rows.slice(0, props.limit));
 
-function stringifyCell(value) {
+function parseNumeric(value) {
+  if (typeof value === 'number') return value;
+  const parsed = Number(String(value ?? '').replace(/[^0-9.+-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isPnlColumn(column) {
+  return /盈亏|浮盈|profit|pnl/i.test(String(column || ''));
+}
+
+function stringifyCell(column, value) {
+  if (isPnlColumn(column)) {
+    const numeric = parseNumeric(value);
+    if (numeric !== null) {
+      const sign = numeric > 0 ? '+' : '';
+      return `${sign}${numeric.toFixed(2)}`;
+    }
+  }
   return formatDisplayValue(value);
+}
+
+function cellClass(column, value) {
+  if (!isPnlColumn(column)) return '';
+  const numeric = parseNumeric(value);
+  if (numeric === null || numeric === 0) return 'qg-ledger-table__num qg-ledger-table__num--neutral';
+  return numeric > 0
+    ? 'qg-ledger-table__num qg-ledger-table__num--positive'
+    : 'qg-ledger-table__num qg-ledger-table__num--negative';
 }
 </script>

@@ -1,4 +1,4 @@
-import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
+import { formatCurrencyDisplay, formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
@@ -52,6 +52,27 @@ function format(value) {
   return formatDisplayValue(value);
 }
 
+function numberValue(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function formatAccountAmount(value, currency = 'USC') {
+  const numeric = numberValue(value);
+  if (numeric === null) return format(value);
+  const code = String(currency || '').toUpperCase();
+  if (code === 'USC' || code === '—' || code === '-') return numeric.toFixed(2);
+  return formatCurrencyDisplay(numeric, code || 'USD');
+}
+
+function formatAccountWithCurrency(value, currency = 'USC') {
+  const amount = formatAccountAmount(value, currency);
+  const code = String(currency || '').trim();
+  if (amount === '—') return amount;
+  if (!code || code === '—' || code === '-') return amount;
+  return `${amount} ${code}`.trim();
+}
+
 function boolLike(value, trueStatus = 'ok', falseStatus = 'warn') {
   if (value === true || value === 'true' || value === 1 || value === '1' || value === 'yes')
     return trueStatus;
@@ -75,8 +96,11 @@ function safetyEnvelope(raw = {}) {
 
 export function normalizeMt5Snapshot(raw = {}) {
   const status = unwrap(raw.status) || {};
-  const account = unwrap(raw.account) || {};
+  const accountEnvelope = unwrap(raw.account) || {};
+  const account = isObject(accountEnvelope.account) ? accountEnvelope.account : accountEnvelope;
   const snapshot = unwrap(raw.snapshot) || {};
+  const latest = unwrap(raw.latest) || {};
+  const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
   const orders = rowsFromPayload(raw.orders);
   const symbols = rowsFromPayload(raw.symbols).length
@@ -93,6 +117,8 @@ export function normalizeMt5Snapshot(raw = {}) {
   );
 
   return {
+    latest,
+    runtime,
     bridgeStatus,
     terminal: pick(
       { status, snapshot },
@@ -119,7 +145,7 @@ export function normalizeMt5Snapshot(raw = {}) {
       ],
       null,
     ),
-    currency: pick({ account, snapshot }, ['account.currency', 'snapshot.account.currency'], '—'),
+    currency: pick({ account, snapshot }, ['account.currency', 'snapshot.account.currency'], 'USC'),
     positions,
     orders,
     symbols,
@@ -146,26 +172,80 @@ export function normalizeMt5Snapshot(raw = {}) {
       ['safety.livePresetMutationAllowed', 'safety.live_preset_mutation_allowed'],
       false,
     ),
+    tradeStatus: pick(
+      { runtime, snapshot, latest },
+      ['runtime.tradeStatus', 'snapshot.tradeStatus', 'latest.tradeStatus'],
+      '—',
+    ),
+    livePilotMode: pick({ runtime, latest }, ['runtime.livePilotMode', 'latest.livePilotMode'], false),
+    tradeAllowed: pick({ runtime }, ['runtime.tradeAllowed', 'runtime.terminalTradeAllowed'], false),
+    executionEnabled: pick({ runtime }, ['runtime.executionEnabled'], false),
+    killSwitch: pick({ runtime }, ['runtime.pilotKillSwitch'], false),
+    startupGuardActive: pick({ runtime }, ['runtime.pilotStartupEntryGuardActive'], false),
+    rsiRoute: pick(
+      { latest },
+      ['latest.strategies.RSI_Reversal', 'latest.symbols.0.strategies.RSI_Reversal'],
+      {},
+    ),
+    eaTradeReady: Boolean(
+      pick({ runtime }, ['runtime.tradeAllowed'], false) &&
+      pick({ runtime }, ['runtime.executionEnabled'], false) &&
+      !pick({ runtime }, ['runtime.pilotKillSwitch'], false) &&
+      !pick({ runtime }, ['runtime.pilotStartupEntryGuardActive'], false),
+    ),
   };
 }
 
 export function buildMt5Metrics(snapshot) {
+  const rsiEnabled = Boolean(snapshot.rsiRoute?.enabled && snapshot.rsiRoute?.active);
   return [
-    { label: '连接状态', value: humanizeStatus(snapshot.bridgeStatus), hint: 'HFM EA 快照' },
-    { label: '账户净值', value: format(snapshot.equity), hint: snapshot.currency },
-    { label: '账户余额', value: format(snapshot.balance), hint: snapshot.server },
+    {
+      label: 'EA交易状态',
+      value: snapshot.eaTradeReady ? '可按守门入场' : '等待守门条件',
+      hint: humanizeStatus(snapshot.tradeStatus),
+    },
+    {
+      label: 'RSI实盘路线',
+      value: rsiEnabled ? '开启' : '未开启',
+      hint: snapshot.rsiRoute?.reason || 'USDJPY 0.01 手',
+    },
+    {
+      label: '账户净值',
+      value: formatAccountAmount(snapshot.equity, snapshot.currency),
+      hint: snapshot.currency,
+    },
+    {
+      label: '账户余额',
+      value: formatAccountAmount(snapshot.balance, snapshot.currency),
+      hint: snapshot.server,
+    },
     { label: '当前持仓', value: snapshot.positions.length, hint: '实盘账户' },
     { label: '历史成交', value: snapshot.closeHistory.length, hint: '平仓记录' },
-    { label: '观察品种', value: snapshot.symbols.length, hint: '实盘与模拟品种池' },
   ];
 }
 
 export function buildSafetyItems(snapshot) {
+  const rsiEnabled = Boolean(snapshot.rsiRoute?.enabled && snapshot.rsiRoute?.active);
   return [
     {
-      label: '只读监控',
-      value: snapshot.readOnly ? '开启' : '未知',
+      label: '前端数据桥',
+      value: snapshot.readOnly ? '只读观察' : '状态待确认',
       status: boolLike(snapshot.readOnly, 'ok', 'warn'),
+    },
+    {
+      label: 'EA交易权限',
+      value: snapshot.eaTradeReady ? '可按守门规则入场' : '当前不入场',
+      status: snapshot.eaTradeReady ? 'ok' : 'warn',
+    },
+    {
+      label: 'RSI实盘路线',
+      value: rsiEnabled ? '保留实盘观察' : '未开启',
+      status: rsiEnabled ? 'ok' : 'warn',
+    },
+    {
+      label: '熔断保护',
+      value: snapshot.killSwitch ? '熔断中' : '未触发',
+      status: snapshot.killSwitch ? 'error' : 'ok',
     },
     {
       label: '前端下单',
@@ -203,17 +283,17 @@ export function buildAccountItems(snapshot) {
       label: '终端',
       value: typeof snapshot.terminal === 'object' ? snapshot.terminal.name || 'HFM MT5' : snapshot.terminal,
     },
-    { label: '余额', value: format(snapshot.balance), hint: snapshot.currency },
-    { label: '净值', value: format(snapshot.equity), hint: snapshot.currency },
-    { label: '保证金', value: format(snapshot.margin), hint: snapshot.currency },
-    { label: '可用保证金', value: format(snapshot.freeMargin), hint: snapshot.currency },
+    { label: '余额', value: formatAccountWithCurrency(snapshot.balance, snapshot.currency) },
+    { label: '净值', value: formatAccountWithCurrency(snapshot.equity, snapshot.currency) },
+    { label: '保证金', value: formatAccountWithCurrency(snapshot.margin, snapshot.currency) },
+    { label: '可用保证金', value: formatAccountWithCurrency(snapshot.freeMargin, snapshot.currency) },
   ];
 }
 
 function compactRow(row, fields) {
   const out = {};
   for (const [label, candidates] of Object.entries(fields)) {
-    out[label] = format(pick(row, candidates, ''));
+    out[label] = pick(row, candidates, '');
   }
   return out;
 }
