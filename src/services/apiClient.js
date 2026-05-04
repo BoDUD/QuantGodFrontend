@@ -4,6 +4,7 @@ export const DEFAULT_TIMEOUT_MS = Number(VITE_ENV.VITE_QG_API_TIMEOUT_MS || 1500
 export const API_BASE_URL = normalizeBaseUrl(VITE_ENV.VITE_QG_API_BASE_URL || '');
 
 const JSON_HEADERS = { Accept: 'application/json' };
+const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
 const RUNTIME_FILE_PATTERN = /\/QuantGod_[^\s'"?#]+\.(json|csv)\b/i;
 
 function normalizeBaseUrl(value) {
@@ -129,7 +130,7 @@ export async function postApiJson(path, payload = {}, options = {}) {
   try {
     const response = await fetch(makeApiUrl(endpoint), {
       method: 'POST',
-      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json' },
+      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', ...CSRF_HEADERS },
       cache: 'no-store',
       body: JSON.stringify(payload || {}),
       ...options,

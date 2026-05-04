@@ -81,7 +81,7 @@
       </section>
     </div>
 
-    <div class="qg-domain-grid">
+    <div class="qg-domain-grid qg-domain-grid--wide-tables qg-polymarket-tables">
       <LedgerTable title="搜索结果" :rows="model.tables.search" :limit="12" />
       <LedgerTable title="雷达机会" :rows="model.tables.radar" :limit="12" />
       <LedgerTable title="市场金额与概率" :rows="model.tables.markets" :limit="12" />

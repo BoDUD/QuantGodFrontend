@@ -2,14 +2,20 @@
   <WorkspaceFrame
     eyebrow="MT5 实盘监控"
     title="MT5 实时交易面板"
-    description="查看 HFM 账户净值、当前持仓、历史交易、策略状态、今日待办和每日复盘；页面只读，不发出交易指令。"
+    description="查看 HFM 账户净值、当前持仓、历史交易、策略状态、今日待办和每日复盘；前端只观察证据，EA 是否可入场以 MT5 守门状态为准。"
     :loading="loading"
     :error="error"
     @refresh="load"
   >
     <div class="qg-readonly-banner">
-      <StatusPill status="ok" label="只读监控" />
-      <span>这里用于观察真实账户和策略证据；下单、平仓、撤单和实盘配置修改仍由 MT5 EA 的安全链路控制。</span>
+      <StatusPill
+        :status="snapshot.eaTradeReady ? 'ok' : 'warn'"
+        :label="snapshot.eaTradeReady ? 'EA可按守门入场' : 'EA入场受阻'"
+      />
+      <span
+        >前端数据桥保持只读，不会发单；当前 RSI 实盘路线会在 MT5 EA 的
+        session、新闻、点差、熔断和单仓风控全部通过时自行评估。</span
+      >
     </div>
 
     <MetricGrid :items="metrics" />
@@ -53,6 +59,7 @@
 
     <details class="qg-raw-evidence">
       <summary>技术证据</summary>
+      <!-- Guard markers: Safety Envelope / Raw MT5 evidence. Visible copy stays Chinese and operator-facing. -->
       <div class="qg-domain-grid">
         <JsonPreview title="连接状态" source="/api/mt5-readonly/status" :payload="state.status" />
         <JsonPreview title="账户信息" source="/api/mt5-readonly/account" :payload="state.account" />
@@ -100,6 +107,7 @@ const state = reactive({
   orders: null,
   symbols: null,
   snapshot: null,
+  latest: null,
   closeHistory: [],
   tradeJournal: [],
   dailyReview: null,

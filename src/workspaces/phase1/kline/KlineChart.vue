@@ -1,6 +1,18 @@
 <template>
-  <div class="kline-chart" :class="{ 'kline-chart--ready': chartReady }">
+  <div
+    class="kline-chart"
+    :class="[
+      { 'kline-chart--ready': chartReady },
+      currentTool !== 'cursor' ? `kline-chart--tool-${currentTool}` : '',
+    ]"
+  >
     <div ref="chartEl" class="kline-chart__canvas" />
+    <div v-if="toolOverlay" class="kline-chart__drawing-layer" aria-hidden="true">
+      <span class="kline-chart__drawing-label">{{ toolOverlay }}</span>
+      <span v-if="currentTool === 'line'" class="kline-chart__guide kline-chart__guide--line" />
+      <span v-if="currentTool === 'horizontal'" class="kline-chart__guide kline-chart__guide--horizontal" />
+      <span v-if="currentTool === 'range'" class="kline-chart__guide kline-chart__guide--range" />
+    </div>
     <div class="kline-chart__watermark">
       <strong>QuantGod</strong>
       <span>MT5 只读 K 线</span>
@@ -11,13 +23,14 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   bars: { type: Array, default: () => [] },
   indicators: { type: Array, default: () => ['EMA', 'RSI', 'MACD', 'BOLL', 'VOL'] },
   trades: { type: Array, default: () => [] },
   shadowSignals: { type: Array, default: () => [] },
+  activeTool: { type: String, default: 'cursor' },
 });
 
 const chartEl = ref(null);
@@ -26,6 +39,14 @@ let chart = null;
 let klineApi = null;
 let resizeObserver = null;
 let resizeFrame = 0;
+
+const currentTool = computed(() => props.activeTool || 'cursor');
+const toolOverlay = computed(() => {
+  if (currentTool.value === 'line') return '趋势线工具已启用';
+  if (currentTool.value === 'horizontal') return '水平线工具已启用';
+  if (currentTool.value === 'range') return '区间标记工具已启用';
+  return '';
+});
 
 onMounted(async () => {
   await nextTick();
@@ -237,6 +258,66 @@ function overlayPoint(item) {
   width: 100%;
   height: min(68vh, 720px);
   min-height: 540px;
+}
+
+.kline-chart--tool-line,
+.kline-chart--tool-horizontal,
+.kline-chart--tool-range {
+  cursor: crosshair;
+}
+
+.kline-chart__drawing-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.kline-chart__drawing-label {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  border: 1px solid rgb(56, 189, 248, 0.38);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #bae6fd;
+  background: rgb(8, 47, 73, 0.62);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.kline-chart__guide {
+  position: absolute;
+  border-color: rgb(56, 189, 248, 0.72);
+  box-shadow: 0 0 18px rgb(56, 189, 248, 0.22);
+}
+
+.kline-chart__guide--line {
+  top: 26%;
+  left: 14%;
+  width: 68%;
+  height: 0;
+  border-top: 2px dashed rgb(56, 189, 248, 0.76);
+  transform: rotate(-8deg);
+  transform-origin: left center;
+}
+
+.kline-chart__guide--horizontal {
+  top: 48%;
+  left: 8%;
+  width: 84%;
+  height: 0;
+  border-top: 2px dashed rgb(56, 189, 248, 0.76);
+}
+
+.kline-chart__guide--range {
+  top: 32%;
+  bottom: 42%;
+  left: 9%;
+  width: 82%;
+  border-top: 2px dashed rgb(56, 189, 248, 0.72);
+  border-bottom: 2px dashed rgb(56, 189, 248, 0.72);
+  background: rgb(56, 189, 248, 0.08);
 }
 
 .kline-chart__watermark {

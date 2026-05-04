@@ -1,4 +1,4 @@
-const jsonHeaders = { 'Content-Type': 'application/json' }
+const jsonHeaders = { 'Content-Type': 'application/json', 'X-QuantGod-Local': '1' }
 
 async function requestJson(url, options = {}) {
   const res = await fetch(url, options)

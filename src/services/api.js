@@ -1,4 +1,5 @@
 const JSON_HEADERS = { Accept: 'application/json' };
+const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
 
 async function fetchJson(url, fallback = null, options = {}) {
   try {
@@ -109,7 +110,8 @@ async function postJson(url, payload, fallback = null) {
       method: 'POST',
       headers: {
         ...JSON_HEADERS,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...CSRF_HEADERS
       },
       cache: 'no-store',
       body: JSON.stringify(payload || {})

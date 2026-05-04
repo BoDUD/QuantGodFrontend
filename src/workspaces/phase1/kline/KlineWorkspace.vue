@@ -21,7 +21,7 @@
           type="button"
           :class="{ active: activeTool === tool.key }"
           :title="tool.title"
-          @click="activeTool = tool.key"
+          @click="handleToolClick(tool)"
         >
           {{ tool.label }}
         </button>
@@ -43,9 +43,11 @@
           :indicators="indicators"
           :trades="visibleTrades"
           :shadow-signals="visibleShadowSignals"
+          :active-tool="activeTool"
         />
 
         <footer class="kline-workspace__tape">
+          <span>当前工具 {{ activeToolTitle }}</span>
           <span>最新 {{ latestTime }}</span>
           <span>O {{ formatPrice(latestBar?.open) }}</span>
           <span>H {{ formatPrice(latestBar?.high) }}</span>
@@ -168,6 +170,9 @@ const volatilityLabel = computed(() => {
   if (rangePct >= 1.6) return '中波动';
   return '低波动';
 });
+const activeToolTitle = computed(
+  () => drawingTools.find((tool) => tool.key === activeTool.value)?.title || '选择',
+);
 const recentEvents = computed(() => {
   const tradeEvents = visibleTrades.value.slice(-3).map((item, index) => ({
     key: `trade-${index}-${item.ticket || item.timeIso || item.time || index}`,
@@ -204,6 +209,10 @@ async function loadChart() {
   } catch (loadError) {
     error.value = loadError.message || String(loadError);
   }
+}
+
+function handleToolClick(tool) {
+  activeTool.value = tool.key === 'clear' ? 'cursor' : tool.key;
 }
 
 function formatPrice(value) {
@@ -312,7 +321,7 @@ onMounted(bootstrap);
 
 .kline-workspace__terminal {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: 52px minmax(0, 1fr) minmax(260px, 320px);
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgb(148, 163, 184, 0.18);
@@ -331,14 +340,15 @@ onMounted(bootstrap);
 
 .kline-workspace__rail button {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   place-items: center;
   border: 1px solid rgb(148, 163, 184, 0.22);
   border-radius: 10px;
   background: rgb(15, 23, 42, 0.82);
   color: var(--qg-text-soft);
   font-weight: 900;
+  cursor: pointer;
 }
 
 .kline-workspace__rail button.active {
@@ -349,6 +359,7 @@ onMounted(bootstrap);
 
 .kline-workspace__chart-stack {
   display: grid;
+  align-content: start;
   min-width: 0;
 }
 
@@ -481,6 +492,19 @@ onMounted(bootstrap);
   padding: 10px 12px;
   color: #fecaca;
   background: rgb(127, 29, 29, 0.22);
+}
+
+@media (width <= 1600px) {
+  .kline-workspace__terminal {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .kline-workspace__inspector {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    border-top: 1px solid rgb(148, 163, 184, 0.15);
+    border-left: 0;
+  }
 }
 
 @media (width <= 1180px) {

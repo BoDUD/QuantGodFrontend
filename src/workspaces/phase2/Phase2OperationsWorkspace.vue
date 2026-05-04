@@ -78,22 +78,55 @@
           />
         </a-card>
 
-        <a-card title="Telegram 通知" :bordered="false" class="phase2-card">
+        <a-card title="AI 运维推送" :bordered="false" class="phase2-card">
           <div class="phase2-notify">
-            <a-button @click="loadNotify" :loading="notifyLoading">读取配置</a-button>
+            <p class="phase2-card-note">
+              读取 MT5、Polymarket、治理和每日复盘证据，生成中文建议后只推送到 Telegram；不会接收命令，也不会触发交易。
+            </p>
+            <div class="phase2-loop-tags">
+              <span>只读证据</span>
+              <span>AI 中文判断</span>
+              <span>Telegram 推送</span>
+              <span>本地记录</span>
+            </div>
+            <div class="phase2-field-grid">
+              <label class="phase2-field">
+                <span>监听品种</span>
+                <a-input v-model:value="monitorSymbols" />
+              </label>
+              <label class="phase2-field">
+                <span>分析周期</span>
+                <a-input v-model:value="monitorTimeframes" />
+              </label>
+            </div>
+            <div class="phase2-button-row">
+              <a-button @click="runAiOps(false)" :loading="opsLoading">演练生成建议</a-button>
+              <a-button type="primary" @click="runAiOps(true)" :loading="opsLoading">
+                AI 分析并推送
+              </a-button>
+              <a-button @click="sendDigest(false)" :loading="opsLoading">推送每日摘要</a-button>
+              <a-button @click="runRuntimeScan(true)" :loading="opsLoading">普通扫描演练</a-button>
+            </div>
             <a-alert
               v-if="notifyConfig"
               :type="notifyConfig.telegramConfigured ? 'success' : 'warning'"
               show-icon
               :message="
-                notifyConfig.telegramConfigured ? 'Telegram 已配置' : 'Telegram Token / Chat ID 未配置'
+                notifyConfig.telegramConfigured
+                  ? 'Telegram 通道已连接'
+                  : 'Telegram Token / Chat ID 未配置'
               "
+              description="AI 推送会复用这个通道；页面不会接收 Telegram 命令。"
             />
-            <a-input v-model:value="testMessage" placeholder="测试消息" />
-            <div class="phase2-button-row">
-              <a-button type="primary" @click="sendTest(false)" :loading="notifyLoading">发送测试</a-button>
-              <a-button @click="sendTest(true)" :loading="notifyLoading">演练发送</a-button>
-            </div>
+            <a-alert
+              v-if="opsResult"
+              class="phase2-alert"
+              :type="opsResult.ok === false ? 'error' : opsResult.dryRun ? 'info' : 'success'"
+              show-icon
+              :message="describeOpsStatus(opsResult)"
+              :description="describeOpsDetail(opsResult)"
+            />
+            <h3 class="phase2-subtitle">最近推送记录</h3>
             <div class="phase2-notify-list">
               <article v-for="row in notifyRows.slice(0, 6)" :key="row.key" class="phase2-notify-item">
                 <strong>{{ formatEventType(row.eventType) }}</strong>
@@ -118,7 +151,10 @@ import {
   extractRows,
   loadNotifyConfig,
   loadNotifyHistory,
-  sendNotifyTest,
+  loadAiMonitorConfig,
+  runMt5AiMonitor,
+  sendNotifyDailyDigest,
+  sendNotifyRuntimeScan,
   tableColumns,
 } from '../../services/phase2Api';
 import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
@@ -141,7 +177,11 @@ const lastLoaded = ref('');
 const notifyLoading = ref(false);
 const notifyConfig = ref(null);
 const notifyHistory = ref(null);
-const testMessage = ref('QuantGod 运维通知测试');
+const aiMonitorConfig = ref(null);
+const opsLoading = ref(false);
+const opsResult = ref(null);
+const monitorSymbols = ref('USDJPYc,EURUSDc,XAUUSDc');
+const monitorTimeframes = ref('M15,H1');
 
 const activeGroup = computed(() => groups.find((item) => item.key === selectedKeys.value[0]) || groups[0]);
 const endpointOptions = computed(() =>
@@ -180,14 +220,34 @@ async function loadNotify() {
   notifyLoading.value = true;
   notifyConfig.value = await loadNotifyConfig();
   notifyHistory.value = await loadNotifyHistory(50);
+  aiMonitorConfig.value = await loadAiMonitorConfig();
   notifyLoading.value = false;
 }
 
-async function sendTest(dryRun) {
-  notifyLoading.value = true;
-  await sendNotifyTest(testMessage.value, dryRun);
+async function runAiOps(send) {
+  opsLoading.value = true;
+  opsResult.value = await runMt5AiMonitor({
+    send,
+    dryRun: !send,
+    symbols: monitorSymbols.value,
+    timeframes: monitorTimeframes.value,
+  });
   notifyHistory.value = await loadNotifyHistory(50);
-  notifyLoading.value = false;
+  opsLoading.value = false;
+}
+
+async function sendDigest(dryRun) {
+  opsLoading.value = true;
+  opsResult.value = await sendNotifyDailyDigest(dryRun);
+  notifyHistory.value = await loadNotifyHistory(50);
+  opsLoading.value = false;
+}
+
+async function runRuntimeScan(dryRun) {
+  opsLoading.value = true;
+  opsResult.value = await sendNotifyRuntimeScan(dryRun);
+  notifyHistory.value = await loadNotifyHistory(50);
+  opsLoading.value = false;
 }
 
 function formatCell(value) {
@@ -205,6 +265,29 @@ function formatNotifyStatus(row) {
   if (row?.error) return formatDisplayValue(row.error);
   if (row?.ok === false) return '发送失败';
   return '等待发送结果';
+}
+
+function describeOpsStatus(result) {
+  if (!result) return '尚未运行';
+  if (result.ok === false) return `运行失败：${formatDisplayValue(result.error || '未知错误')}`;
+  if (result.status === 'sent' || result.sent) return '已推送到 Telegram';
+  if (result.dryRun || result.status === 'dry_run') return '演练完成，未真实推送';
+  if (result.summary?.notifications !== undefined) {
+    return `AI 监控完成，通知 ${result.summary.notifications} 条`;
+  }
+  return '运维闭环已完成';
+}
+
+function describeOpsDetail(result) {
+  if (!result) return '';
+  if (result.ok === false) return '请查看后端日志或通知配置，系统不会自动执行交易动作。';
+  const items = Array.isArray(result.items) ? result.items : [];
+  const firstItem = items[0] || {};
+  const decision = firstItem.decision?.action || firstItem.decision?.recommendation || firstItem.reason;
+  const source = firstItem.source?.symbol || firstItem.symbol || aiMonitorConfig.value?.defaultSymbols || '全部监听对象';
+  if (decision) return `${source}：${formatDisplayValue(decision, { max: 120 })}`;
+  if (result.record?.messagePreview) return formatDisplayValue(result.record.messagePreview, { max: 140 });
+  return '已写入本地通知记录；Telegram 通道保持 push-only。';
 }
 
 onMounted(() => {
@@ -280,6 +363,39 @@ onMounted(() => {
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+.phase2-card-note {
+  margin: 0;
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.phase2-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.phase2-loop-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.phase2-loop-tags span {
+  border: 1px solid rgba(143, 208, 255, 0.28);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #b7e2ff;
+  background: rgba(143, 208, 255, 0.1);
+  font-size: 12px;
+  font-weight: 800;
+}
+.phase2-subtitle {
+  margin: 4px 0 0;
+  color: #f3f3f3;
+  font-size: 15px;
+  line-height: 1.35;
 }
 .phase2-field span {
   color: #94a3b8;
@@ -388,6 +504,10 @@ onMounted(() => {
   }
 
   .phase2-record {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phase2-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
