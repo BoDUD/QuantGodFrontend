@@ -74,7 +74,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { loadMt5Workspace } from '../../services/domainApi.js';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
 import MetricGrid from '../shared/MetricGrid.vue';
@@ -126,18 +126,29 @@ const closeHistoryRows = computed(() => buildCloseHistoryRows(snapshot.value));
 const tradeJournalRows = computed(() => buildTradeJournalRows(snapshot.value));
 const todoRows = computed(() => buildMt5TodoRows(snapshot.value));
 const reviewRows = computed(() => buildMt5ReviewRows(snapshot.value));
+let refreshTimer = null;
 
-async function load() {
-  loading.value = true;
+async function load(options = {}) {
+  if (!options.silent) loading.value = true;
   error.value = '';
   try {
     Object.assign(state, await loadMt5Workspace());
   } catch (exc) {
     error.value = exc?.message || 'MT5 实盘监控加载失败';
   } finally {
-    loading.value = false;
+    if (!options.silent) loading.value = false;
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  load();
+  refreshTimer = window.setInterval(() => {
+    if (!loading.value) load({ silent: true });
+  }, 15000);
+});
+
+onUnmounted(() => {
+  if (refreshTimer) window.clearInterval(refreshTimer);
+  refreshTimer = null;
+});
 </script>

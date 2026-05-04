@@ -298,6 +298,50 @@ function compactRow(row, fields) {
   return out;
 }
 
+function parseMt5TimeMs(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const text = String(value).trim();
+  const match = text.match(/^(\d{4})[./-](\d{2})[./-](\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (match) {
+    const parsed = Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      Number(match[4] || 0),
+      Number(match[5] || 0),
+      Number(match[6] || 0),
+    );
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function rowTimeMs(row, keys) {
+  for (const key of keys) {
+    const value = pick(row, [key], null);
+    const parsed = parseMt5TimeMs(value);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
+
+function latestRows(rows, keys, limit) {
+  return [...(rows || [])]
+    .map((row, index) => ({ row, index, timeMs: rowTimeMs(row, keys) }))
+    .sort((left, right) => {
+      if (left.timeMs !== null && right.timeMs !== null && left.timeMs !== right.timeMs) {
+        return right.timeMs - left.timeMs;
+      }
+      if (left.timeMs !== null && right.timeMs === null) return -1;
+      if (left.timeMs === null && right.timeMs !== null) return 1;
+      return right.index - left.index;
+    })
+    .slice(0, limit)
+    .map((item) => item.row);
+}
+
 export function buildPositionRows(snapshot) {
   return snapshot.positions.slice(0, 30).map((row) =>
     compactRow(row, {
@@ -341,22 +385,23 @@ export function buildSymbolRows(snapshot) {
 }
 
 export function buildCloseHistoryRows(snapshot) {
-  return snapshot.closeHistory.slice(0, 40).map((row) =>
-    compactRow(row, {
-      平仓时间: ['CloseTime', 'closeTime'],
-      品种: ['Symbol', 'symbol'],
-      方向: ['Type', 'type'],
-      手数: ['Lots', 'lots'],
-      净盈亏: ['NetProfit', 'netProfit', 'profit'],
-      策略: ['Strategy', 'strategy'],
-      来源: ['Source', 'source'],
-      备注: ['Comment', 'comment'],
-    }),
+  return latestRows(snapshot.closeHistory, ['CloseTime', 'closeTime', 'OpenTime', 'openTime'], 40).map(
+    (row) =>
+      compactRow(row, {
+        平仓时间: ['CloseTime', 'closeTime'],
+        品种: ['Symbol', 'symbol'],
+        方向: ['Type', 'type'],
+        手数: ['Lots', 'lots'],
+        净盈亏: ['NetProfit', 'netProfit', 'profit'],
+        策略: ['Strategy', 'strategy'],
+        来源: ['Source', 'source'],
+        备注: ['Comment', 'comment'],
+      }),
   );
 }
 
 export function buildTradeJournalRows(snapshot) {
-  return snapshot.tradeJournal.slice(0, 40).map((row) =>
+  return latestRows(snapshot.tradeJournal, ['EventTime', 'eventTime', 'Time', 'time'], 40).map((row) =>
     compactRow(row, {
       时间: ['EventTime', 'eventTime'],
       事件: ['EventType', 'eventType'],
