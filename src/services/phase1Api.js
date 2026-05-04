@@ -1,7 +1,7 @@
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'X-QuantGod-Local': '1' };
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, { cache: 'no-store', ...options });
   const text = await response.text();
   let payload = {};
   if (text) {
@@ -73,6 +73,11 @@ export async function runDeepSeekTelegram({
 export function getKline({ symbol, tf = 'H1', bars = 200 }) {
   const params = new URLSearchParams({ symbol, tf, bars: String(bars) });
   return fetchJson(`/api/mt5-readonly/kline?${params.toString()}`);
+}
+
+export function getQuote({ symbol }) {
+  const params = new URLSearchParams({ symbol });
+  return fetchJson(`/api/mt5-readonly/quote?${params.toString()}`);
 }
 
 export function getChartTrades({ symbol, days = 30 }) {

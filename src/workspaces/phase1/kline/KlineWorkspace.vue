@@ -60,21 +60,22 @@
       <aside class="kline-workspace__inspector">
         <section>
           <p>行情摘要</p>
-          <h3>{{ formatPrice(latestBar?.close) }}</h3>
+          <h3>{{ formatPrice(marketPrice) }}</h3>
           <dl>
             <div>
-              <dt>区间高低</dt>
-              <dd>{{ rangeText }}</dd>
+              <dt>{{ marketRangeLabel }}</dt>
+              <dd>{{ marketRangeText }}</dd>
             </div>
             <div>
-              <dt>波动状态</dt>
-              <dd>{{ volatilityLabel }}</dd>
+              <dt>{{ marketSecondaryLabel }}</dt>
+              <dd>{{ marketSecondaryText }}</dd>
             </div>
             <div>
               <dt>数据新鲜度</dt>
-              <dd>{{ latestTime }}</dd>
+              <dd>{{ marketFreshnessText }}</dd>
             </div>
           </dl>
+          <small v-if="quoteWarning" class="kline-workspace__quote-warning">{{ quoteWarning }}</small>
         </section>
 
         <section>
@@ -111,8 +112,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import { getChartTrades, getKline, getShadowSignals, getSymbolRegistry } from '../../../services/phase1Api';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+  getChartTrades,
+  getKline,
+  getQuote,
+  getShadowSignals,
+  getSymbolRegistry,
+} from '../../../services/phase1Api';
 import KlineChart from './KlineChart.vue';
 import KlineToolbar from './KlineToolbar.vue';
 import SignalOverlay from './SignalOverlay.vue';
@@ -127,8 +134,12 @@ const showShadow = ref(true);
 const bars = ref([]);
 const trades = ref([]);
 const shadowSignals = ref([]);
+const quotePayload = ref(null);
+const quoteWarning = ref('');
 const error = ref('');
 const activeTool = ref('cursor');
+let quoteRefreshTimer = null;
+let chartRefreshTimer = null;
 
 const drawingTools = [
   { key: 'cursor', label: '↖', title: '选择' },
@@ -140,16 +151,48 @@ const drawingTools = [
 
 const latestBar = computed(() => bars.value.at(-1) || null);
 const previousBar = computed(() => bars.value.at(-2) || null);
+const latestQuote = computed(() => quotePayload.value?.quote || null);
 const visibleTrades = computed(() => (showTrades.value ? trades.value : []));
 const visibleShadowSignals = computed(() => (showShadow.value ? shadowSignals.value : []));
 const latestTime = computed(() =>
   formatTime(latestBar.value?.timeIso || latestBar.value?.time || latestBar.value?.timestamp),
 );
+const quoteTime = computed(() =>
+  formatTime(
+    latestQuote.value?.timeIso ||
+      latestQuote.value?.time ||
+      quotePayload.value?.source?.mtimeIso ||
+      quotePayload.value?.generatedAtIso,
+  ),
+);
 const highInView = computed(() => maxBy(bars.value, 'high'));
 const lowInView = computed(() => minBy(bars.value, 'low'));
 const rangeText = computed(() => `${formatPrice(lowInView.value)} / ${formatPrice(highInView.value)}`);
+const bidAskText = computed(() => {
+  const bid = Number(latestQuote.value?.bid);
+  const ask = Number(latestQuote.value?.ask);
+  if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) return '';
+  return `${formatPrice(bid)} / ${formatPrice(ask)}`;
+});
+const marketPrice = computed(() => {
+  const bid = Number(latestQuote.value?.bid);
+  const ask = Number(latestQuote.value?.ask);
+  const last = Number(latestQuote.value?.last);
+  if (Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0) return (bid + ask) / 2;
+  if (Number.isFinite(last) && last > 0) return last;
+  return Number(latestBar.value?.close);
+});
+const marketRangeLabel = computed(() => (bidAskText.value ? '买价 / 卖价' : '区间高低'));
+const marketRangeText = computed(() => bidAskText.value || rangeText.value);
+const marketSecondaryLabel = computed(() => (bidAskText.value ? '点差' : '波动状态'));
+const marketSecondaryText = computed(() => {
+  if (!bidAskText.value) return volatilityLabel.value;
+  const spread = Number(latestQuote.value?.spreadPoints);
+  return Number.isFinite(spread) ? `${spread.toFixed(1)} 点` : '--';
+});
+const marketFreshnessText = computed(() => (quoteTime.value !== '--' ? quoteTime.value : latestTime.value));
 const latestChange = computed(() => {
-  const close = Number(latestBar.value?.close);
+  const close = Number(marketPrice.value);
   const previous = Number(previousBar.value?.close);
   if (!Number.isFinite(close) || !Number.isFinite(previous) || previous === 0) return 0;
   return ((close - previous) / previous) * 100;
@@ -193,10 +236,12 @@ async function bootstrap() {
     symbol.value = symbols.value[0].symbol;
   }
   await loadChart();
+  startRealtimeRefresh();
 }
 
 async function loadChart() {
   error.value = '';
+  quotePayload.value = null;
   try {
     const [klinePayload, tradesPayload, shadowPayload] = await Promise.all([
       getKline({ symbol: symbol.value, tf: tf.value, bars: barsCount.value }),
@@ -206,9 +251,40 @@ async function loadChart() {
     bars.value = klinePayload.bars || [];
     trades.value = tradesPayload.items || [];
     shadowSignals.value = shadowPayload.items || [];
+    await loadQuote();
   } catch (loadError) {
     error.value = loadError.message || String(loadError);
   }
+}
+
+async function loadQuote() {
+  quoteWarning.value = '';
+  try {
+    const payload = await getQuote({ symbol: symbol.value });
+    const quote = payload?.quote;
+    if (quote?.symbol && String(quote.symbol).toLowerCase() !== String(symbol.value).toLowerCase()) {
+      quoteWarning.value = '实时报价品种与当前图表不一致，已暂时隐藏报价。';
+      return;
+    }
+    quotePayload.value = payload;
+    if (!quote?.ok)
+      quoteWarning.value = payload?.error || quote?.error || '实时报价暂不可用，已回退到 K 线收盘价。';
+  } catch (loadError) {
+    quoteWarning.value = loadError.message || String(loadError);
+  }
+}
+
+function startRealtimeRefresh() {
+  stopRealtimeRefresh();
+  quoteRefreshTimer = window.setInterval(loadQuote, 5000);
+  chartRefreshTimer = window.setInterval(loadChart, 60000);
+}
+
+function stopRealtimeRefresh() {
+  if (quoteRefreshTimer) window.clearInterval(quoteRefreshTimer);
+  if (chartRefreshTimer) window.clearInterval(chartRefreshTimer);
+  quoteRefreshTimer = null;
+  chartRefreshTimer = null;
 }
 
 function handleToolClick(tool) {
@@ -222,8 +298,15 @@ function formatPrice(value) {
 }
 
 function formatTime(value) {
+  if (value === undefined || value === null || value === '') return '--';
   const timestamp = Number(value);
-  const date = Number.isFinite(timestamp) && timestamp > 100000 ? new Date(timestamp) : new Date(value || 0);
+  let date;
+  if (Number.isFinite(timestamp)) {
+    if (timestamp <= 0) return '--';
+    date = new Date(timestamp > 1_000_000_000_000 ? timestamp : timestamp * 1000);
+  } else {
+    date = new Date(value);
+  }
   if (Number.isNaN(date.getTime())) return '--';
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
@@ -243,8 +326,12 @@ function minBy(rows, key) {
   return values.length ? Math.min(...values) : null;
 }
 
-watch([symbol, tf], loadChart);
+watch([symbol, tf], () => {
+  quotePayload.value = null;
+  loadChart();
+});
 onMounted(bootstrap);
+onBeforeUnmount(stopRealtimeRefresh);
 </script>
 
 <style scoped>
@@ -398,6 +485,14 @@ onMounted(bootstrap);
   color: var(--qg-text);
   font-size: 30px;
   line-height: 1;
+}
+
+.kline-workspace__quote-warning {
+  display: block;
+  margin-top: 10px;
+  color: var(--qg-warning);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .kline-workspace__inspector dl {
