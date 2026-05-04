@@ -306,6 +306,11 @@ export function buildSafetyItems(snapshot) {
 
 export function buildMt5SimulationItems(snapshot) {
   const summary = snapshot.dailyReview?.summary || {};
+  const iteration = snapshot.dailyReview?.dailyIteration || {};
+  const strategyQueue = rowsFromPayload(iteration.strategyIterationQueue);
+  const evidenceQueue = rowsFromPayload(iteration.evidenceIterationQueue);
+  const findings = rowsFromPayload(iteration.findings);
+  const hasNoTradeFinding = findings.some((row) => row.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
   const liveUniverse = snapshot.researchSummary.liveUniverseLabel || snapshot.researchSummary.liveUniverse?.join(', ') || 'USDJPYc';
   const shadowUniverse =
     snapshot.researchSummary.shadowResearchUniverseLabel ||
@@ -354,6 +359,14 @@ export function buildMt5SimulationItems(snapshot) {
       value: queue.length ? '等待测试窗口' : humanizeStatus(summary.todayTodoStatus || '—'),
       hint: queuedText,
       status: queue.length ? 'warn' : 'ok',
+    },
+    {
+      label: '复盘迭代',
+      value: hasNoTradeFinding ? '需要调参重跑' : summary.dailyIterationRequired ? '需要复核' : '暂无阻塞',
+      hint: hasNoTradeFinding
+        ? `今日 tester 已解析但无成交；策略 ${strategyQueue.length} 项、证据 ${evidenceQueue.length} 项待迭代`
+        : '只影响模拟和 tester，不修改实盘 preset',
+      status: hasNoTradeFinding || summary.dailyIterationRequired ? 'warn' : 'ok',
     },
     {
       label: '策略效果',
@@ -523,8 +536,18 @@ export function buildTradeJournalRows(snapshot) {
 export function buildMt5TodoRows(snapshot) {
   const queue = rowsFromPayload(snapshot.dailyReview?.actionQueue);
   const completed = rowsFromPayload(snapshot.dailyReview?.completedActionQueue);
+  const researchBacklog = rowsFromPayload(snapshot.dailyReview?.researchBacklogQueue);
   const sourceRows = queue.length ? queue : completed;
   if (!sourceRows.length) {
+    if (researchBacklog.length) {
+      return [{
+        任务: 'MT5 今日待办',
+        路线: '参数实验',
+        状态: '已跑完',
+        结论: `${researchBacklog.length} 个新候选进入下一轮研究 backlog`,
+        测试窗口: snapshot.dailyReview?.summary?.nextTesterWindowLabel || '下一轮刷新',
+      }];
+    }
     return [{ 任务: 'MT5 今日待办', 状态: '已完成或无待办', 结论: '当前没有阻塞项' }];
   }
   return sourceRows.slice(0, 10).map((row) => ({
@@ -539,6 +562,11 @@ export function buildMt5TodoRows(snapshot) {
 export function buildMt5ReviewRows(snapshot) {
   const pnl = snapshot.dailyReview?.dailyPnl || {};
   const summary = snapshot.dailyReview?.summary || {};
+  const iteration = snapshot.dailyReview?.dailyIteration || {};
+  const findings = rowsFromPayload(iteration.findings);
+  const strategyQueue = rowsFromPayload(iteration.strategyIterationQueue);
+  const evidenceQueue = rowsFromPayload(iteration.evidenceIterationQueue);
+  const noTradeFinding = findings.find((row) => row.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
   return [
     {
       项目: '昨日平仓',
@@ -548,7 +576,12 @@ export function buildMt5ReviewRows(snapshot) {
     {
       项目: '参数实验',
       结果: `完成 ${summary.dailyTesterCompletedCount || 0} 项 / 延后 ${summary.paramDeferredCount || 0} 项`,
-      建议: summary.promotionReviewCount ? '有升实盘候选需人工确认' : '暂无可升实盘项',
+      建议: noTradeFinding ? '全部无成交，需隔离 tester 调参重跑' : summary.promotionReviewCount ? '有升实盘候选需人工确认' : '暂无可升实盘项',
+    },
+    {
+      项目: '策略迭代',
+      结果: summary.dailyIterationRequired ? `策略 ${strategyQueue.length} 项 / 证据 ${evidenceQueue.length} 项` : '暂无',
+      建议: summary.dailyIterationRequired ? '保持实盘不变，只迭代模拟候选' : '今日无需代码或策略动作',
     },
   ];
 }

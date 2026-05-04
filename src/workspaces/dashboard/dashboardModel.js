@@ -281,6 +281,7 @@ export function buildDailyTodoRows(raw = {}) {
   const summary = dailySummary(raw);
   const queue = rowsFromObjectList(raw?.dailyReview?.actionQueue);
   const completed = rowsFromObjectList(raw?.dailyReview?.completedActionQueue);
+  const researchBacklog = rowsFromObjectList(raw?.dailyReview?.researchBacklogQueue);
   const polyRows = polymarketRows(raw);
   const rows = [];
 
@@ -301,6 +302,15 @@ export function buildDailyTodoRows(raw = {}) {
         状态: '已完成',
         结论: item.resultStatus || item.statusLabel || '报告已回灌',
       });
+    });
+  }
+
+  if (researchBacklog.length) {
+    rows.push({
+      领域: 'MT5 / 参数实验',
+      任务: '新候选已进入下一轮研究',
+      状态: `${researchBacklog.length} 项待下一轮刷新`,
+      结论: '今日 tester 已跑完；剩余候选先放入研究 backlog，不算未完成待办',
     });
   }
 
@@ -335,6 +345,12 @@ export function buildDailyTodoRows(raw = {}) {
 export function buildDailyReviewRows(raw = {}) {
   const summary = dailySummary(raw);
   const pnl = dailyPnl(raw);
+  const iteration = raw?.dailyReview?.dailyIteration || {};
+  const findings = rowsFromObjectList(iteration.findings);
+  const strategyQueue = rowsFromObjectList(iteration.strategyIterationQueue);
+  const evidenceQueue = rowsFromObjectList(iteration.evidenceIterationQueue);
+  const noTradeFinding = findings.find((item) => item.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
+  const polyFinding = findings.find((item) => item.code === 'POLYMARKET_LOSS_QUARANTINE_ACTIVE');
   const steps = rowsFromObjectList(raw?.dailyAutopilot?.steps);
   const polyRows = polymarketRows(raw);
   const polyStep = steps.find((step) => step.name === 'polymarket_readonly_cycle');
@@ -351,8 +367,12 @@ export function buildDailyReviewRows(raw = {}) {
     {
       领域: '参数实验',
       复盘: `完成 ${summary.dailyTesterCompletedCount || 0} 项 / 延后 ${summary.paramDeferredCount || 0} 项`,
-      结果: summary.dailyTesterBudgetDone ? '预算已完成' : '仍有待办',
-      建议: summary.promotionReviewCount ? '存在升实盘复核候选' : '暂无可自动升实盘项',
+      结果: noTradeFinding ? '全部无成交样本' : summary.dailyTesterBudgetDone ? '预算已完成' : '仍有待办',
+      建议: noTradeFinding
+        ? '需要只在隔离 tester 调宽窗口或阈值，重新生成可学习样本'
+        : summary.promotionReviewCount
+          ? '存在升实盘复核候选'
+          : '暂无可自动升实盘项',
     },
     {
       领域: '预测市场',
@@ -361,13 +381,15 @@ export function buildDailyReviewRows(raw = {}) {
         summary.polymarketExecutedPF || summary.polymarketShadowPF
           ? `实盘 PF ${formatCompact(summary.polymarketExecutedPF)} / 模拟 PF ${formatCompact(summary.polymarketShadowPF)}`
           : `雷达候选 ${polyRows.length} 条`,
-      建议: summary.polymarketLossQuarantine ? '保持亏损隔离，不自动下注' : '继续只读研究',
+      建议: polyFinding ? '亏损来源仍未修复，必须继续 shadow-only 重调' : summary.polymarketLossQuarantine ? '保持亏损隔离，不自动下注' : '继续只读研究',
     },
     {
       领域: '自动闭环',
       复盘: raw?.dailyAutopilot?.status || '—',
       结果: testerTimeout ? '测试器运行超时但后续报告已回灌' : '闭环完成',
-      建议: summary.dailyIterationRequired ? '需要代码或策略迭代' : '今日无需代码变更',
+      建议: summary.dailyIterationRequired
+        ? `需要迭代：策略 ${strategyQueue.length} 项 / 证据 ${evidenceQueue.length} 项`
+        : '今日无需代码变更',
     },
   ];
 }

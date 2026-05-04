@@ -304,6 +304,9 @@ function buildSafetyItems() {
 
 function buildSimulationItems(payload) {
   const reviewSummary = summaryObject(payload.dailyReview);
+  const iteration = payload.dailyReview?.dailyIteration || {};
+  const strategyQueue = Array.isArray(iteration.strategyIterationQueue) ? iteration.strategyIterationQueue : [];
+  const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
   const canaryRows = countRows(payload.canaryLedger) || countRows(payload.canaryRun);
   const governanceRows = countRows(payload.autoGovernanceLedger) || countRows(payload.autoGovernance);
   const realTradeRows = countRows(payload.realTrades);
@@ -325,7 +328,13 @@ function buildSimulationItems(payload) {
     {
       label: '当前效果',
       value: `执行PF ${formatNumber(executedPF ?? 0, 4)} / 影子PF ${formatNumber(shadowPF ?? 0, 4)}`,
-      hint: quarantined ? '亏损来源未修复，继续隔离' : '等待更多样本确认',
+      hint: quarantined ? '亏损来源未修复，继续隔离并重调策略' : '等待更多样本确认',
+    },
+    {
+      label: '策略迭代',
+      value: polyRetune ? '需要重调模拟' : '暂无新增迭代',
+      hint: polyRetune ? '只在 shadow-only 重建筛选器，不开启钱包或真实下注' : '保持只读观察',
+      status: polyRetune ? 'warn' : 'ok',
     },
     {
       label: '今日待办',
@@ -344,6 +353,9 @@ function buildSimulationItems(payload) {
 
 function buildReviewItems(payload) {
   const summary = summaryObject(payload.dailyReview);
+  const iteration = payload.dailyReview?.dailyIteration || {};
+  const strategyQueue = Array.isArray(iteration.strategyIterationQueue) ? iteration.strategyIterationQueue : [];
+  const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
   return [
     {
       label: '亏损复盘',
@@ -353,8 +365,10 @@ function buildReviewItems(payload) {
     },
     {
       label: '复盘结论',
-      value: friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
-      hint: `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
+      value: polyRetune ? '需要策略迭代' : friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
+      hint: polyRetune
+        ? '预测市场长期隔离不是成功状态，需要继续调筛选器并模拟验证'
+        : `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
       status: summary.codexReviewRequired ? 'warn' : 'ok',
     },
   ];
