@@ -21,6 +21,14 @@
     <MetricGrid :items="metrics" />
     <EndpointHealthGrid :items="endpointHealth" />
 
+    <section class="qg-section-card qg-section-card--operator">
+      <header>
+        <p class="qg-eyebrow">实盘 / 模拟一眼看懂</p>
+        <h2>现在系统在做什么</h2>
+      </header>
+      <KeyValueList :items="simulationItems" />
+    </section>
+
     <div class="qg-domain-grid qg-domain-grid--two">
       <section class="qg-section-card">
         <header>
@@ -52,6 +60,7 @@
     <div class="qg-domain-grid">
       <LedgerTable title="实时持仓" :rows="positionRows" :limit="30" />
       <LedgerTable title="挂单状态" :rows="orderRows" :limit="30" />
+      <LedgerTable title="策略运行位置" :rows="routeModeRows" :limit="10" />
       <LedgerTable title="今日待办" :rows="todoRows" :limit="10" />
       <LedgerTable title="每日复盘" :rows="reviewRows" :limit="10" />
       <LedgerTable title="品种状态" :rows="symbolRows" :limit="40" />
@@ -93,6 +102,8 @@ import {
   buildTradeJournalRows,
   buildMt5TodoRows,
   buildMt5ReviewRows,
+  buildMt5RouteModeRows,
+  buildMt5SimulationItems,
   buildSafetyItems,
   buildSymbolRows,
   normalizeMt5Snapshot,
@@ -112,12 +123,15 @@ const state = reactive({
   tradeJournal: [],
   dailyReview: null,
   dailyAutopilot: null,
+  researchStats: null,
+  governanceAdvisor: null,
 });
 
 const snapshot = computed(() => normalizeMt5Snapshot(state));
 const metrics = computed(() => buildMt5Metrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
 const safetyItems = computed(() => buildSafetyItems(snapshot.value));
+const simulationItems = computed(() => buildMt5SimulationItems(snapshot.value));
 const accountItems = computed(() => buildAccountItems(snapshot.value));
 const positionRows = computed(() => buildPositionRows(snapshot.value));
 const orderRows = computed(() => buildOrderRows(snapshot.value));
@@ -126,6 +140,7 @@ const closeHistoryRows = computed(() => buildCloseHistoryRows(snapshot.value));
 const tradeJournalRows = computed(() => buildTradeJournalRows(snapshot.value));
 const todoRows = computed(() => buildMt5TodoRows(snapshot.value));
 const reviewRows = computed(() => buildMt5ReviewRows(snapshot.value));
+const routeModeRows = computed(() => buildMt5RouteModeRows(snapshot.value));
 let refreshTimer = null;
 
 async function load(options = {}) {

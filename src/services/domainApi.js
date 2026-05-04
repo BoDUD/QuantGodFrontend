@@ -28,6 +28,8 @@ export async function loadMt5Workspace() {
     tradeJournal,
     dailyReview,
     dailyAutopilot,
+    researchStats,
+    governanceAdvisor,
   ] = await Promise.all([
     fetchJson('/api/mt5-readonly/status'),
     fetchJson('/api/mt5-readonly/account'),
@@ -40,6 +42,8 @@ export async function loadMt5Workspace() {
     fetchRows('/api/trades/journal?limit=120'),
     fetchJson('/api/daily-review'),
     fetchJson('/api/daily-autopilot'),
+    fetchJson('/api/research/stats'),
+    fetchJson('/api/governance/advisor'),
   ]);
   return {
     status,
@@ -53,6 +57,8 @@ export async function loadMt5Workspace() {
     tradeJournal,
     dailyReview,
     dailyAutopilot,
+    researchStats,
+    governanceAdvisor,
   };
 }
 
@@ -139,6 +145,9 @@ export async function loadPolymarketWorkspace(query = {}) {
     markets,
     assets,
     singleAnalysis,
+    dailyReview,
+    canaryLedger,
+    autoGovernanceLedger,
   ] = await Promise.all([
     fetchJson(`/api/polymarket/search${params({ q, limit })}`),
     fetchJson(`/api/polymarket/radar${params({ limit })}`),
@@ -153,6 +162,9 @@ export async function loadPolymarketWorkspace(query = {}) {
     fetchJson(`/api/polymarket/markets${params({ limit, sort: 'volume' })}`),
     fetchJson(`/api/polymarket/asset-opportunities${params({ limit })}`),
     fetchJson('/api/polymarket/single-market-analysis'),
+    fetchJson('/api/daily-review'),
+    fetchRows(`/api/polymarket/canary-executor-ledger${params({ limit: 80 })}`),
+    fetchRows(`/api/polymarket/auto-governance-ledger${params({ limit: 80 })}`),
   ]);
   return {
     search,
@@ -168,6 +180,9 @@ export async function loadPolymarketWorkspace(query = {}) {
     markets,
     assets,
     singleAnalysis,
+    dailyReview,
+    canaryLedger,
+    autoGovernanceLedger,
   };
 }
 

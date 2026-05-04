@@ -20,6 +20,24 @@
     <MetricGrid :items="model.metrics" />
     <EndpointHealthGrid :items="model.endpoints" />
 
+    <div class="qg-domain-grid qg-domain-grid--two">
+      <section class="qg-section-card qg-section-card--operator">
+        <header>
+          <p class="qg-eyebrow">模拟 / 真实一眼看懂</p>
+          <h2>预测市场现在在做什么</h2>
+        </header>
+        <KeyValueList :items="model.simulationItems" />
+      </section>
+
+      <section class="qg-section-card qg-section-card--operator">
+        <header>
+          <p class="qg-eyebrow">每日复盘</p>
+          <h2>亏损隔离与效果</h2>
+        </header>
+        <KeyValueList :items="model.reviewItems" />
+      </section>
+    </div>
+
     <section class="poly-evidence-console">
       <header class="poly-evidence-console__header">
         <div>
@@ -87,6 +105,8 @@
       <LedgerTable title="市场金额与概率" :rows="model.tables.markets" :limit="12" />
       <LedgerTable title="资产候选" :rows="model.tables.assets" :limit="12" />
       <LedgerTable title="历史复盘" :rows="model.tables.history" :limit="12" />
+      <LedgerTable title="模拟执行流水" :rows="model.tables.canaryLedger" :limit="12" />
+      <LedgerTable title="治理证据流水" :rows="model.tables.autoGovernanceLedger" :limit="12" />
       <LedgerTable title="真实交易证据" :rows="model.tables.realTrades" :limit="12" />
       <LedgerTable title="跨市场联动" :rows="model.tables.cross" :limit="12" />
     </div>
@@ -161,6 +181,9 @@ const state = reactive({
   markets: null,
   assets: null,
   singleAnalysis: null,
+  dailyReview: null,
+  canaryLedger: null,
+  autoGovernanceLedger: null,
 });
 
 const model = computed(() => buildPolymarketModel(state));

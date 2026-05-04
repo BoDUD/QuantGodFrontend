@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCloseHistoryRows, buildTradeJournalRows } from '../../src/workspaces/mt5/mt5Model.js';
+import {
+  buildCloseHistoryRows,
+  buildMt5SimulationItems,
+  buildTradeJournalRows,
+  normalizeMt5Snapshot,
+} from '../../src/workspaces/mt5/mt5Model.js';
 
 describe('mt5Model ledgers', () => {
   it('shows the newest trade journal rows first even when the CSV is oldest-first', () => {
@@ -44,5 +49,54 @@ describe('mt5Model ledgers', () => {
 
     expect(rows[0]).toMatchObject({ 平仓时间: '2026.05.04 08:19', 净盈亏: '0.06' });
     expect(rows[1]).toMatchObject({ 平仓时间: '2026.05.01 12:30', 净盈亏: '0.52' });
+  });
+
+  it('explains live universe, shadow universe, tester window and Vibe-only strategy state', () => {
+    const snapshot = normalizeMt5Snapshot({
+      latest: {
+        strategies: {
+          RSI_Reversal: { enabled: true, active: true, riskMultiplier: 1, reason: 'Waiting for next H1 bar' },
+        },
+      },
+      snapshot: {
+        runtime: {
+          tradeAllowed: true,
+          executionEnabled: true,
+          pilotKillSwitch: false,
+          pilotStartupEntryGuardActive: false,
+        },
+      },
+      dailyReview: {
+        summary: {
+          todayTodoStatus: 'SCHEDULED_FOR_TESTER_WINDOW',
+          nextTesterWindowLabel: '2026-05-04 20:10-23:30 JST',
+        },
+        actionQueue: [{ candidateId: 'RSI_Reversal_USDJPYc_rsi_ultra_extreme_guard' }],
+      },
+      researchStats: {
+        summary: {
+          liveUniverseLabel: 'USDJPYc',
+          shadowResearchUniverseLabel: 'USDJPYc,EURUSDc,XAUUSDc',
+        },
+      },
+      governanceAdvisor: {
+        summary: {
+          shadowRows: 671,
+          candidateRows: 227,
+          candidateOutcomeRows: 375,
+          paramLabResultParsed: 59,
+          versionGatePromoteCandidates: 0,
+          strategyVersionCount: 5,
+        },
+      },
+    });
+
+    const items = buildMt5SimulationItems(snapshot);
+
+    expect(items.find((item) => item.label === '实盘Universe')?.value).toBe('USDJPYc');
+    expect(items.find((item) => item.label === '模拟Universe')?.value).toBe('USDJPYc,EURUSDc,XAUUSDc');
+    expect(items.find((item) => item.label === '当前实盘策略')?.value).toBe('RSI 买入侧观察');
+    expect(items.find((item) => item.label === '今日待办')?.hint).toContain('20:10-23:30');
+    expect(items.find((item) => item.label === '缠论/MACD-TD')?.value).toContain('尚未进入');
   });
 });

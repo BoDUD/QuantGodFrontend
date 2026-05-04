@@ -137,6 +137,13 @@ function firstObject(payload) {
   return {};
 }
 
+function summaryObject(payload) {
+  const value = unwrap(payload);
+  if (value?.summary && typeof value.summary === 'object') return value.summary;
+  if (value && typeof value === 'object') return value;
+  return {};
+}
+
 function getPath(payload, paths, fallback = null) {
   const sources = [payload, unwrap(payload), firstObject(payload)];
   for (const source of sources) {
@@ -295,6 +302,64 @@ function buildSafetyItems() {
   ];
 }
 
+function buildSimulationItems(payload) {
+  const reviewSummary = summaryObject(payload.dailyReview);
+  const canaryRows = countRows(payload.canaryLedger) || countRows(payload.canaryRun);
+  const governanceRows = countRows(payload.autoGovernanceLedger) || countRows(payload.autoGovernance);
+  const realTradeRows = countRows(payload.realTrades);
+  const executedPF = reviewSummary.polymarketExecutedPF;
+  const shadowPF = reviewSummary.polymarketShadowPF;
+  const quarantined = Boolean(reviewSummary.polymarketLossQuarantine);
+  return [
+    {
+      label: '真实下注',
+      value: '未开启',
+      hint: realTradeRows ? `${realTradeRows} 条历史证据，仅回放` : '没有真实下注执行入口',
+      status: 'locked',
+    },
+    {
+      label: '模拟在做什么',
+      value: '雷达评分 + 模拟阻断验证',
+      hint: `${canaryRows} 条模拟执行记录，所有结果只写证据`,
+    },
+    {
+      label: '当前效果',
+      value: `执行PF ${formatNumber(executedPF ?? 0, 4)} / 影子PF ${formatNumber(shadowPF ?? 0, 4)}`,
+      hint: quarantined ? '亏损来源未修复，继续隔离' : '等待更多样本确认',
+    },
+    {
+      label: '今日待办',
+      value: reviewSummary.polymarketTodoCount ? `${reviewSummary.polymarketTodoCount} 项` : '今日无待办',
+      hint: '若出现亏损复盘或证据不足，会进入每日复盘列表',
+      status: reviewSummary.polymarketTodoCount ? 'warn' : 'ok',
+    },
+    {
+      label: '治理状态',
+      value: quarantined ? '隔离中' : friendlyModeLabel(payload.autoGovernance),
+      hint: `${governanceRows} 条治理证据；不会自动下注或修改资金`,
+      status: quarantined ? 'warn' : inferStatus(payload.autoGovernance),
+    },
+  ];
+}
+
+function buildReviewItems(payload) {
+  const summary = summaryObject(payload.dailyReview);
+  return [
+    {
+      label: '亏损复盘',
+      value: summary.polymarketLossQuarantine ? '仍在隔离' : '未触发隔离',
+      hint: `执行PF ${formatNumber(summary.polymarketExecutedPF ?? 0, 4)}，影子PF ${formatNumber(summary.polymarketShadowPF ?? 0, 4)}`,
+      status: summary.polymarketLossQuarantine ? 'warn' : 'ok',
+    },
+    {
+      label: '复盘结论',
+      value: friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
+      hint: `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
+      status: summary.codexReviewRequired ? 'warn' : 'ok',
+    },
+  ];
+}
+
 function buildEndpoints(payload) {
   return POLYMARKET_ENDPOINTS.map(({ key, label, endpoint, description }) => {
     const value = payload?.[key];
@@ -386,6 +451,7 @@ function buildAiScoreItems(payload) {
 function buildCanaryItems(payload) {
   const contract = payload.canary;
   const run = payload.canaryRun;
+  const ledgerRows = countRows(payload.canaryLedger);
   return [
     { label: '执行合约状态', value: friendlyModeLabel(contract), status: inferStatus(contract) },
     {
@@ -393,6 +459,7 @@ function buildCanaryItems(payload) {
       value: friendlyText(getPath(contract, ['version', 'schemaVersion', 'contract_version'], '—')),
     },
     { label: '最近运行', value: friendlyModeLabel(run), status: inferStatus(run) },
+    { label: '模拟记录', value: `${ledgerRows} 条`, hint: '只写模拟证据，不写钱包或订单' },
     { label: '运行模式', value: friendlyText(getPath(run, ['mode', 'run_mode', 'dry_run'], '只读研究')) },
     { label: '运行时间', value: getPath(run, ['last_run_at', 'updated_at', 'timestamp'], '—') },
     { label: '真实执行', value: '前端禁止', status: 'locked' },
@@ -450,6 +517,8 @@ export function buildPolymarketModel(payload = {}) {
     aiScoreItems: buildAiScoreItems(payload),
     canaryItems: buildCanaryItems(payload),
     crossLinkageItems: buildCrossLinkageItems(payload),
+    simulationItems: buildSimulationItems(payload),
+    reviewItems: buildReviewItems(payload),
     tables: {
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),
@@ -459,6 +528,8 @@ export function buildPolymarketModel(payload = {}) {
       history: normalizeGenericRows(asRows(payload.history)),
       realTrades: normalizeGenericRows(asRows(payload.realTrades)),
       cross: normalizeGenericRows(asRows(payload.cross)),
+      canaryLedger: normalizeGenericRows(asRows(payload.canaryLedger)),
+      autoGovernanceLedger: normalizeGenericRows(asRows(payload.autoGovernanceLedger)),
     },
     raw: payload,
   };

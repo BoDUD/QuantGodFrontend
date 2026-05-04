@@ -52,6 +52,13 @@ function format(value) {
   return formatDisplayValue(value);
 }
 
+function asSummary(payload) {
+  const value = unwrap(payload);
+  if (isObject(value?.summary)) return value.summary;
+  if (isObject(value)) return value;
+  return {};
+}
+
 function numberValue(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
@@ -109,6 +116,8 @@ export function normalizeMt5Snapshot(raw = {}) {
   const closeHistory = rowsFromPayload(raw.closeHistory);
   const tradeJournal = rowsFromPayload(raw.tradeJournal);
   const safety = safetyEnvelope(raw);
+  const researchSummary = asSummary(raw.researchStats);
+  const governanceSummary = asSummary(raw.governanceAdvisor);
 
   const bridgeStatus = pick(
     { status, raw },
@@ -153,6 +162,10 @@ export function normalizeMt5Snapshot(raw = {}) {
     tradeJournal,
     dailyReview: raw.dailyReview || {},
     dailyAutopilot: raw.dailyAutopilot || {},
+    researchStats: raw.researchStats || {},
+    governanceAdvisor: raw.governanceAdvisor || {},
+    researchSummary,
+    governanceSummary,
     safety,
     readOnly: pick(
       { safety, status },
@@ -187,6 +200,7 @@ export function normalizeMt5Snapshot(raw = {}) {
       ['latest.strategies.RSI_Reversal', 'latest.symbols.0.strategies.RSI_Reversal'],
       {},
     ),
+    strategies: pick({ latest }, ['latest.strategies', 'latest.symbols.0.strategies'], {}),
     eaTradeReady: Boolean(
       pick({ runtime }, ['runtime.tradeAllowed'], false) &&
       pick({ runtime }, ['runtime.executionEnabled'], false) &&
@@ -194,6 +208,21 @@ export function normalizeMt5Snapshot(raw = {}) {
       !pick({ runtime }, ['runtime.pilotStartupEntryGuardActive'], false),
     ),
   };
+}
+
+function routeEnabled(snapshot, key) {
+  const route = snapshot.strategies?.[key] || {};
+  return Boolean(route.enabled && route.active);
+}
+
+function routeMode(snapshot, key) {
+  const route = snapshot.strategies?.[key] || {};
+  if (!route.enabled || !route.active) return '未运行';
+  if (Number(route.riskMultiplier || 0) > 0) return '实盘观察';
+  if (route.candidate || route.simulation || /candidate|shadow|sim/i.test(String(route.state || route.reason || ''))) {
+    return '模拟候选';
+  }
+  return '只读观察';
 }
 
 export function buildMt5Metrics(snapshot) {
@@ -273,6 +302,83 @@ export function buildSafetyItems(snapshot) {
       status: snapshot.livePresetMutationAllowed ? 'error' : 'ok',
     },
   ];
+}
+
+export function buildMt5SimulationItems(snapshot) {
+  const summary = snapshot.dailyReview?.summary || {};
+  const liveUniverse = snapshot.researchSummary.liveUniverseLabel || snapshot.researchSummary.liveUniverse?.join(', ') || 'USDJPYc';
+  const shadowUniverse =
+    snapshot.researchSummary.shadowResearchUniverseLabel ||
+    snapshot.researchSummary.shadowResearchUniverse?.join(', ') ||
+    'USDJPYc, EURUSDc, XAUUSDc';
+  const queue = rowsFromPayload(snapshot.dailyReview?.actionQueue);
+  const completed = rowsFromPayload(snapshot.dailyReview?.completedActionQueue);
+  const queuedText = queue.length
+    ? `${queue.length} 个任务等待 ${summary.nextTesterWindowLabel || '测试窗口'}`
+    : completed.length
+      ? `${completed.length} 个任务已完成，暂无新队列`
+      : '暂无待跑任务';
+  const chanlunInQueue = [...queue, ...completed].some((row) =>
+    /chanlun|缠论|macd_td/i.test(String(row.candidateId || row.strategy || row.routeKey || row.summary || '')),
+  );
+  const chanlunSeenInRuntime = snapshot.governanceSummary.strategyVersionCount
+    ? chanlunInQueue
+      ? '已进入待办/回测队列'
+      : '研究库已接入，尚未进入 MT5 模拟队列'
+    : '未发现运行证据';
+
+  return [
+    {
+      label: '实盘Universe',
+      value: liveUniverse,
+      hint: 'EA 只允许这组品种进入实盘守门',
+    },
+    {
+      label: '当前实盘策略',
+      value: routeEnabled(snapshot, 'RSI_Reversal') ? 'RSI 买入侧观察' : '未发现开启策略',
+      hint: snapshot.rsiRoute?.reason || '只在 MT5 EA 守门全部通过时自动评估',
+      status: routeEnabled(snapshot, 'RSI_Reversal') ? 'ok' : 'warn',
+    },
+    {
+      label: '模拟Universe',
+      value: shadowUniverse,
+      hint: 'Shadow / candidate / ParamLab 只研究，不会自动进实盘',
+    },
+    {
+      label: '模拟规模',
+      value: `${snapshot.governanceSummary.shadowRows ?? 0} 条模拟信号，${snapshot.governanceSummary.candidateRows ?? 0} 条候选信号`,
+      hint: `${snapshot.governanceSummary.candidateOutcomeRows ?? 0} 条候选结果`,
+    },
+    {
+      label: '今日待办',
+      value: queue.length ? '等待测试窗口' : humanizeStatus(summary.todayTodoStatus || '—'),
+      hint: queuedText,
+      status: queue.length ? 'warn' : 'ok',
+    },
+    {
+      label: '策略效果',
+      value: `${snapshot.governanceSummary.paramLabResultParsed ?? 0} 份报告已解析`,
+      hint: `${snapshot.governanceSummary.versionGatePromoteCandidates ?? 0} 个可升实盘候选`,
+    },
+    {
+      label: '缠论/MACD-TD',
+      value: chanlunSeenInRuntime,
+      hint: '目前不属于 EA 实盘路线；需要先回测、ParamLab、治理和人工确认',
+      status: chanlunInQueue ? 'warn' : 'locked',
+    },
+  ];
+}
+
+export function buildMt5RouteModeRows(snapshot) {
+  return ['MA_Cross', 'RSI_Reversal', 'BB_Triple', 'MACD_Divergence', 'SR_Breakout'].map((key) => {
+    const route = snapshot.strategies?.[key] || {};
+    return {
+      路线: key,
+      当前位置: routeMode(snapshot, key),
+      是否实盘: Number(route.riskMultiplier || 0) > 0 ? '是' : '否',
+      说明: humanizeStatus(route.reason || route.state || route.blocker || '等待信号'),
+    };
+  });
 }
 
 export function buildAccountItems(snapshot) {
@@ -426,6 +532,7 @@ export function buildMt5TodoRows(snapshot) {
     路线: row.routeKey || row.strategy || '—',
     状态: queue.length ? humanizeStatus(row.state || '待处理') : '已完成',
     结论: humanizeStatus(row.resultStatus || row.statusLabel || '等待报告'),
+    测试窗口: row.nextTesterWindowLabel || snapshot.dailyReview?.summary?.nextTesterWindowLabel || '—',
   }));
 }
 
