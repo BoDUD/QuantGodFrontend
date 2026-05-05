@@ -275,7 +275,15 @@ function walletBalance(payload) {
     'dailyReview.copyTradingReview.capitalSimulation.accountCashUSDC',
     'copyTradingReview.capitalSimulation.accountCashUSDC',
   ];
-  for (const part of ['dailyReview', 'autoGovernance', 'realTrades', 'markets', 'history', 'aiScore', 'worker']) {
+  for (const part of [
+    'dailyReview',
+    'autoGovernance',
+    'realTrades',
+    'markets',
+    'history',
+    'aiScore',
+    'worker',
+  ]) {
     const value = getPath(payload?.[part], paths, null);
     const numeric = Number(value);
     if (Number.isFinite(numeric)) return numeric;
@@ -348,7 +356,9 @@ function buildSimulationItems(payload) {
   const copyPlan = copyReview.iterationPlan || {};
   const copyTools = Array.isArray(copyReview.sourceToolkit) ? copyReview.sourceToolkit : [];
   const iteration = dailyIteration(payload);
-  const strategyQueue = Array.isArray(iteration.strategyIterationQueue) ? iteration.strategyIterationQueue : [];
+  const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
+    ? iteration.strategyIterationQueue
+    : [];
   const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
   const copyQueue = strategyQueue.find((item) => item?.type === 'POLYMARKET_COPY_TRADING_RETUNE');
   const canaryRows = countRows(payload.canaryLedger) || countRows(payload.canaryRun);
@@ -371,7 +381,7 @@ function buildSimulationItems(payload) {
     },
     {
       label: '跟单策略',
-      value: copyReview.active ? (copyReview.operatorStatusLabel || '正在模拟') : '暂无样本',
+      value: copyReview.active ? copyReview.operatorStatusLabel || '正在模拟' : '暂无样本',
       hint: copyReview.summary || '未发现跟单样本；先收集授权频道、公开强账户或人工观察名单的 shadow 证据。',
       status: copyReview.active ? 'warn' : 'unknown',
     },
@@ -395,7 +405,9 @@ function buildSimulationItems(payload) {
     },
     {
       label: '跟单工具箱',
-      value: copyTools.length ? `${copyTools.length} 类来源 / ${Array.isArray(copyPlan.copyUniverse) ? copyPlan.copyUniverse.length : 0} 个市场模块` : '待接入',
+      value: copyTools.length
+        ? `${copyTools.length} 类来源 / ${Array.isArray(copyPlan.copyUniverse) ? copyPlan.copyUniverse.length : 0} 个市场模块`
+        : '待接入',
       hint: copyTools.length
         ? '可用 Telegram 授权频道/导出、公开强账户、本地雷达和人工观察名单做 shadow 跟单。'
         : '跟单来源必须先转成只读证据，再进模拟账本。',
@@ -403,9 +415,10 @@ function buildSimulationItems(payload) {
     },
     {
       label: '下一轮跟单重调',
-      value: Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
-        ? `${copyPlan.candidateVariants.length} 个模拟变体`
-        : '待生成',
+      value:
+        Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
+          ? `${copyPlan.candidateVariants.length} 个模拟变体`
+          : '待生成',
       hint: copyPlan.diagnosis || '下一轮会按来源质量、市场家族、流动性和结算表现拆分验证。',
       status: copyPlan.retuneRequired ? 'warn' : 'ok',
     },
@@ -444,7 +457,9 @@ function buildReviewItems(payload) {
   const copyReview = polyDaily.copyTradingReview || {};
   const copyPlan = copyReview.iterationPlan || {};
   const iteration = dailyIteration(payload);
-  const strategyQueue = Array.isArray(iteration.strategyIterationQueue) ? iteration.strategyIterationQueue : [];
+  const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
+    ? iteration.strategyIterationQueue
+    : [];
   const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
   return [
     {
@@ -455,7 +470,9 @@ function buildReviewItems(payload) {
     },
     {
       label: '复盘结论',
-      value: polyRetune ? '需要策略迭代' : friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
+      value: polyRetune
+        ? '需要策略迭代'
+        : friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
       hint: polyRetune
         ? '预测市场长期隔离不是成功状态，需要继续调筛选器并模拟验证'
         : `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
@@ -464,7 +481,7 @@ function buildReviewItems(payload) {
     {
       label: '跟单复盘',
       value: copyReview.active
-        ? (copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核'))
+        ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
         : '暂无跟单样本',
       hint: copyReview.active
         ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
@@ -473,19 +490,21 @@ function buildReviewItems(payload) {
     },
     {
       label: '跟单迭代方案',
-      value: Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
-        ? `${copyPlan.candidateVariants.length} 个 shadow-only 变体`
-        : '等待重调证据',
-      hint: Array.isArray(copyPlan.acceptanceCriteria) && copyPlan.acceptanceCriteria.length
-        ? `恢复复核门槛：${copyPlan.acceptanceCriteria.join(' / ')}`
-        : '必须先证明跟单模拟长期正收益，再人工复核真钱恢复。',
+      value:
+        Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
+          ? `${copyPlan.candidateVariants.length} 个 shadow-only 变体`
+          : '等待重调证据',
+      hint:
+        Array.isArray(copyPlan.acceptanceCriteria) && copyPlan.acceptanceCriteria.length
+          ? `恢复复核门槛：${copyPlan.acceptanceCriteria.join(' / ')}`
+          : '必须先证明跟单模拟长期正收益，再人工复核真钱恢复。',
       status: copyPlan.retuneRequired ? 'warn' : 'ok',
     },
     {
       label: '今日重调',
       value: `${polySummary.retuneRed || 0} 红 / ${polySummary.retuneYellow || 0} 黄 / 跟单 ${polySummary.retuneCopyTrading || 0}`,
       hint: '红/黄只进入 shadow-only retune；不会恢复真钱或自动下注。',
-      status: (polySummary.retuneRed || polySummary.retuneYellow) ? 'warn' : 'ok',
+      status: polySummary.retuneRed || polySummary.retuneYellow ? 'warn' : 'ok',
     },
   ];
 }

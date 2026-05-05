@@ -197,7 +197,8 @@ async function loadHistoryItem(id) {
 }
 
 function itemStatusText(item) {
-  if (item?.delivery?.observation && item?.delivery?.status === 'sent') return `已推送观察摘要 #${item.delivery.telegramMessageId || '--'}`;
+  if (item?.delivery?.observation && item?.delivery?.status === 'sent')
+    return `已推送观察摘要 #${item.delivery.telegramMessageId || '--'}`;
   if (item?.delivery?.status === 'sent') return `已推送 #${item.delivery.telegramMessageId || '--'}`;
   if (item?.delivery?.status === 'dry_run') return '已分析，未推送';
   if (item?.delivery?.status === 'skipped_hold') return '观望结果未生成交易建议';

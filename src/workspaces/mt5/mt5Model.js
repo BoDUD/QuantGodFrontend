@@ -263,7 +263,11 @@ function routeMode(snapshot, key) {
   const route = snapshot.strategies?.[key] || {};
   if (!route.enabled || !route.active) return '未运行';
   if (Number(route.riskMultiplier || 0) > 0) return '实盘观察';
-  if (route.candidate || route.simulation || /candidate|shadow|sim/i.test(String(route.state || route.reason || ''))) {
+  if (
+    route.candidate ||
+    route.simulation ||
+    /candidate|shadow|sim/i.test(String(route.state || route.reason || ''))
+  ) {
     return '模拟候选';
   }
   return '只读观察';
@@ -355,7 +359,10 @@ export function buildMt5SimulationItems(snapshot) {
   const evidenceQueue = rowsFromPayload(iteration.evidenceIterationQueue);
   const findings = rowsFromPayload(iteration.findings);
   const hasNoTradeFinding = findings.some((row) => row.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
-  const liveUniverse = snapshot.researchSummary.liveUniverseLabel || snapshot.researchSummary.liveUniverse?.join(', ') || 'USDJPYc';
+  const liveUniverse =
+    snapshot.researchSummary.liveUniverseLabel ||
+    snapshot.researchSummary.liveUniverse?.join(', ') ||
+    'USDJPYc';
   const shadowUniverse =
     snapshot.researchSummary.shadowResearchUniverseLabel ||
     snapshot.researchSummary.shadowResearchUniverse?.join(', ') ||
@@ -368,7 +375,9 @@ export function buildMt5SimulationItems(snapshot) {
       ? `${completed.length} 个任务已完成，暂无新队列`
       : '暂无待跑任务';
   const chanlunInQueue = [...queue, ...completed].some((row) =>
-    /chanlun|缠论|macd_td/i.test(String(row.candidateId || row.strategy || row.routeKey || row.summary || '')),
+    /chanlun|缠论|macd_td/i.test(
+      String(row.candidateId || row.strategy || row.routeKey || row.summary || ''),
+    ),
   );
   const chanlunSeenInRuntime = snapshot.governanceSummary.strategyVersionCount
     ? chanlunInQueue
@@ -431,7 +440,12 @@ function bestOutcomeRows(rows, directionKey) {
   (rows || []).forEach((row, index) => {
     const eventId = pick(row, ['EventId', 'eventId', 'id'], `row-${index}`);
     const direction = String(pick(row, [directionKey], '') || '').toUpperCase();
-    if (!direction.includes('BUY') && !direction.includes('SELL') && !direction.includes('LONG') && !direction.includes('SHORT')) {
+    if (
+      !direction.includes('BUY') &&
+      !direction.includes('SELL') &&
+      !direction.includes('LONG') &&
+      !direction.includes('SHORT')
+    ) {
       return;
     }
     const horizon = asNumber(pick(row, ['HorizonMinutes', 'horizonMinutes'], 0)) ?? 0;
@@ -468,7 +482,9 @@ function routeKey(row) {
 
 export function buildMt5ShadowSummary(snapshot) {
   const candidateRows = bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection');
-  const pips = candidateRows.map((row) => outcomePips(row, 'CandidateDirection')).filter((value) => value !== null);
+  const pips = candidateRows
+    .map((row) => outcomePips(row, 'CandidateDirection'))
+    .filter((value) => value !== null);
   const wins = pips.filter((value) => value > 0);
   const losses = pips.filter((value) => value < 0);
   const grossWin = wins.reduce((sum, value) => sum + value, 0);
@@ -488,7 +504,9 @@ export function buildMt5ShadowSummary(snapshot) {
   });
   const blockers = new Map();
   (snapshot.shadowSignals || []).forEach((row) => {
-    const blocker = humanizeStatus(pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'));
+    const blocker = humanizeStatus(
+      pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'),
+    );
     blockers.set(blocker, (blockers.get(blocker) || 0) + 1);
   });
   const topRoute = [...byRoute.entries()].sort((a, b) => b[1].count - a[1].count)[0];
@@ -523,7 +541,9 @@ export function buildMt5ShadowSummary(snapshot) {
       {
         label: '主要路线',
         value: topRoute ? topRoute[0] : '—',
-        hint: topRoute ? `${topRoute[1].count} 笔 / ${formatSignedNumber(topRoute[1].netPips, 1)} pips` : '暂无候选',
+        hint: topRoute
+          ? `${topRoute[1].count} 笔 / ${formatSignedNumber(topRoute[1].netPips, 1)} pips`
+          : '暂无候选',
       },
       {
         label: '主要阻断',
@@ -554,24 +574,28 @@ export function buildMt5ShadowEquityRows(snapshot) {
 }
 
 export function buildMt5ShadowTradeRows(snapshot) {
-  return bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection').slice(0, 60).map((row) => {
-    const pips = outcomePips(row, 'CandidateDirection');
-    return {
-      时间: pick(row, ['OutcomeLabelTimeLocal', 'LabelTimeLocal', 'EventBarTime'], '—'),
-      品种: pick(row, ['Symbol', 'symbol'], '—'),
-      路线: routeKey(row),
-      方向: sideLabel(pick(row, ['CandidateDirection'], '—')),
-      后验: translateOutcome(pick(row, ['DirectionalOutcome', 'BestOpportunity'], '—')),
-      点数盈亏: formatSignedNumber(pips, 1),
-      价格: pick(row, ['ReferencePrice', 'referencePrice'], '—'),
-    };
-  });
+  return bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection')
+    .slice(0, 60)
+    .map((row) => {
+      const pips = outcomePips(row, 'CandidateDirection');
+      return {
+        时间: pick(row, ['OutcomeLabelTimeLocal', 'LabelTimeLocal', 'EventBarTime'], '—'),
+        品种: pick(row, ['Symbol', 'symbol'], '—'),
+        路线: routeKey(row),
+        方向: sideLabel(pick(row, ['CandidateDirection'], '—')),
+        后验: translateOutcome(pick(row, ['DirectionalOutcome', 'BestOpportunity'], '—')),
+        点数盈亏: formatSignedNumber(pips, 1),
+        价格: pick(row, ['ReferencePrice', 'referencePrice'], '—'),
+      };
+    });
 }
 
 export function buildMt5ShadowBlockerRows(snapshot) {
   const counts = new Map();
   (snapshot.shadowSignals || []).forEach((row) => {
-    const blocker = humanizeStatus(pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'));
+    const blocker = humanizeStatus(
+      pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'),
+    );
     const key = `${blocker}||${pick(row, ['Strategy', 'strategy'], '—')}`;
     const bucket = counts.get(key) || {
       阻断原因: blocker,
@@ -746,13 +770,15 @@ export function buildMt5TodoRows(snapshot) {
   const sourceRows = queue.length ? queue : completed;
   if (!sourceRows.length) {
     if (researchBacklog.length) {
-      return [{
-        任务: 'MT5 今日待办',
-        路线: '参数实验',
-        状态: '已跑完',
-        结论: `${researchBacklog.length} 个新候选进入下一轮研究 backlog`,
-        测试窗口: snapshot.dailyReview?.summary?.nextTesterWindowLabel || '下一轮刷新',
-      }];
+      return [
+        {
+          任务: 'MT5 今日待办',
+          路线: '参数实验',
+          状态: '已跑完',
+          结论: `${researchBacklog.length} 个新候选进入下一轮研究 backlog`,
+          测试窗口: snapshot.dailyReview?.summary?.nextTesterWindowLabel || '下一轮刷新',
+        },
+      ];
     }
     return [{ 任务: 'MT5 今日待办', 状态: '已完成或无待办', 结论: '当前没有阻塞项' }];
   }
@@ -782,11 +808,17 @@ export function buildMt5ReviewRows(snapshot) {
     {
       项目: '参数实验',
       结果: `完成 ${summary.dailyTesterCompletedCount || 0} 项 / 延后 ${summary.paramDeferredCount || 0} 项`,
-      建议: noTradeFinding ? '全部无成交，需隔离 tester 调参重跑' : summary.promotionReviewCount ? '有升实盘候选需人工确认' : '暂无可升实盘项',
+      建议: noTradeFinding
+        ? '全部无成交，需隔离 tester 调参重跑'
+        : summary.promotionReviewCount
+          ? '有升实盘候选需人工确认'
+          : '暂无可升实盘项',
     },
     {
       项目: '策略迭代',
-      结果: summary.dailyIterationRequired ? `策略 ${strategyQueue.length} 项 / 证据 ${evidenceQueue.length} 项` : '暂无',
+      结果: summary.dailyIterationRequired
+        ? `策略 ${strategyQueue.length} 项 / 证据 ${evidenceQueue.length} 项`
+        : '暂无',
       建议: summary.dailyIterationRequired ? '保持实盘不变，只迭代模拟候选' : '今日无需代码或策略动作',
     },
   ];

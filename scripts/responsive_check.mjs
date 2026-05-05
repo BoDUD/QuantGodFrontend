@@ -3,7 +3,7 @@ import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 
-const ROOT_URL = process.env.QUANTGOD_RESPONSIVE_URL || 'http://127.0.0.1:8080/vue/';
+const ROOT_URL = process.env.QUANTGOD_RESPONSIVE_URL || 'http://127.0.0.1:4173/vue/';
 const CHROME = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT_DIR = process.env.QUANTGOD_RESPONSIVE_OUT || 'runtime/responsive-check';
 const ROUTES = [

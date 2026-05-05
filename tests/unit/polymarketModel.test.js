@@ -8,10 +8,21 @@ describe('polymarketModel simulation explanation', () => {
       canaryRun: { data: { rows: [{ status: 'EVIDENCE_BLOCKED' }, { status: 'EVIDENCE_BLOCKED' }] } },
       autoGovernance: { data: { rows: [{ governance_state: 'QUARANTINE_NO_PROMOTION' }] } },
       canaryLedger: {
-        data: { rows: [{ canary_state: 'EVIDENCE_BLOCKED' }, { canary_state: 'EVIDENCE_BLOCKED' }, { canary_state: 'EVIDENCE_BLOCKED' }] },
+        data: {
+          rows: [
+            { canary_state: 'EVIDENCE_BLOCKED' },
+            { canary_state: 'EVIDENCE_BLOCKED' },
+            { canary_state: 'EVIDENCE_BLOCKED' },
+          ],
+        },
       },
       autoGovernanceLedger: {
-        data: { rows: [{ governance_state: 'QUARANTINE_NO_PROMOTION' }, { governance_state: 'QUARANTINE_NO_PROMOTION' }] },
+        data: {
+          rows: [
+            { governance_state: 'QUARANTINE_NO_PROMOTION' },
+            { governance_state: 'QUARANTINE_NO_PROMOTION' },
+          ],
+        },
       },
       realTrades: { data: { rows: [] } },
       dailyReview: {

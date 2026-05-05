@@ -5540,9 +5540,7 @@ tbody tr:hover td {
 
 .qg-section-card--operator {
   border-color: rgba(56, 189, 248, 0.26);
-  background:
-    linear-gradient(135deg, rgba(14, 165, 233, 0.1), transparent 46%),
-    rgba(15, 23, 42, 0.62);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), transparent 46%), rgba(15, 23, 42, 0.62);
 }
 
 .qg-section-card header {

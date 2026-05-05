@@ -1,0 +1,401 @@
+/*
+ * QuantGod P3-13 Responsive Operator Hardening
+ *
+ * Purpose:
+ * - keep the operator workbench usable at 320 / 360 / 390 / 612 / 900 / 1280 / 1512 widths;
+ * - fix horizontal overflow, clipped card titles, over-tall blank panels, and narrow-screen workspace pressure;
+ * - preserve the /api-only, read-only frontend boundary.
+ */
+
+:root {
+  --qg-breakpoint-phone: 390px;
+  --qg-breakpoint-iab: 612px;
+  --qg-breakpoint-tablet: 900px;
+  --qg-safe-gap-xs: clamp(6px, 1.8vw, 10px);
+  --qg-safe-gap-sm: clamp(8px, 2vw, 14px);
+  --qg-safe-gap-md: clamp(12px, 2.6vw, 18px);
+  --qg-card-min: min(100%, 240px);
+  --qg-touch-target: 44px;
+}
+
+html,
+body,
+#app {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+canvas,
+video,
+iframe {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea,
+.ant-btn,
+.ant-select,
+.ant-input,
+.ant-picker {
+  max-width: 100%;
+}
+
+.app-shell,
+.workspace,
+.workspace > *,
+.workspace-shell,
+.workspace-body,
+.workspace-content,
+.dashboard-workspace,
+.mt5-workspace,
+.research-workspace,
+.paramlab-workspace,
+.governance-workspace,
+.polymarket-workspace,
+.phase3-workspace,
+.backtest-ai-workspace {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace {
+  overflow-x: clip;
+}
+
+.topbar,
+.toolbar,
+.workspace-toolbar,
+.workspace-header,
+.section-header,
+.panel-header,
+.qd-card-head,
+.viz-head,
+.strategy-focus-head,
+.automation-chain-panel__header {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.topbar *,
+.toolbar *,
+.workspace-toolbar *,
+.workspace-header *,
+.section-header *,
+.panel-header *,
+.qd-card-head *,
+.viz-head *,
+.strategy-focus-head *,
+.automation-chain-panel__header * {
+  min-width: 0;
+}
+
+.topbar,
+.toolbar,
+.workspace-toolbar,
+.workspace-header,
+.section-header,
+.panel-header {
+  flex-wrap: wrap;
+  gap: var(--qg-safe-gap-sm);
+}
+
+.qd-card-head strong,
+.qd-card-head span,
+.qd-card-metrics b,
+.qd-card-metrics small,
+.strategy-focus-head h2,
+.strategy-focus-head small,
+.strategy-performance-grid b,
+.strategy-performance-grid small,
+.bar-label strong,
+.bar-label small,
+.bar-row b,
+.viz-head h3,
+.viz-stat strong,
+.viz-stat span,
+.kpi-card strong,
+.kpi-card span,
+.kpi-card small,
+.automation-chain-panel strong,
+.automation-chain-panel span,
+.automation-chain-panel small {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+pre,
+code,
+.json-preview,
+.monaco-host,
+.monaco-editor {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.table-panel,
+.qg-ledger-table__scroll,
+.qg-route-table-wrap,
+.data-table-card .table-panel,
+.poly-real-trade-ledger .table-panel,
+.history-list,
+.ai-watch-rail,
+.qd-left-list,
+.qd-right-rail,
+.nav-structured,
+.sidebar {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table-card,
+.viz-card,
+.qd-card,
+.kpi-card,
+.automation-chain-panel,
+.automation-chain-panel__card,
+.panel-card,
+.metric-card,
+.state-card,
+.timeline-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.data-table-card,
+.viz-card {
+  min-height: auto;
+  height: auto;
+}
+
+.data-table-card .table-panel,
+.viz-card .bar-stack,
+.viz-card .chart-host,
+.viz-card .viz-body {
+  max-height: min(62vh, 640px);
+}
+
+.dashboard-grid,
+.dashboard-upgrade-grid,
+.metric-grid,
+.kpi-grid,
+.automation-chain-panel__grid,
+.automation-chain-panel__summary,
+.strategy-performance-grid,
+.research-grid,
+.mt5-grid,
+.poly-grid,
+.phase3-grid,
+.backtest-grid,
+.paramlab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--qg-card-min), 1fr));
+  gap: var(--qg-safe-gap-md);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.qg-domain-grid--wide-tables {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.qg-domain-grid--wide-tables > *,
+.qg-domain-grid--two > *,
+.qg-panel,
+.qg-panel__header,
+.qg-key-value-list,
+.qg-key-value-list__row,
+.qg-key-value-list dd {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.automation-chain-panel,
+.automation-chain-panel * {
+  min-width: 0;
+}
+
+.automation-chain-panel ul,
+.automation-chain-panel ol,
+.timeline-list,
+.reason-list,
+.evidence-list,
+.alert-list {
+  padding-left: 1.1rem;
+  margin-left: 0;
+}
+
+.automation-chain-panel li,
+.timeline-list li,
+.reason-list li,
+.evidence-list li,
+.alert-list li {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-shell__nav {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible !important;
+    gap: var(--qg-safe-gap-xs) !important;
+  }
+
+  .app-shell__nav-group {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-wrap: wrap !important;
+    gap: var(--qg-safe-gap-xs) !important;
+    max-width: 100%;
+  }
+
+  .app-shell__nav-item {
+    flex: 1 1 min(132px, 100%) !important;
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 100% !important;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .nav-structured,
+  .sidebar nav,
+  .workspace-tabs,
+  .tab-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--qg-safe-gap-xs);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+  }
+
+  .workspace,
+  .workspace-body,
+  .workspace-content {
+    padding-inline: var(--qg-safe-gap-sm) !important;
+  }
+
+  .topbar {
+    min-height: var(--qg-touch-target);
+  }
+}
+
+@media (max-width: 612px) {
+  :root {
+    --qg-card-min: min(100%, 180px);
+  }
+
+  .workspace,
+  .workspace-body,
+  .workspace-content {
+    padding-inline: var(--qg-safe-gap-xs) !important;
+  }
+
+  .dashboard-grid,
+  .dashboard-upgrade-grid,
+  .metric-grid,
+  .kpi-grid,
+  .automation-chain-panel__grid,
+  .automation-chain-panel__summary,
+  .strategy-performance-grid,
+  .research-grid,
+  .mt5-grid,
+  .poly-grid,
+  .phase3-grid,
+  .backtest-grid,
+  .paramlab-grid,
+  .qg-domain-grid--wide-tables {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .qd-card,
+  .viz-card,
+  .data-table-card,
+  .kpi-card,
+  .automation-chain-panel,
+  .panel-card,
+  .metric-card,
+  .state-card,
+  .timeline-card {
+    padding: clamp(10px, 3vw, 14px) !important;
+  }
+
+  .ant-table-wrapper,
+  .ant-table,
+  table {
+    max-width: 100%;
+  }
+
+  .ant-table-content {
+    overflow-x: auto;
+  }
+
+  .ant-table-cell {
+    white-space: nowrap;
+  }
+
+  .ant-tabs-nav,
+  .ant-segmented,
+  .ant-radio-group,
+  .ant-btn-group {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .topbar,
+  .toolbar,
+  .workspace-toolbar,
+  .workspace-header,
+  .section-header,
+  .panel-header {
+    align-items: stretch;
+  }
+
+  .topbar .ant-btn,
+  .toolbar .ant-btn,
+  .workspace-toolbar .ant-btn,
+  .section-header .ant-btn,
+  .panel-header .ant-btn {
+    min-height: var(--qg-touch-target);
+  }
+
+  .qd-card-head,
+  .viz-head,
+  .strategy-focus-head,
+  .automation-chain-panel__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .kpi-card,
+  .metric-card,
+  .state-card,
+  .automation-chain-panel__card {
+    min-height: auto;
+  }
+}

@@ -271,14 +271,17 @@ async function copyLink() {
 
 @media (width <= 1040px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-shell__sidebar {
-    position: sticky;
+    position: relative;
     top: 0;
+    z-index: 3;
     height: auto;
+    min-width: 0;
     padding: 12px;
+    overflow: visible;
   }
 
   .app-shell__brand {
@@ -290,17 +293,20 @@ async function copyLink() {
   }
 
   .app-shell__nav {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
-    overflow: auto hidden;
+    overflow: visible;
     padding-right: 0;
-    padding-bottom: 2px;
+    padding-bottom: 0;
   }
 
   .app-shell__nav-group {
     display: flex;
-    flex: 0 0 auto;
+    flex-wrap: wrap;
     gap: 8px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .app-shell__nav-group h2 {
@@ -308,9 +314,16 @@ async function copyLink() {
   }
 
   .app-shell__nav-item {
+    flex: 1 1 min(132px, 100%);
     width: auto;
-    min-width: 132px;
+    min-width: 0;
+    max-width: 100%;
     padding: 9px 10px;
+  }
+
+  .app-shell__nav-item span {
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .app-shell__nav-item small {
