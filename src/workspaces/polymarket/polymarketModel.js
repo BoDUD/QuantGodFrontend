@@ -345,6 +345,7 @@ function buildSimulationItems(payload) {
   const polySummary = polyDaily.summary || {};
   const copyReview = polyDaily.copyTradingReview || {};
   const copyCapital = copyReview.capitalSimulation || {};
+  const copyPlan = copyReview.iterationPlan || {};
   const copyTools = Array.isArray(copyReview.sourceToolkit) ? copyReview.sourceToolkit : [];
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue) ? iteration.strategyIterationQueue : [];
@@ -370,8 +371,8 @@ function buildSimulationItems(payload) {
     },
     {
       label: '跟单策略',
-      value: copyReview.active ? '正在模拟' : '暂无样本',
-      hint: copyReview.summary || '未发现 copy_archive 跟单样本；先收集 shadow 证据。',
+      value: copyReview.active ? (copyReview.operatorStatusLabel || '正在模拟') : '暂无样本',
+      hint: copyReview.summary || '未发现跟单样本；先收集授权频道、公开强账户或人工观察名单的 shadow 证据。',
       status: copyReview.active ? 'warn' : 'unknown',
     },
     {
@@ -394,11 +395,19 @@ function buildSimulationItems(payload) {
     },
     {
       label: '跟单工具箱',
-      value: copyTools.length ? `${copyTools.length} 类来源` : '待接入',
+      value: copyTools.length ? `${copyTools.length} 类来源 / ${Array.isArray(copyPlan.copyUniverse) ? copyPlan.copyUniverse.length : 0} 个市场模块` : '待接入',
       hint: copyTools.length
         ? '可用 Telegram 授权频道/导出、公开强账户、本地雷达和人工观察名单做 shadow 跟单。'
         : '跟单来源必须先转成只读证据，再进模拟账本。',
       status: copyTools.length ? 'ok' : 'unknown',
+    },
+    {
+      label: '下一轮跟单重调',
+      value: Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
+        ? `${copyPlan.candidateVariants.length} 个模拟变体`
+        : '待生成',
+      hint: copyPlan.diagnosis || '下一轮会按来源质量、市场家族、流动性和结算表现拆分验证。',
+      status: copyPlan.retuneRequired ? 'warn' : 'ok',
     },
     {
       label: '当前效果',
@@ -433,6 +442,7 @@ function buildReviewItems(payload) {
   const polyDaily = polymarketDailyReview(payload);
   const polySummary = polyDaily.summary || {};
   const copyReview = polyDaily.copyTradingReview || {};
+  const copyPlan = copyReview.iterationPlan || {};
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue) ? iteration.strategyIterationQueue : [];
   const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
@@ -453,11 +463,23 @@ function buildReviewItems(payload) {
     },
     {
       label: '跟单复盘',
-      value: copyReview.active ? friendlyText(copyReview.status, '需要复核') : '暂无跟单样本',
+      value: copyReview.active
+        ? (copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核'))
+        : '暂无跟单样本',
       hint: copyReview.active
         ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
         : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
       status: copyReview.active ? 'warn' : 'unknown',
+    },
+    {
+      label: '跟单迭代方案',
+      value: Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
+        ? `${copyPlan.candidateVariants.length} 个 shadow-only 变体`
+        : '等待重调证据',
+      hint: Array.isArray(copyPlan.acceptanceCriteria) && copyPlan.acceptanceCriteria.length
+        ? `恢复复核门槛：${copyPlan.acceptanceCriteria.join(' / ')}`
+        : '必须先证明跟单模拟长期正收益，再人工复核真钱恢复。',
+      status: copyPlan.retuneRequired ? 'warn' : 'ok',
     },
     {
       label: '今日重调',
