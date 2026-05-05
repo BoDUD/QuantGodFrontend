@@ -5046,6 +5046,13 @@ tbody tr:hover td {
   color: #94a3b8;
 }
 
+.qg-section-note {
+  margin: 12px 0 0;
+  color: rgba(203, 213, 225, 0.82);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .qg-json-preview header,
 .qg-ledger-table header {
   display: flex;

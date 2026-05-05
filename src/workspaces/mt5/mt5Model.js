@@ -115,6 +115,10 @@ export function normalizeMt5Snapshot(raw = {}) {
     : rowsFromPayload(snapshot.symbols);
   const closeHistory = rowsFromPayload(raw.closeHistory);
   const tradeJournal = rowsFromPayload(raw.tradeJournal);
+  const shadowSignals = rowsFromPayload(raw.shadowSignals);
+  const shadowOutcomes = rowsFromPayload(raw.shadowOutcomes);
+  const shadowCandidates = rowsFromPayload(raw.shadowCandidates);
+  const shadowCandidateOutcomes = rowsFromPayload(raw.shadowCandidateOutcomes);
   const safety = safetyEnvelope(raw);
   const researchSummary = asSummary(raw.researchStats);
   const governanceSummary = asSummary(raw.governanceAdvisor);
@@ -160,6 +164,10 @@ export function normalizeMt5Snapshot(raw = {}) {
     symbols,
     closeHistory,
     tradeJournal,
+    shadowSignals,
+    shadowOutcomes,
+    shadowCandidates,
+    shadowCandidateOutcomes,
     dailyReview: raw.dailyReview || {},
     dailyAutopilot: raw.dailyAutopilot || {},
     researchStats: raw.researchStats || {},
@@ -208,6 +216,42 @@ export function normalizeMt5Snapshot(raw = {}) {
       !pick({ runtime }, ['runtime.pilotStartupEntryGuardActive'], false),
     ),
   };
+}
+
+function asNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatSignedNumber(value, digits = 1) {
+  const numeric = asNumber(value);
+  if (numeric === null) return '—';
+  const sign = numeric > 0 ? '+' : '';
+  return `${sign}${numeric.toFixed(digits)}`;
+}
+
+function formatPct(value, digits = 1) {
+  const numeric = asNumber(value);
+  if (numeric === null) return '—';
+  return `${numeric.toFixed(digits)}%`;
+}
+
+function sideLabel(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('BUY') || text.includes('LONG')) return '做多';
+  if (text.includes('SELL') || text.includes('SHORT')) return '做空';
+  if (text.includes('NONE')) return '无方向';
+  return humanizeStatus(value || '—');
+}
+
+function translateOutcome(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('LOSS')) return '亏损';
+  if (text.includes('WIN') || text.includes('PROFIT')) return '盈利';
+  if (text.includes('LONG_OPPORTUNITY')) return '多头机会';
+  if (text.includes('SHORT_OPPORTUNITY')) return '空头机会';
+  if (text.includes('OBSERVED')) return '观察';
+  return humanizeStatus(value || '—');
 }
 
 function routeEnabled(snapshot, key) {
@@ -351,8 +395,8 @@ export function buildMt5SimulationItems(snapshot) {
     },
     {
       label: '模拟规模',
-      value: `${snapshot.governanceSummary.shadowRows ?? 0} 条模拟信号，${snapshot.governanceSummary.candidateRows ?? 0} 条候选信号`,
-      hint: `${snapshot.governanceSummary.candidateOutcomeRows ?? 0} 条候选结果`,
+      value: `${snapshot.shadowSignals.length || snapshot.governanceSummary.shadowRows || 0} 条模拟信号，${snapshot.shadowCandidates.length || snapshot.governanceSummary.candidateRows || 0} 条候选信号`,
+      hint: `${snapshot.shadowCandidateOutcomes.length || snapshot.governanceSummary.candidateOutcomeRows || 0} 条候选后验；只做研究账本`,
     },
     {
       label: '今日待办',
@@ -380,6 +424,168 @@ export function buildMt5SimulationItems(snapshot) {
       status: chanlunInQueue ? 'warn' : 'locked',
     },
   ];
+}
+
+function bestOutcomeRows(rows, directionKey) {
+  const byEvent = new Map();
+  (rows || []).forEach((row, index) => {
+    const eventId = pick(row, ['EventId', 'eventId', 'id'], `row-${index}`);
+    const direction = String(pick(row, [directionKey], '') || '').toUpperCase();
+    if (!direction.includes('BUY') && !direction.includes('SELL') && !direction.includes('LONG') && !direction.includes('SHORT')) {
+      return;
+    }
+    const horizon = asNumber(pick(row, ['HorizonMinutes', 'horizonMinutes'], 0)) ?? 0;
+    const score = Math.abs(horizon - 60);
+    const current = byEvent.get(eventId);
+    if (!current || score < current.score || (score === current.score && horizon > current.horizon)) {
+      byEvent.set(eventId, { row, score, horizon, index });
+    }
+  });
+  return [...byEvent.values()]
+    .sort((left, right) => {
+      const lt = rowTimeMs(left.row, ['OutcomeLabelTimeLocal', 'LabelTimeLocal', 'EventBarTime']);
+      const rt = rowTimeMs(right.row, ['OutcomeLabelTimeLocal', 'LabelTimeLocal', 'EventBarTime']);
+      if (lt !== null && rt !== null && lt !== rt) return rt - lt;
+      return right.index - left.index;
+    })
+    .map((item) => item.row);
+}
+
+function outcomePips(row, directionKey) {
+  const direction = String(pick(row, [directionKey], '') || '').toUpperCase();
+  if (direction.includes('BUY') || direction.includes('LONG')) {
+    return asNumber(pick(row, ['LongClosePips', 'longClosePips'], null));
+  }
+  if (direction.includes('SELL') || direction.includes('SHORT')) {
+    return asNumber(pick(row, ['ShortClosePips', 'shortClosePips'], null));
+  }
+  return null;
+}
+
+function routeKey(row) {
+  return pick(row, ['CandidateRoute', 'candidateRoute', 'Strategy', 'strategy'], '—');
+}
+
+export function buildMt5ShadowSummary(snapshot) {
+  const candidateRows = bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection');
+  const pips = candidateRows.map((row) => outcomePips(row, 'CandidateDirection')).filter((value) => value !== null);
+  const wins = pips.filter((value) => value > 0);
+  const losses = pips.filter((value) => value < 0);
+  const grossWin = wins.reduce((sum, value) => sum + value, 0);
+  const grossLoss = Math.abs(losses.reduce((sum, value) => sum + value, 0));
+  const netPips = pips.reduce((sum, value) => sum + value, 0);
+  const profitFactor = grossLoss > 0 ? grossWin / grossLoss : grossWin > 0 ? Infinity : null;
+  const winRate = pips.length ? (wins.length / pips.length) * 100 : null;
+  const byRoute = new Map();
+  candidateRows.forEach((row) => {
+    const key = routeKey(row);
+    const value = outcomePips(row, 'CandidateDirection') ?? 0;
+    const bucket = byRoute.get(key) || { count: 0, netPips: 0, wins: 0 };
+    bucket.count += 1;
+    bucket.netPips += value;
+    if (value > 0) bucket.wins += 1;
+    byRoute.set(key, bucket);
+  });
+  const blockers = new Map();
+  (snapshot.shadowSignals || []).forEach((row) => {
+    const blocker = humanizeStatus(pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'));
+    blockers.set(blocker, (blockers.get(blocker) || 0) + 1);
+  });
+  const topRoute = [...byRoute.entries()].sort((a, b) => b[1].count - a[1].count)[0];
+  const topBlocker = [...blockers.entries()].sort((a, b) => b[1] - a[1])[0];
+  const estimatedUsc = netPips * 0.1;
+  return {
+    candidateRows,
+    pips,
+    byRoute,
+    blockers,
+    metrics: [
+      {
+        label: '模拟候选样本',
+        value: `${candidateRows.length} 笔`,
+        hint: '按 60 分钟后验去重，不是真实成交',
+      },
+      {
+        label: '模拟点数净值',
+        value: `${formatSignedNumber(netPips, 1)} pips`,
+        hint: `0.01 手粗略等价 ${formatSignedNumber(estimatedUsc, 2)} USC`,
+      },
+      {
+        label: '模拟胜率',
+        value: formatPct(winRate),
+        hint: `${wins.length} 赢 / ${losses.length} 亏`,
+      },
+      {
+        label: '模拟PF',
+        value: profitFactor === Infinity ? '∞' : formatSignedNumber(profitFactor, 2).replace(/^\+/, ''),
+        hint: '候选信号后验粗算',
+      },
+      {
+        label: '主要路线',
+        value: topRoute ? topRoute[0] : '—',
+        hint: topRoute ? `${topRoute[1].count} 笔 / ${formatSignedNumber(topRoute[1].netPips, 1)} pips` : '暂无候选',
+      },
+      {
+        label: '主要阻断',
+        value: topBlocker ? topBlocker[0] : '—',
+        hint: topBlocker ? `${topBlocker[1]} 条模拟信号` : '暂无阻断记录',
+      },
+    ],
+  };
+}
+
+export function buildMt5ShadowEquityRows(snapshot) {
+  const rows = bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection').reverse();
+  let equity = 0;
+  return rows
+    .map((row) => {
+      const pips = outcomePips(row, 'CandidateDirection') ?? 0;
+      equity += pips;
+      return {
+        时间: pick(row, ['OutcomeLabelTimeLocal', 'LabelTimeLocal', 'EventBarTime'], '—'),
+        品种: pick(row, ['Symbol', 'symbol'], '—'),
+        路线: routeKey(row),
+        方向: sideLabel(pick(row, ['CandidateDirection'], '—')),
+        后验点数: formatSignedNumber(pips, 1),
+        模拟净值: formatSignedNumber(equity, 1),
+      };
+    })
+    .reverse();
+}
+
+export function buildMt5ShadowTradeRows(snapshot) {
+  return bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection').slice(0, 60).map((row) => {
+    const pips = outcomePips(row, 'CandidateDirection');
+    return {
+      时间: pick(row, ['OutcomeLabelTimeLocal', 'LabelTimeLocal', 'EventBarTime'], '—'),
+      品种: pick(row, ['Symbol', 'symbol'], '—'),
+      路线: routeKey(row),
+      方向: sideLabel(pick(row, ['CandidateDirection'], '—')),
+      后验: translateOutcome(pick(row, ['DirectionalOutcome', 'BestOpportunity'], '—')),
+      点数盈亏: formatSignedNumber(pips, 1),
+      价格: pick(row, ['ReferencePrice', 'referencePrice'], '—'),
+    };
+  });
+}
+
+export function buildMt5ShadowBlockerRows(snapshot) {
+  const counts = new Map();
+  (snapshot.shadowSignals || []).forEach((row) => {
+    const blocker = humanizeStatus(pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'));
+    const key = `${blocker}||${pick(row, ['Strategy', 'strategy'], '—')}`;
+    const bucket = counts.get(key) || {
+      阻断原因: blocker,
+      策略: pick(row, ['Strategy', 'strategy'], '—'),
+      次数: 0,
+      最近时间: pick(row, ['LabelTimeLocal', 'EventBarTime'], '—'),
+    };
+    bucket.次数 += 1;
+    const current = rowTimeMs({ value: bucket.最近时间 }, ['value']) || 0;
+    const next = rowTimeMs(row, ['LabelTimeLocal', 'EventBarTime']) || 0;
+    if (next > current) bucket.最近时间 = pick(row, ['LabelTimeLocal', 'EventBarTime'], bucket.最近时间);
+    counts.set(key, bucket);
+  });
+  return [...counts.values()].sort((a, b) => b.次数 - a.次数).slice(0, 20);
 }
 
 export function buildMt5RouteModeRows(snapshot) {

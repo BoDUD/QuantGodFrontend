@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCloseHistoryRows,
   buildMt5SimulationItems,
+  buildMt5ShadowEquityRows,
+  buildMt5ShadowSummary,
+  buildMt5ShadowTradeRows,
   buildTradeJournalRows,
   normalizeMt5Snapshot,
 } from '../../src/workspaces/mt5/mt5Model.js';
@@ -98,5 +101,60 @@ describe('mt5Model ledgers', () => {
     expect(items.find((item) => item.label === '当前实盘策略')?.value).toBe('RSI 买入侧观察');
     expect(items.find((item) => item.label === '今日待办')?.hint).toContain('20:10-23:30');
     expect(items.find((item) => item.label === '缠论/MACD-TD')?.value).toContain('尚未进入');
+  });
+
+  it('builds a readable MT5 shadow ledger with pips equity and trade rows', () => {
+    const snapshot = normalizeMt5Snapshot({
+      shadowSignals: {
+        data: {
+          rows: [
+            { LabelTimeLocal: '2026.05.05 10:00', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
+            { LabelTimeLocal: '2026.05.05 10:15', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
+            { LabelTimeLocal: '2026.05.05 10:30', Strategy: 'RSI_Reversal', Blocker: 'SESSION' },
+          ],
+        },
+      },
+      shadowCandidateOutcomes: {
+        data: {
+          rows: [
+            {
+              EventId: 'A',
+              OutcomeLabelTimeLocal: '2026.05.05 11:00',
+              Symbol: 'USDJPYc',
+              CandidateRoute: 'RANGE_SOFT',
+              CandidateDirection: 'BUY',
+              HorizonMinutes: '60',
+              LongClosePips: '8.5',
+              ShortClosePips: '-8.5',
+              DirectionalOutcome: 'WIN',
+              ReferencePrice: '156.25',
+            },
+            {
+              EventId: 'B',
+              OutcomeLabelTimeLocal: '2026.05.05 12:00',
+              Symbol: 'EURUSDc',
+              CandidateRoute: 'RANGE_SOFT',
+              CandidateDirection: 'SELL',
+              HorizonMinutes: '60',
+              LongClosePips: '4.0',
+              ShortClosePips: '-4.0',
+              DirectionalOutcome: 'LOSS',
+              ReferencePrice: '1.1010',
+            },
+          ],
+        },
+      },
+    });
+
+    const summary = buildMt5ShadowSummary(snapshot);
+    const trades = buildMt5ShadowTradeRows(snapshot);
+    const equity = buildMt5ShadowEquityRows(snapshot);
+
+    expect(summary.metrics.find((item) => item.label === '模拟候选样本')?.value).toBe('2 笔');
+    expect(summary.metrics.find((item) => item.label === '模拟点数净值')?.value).toBe('+4.5 pips');
+    expect(summary.metrics.find((item) => item.label === '模拟胜率')?.value).toBe('50.0%');
+    expect(summary.metrics.find((item) => item.label === '主要阻断')?.value).toContain('震荡');
+    expect(trades[0]).toMatchObject({ 品种: 'EURUSDc', 方向: '做空', 点数盈亏: '-4.0' });
+    expect(equity[0]).toMatchObject({ 模拟净值: '+4.5' });
   });
 });

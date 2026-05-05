@@ -29,6 +29,17 @@
       <KeyValueList :items="simulationItems" />
     </section>
 
+    <section class="qg-section-card qg-section-card--operator">
+      <header>
+        <p class="qg-eyebrow">MT5 Shadow 账本</p>
+        <h2>模拟盘资金与交易效果</h2>
+      </header>
+      <MetricGrid :items="shadowMetrics" />
+      <p class="qg-section-note">
+        这里是模拟候选的后验账本：按信号后 60 分钟点数表现去重统计，给 0.01 手粗略等价估算；它不是实盘成交，也不会改 EA 配置。
+      </p>
+    </section>
+
     <div class="qg-domain-grid qg-domain-grid--two">
       <section class="qg-section-card">
         <header>
@@ -49,6 +60,21 @@
 
     <div class="qg-domain-grid qg-domain-grid--wide-tables">
       <LedgerTable
+        title="模拟资金曲线"
+        :rows="shadowEquityRows"
+        :limit="40"
+        class="qg-ledger-table--important"
+      />
+      <LedgerTable
+        title="模拟交易记录"
+        :rows="shadowTradeRows"
+        :limit="40"
+        class="qg-ledger-table--important"
+      />
+    </div>
+
+    <div class="qg-domain-grid qg-domain-grid--wide-tables">
+      <LedgerTable
         title="历史交易记录"
         :rows="closeHistoryRows"
         :limit="40"
@@ -61,6 +87,7 @@
       <LedgerTable title="实时持仓" :rows="positionRows" :limit="30" />
       <LedgerTable title="挂单状态" :rows="orderRows" :limit="30" />
       <LedgerTable title="策略运行位置" :rows="routeModeRows" :limit="10" />
+      <LedgerTable title="模拟阻断原因" :rows="shadowBlockerRows" :limit="20" />
       <LedgerTable title="今日待办" :rows="todoRows" :limit="10" />
       <LedgerTable title="每日复盘" :rows="reviewRows" :limit="10" />
       <LedgerTable title="品种状态" :rows="symbolRows" :limit="40" />
@@ -96,6 +123,10 @@ import {
   buildAccountItems,
   buildEndpointHealth,
   buildMt5Metrics,
+  buildMt5ShadowBlockerRows,
+  buildMt5ShadowEquityRows,
+  buildMt5ShadowSummary,
+  buildMt5ShadowTradeRows,
   buildOrderRows,
   buildPositionRows,
   buildCloseHistoryRows,
@@ -125,19 +156,28 @@ const state = reactive({
   dailyAutopilot: null,
   researchStats: null,
   governanceAdvisor: null,
+  shadowSignals: null,
+  shadowOutcomes: null,
+  shadowCandidates: null,
+  shadowCandidateOutcomes: null,
 });
 
 const snapshot = computed(() => normalizeMt5Snapshot(state));
+const shadowSummary = computed(() => buildMt5ShadowSummary(snapshot.value));
 const metrics = computed(() => buildMt5Metrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
 const safetyItems = computed(() => buildSafetyItems(snapshot.value));
 const simulationItems = computed(() => buildMt5SimulationItems(snapshot.value));
+const shadowMetrics = computed(() => shadowSummary.value.metrics);
 const accountItems = computed(() => buildAccountItems(snapshot.value));
 const positionRows = computed(() => buildPositionRows(snapshot.value));
 const orderRows = computed(() => buildOrderRows(snapshot.value));
 const symbolRows = computed(() => buildSymbolRows(snapshot.value));
 const closeHistoryRows = computed(() => buildCloseHistoryRows(snapshot.value));
 const tradeJournalRows = computed(() => buildTradeJournalRows(snapshot.value));
+const shadowEquityRows = computed(() => buildMt5ShadowEquityRows(snapshot.value));
+const shadowTradeRows = computed(() => buildMt5ShadowTradeRows(snapshot.value));
+const shadowBlockerRows = computed(() => buildMt5ShadowBlockerRows(snapshot.value));
 const todoRows = computed(() => buildMt5TodoRows(snapshot.value));
 const reviewRows = computed(() => buildMt5ReviewRows(snapshot.value));
 const routeModeRows = computed(() => buildMt5RouteModeRows(snapshot.value));

@@ -30,6 +30,10 @@ export async function loadMt5Workspace() {
     dailyAutopilot,
     researchStats,
     governanceAdvisor,
+    shadowSignals,
+    shadowOutcomes,
+    shadowCandidates,
+    shadowCandidateOutcomes,
   ] = await Promise.all([
     fetchJson('/api/mt5-readonly/status'),
     fetchJson('/api/mt5-readonly/account'),
@@ -44,6 +48,10 @@ export async function loadMt5Workspace() {
     fetchJson('/api/daily-autopilot'),
     fetchJson('/api/research/stats'),
     fetchJson('/api/governance/advisor'),
+    fetchJson('/api/shadow/signals?limit=500&days=30'),
+    fetchJson('/api/shadow/outcomes?limit=500&days=30'),
+    fetchJson('/api/shadow/candidates?limit=500&days=30'),
+    fetchJson('/api/shadow/candidate-outcomes?limit=500&days=30'),
   ]);
   return {
     status,
@@ -59,6 +67,10 @@ export async function loadMt5Workspace() {
     dailyAutopilot,
     researchStats,
     governanceAdvisor,
+    shadowSignals,
+    shadowOutcomes,
+    shadowCandidates,
+    shadowCandidateOutcomes,
   };
 }
 
