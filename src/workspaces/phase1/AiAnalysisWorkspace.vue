@@ -197,8 +197,10 @@ async function loadHistoryItem(id) {
 }
 
 function itemStatusText(item) {
+  if (item?.delivery?.observation && item?.delivery?.status === 'sent') return `已推送观察摘要 #${item.delivery.telegramMessageId || '--'}`;
   if (item?.delivery?.status === 'sent') return `已推送 #${item.delivery.telegramMessageId || '--'}`;
   if (item?.delivery?.status === 'dry_run') return '已分析，未推送';
+  if (item?.delivery?.status === 'skipped_hold') return '观望结果未生成交易建议';
   if (item?.delivery?.status === 'skipped') return `跳过：${item.delivery.reason || item.reason || '--'}`;
   return item?.delivery?.error || item?.delivery?.status || '待确认';
 }
@@ -225,8 +227,10 @@ function itemFusionText(item) {
 
 function itemDeliveryText(item) {
   const delivery = item?.delivery || {};
+  if (delivery.observation && delivery.telegramMessageId) return `观察摘要 #${delivery.telegramMessageId}`;
   if (delivery.telegramMessageId) return `频道消息 #${delivery.telegramMessageId}`;
   if (delivery.error) return delivery.error;
+  if (delivery.status === 'skipped_hold') return '观望，不推交易建议';
   return delivery.status || '未推送';
 }
 

@@ -97,7 +97,8 @@ test('Telegram digest keeps the safety boundary visible', () => {
     },
   });
 
-  assert.match(message, /AI回测闭环完成/);
+  assert.match(message, /AI 回测闭环完成/);
+  assert.match(message, /候选明细/);
   assert.match(message, /Telegram只推送/);
   assert.match(message, /不下单、不平仓、不撤单/);
 });

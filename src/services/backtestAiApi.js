@@ -129,6 +129,24 @@ export function backtestRows(backtest = {}) {
     }));
 }
 
+function compactText(value, fallback = '—', max = 72) {
+  const text = String(value ?? '').trim();
+  if (!text) return fallback;
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function rowPf(row = {}) {
+  return row.profitFactor ?? row.pf ?? row.forwardPf ?? row.liveForwardPf ?? row.score ?? null;
+}
+
+function rowScore(row = {}) {
+  return row.rankScore ?? row.score ?? row.aiScore ?? row.compositeScore ?? null;
+}
+
+function rowTrades(row = {}) {
+  return row.trades ?? row.closedTrades ?? row.sampleTrades ?? row.tradeCount ?? null;
+}
+
 export function aiRows(aiLatest = {}) {
   return toArray(aiLatest)
     .slice(0, 6)
@@ -184,26 +202,45 @@ function formatNumber(value, digits = 2) {
 export function buildBacktestTelegramMessage({ backtest, ai, symbols }) {
   const backtestSummary = summarizeBacktest(backtest);
   const aiSummary = summarizeAiReport(ai);
-  const topRows = backtestRows(backtest).slice(0, 3);
+  const rawRows = backtestSummary.rows.slice(0, 5);
+  const topRows = backtestRows(backtest).slice(0, 5);
+  const cautiousRows = rawRows.filter((row) => humanBacktestState(row).includes('不足') || humanBacktestState(row).includes('研究')).slice(0, 3);
+  const readyRows = rawRows.filter((row) => humanBacktestState(row).includes('复核')).slice(0, 3);
   const lines = [
-    'QuantGod AI回测闭环完成',
+    '📊 QuantGod AI 回测闭环完成',
     '',
     `观察品种：${cleanSymbols(symbols).join('、')}`,
     `回测任务：${backtestSummary.taskCount} 个，需谨慎 ${backtestSummary.cautionCount} 个，可复核 ${backtestSummary.readyCount} 个`,
-    `最佳候选：${backtestSummary.topRouteKey} / ${backtestSummary.topCandidateId}`,
+    `最佳路线：${backtestSummary.topRouteKey}`,
+    `最佳候选：${compactText(backtestSummary.topCandidateId, '暂无候选', 120)}`,
     `候选评分：${backtestSummary.topRankScore == null ? '—' : formatNumber(backtestSummary.topRankScore, 2)}`,
     '',
     `AI结论：${aiSummary.verdict}`,
-    `AI摘要：${aiSummary.headline}`,
+    `AI摘要：${compactText(aiSummary.headline, '等待 AI 复核', 180)}`,
     '',
-    '前三个候选：',
+    '候选明细：',
     ...topRows.map(
-      (row, index) => `${index + 1}. ${row.路线} ${row.品种} ${row.周期} / PF ${row.PF} / ${row.建议}`,
+      (row, index) => {
+        const raw = rawRows[index] || {};
+        const pf = rowPf(raw);
+        const score = rowScore(raw);
+        const trades = rowTrades(raw);
+        return `${index + 1}. ${compactText(row.路线, '未知路线', 36)}｜${row.品种} ${row.周期}｜PF ${pf == null ? row.PF : formatNumber(pf, 2)}｜胜率 ${row.胜率}｜样本 ${trades ?? '—'}｜评分 ${score == null ? '—' : formatNumber(score, 2)}｜${row.建议}`;
+      },
     ),
+    readyRows.length ? '' : null,
+    readyRows.length ? '可人工复核：' : null,
+    ...readyRows.map((row, index) => `${index + 1}. ${compactText(row.routeKey || row.strategy || '未知路线', '未知路线', 42)} / ${row.symbol || '—'} / ${humanBacktestDecision(row)}`),
+    cautiousRows.length ? '' : null,
+    cautiousRows.length ? '主要阻断：' : null,
+    ...cautiousRows.map((row, index) => {
+      const blockers = Array.isArray(row.blockers) ? row.blockers.slice(0, 2).join('、') : '';
+      return `${index + 1}. ${compactText(row.routeKey || row.strategy || '未知路线', '未知路线', 42)}：${compactText(blockers || humanBacktestDecision(row), '继续研究', 120)}`;
+    }),
     '',
     '安全边界：只读回测、AI建议、Telegram只推送；不下单、不平仓、不撤单、不改实盘配置。',
   ];
-  return lines.join('\n').slice(0, 1400);
+  return lines.filter((line) => line !== null).join('\n').slice(0, 2400);
 }
 
 export async function loadBacktestAiState() {
