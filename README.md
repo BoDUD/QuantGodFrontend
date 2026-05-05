@@ -87,3 +87,4 @@ npm run build
 ## 响应式加固
 
 - P3-13 前端响应式加固：见 `FRONTEND_RESPONSIVE_HARDENING.md`。
+- P3-14 USDJPY 单品种策略实验室：Dashboard 展示 USDJPY-only 多策略政策和 EA 干跑状态。

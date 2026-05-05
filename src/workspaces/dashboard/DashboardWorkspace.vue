@@ -80,6 +80,7 @@
       <p v-else class="qg-empty-text">当前没有路线观察列表；需要时可展开下方技术证据查看原始数据。</p>
     </section>
 
+    <USDJPYStrategyPolicyPanel />
     <AutomationChainPanel class="qg-dashboard-automation-chain" />
 
     <details class="qg-domain-panel qg-domain-panel--details">
@@ -98,6 +99,7 @@
 </template>
 
 <script setup>
+import USDJPYStrategyPolicyPanel from '../../components/USDJPYStrategyPolicyPanel.vue';
 import AutomationChainPanel from '../../components/AutomationChainPanel.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { loadDashboardWorkspace } from '../../services/domainApi.js';

@@ -1,0 +1,41 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+const repoRoot = process.cwd();
+const required = ['src/services/usdjpyStrategyLabApi.js', 'src/components/USDJPYStrategyPolicyPanel.vue'];
+const forbidden =
+  /\/QuantGod_.*\.(json|csv)|OrderSend|quick-trade|telegramCommandExecutionAllowed\s*[:=]\s*true|fetch\s*\(/i;
+const errors = [];
+
+for (const file of required) {
+  const full = path.join(repoRoot, file);
+  if (!fs.existsSync(full)) errors.push(`${file} is missing`);
+}
+
+for (const file of required) {
+  const full = path.join(repoRoot, file);
+  if (!fs.existsSync(full)) continue;
+  const text = fs.readFileSync(full, 'utf8');
+  if (forbidden.test(text)) errors.push(`${file} contains forbidden pattern`);
+}
+
+const service = fs.existsSync(path.join(repoRoot, 'src/services/usdjpyStrategyLabApi.js'))
+  ? fs.readFileSync(path.join(repoRoot, 'src/services/usdjpyStrategyLabApi.js'), 'utf8')
+  : '';
+if (!service.includes('/api/usdjpy-strategy-lab')) errors.push('service must use /api/usdjpy-strategy-lab');
+if (!service.includes('fetchJson') || !service.includes('postJson'))
+  errors.push('service must use existing fetchJson/postJson helpers');
+
+const panel = fs.existsSync(path.join(repoRoot, 'src/components/USDJPYStrategyPolicyPanel.vue'))
+  ? fs.readFileSync(path.join(repoRoot, 'src/components/USDJPYStrategyPolicyPanel.vue'), 'utf8')
+  : '';
+if (!panel.includes('USDJPYc') || !panel.includes('其他品种'))
+  errors.push('panel must explain USDJPY-only scope in Chinese');
+if (!panel.includes('机会入场')) errors.push('panel must show opportunity-entry Chinese wording');
+if (!panel.includes('阻断')) errors.push('panel must show blocked Chinese wording');
+
+if (errors.length) {
+  console.error(errors.join('\n'));
+  process.exit(1);
+}
+console.log('frontend USDJPY strategy lab guard OK');
