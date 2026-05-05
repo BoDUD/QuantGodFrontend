@@ -80,6 +80,8 @@
       <p v-else class="qg-empty-text">当前没有路线观察列表；需要时可展开下方技术证据查看原始数据。</p>
     </section>
 
+    <AutomationChainPanel class="qg-dashboard-automation-chain" />
+
     <details class="qg-domain-panel qg-domain-panel--details">
       <summary>技术证据</summary>
       <div class="qg-domain-grid qg-domain-grid--compact">
@@ -96,6 +98,7 @@
 </template>
 
 <script setup>
+import AutomationChainPanel from '../../components/AutomationChainPanel.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { loadDashboardWorkspace } from '../../services/domainApi.js';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
