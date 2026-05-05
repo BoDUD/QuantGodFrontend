@@ -91,6 +91,15 @@ function rows(value) {
   return [];
 }
 
+function rowMeta(value) {
+  const data = isObject(value?.data) ? value.data : {};
+  return {
+    returnedRows: Number(data.returnedRows ?? rows(value).length) || 0,
+    totalRows: Number(data.totalRows ?? rows(value).length) || 0,
+    sourceUpdatedAt: value?.source?.mtimeIso || null,
+  };
+}
+
 function firstValue(source, keys, fallback = UNKNOWN) {
   const scopes = [
     source,
@@ -144,13 +153,28 @@ function latestTimestamp(payload, rowSets = []) {
   );
   if (fromPayload) return fromPayload;
   for (const set of rowSets) {
-    const row = rows(set)[0];
-    const ts = firstValue(
-      row,
-      ['updated_at', 'updatedAt', 'timestamp', 'time', 'date', 'closed_at', 'opened_at'],
-      '',
-    );
-    if (ts) return ts;
+    const setRows = rows(set);
+    for (let index = setRows.length - 1; index >= 0; index -= 1) {
+      const row = setRows[index];
+      const ts = firstValue(
+        row,
+        [
+          'LabelTimeLocal',
+          'OutcomeLabelTimeLocal',
+          'labelTimeLocal',
+          'EventBarTime',
+          'updated_at',
+          'updatedAt',
+          'timestamp',
+          'time',
+          'date',
+          'closed_at',
+          'opened_at',
+        ],
+        '',
+      );
+      if (ts) return ts;
+    }
   }
   return UNKNOWN;
 }
@@ -271,6 +295,8 @@ export function buildResearchMetrics(state) {
   const closeRows = rows(state.closeHistory);
   const evaluationRows = rows(state.strategyEvaluation).length + rows(state.regimeEvaluation).length;
   const shadowOutcomeRows = rows(state.shadowOutcomes);
+  const signalMeta = rowMeta(state.shadowSignals);
+  const outcomeMeta = rowMeta(state.shadowOutcomes);
   const winRate = firstValue(stats, ['win_rate', 'winRate', 'trade_win_rate', 'tradeWinRate'], null);
   const pf =
     firstValue(stats, ['profit_factor', 'profitFactor', 'pf'], null) ?? inferProfitFactor(state.closeHistory);
@@ -278,8 +304,16 @@ export function buildResearchMetrics(state) {
     firstValue(stats, ['realized_pnl', 'realizedPnl', 'pnl', 'net_pnl', 'netPnl'], null) ??
     sumNumeric(state.closeHistory, ['profit', 'pnl', 'net_pnl', 'netPnl']);
   return [
-    { label: '模拟信号', value: shadowSignalRows.length, hint: '近 30 天' },
-    { label: '模拟结果', value: shadowOutcomeRows.length, hint: '已标注样本' },
+    {
+      label: '模拟信号',
+      value: `${signalMeta.returnedRows} / ${signalMeta.totalRows}`,
+      hint: '展示 / 总量，不代表成交',
+    },
+    {
+      label: '模拟结果',
+      value: `${outcomeMeta.returnedRows} / ${outcomeMeta.totalRows}`,
+      hint: '展示 / 总量，已后验标注',
+    },
     { label: '交易记录', value: tradeRows.length + closeRows.length, hint: '流水 + 平仓' },
     { label: '研究记录', value: evaluationRows, hint: '策略 + 行情环境' },
     { label: '胜率', value: formatPercent(winRate), hint: '研究统计' },
@@ -342,36 +376,56 @@ export function buildShadowSummary(state) {
   const signalRows = rows(state.shadowSignals);
   const outcomeRows = rows(state.shadowOutcomes);
   const candidateRows = rows(state.shadowCandidates);
+  const signalMeta = rowMeta(state.shadowSignals);
+  const outcomeMeta = rowMeta(state.shadowOutcomes);
+  const candidateMeta = rowMeta(state.shadowCandidates);
   const blocked = countWhere(signalRows, (row) =>
-    String(firstValue(row, ['status', 'decision', 'action', 'blocked'], ''))
+    String(firstValue(row, ['SignalStatus', 'status', 'decision', 'ExecutionAction', 'action', 'Blocker', 'blocked'], ''))
       .toLowerCase()
       .includes('block'),
   );
   const buys = countWhere(signalRows, (row) =>
-    String(firstValue(row, ['side', 'direction', 'action', 'signal'], ''))
+    String(firstValue(row, ['SignalDirection', 'side', 'direction', 'ExecutionAction', 'action', 'signal'], ''))
       .toUpperCase()
       .includes('BUY'),
   );
   const sells = countWhere(signalRows, (row) =>
-    String(firstValue(row, ['side', 'direction', 'action', 'signal'], ''))
+    String(firstValue(row, ['SignalDirection', 'side', 'direction', 'ExecutionAction', 'action', 'signal'], ''))
       .toUpperCase()
       .includes('SELL'),
   );
   const wins = countWhere(
     outcomeRows,
     (row) =>
-      Number(firstValue(row, ['profit', 'pnl', 'pips', 'outcome_pips'], 0)) > 0 ||
-      String(firstValue(row, ['outcome', 'result'], ''))
+      Number(firstValue(row, ['LongClosePips', 'profit', 'pnl', 'pips', 'outcome_pips'], 0)) > 0 ||
+      String(firstValue(row, ['DirectionalOutcome', 'outcome', 'result'], ''))
         .toLowerCase()
         .includes('win'),
   );
+  const opportunities = countWhere(outcomeRows, (row) =>
+    String(firstValue(row, ['DirectionalOutcome', 'BestOpportunity'], ''))
+      .toUpperCase()
+      .includes('OPPORTUNITY'),
+  );
   return [
-    { label: '信号数', value: signalRows.length, status: signalRows.length ? 'ok' : 'warn' },
-    { label: '结果数', value: outcomeRows.length, status: outcomeRows.length ? 'ok' : 'warn' },
-    { label: '候选数', value: candidateRows.length, status: candidateRows.length ? 'ok' : 'warn' },
+    {
+      label: '信号展示 / 总量',
+      value: `${signalMeta.returnedRows} / ${signalMeta.totalRows}`,
+      status: signalRows.length ? 'ok' : 'warn',
+    },
+    {
+      label: '结果展示 / 总量',
+      value: `${outcomeMeta.returnedRows} / ${outcomeMeta.totalRows}`,
+      status: outcomeRows.length ? 'ok' : 'warn',
+    },
+    {
+      label: '候选展示 / 总量',
+      value: `${candidateMeta.returnedRows} / ${candidateMeta.totalRows}`,
+      status: candidateRows.length ? 'ok' : 'warn',
+    },
     { label: '被阻断信号', value: blocked },
     { label: 'BUY / SELL', value: `${buys} / ${sells}` },
-    { label: '正收益结果', value: wins },
+    { label: '正收益 / 机会结果', value: `${wins} / ${opportunities}` },
     { label: '最新信号', value: latestTimestamp(null, [signalRows]) },
     { label: '研究模式', value: '模拟证据', status: 'locked' },
   ];
