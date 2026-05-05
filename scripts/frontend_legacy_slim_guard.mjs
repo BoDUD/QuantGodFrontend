@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -37,43 +37,11 @@ function assertNotContains(text, needle, label) {
   }
 }
 
-const legacyPath = 'src/workspaces/legacy/LegacyWorkbench.vue';
+const legacyDir = 'src/workspaces/legacy';
 const archivePath = 'archive/legacy-workbench/LegacyWorkbenchFull.vue';
 
-if (!exists(legacyPath)) {
-  fail(`${legacyPath} is missing`);
-} else {
-  const legacy = read(legacyPath);
-  const lines = lineCount(legacy);
-
-  if (lines > 260) {
-    fail(`LegacyWorkbench.vue should be slim after archive migration; got ${lines} lines`);
-  }
-
-  assertContains(legacy, 'LegacyDeprecationBanner', legacyPath);
-  assertContains(legacy, 'useWorkspaceStore', legacyPath);
-  assertContains(legacy, 'legacyMigrationCounts', legacyPath);
-  assertContains(legacy, 'archive/legacy-workbench/LegacyWorkbenchFull.vue', legacyPath);
-
-  for (const forbidden of [
-    'fetch(',
-    '/QuantGod_',
-    '.csv',
-    'submitOrder',
-    'placeOrder',
-    'executeTrade',
-    'closePosition',
-    'cancelOrder',
-    'transferFunds',
-    'withdrawFunds',
-    'mutatePreset',
-    'promoteRoute',
-    'demoteRoute',
-    'manualAuthorize',
-    'autoExecute',
-  ]) {
-    assertNotContains(legacy, forbidden, legacyPath);
-  }
+if (exists(legacyDir) && statSync(rel(legacyDir)).isDirectory()) {
+  fail(`${legacyDir} must not exist; legacy UI belongs only in archive/ and must not be routable source`);
 }
 
 if (!exists(archivePath)) {
@@ -87,25 +55,6 @@ if (!exists(archivePath)) {
 
 if (exists('src/workspaces/legacy/archive/LegacyWorkbenchFull.vue')) {
   fail('Full archived legacy source must not live under src/, otherwise build/contract guards may scan old code');
-}
-
-const manifestPath = 'src/workspaces/legacy/legacyMigrationManifest.js';
-if (!exists(manifestPath)) {
-  fail(`${manifestPath} is missing`);
-} else {
-  const manifest = read(manifestPath);
-  assertContains(manifest, 'legacyMigrationCounts', manifestPath);
-  assertContains(manifest, 'legacyArchive', manifestPath);
-  assertContains(manifest, archivePath, manifestPath);
-}
-
-const migrationDocPath = 'src/workspaces/legacy/LEGACY_MIGRATION.md';
-if (!exists(migrationDocPath)) {
-  fail(`${migrationDocPath} is missing`);
-} else {
-  const doc = read(migrationDocPath);
-  assertContains(doc, 'Legacy Slim', migrationDocPath);
-  assertContains(doc, archivePath, migrationDocPath);
 }
 
 const navigation = read('src/app/navigation.js');

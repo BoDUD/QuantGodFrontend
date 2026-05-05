@@ -13,7 +13,7 @@ function makeRepo() {
   mkdirSync(path.join(root, 'scripts'), { recursive: true });
   mkdirSync(path.join(root, 'tests'), { recursive: true });
   mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
-  mkdirSync(path.join(root, 'src', 'workspaces', 'legacy'), { recursive: true });
+  mkdirSync(path.join(root, 'src'), { recursive: true });
   cpSync(guardSource, path.join(root, 'scripts', 'frontend_remote_ci_integrity_guard.mjs'));
   return root;
 }
@@ -176,7 +176,8 @@ function writeBaseline(root) {
   );
 
   writeFileSync(path.join(root, 'src/App.vue'), "<template>\n  <AppShell />\n</template>\n<script setup>\nimport AppShell from './app/AppShell.vue';\n</script>\n");
-  writeFileSync(path.join(root, 'src/workspaces/legacy/LegacyWorkbench.vue'), 'LegacyDeprecationBanner\n'.repeat(120));
+  mkdirSync(path.join(root, 'archive/legacy-workbench'), { recursive: true });
+  writeFileSync(path.join(root, 'archive/legacy-workbench/LegacyWorkbenchFull.vue'), 'LegacyWorkbench\n'.repeat(1200));
   const testNames = [
     'frontend_api_contract_guard.test.mjs',
     'frontend_structure_guard.test.mjs',

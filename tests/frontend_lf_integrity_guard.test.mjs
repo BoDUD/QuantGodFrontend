@@ -77,7 +77,8 @@ function writeBaseline(root) {
     ].join('\n'),
   );
   writeFileSync(path.join(root, 'src/App.vue'), '<template>\n  <AppShell />\n</template>\n<script setup>\nimport AppShell from \'./app/AppShell.vue\';\n</script>\n');
-  writeFileSync(path.join(root, 'src/workspaces/legacy/LegacyWorkbench.vue'), `${'<template>\n'.repeat(100)}</template>\n`);
+  mkdirSync(path.join(root, 'archive/legacy-workbench'), { recursive: true });
+  writeFileSync(path.join(root, 'archive/legacy-workbench/LegacyWorkbenchFull.vue'), `${'<template>LegacyWorkbench</template>\n'.repeat(1000)}`);
 }
 
 test('rejects CR-only hashbang files that would become Node no-op scripts', () => {

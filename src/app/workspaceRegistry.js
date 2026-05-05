@@ -17,7 +17,6 @@ export const WORKSPACE_COMPONENTS = {
   research: lazyWorkspace(() => import('../workspaces/research/ResearchWorkspace.vue')),
   polymarket: lazyWorkspace(() => import('../workspaces/polymarket/PolymarketWorkspace.vue')),
   'backtest-ai': lazyWorkspace(() => import('../workspaces/backtest-ai/BacktestAiWorkspace.vue')),
-  legacy: lazyWorkspace(() => import('../workspaces/legacy/LegacyWorkbench.vue')),
   phase1: lazyWorkspace(() => import('../workspaces/phase1/Phase1Workspace.vue')),
   phase2: lazyWorkspace(() => import('../workspaces/phase2/Phase2OperationsWorkspace.vue')),
   phase3: lazyWorkspace(() => import('../workspaces/phase3/Phase3Workspace.vue')),

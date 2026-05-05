@@ -69,15 +69,7 @@ export const WORKSPACE_GROUPS = [
   },
 ];
 
-export const HIDDEN_WORKSPACES = [
-  {
-    key: 'legacy',
-    label: '旧版归档',
-    description: '旧单页归档只保留为手动回退入口，不在日常导航中展示。',
-    group: 'archive',
-    groupLabel: '归档入口',
-  },
-];
+export const HIDDEN_WORKSPACES = [];
 
 export const FLAT_WORKSPACES = [
   ...WORKSPACE_GROUPS.flatMap((group) =>

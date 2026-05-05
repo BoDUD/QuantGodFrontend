@@ -1,8 +1,8 @@
 /**
  * QuantGodFrontend structure guard.
  *
- * Keeps the split frontend maintainable after moving the legacy monolithic
- * App.vue into src/workspaces/legacy/LegacyWorkbench.vue.
+ * Keeps the split frontend maintainable after retiring the legacy monolithic
+ * workspace from active routing.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,6 @@ const REQUIRED_FILES = [
   'src/app/navigation.js',
   'src/app/workspaceRegistry.js',
   'src/stores/workspaceStore.js',
-  'src/workspaces/legacy/LegacyWorkbench.vue',
 ];
 
 const FORBIDDEN_ROOT_DIRS = ['Dashboard', 'MQL5', 'tools', 'cloudflare'];
@@ -75,23 +74,18 @@ function checkAppShell(root) {
   return errors;
 }
 
-function checkLegacyImportPaths(root) {
+function checkLegacyArchiveIsNotRouted(root) {
   const errors = [];
-  const legacyPath = path.join(root, 'src/workspaces/legacy/LegacyWorkbench.vue');
-  if (!existsAsFile(legacyPath)) {
-    return errors;
-  }
-  const text = fileText(legacyPath);
-  const invalidImports = [
-    /from\s+['"]\.\/components\//,
-    /from\s+['"]\.\/services\//,
-    /from\s+['"]\.\/utils\//,
-    /import\s+['"]\.\/styles\.css['"]/,
-  ];
-  for (const pattern of invalidImports) {
-    if (pattern.test(text)) {
-      errors.push(`${rel(root, legacyPath)}: legacy import paths were not rewritten after moving App.vue`);
-      break;
+  const registryPath = path.join(root, 'src/app/workspaceRegistry.js');
+  const navigationPath = path.join(root, 'src/app/navigation.js');
+  const registry = existsAsFile(registryPath) ? fileText(registryPath) : '';
+  const navigation = existsAsFile(navigationPath) ? fileText(navigationPath) : '';
+  for (const [label, text] of [
+    ['src/app/workspaceRegistry.js', registry],
+    ['src/app/navigation.js', navigation],
+  ]) {
+    if (text.includes('LegacyWorkbench') || text.includes("key: 'legacy'") || text.includes('workspaces/legacy')) {
+      errors.push(`${label}: legacy archive must not be routed as an active workspace`);
     }
   }
   return errors;
@@ -103,7 +97,7 @@ export function runFrontendStructureGuard(repoRoot = process.cwd()) {
     ...checkRequiredFiles(root),
     ...checkSplitBoundary(root),
     ...checkAppShell(root),
-    ...checkLegacyImportPaths(root),
+    ...checkLegacyArchiveIsNotRouted(root),
   ];
 }
 

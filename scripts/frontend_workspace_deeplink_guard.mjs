@@ -81,10 +81,15 @@ for (const key of [
   'phase1',
   'phase2',
   'phase3',
-  'legacy',
 ]) {
   assertIncludes(navigation, `'${key}'`, 'src/app/navigation.js');
 }
+
+if (/key\s*:\s*['"]legacy['"]/.test(navigation)) {
+  fail('src/app/navigation.js must not expose or hide a legacy workspace route');
+}
+assertNotIncludes(registry, 'LegacyWorkbench', 'src/app/workspaceRegistry.js');
+assertNotIncludes(registry, 'workspaces/legacy', 'src/app/workspaceRegistry.js');
 
 assertIncludes(pkg, '"deeplink"', 'package.json');
 assertIncludes(pkg, 'frontend_workspace_deeplink_guard.mjs', 'package.json');

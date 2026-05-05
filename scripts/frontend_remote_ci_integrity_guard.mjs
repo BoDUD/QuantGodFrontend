@@ -139,13 +139,12 @@ function checkSourceStillModular() {
     assert(app.includes('./app/AppShell.vue'), `${appPath} must import AppShell`);
   }
 
-  const legacyPath = 'src/workspaces/legacy/LegacyWorkbench.vue';
-  assert(exists(legacyPath), `${legacyPath} is missing`);
-  if (exists(legacyPath)) {
-    const legacy = read(legacyPath);
-    assert(lineCount(legacy) <= 260, `${legacyPath} should remain slim`);
-    assert(legacy.includes('LegacyDeprecationBanner'), `${legacyPath} must show the deprecation banner`);
-    assert(!legacy.includes('fetch('), `${legacyPath} must not fetch directly`);
+  const legacyPath = 'src/workspaces/legacy';
+  assert(!exists(legacyPath), `${legacyPath} must not exist after archive-only migration`);
+  const archivePath = 'archive/legacy-workbench/LegacyWorkbenchFull.vue';
+  assert(exists(archivePath), `${archivePath} must keep the historical legacy source outside src/`);
+  if (exists(archivePath)) {
+    assert(lineCount(read(archivePath)) >= 1000, `${archivePath} should contain the full archived legacy source`);
   }
 }
 

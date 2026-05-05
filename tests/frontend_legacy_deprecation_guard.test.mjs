@@ -19,13 +19,8 @@ function makeRepo(overrides = {}) {
   write('src/App.vue', '<template><AppShell /></template>\n<script setup>import AppShell from \'./app/AppShell.vue\';</script>\n');
   write('src/stores/workspaceStore.js', "export const DEFAULT_WORKSPACE = 'dashboard';\n");
   write('src/app/navigation.js', "export const defaultWorkspace = 'dashboard';\n");
-  write('src/app/workspaceRegistry.js', "import LegacyWorkbench from '../workspaces/legacy/LegacyWorkbench.vue';\nexport default { legacy: LegacyWorkbench };\n");
-  write('src/workspaces/legacy/LegacyDeprecationBanner.vue', "<template><section>Legacy fallback</section></template>\n<script setup>import './legacyMigrationManifest.js';</script>\n");
-  write('src/workspaces/legacy/LEGACY_MIGRATION.md', '# Legacy\n\n只作为完整回退入口。\n\n## 禁止事项\n\n统一通过 /api/*。\n\n## 删除顺序\n\n## 安全边界\n');
-  write('src/workspaces/legacy/legacyMigrationManifest.js', `export const LEGACY_MIGRATION_STATUS = { status: 'frozen_fallback', noActiveDevelopment: true, orderSendAllowed: false, closeAllowed: false, cancelAllowed: false, credentialStorageAllowed: false, livePresetMutationAllowed: false, canOverrideKillSwitch: false };
-export const MIGRATED_WORKSPACES = [{ key: 'dashboard', status: 'structured_parity_complete' }, { key: 'mt5' }, { key: 'governance' }, { key: 'paramlab' }, { key: 'research' }, { key: 'polymarket' }, { key: 'phase1' }, { key: 'phase2' }, { key: 'phase3' }];
-`);
-  write('src/workspaces/legacy/LegacyWorkbench.vue', `<template><LegacyDeprecationBanner />${'<div></div>\n'.repeat(150)}</template>\n<script setup>import LegacyDeprecationBanner from './LegacyDeprecationBanner.vue';</script>\n`);
+  write('src/app/workspaceRegistry.js', "export default { dashboard: {} };\n");
+  write('archive/legacy-workbench/LegacyWorkbenchFull.vue', `${'<template>LegacyWorkbench</template>\n'.repeat(1200)}`);
   for (const rel of [
     'src/workspaces/dashboard/DashboardWorkspace.vue',
     'src/workspaces/mt5/Mt5Workspace.vue',
@@ -49,7 +44,7 @@ function runGuard(dir) {
   });
 }
 
-test('accepts a frozen legacy fallback with migrated workspaces', () => {
+test('accepts archive-only legacy source with migrated workspaces', () => {
   const dir = makeRepo();
   const result = runGuard(dir);
   assert.equal(result.status, 0, result.stderr);
@@ -62,39 +57,16 @@ test('rejects legacy as default workspace', () => {
   assert.match(result.stderr, /legacy must not be the default workspace/);
 });
 
-test('rejects missing legacy deprecation banner', () => {
-  const dir = makeRepo({ 'src/workspaces/legacy/LegacyWorkbench.vue': `${'<div></div>\n'.repeat(150)}` });
+test('rejects legacy source still under src workspaces', () => {
+  const dir = makeRepo({ 'src/workspaces/legacy/LegacyWorkbench.vue': '<template>legacy</template>\n' });
   const result = runGuard(dir);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /LegacyWorkbench must render\/import LegacyDeprecationBanner/);
+  assert.match(result.stderr, /src\/workspaces\/legacy must be removed/);
 });
 
-test('rejects direct imports of LegacyWorkbench outside registry and legacy directory', () => {
+test('rejects direct imports of LegacyWorkbench from active workspaces', () => {
   const dir = makeRepo({ 'src/workspaces/dashboard/DashboardWorkspace.vue': "<script setup>import LegacyWorkbench from '../legacy/LegacyWorkbench.vue';</script>\n" });
   const result = runGuard(dir);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /must not import or render LegacyWorkbench directly/);
-});
-
-test('rejects direct fetch inside legacy fallback', () => {
-  const dir = makeRepo({ 'src/workspaces/legacy/LegacyWorkbench.vue': `<template><LegacyDeprecationBanner />${'<div></div>\n'.repeat(150)}</template>\n<script setup>fetch('/api/latest');</script>\n` });
-  const result = runGuard(dir);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /direct fetch/);
-});
-
-
-
-test('rejects execution affordance inside legacy fallback', () => {
-  const dir = makeRepo({ 'src/workspaces/legacy/LegacyWorkbench.vue': `<template><LegacyDeprecationBanner />${'<div></div>\n'.repeat(150)}</template>\n<script setup>const submitOrder = () => null;</script>\n` });
-  const result = runGuard(dir);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /execution\/mutation affordance/);
-});
-
-test('rejects fallback growth beyond cap', () => {
-  const dir = makeRepo({ 'src/workspaces/legacy/LegacyWorkbench.vue': `<template><LegacyDeprecationBanner />${'<div></div>\n'.repeat(5201)}</template>\n<script setup>import LegacyDeprecationBanner from './LegacyDeprecationBanner.vue';</script>\n` });
-  const result = runGuard(dir);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /grew to|line count/);
 });

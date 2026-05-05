@@ -15,7 +15,6 @@ function makeFixture() {
   for (const [key, entry] of Object.entries(DOMAIN_WORKSPACES)) {
     write(path.join(root, 'src', 'workspaces', key, entry), '<template><div /></template>');
   }
-  write(path.join(root, 'src', 'workspaces', 'legacy', 'LegacyWorkbench.vue'), '<template><div /></template>');
   write(path.join(root, 'src', 'app', 'workspaceRegistry.js'), `
 import DashboardWorkspace from '../workspaces/dashboard/DashboardWorkspace.vue';
 import Mt5Workspace from '../workspaces/mt5/Mt5Workspace.vue';
@@ -23,13 +22,12 @@ import GovernanceWorkspace from '../workspaces/governance/GovernanceWorkspace.vu
 import ParamLabWorkspace from '../workspaces/paramlab/ParamLabWorkspace.vue';
 import ResearchWorkspace from '../workspaces/research/ResearchWorkspace.vue';
 import PolymarketWorkspace from '../workspaces/polymarket/PolymarketWorkspace.vue';
-import LegacyWorkbench from '../workspaces/legacy/LegacyWorkbench.vue';
-export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, polymarket: PolymarketWorkspace, legacy: LegacyWorkbench };
+export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, polymarket: PolymarketWorkspace };
 `);
   write(path.join(root, 'src', 'app', 'navigation.js'), `
 export const DEFAULT_WORKSPACE = 'dashboard';
 export const WORKSPACE_GROUPS = [{ items: [
-  { key: 'dashboard' }, { key: 'mt5' }, { key: 'governance' }, { key: 'paramlab' }, { key: 'research' }, { key: 'polymarket' }, { key: 'legacy' }
+  { key: 'dashboard' }, { key: 'mt5' }, { key: 'governance' }, { key: 'paramlab' }, { key: 'research' }, { key: 'polymarket' }
 ] }];
 `);
   write(path.join(root, 'src', 'services', 'domainApi.js'), `

@@ -184,11 +184,9 @@ const criticalFiles = [
     mustContain: ["import AppShell from './app/AppShell.vue'"],
   },
   {
-    rel: relPath('src', 'workspaces', 'legacy', 'LegacyWorkbench.vue'),
-    minLines: 40,
-    maxLines: 260,
+    rel: relPath('archive', 'legacy-workbench', 'LegacyWorkbenchFull.vue'),
+    minLines: 1000,
     mustContain: ['LegacyDeprecationBanner'],
-    mustNotContain: ['fetch(', '/QuantGod_', 'executeTrade', 'submitOrder'],
   },
 ];
 

@@ -78,8 +78,8 @@ function checkRegistry(root) {
       errors.push(`${rel(root, registryPath)}: WORKSPACE_COMPONENTS missing ${key}`);
     }
   }
-  if (!registry.includes("../workspaces/legacy/LegacyWorkbench.vue")) {
-    errors.push(`${rel(root, registryPath)}: legacy fallback must remain available during migration`);
+  if (registry.includes('LegacyWorkbench') || registry.includes('workspaces/legacy')) {
+    errors.push(`${rel(root, registryPath)}: legacy archive must not be registered as an active workspace`);
   }
   return errors;
 }

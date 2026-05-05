@@ -29,7 +29,7 @@ function makeFixture() {
 
   write(
     'src/app/navigation.js',
-    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'governance'},{key:'paramlab'},{key:'research'},{key:'polymarket'},{key:'backtest-ai'},{key:'phase1'},{key:'phase2'},{key:'phase3'}]}]; export const HIDDEN_WORKSPACES = [{key:'legacy', label:'旧版归档'}]; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
+    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'governance'},{key:'paramlab'},{key:'research'},{key:'polymarket'},{key:'backtest-ai'},{key:'phase1'},{key:'phase2'},{key:'phase3'}]}]; export const HIDDEN_WORKSPACES = []; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
     root,
   );
   write(
@@ -111,7 +111,7 @@ test('deep-link guard rejects component-level local file reads', () => {
   assert.match(result.stderr, /must not include/);
 });
 
-test('deep-link guard rejects visible legacy archive navigation', () => {
+test('deep-link guard rejects any legacy archive navigation', () => {
   const root = makeFixture();
   write(
     'src/app/navigation.js',
@@ -124,5 +124,5 @@ test('deep-link guard rejects visible legacy archive navigation', () => {
     encoding: 'utf8',
   });
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /visible navigation/);
+  assert.match(result.stderr, /legacy workspace route|visible navigation/);
 });

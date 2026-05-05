@@ -4,7 +4,6 @@ import process from 'node:process';
 
 const root = process.cwd();
 const failures = [];
-const LEGACY_LINE_CAP = 5200;
 
 function rel(...parts) {
   return path.join(root, ...parts);
@@ -58,46 +57,21 @@ function checkCoreFiles() {
     'src/app/workspaceRegistry.js',
     'src/app/navigation.js',
     'src/stores/workspaceStore.js',
-    'src/workspaces/legacy/LegacyWorkbench.vue',
-    'src/workspaces/legacy/LegacyDeprecationBanner.vue',
-    'src/workspaces/legacy/LEGACY_MIGRATION.md',
-    'src/workspaces/legacy/legacyMigrationManifest.js',
+    'archive/legacy-workbench/LegacyWorkbenchFull.vue',
   ];
-  for (const file of required) assert(fileExists(file), `${file} is required for legacy deprecation tracking`);
+  for (const file of required) assert(fileExists(file), `${file} is required for legacy archive tracking`);
 }
 
-function checkPolicyFiles() {
-  if (!fileExists('src/workspaces/legacy/LEGACY_MIGRATION.md')) return;
-  if (!fileExists('src/workspaces/legacy/legacyMigrationManifest.js')) return;
-  if (!fileExists('src/workspaces/legacy/LegacyDeprecationBanner.vue')) return;
+function checkLegacySourceRemoved() {
+  assert(!fileExists('src/workspaces/legacy'), 'src/workspaces/legacy must be removed; legacy UI is archive-only after migration');
+}
 
-  const migrationDoc = read('src/workspaces/legacy/LEGACY_MIGRATION.md');
-  const manifest = read('src/workspaces/legacy/legacyMigrationManifest.js');
-  const banner = read('src/workspaces/legacy/LegacyDeprecationBanner.vue');
-
-  for (const phrase of ['只作为完整回退入口', '禁止事项', '/api/*', '删除顺序', '安全边界']) {
-    assert(migrationDoc.includes(phrase), `LEGACY_MIGRATION.md must mention ${phrase}`);
-  }
-
-  for (const key of ['dashboard', 'mt5', 'governance', 'paramlab', 'research', 'polymarket', 'phase1', 'phase2', 'phase3']) {
-    assert(manifest.includes(`key: '${key}'`) || manifest.includes(`key: "${key}"`), `legacyMigrationManifest.js must track ${key}`);
-  }
-
-  for (const phrase of [
-    'frozen_fallback',
-    'noActiveDevelopment: true',
-    'orderSendAllowed: false',
-    'closeAllowed: false',
-    'cancelAllowed: false',
-    'credentialStorageAllowed: false',
-    'livePresetMutationAllowed: false',
-    'canOverrideKillSwitch: false',
-  ]) {
-    assert(manifest.includes(phrase), `legacyMigrationManifest.js must include ${phrase}`);
-  }
-
-  assert(banner.includes('legacyMigrationManifest.js'), 'LegacyDeprecationBanner must read legacyMigrationManifest.js');
-  assert(banner.includes('Legacy fallback') || banner.includes('旧完整工作台已冻结'), 'LegacyDeprecationBanner must clearly state legacy is frozen fallback');
+function checkArchiveOnly() {
+  const archivePath = 'archive/legacy-workbench/LegacyWorkbenchFull.vue';
+  if (!fileExists(archivePath)) return;
+  const archived = read(archivePath);
+  assert(countLines(archived) >= 1000, `${archivePath} must keep the full historical source`);
+  assert(!/\bfetch\s*\(/.test(archived) || archived.includes('LegacyWorkbenchFull'), `${archivePath} is audit-only and must not be imported by src`);
 }
 
 function checkDefaultWorkspace() {
@@ -115,64 +89,20 @@ function checkRegistryBoundary() {
   const registryPath = 'src/app/workspaceRegistry.js';
   if (!fileExists(registryPath)) return;
   const registry = read(registryPath);
-  assert(registry.includes('LegacyWorkbench'), 'workspaceRegistry should keep legacy fallback registered');
-  assert(registry.includes('workspaces/legacy') || registry.includes('../workspaces/legacy/LegacyWorkbench.vue'), 'workspaceRegistry should import legacy from src/workspaces/legacy');
+  assert(!registry.includes('LegacyWorkbench'), 'workspaceRegistry must not register the archived legacy workbench');
+  assert(
+    !registry.includes('workspaces/legacy') && !registry.includes('../workspaces/legacy/LegacyWorkbench.vue'),
+    'workspaceRegistry must not import the archived legacy workbench',
+  );
 
   const srcFiles = walkFiles('src', (full) => /\.(vue|js|mjs|ts)$/.test(full));
   for (const full of srcFiles) {
     const relPath = toPosix(path.relative(root, full));
     if (relPath === 'src/app/workspaceRegistry.js') continue;
-    if (relPath.startsWith('src/workspaces/legacy/')) continue;
     const content = readFileSync(full, 'utf8');
     assert(!content.includes('LegacyWorkbench'), `${relPath} must not import or render LegacyWorkbench directly`);
     assert(!content.includes('workspaces/legacy/LegacyWorkbench.vue'), `${relPath} must not import LegacyWorkbench directly`);
   }
-}
-
-function checkLegacyFrozen() {
-  const legacyPath = 'src/workspaces/legacy/LegacyWorkbench.vue';
-  if (!fileExists(legacyPath)) return;
-  const legacy = read(legacyPath);
-  assert(legacy.includes('LegacyDeprecationBanner'), 'LegacyWorkbench must render/import LegacyDeprecationBanner');
-  assert(!/\bfetch\s*\(/.test(legacy), 'LegacyWorkbench must not introduce direct fetch calls');
-  assert(!/['"]\/QuantGod_[^'"]+\.(json|csv)['"]/.test(legacy), 'LegacyWorkbench must not directly read /QuantGod_*.json or /QuantGod_*.csv');
-
-  const forbiddenExecutionTokens = [
-    'submitOrder',
-    'sendOrder',
-    'placeOrder',
-    'executeTrade',
-    'executeOrder',
-    'closePosition',
-    'cancelOrder',
-    'transferFunds',
-    'withdrawFunds',
-    'depositFunds',
-    'mutatePreset',
-    'writeLivePreset',
-    'promoteRoute',
-    'demoteRoute',
-    'executePromotion',
-    'manualAuthorize',
-    'autoExecute',
-  ];
-  for (const token of forbiddenExecutionTokens) {
-    assert(!legacy.includes(token), `LegacyWorkbench must not introduce execution/mutation affordance: ${token}`);
-  }
-
-  const count = lineCount(legacy);
-  assert(count >= 100, 'LegacyWorkbench should remain a real fallback until deliberate duplicate-section removal begins');
-  assert(count <= 5200, `LegacyWorkbench grew to ${count} lines; new work belongs in dedicated workspaces`);
-}
-
-function checkLegacyGrowthBudget() {
-  const legacyPath = 'src/workspaces/legacy/LegacyWorkbench.vue';
-  if (!fileExists(legacyPath)) return;
-  const lineCount = countLines(read(legacyPath));
-  assert(
-    lineCount <= LEGACY_LINE_CAP,
-    `LegacyWorkbench line count ${lineCount} exceeds cap ${LEGACY_LINE_CAP}; do not add new feature code to fallback`,
-  );
 }
 
 function checkMigratedWorkspacesExist() {
@@ -187,7 +117,7 @@ function checkMigratedWorkspacesExist() {
     'src/workspaces/phase2/Phase2OperationsWorkspace.vue',
     'src/workspaces/phase3/Phase3Workspace.vue',
   ];
-  for (const file of expected) assert(fileExists(file), `${file} must exist before legacy can be frozen`);
+  for (const file of expected) assert(fileExists(file), `${file} must exist before legacy source can be removed`);
 }
 
 function checkAppShell() {
@@ -204,10 +134,10 @@ function checkPackageScript() {
 }
 
 checkCoreFiles();
-checkPolicyFiles();
+checkLegacySourceRemoved();
+checkArchiveOnly();
 checkDefaultWorkspace();
 checkRegistryBoundary();
-checkLegacyFrozen();
 checkMigratedWorkspacesExist();
 checkAppShell();
 checkPackageScript();

@@ -109,7 +109,7 @@ function checkCriticalFileLineCounts() {
     'tests/frontend_legacy_deprecation_guard.test.mjs': 10,
     'tests/frontend_lf_integrity_guard.test.mjs': 10,
     'src/App.vue': 3,
-    'src/workspaces/legacy/LegacyWorkbench.vue': 100,
+    'archive/legacy-workbench/LegacyWorkbenchFull.vue': 1000,
   };
   for (const [file, min] of Object.entries(minimums)) {
     if (!exists(file)) continue;
