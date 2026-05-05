@@ -25,6 +25,17 @@ const service = fs.existsSync(path.join(repoRoot, 'src/services/usdjpyStrategyLa
 if (!service.includes('/api/usdjpy-strategy-lab')) errors.push('service must use /api/usdjpy-strategy-lab');
 if (!service.includes('fetchJson') || !service.includes('postJson'))
   errors.push('service must use existing fetchJson/postJson helpers');
+for (const marker of [
+  '/catalog',
+  '/signals',
+  '/backtest-plan',
+  '/imported-backtests',
+  '/import-backtest',
+  '/risk-check',
+  '/candidate-policy',
+]) {
+  if (!service.includes(marker)) errors.push(`service missing ${marker} endpoint helper`);
+}
 
 const panel = fs.existsSync(path.join(repoRoot, 'src/components/USDJPYStrategyPolicyPanel.vue'))
   ? fs.readFileSync(path.join(repoRoot, 'src/components/USDJPYStrategyPolicyPanel.vue'), 'utf8')
@@ -33,6 +44,9 @@ if (!panel.includes('USDJPYc') || !panel.includes('其他品种'))
   errors.push('panel must explain USDJPY-only scope in Chinese');
 if (!panel.includes('机会入场')) errors.push('panel must show opportunity-entry Chinese wording');
 if (!panel.includes('阻断')) errors.push('panel must show blocked Chinese wording');
+for (const marker of ['策略工厂目录', '实时候选信号', '回测计划', '已导入回测', '风险检查']) {
+  if (!panel.includes(marker)) errors.push(`panel missing ${marker} section`);
+}
 
 if (errors.length) {
   console.error(errors.join('\n'));

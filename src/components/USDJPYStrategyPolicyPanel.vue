@@ -11,6 +11,7 @@
       <div class="qg-usdjpy-panel__actions">
         <button type="button" :disabled="loading" @click="load">刷新</button>
         <button type="button" :disabled="loading" @click="runChain">生成政策</button>
+        <button type="button" :disabled="loading" @click="runSignals">刷新信号</button>
       </div>
     </header>
 
@@ -90,6 +91,95 @@
         </article>
       </div>
 
+      <section class="qg-usdjpy-panel__factory">
+        <article class="qg-usdjpy-panel__table-card">
+          <div class="qg-usdjpy-panel__section-title">
+            <h3>策略工厂目录</h3>
+            <span>{{ catalogItems.length }} 条 shadow 策略</span>
+          </div>
+          <div class="qg-usdjpy-panel__strategy-cards">
+            <article v-for="item in catalogItems" :key="item.strategyKey || item.key" class="qg-usdjpy-panel__strategy-card">
+              <p>{{ item.displayName || item.name || item.strategyKey || item.key }}</p>
+              <strong>{{ item.strategyKey || item.key }}</strong>
+              <span>{{ strategySummary(item) }}</span>
+              <small>{{ safetySummary(item) }}</small>
+            </article>
+          </div>
+        </article>
+
+        <article class="qg-usdjpy-panel__table-card">
+          <div class="qg-usdjpy-panel__section-title">
+            <h3>实时候选信号</h3>
+            <span>{{ signalItems.length }} 条</span>
+          </div>
+          <div v-if="signalItems.length" class="qg-usdjpy-panel__signal-list">
+            <article v-for="(item, index) in signalItems.slice(0, 6)" :key="signalKey(item, index)">
+              <strong>{{ item.displayName || item.strategyName || item.strategy || 'USDJPY 候选' }}</strong>
+              <span>{{ directionLabel(item.direction) }} · {{ item.timeframe || 'M15' }}</span>
+              <small>{{ signalReason(item) }}</small>
+            </article>
+          </div>
+          <p v-else class="qg-usdjpy-panel__muted">还没有新的 shadow 候选信号，等待东京突破、夜盘回归或 H4 回调采样。</p>
+        </article>
+      </section>
+
+      <section class="qg-usdjpy-panel__factory qg-usdjpy-panel__factory--secondary">
+        <article class="qg-usdjpy-panel__table-card">
+          <div class="qg-usdjpy-panel__section-title">
+            <h3>回测计划</h3>
+            <span>{{ backtestPlans.length }} 个策略</span>
+          </div>
+          <div class="qg-usdjpy-panel__plan-grid">
+            <article v-for="item in backtestPlans" :key="item.strategyKey || item.strategy">
+              <strong>{{ item.displayName || item.strategyName || item.strategyKey || item.strategy }}</strong>
+              <span>{{ item.timeframe || 'M15' }} · {{ item.window || item.period || 'walk-forward' }}</span>
+              <small>{{ backtestSummary(item) }}</small>
+            </article>
+          </div>
+        </article>
+
+        <article class="qg-usdjpy-panel__table-card">
+          <div class="qg-usdjpy-panel__section-title">
+            <h3>已导入回测</h3>
+            <span>{{ importedBacktests.length }} 条</span>
+          </div>
+          <div class="qg-usdjpy-panel__import-row">
+            <input
+              v-model="importSource"
+              type="text"
+              placeholder="粘贴本机回测 CSV/JSON 路径"
+              aria-label="本机回测结果路径"
+            />
+            <button type="button" :disabled="loading || !importSource.trim()" @click="runImportBacktest">
+              导入
+            </button>
+          </div>
+          <div v-if="importedBacktests.length" class="qg-usdjpy-panel__import-list">
+            <article v-for="item in importedBacktests.slice(0, 4)" :key="`${item.strategy}-${item.importedAt}`">
+              <strong>{{ item.strategyName || item.strategy }}</strong>
+              <span>PF {{ formatScore(item.profitFactor) }} · 胜率 {{ percentLabel(item.winRate) }} · {{ item.trades || 0 }} 笔</span>
+              <small>{{ backtestImportStatus(item) }}</small>
+            </article>
+          </div>
+          <p v-else class="qg-usdjpy-panel__muted">还没有导入 Strategy Tester 或外部回测结果。</p>
+        </article>
+      </section>
+
+      <section class="qg-usdjpy-panel__factory qg-usdjpy-panel__factory--secondary">
+        <article class="qg-usdjpy-panel__table-card">
+          <div class="qg-usdjpy-panel__section-title">
+            <h3>风险检查</h3>
+            <span :class="evidenceClass(riskOk)">{{ riskOk ? '通过' : '等待证据' }}</span>
+          </div>
+          <ul class="qg-usdjpy-panel__evidence">
+            <li :class="evidenceClass(riskCheck?.runtimeOk)">运行快照：{{ boolLabel(riskCheck?.runtimeOk) }}</li>
+            <li :class="evidenceClass(riskCheck?.fastlaneOk)">快通道：{{ boolLabel(riskCheck?.fastlaneOk) }}</li>
+            <li :class="evidenceClass(riskCheck?.newsOk)">USD/JPY 新闻：{{ boolLabel(riskCheck?.newsOk) }}</li>
+            <li :class="evidenceClass(riskCheck?.shadowOnly)">新策略隔离：{{ boolLabel(riskCheck?.shadowOnly) }}</li>
+          </ul>
+        </article>
+      </section>
+
       <article class="qg-usdjpy-panel__table-card">
         <h3>USDJPY 多策略矩阵</h3>
         <div class="qg-usdjpy-panel__table-wrap">
@@ -127,14 +217,51 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { fetchUSDJPYStrategyLabStatus, runUSDJPYStrategyLab } from '../services/usdjpyStrategyLabApi.js';
+import {
+  fetchUSDJPYImportedBacktests,
+  fetchUSDJPYStrategyBacktestPlan,
+  fetchUSDJPYStrategyCatalog,
+  fetchUSDJPYStrategyLabStatus,
+  fetchUSDJPYStrategyRiskCheck,
+  fetchUSDJPYStrategySignals,
+  importUSDJPYBacktest,
+  runUSDJPYStrategyLab,
+  runUSDJPYStrategySignals,
+} from '../services/usdjpyStrategyLabApi.js';
 
 const status = ref(null);
+const catalog = ref(null);
+const signals = ref(null);
+const backtestPlan = ref(null);
+const importedBacktest = ref(null);
+const riskCheck = ref(null);
+const importSource = ref('');
 const loading = ref(false);
 const error = ref('');
 
 const topPolicy = computed(() => status.value?.topPolicy || null);
 const strategies = computed(() => (Array.isArray(status.value?.strategies) ? status.value.strategies : []));
+const catalogItems = computed(() => {
+  const items = catalog.value?.catalog || catalog.value?.strategies || [];
+  return Array.isArray(items) ? items : [];
+});
+const signalItems = computed(() => {
+  const items = signals.value?.signals || status.value?.candidateSignals || [];
+  return Array.isArray(items) ? items : [];
+});
+const backtestPlans = computed(() => {
+  const items = backtestPlan.value?.plans || backtestPlan.value?.strategies || [];
+  return Array.isArray(items) ? items : [];
+});
+const importedBacktests = computed(() => {
+  const items = importedBacktest.value?.imports || [];
+  return Array.isArray(items) ? items : [];
+});
+const riskOk = computed(() => {
+  if (!riskCheck.value) return false;
+  if (riskCheck.value.ok === false || riskCheck.value.riskOk === false) return false;
+  return ['runtimeOk', 'fastlaneOk', 'newsOk', 'shadowOnly'].every((key) => riskCheck.value?.[key] !== false);
+});
 const topReasons = computed(() =>
   Array.isArray(topPolicy.value?.reasons) ? topPolicy.value.reasons.slice(0, 5) : [],
 );
@@ -181,6 +308,43 @@ function formatScore(value) {
   return number.toFixed(1);
 }
 
+function percentLabel(value) {
+  const number = Number(value || 0);
+  return `${(number * 100).toFixed(1)}%`;
+}
+
+function strategySummary(item) {
+  const windowText = item?.session || item?.timeWindow || item?.entryWindow || '影子采样';
+  const timeframe = item?.timeframe || item?.timeframes?.join('/') || 'M15';
+  return `${timeframe} · ${item?.coreIdea || windowText}`;
+}
+
+function safetySummary(item) {
+  const flags = item?.safety || item?.constraints || {};
+  if (item?.shadowTradingOnly || item?.dryRunOnly || flags.shadowTradingOnly || flags.dryRunOnly) {
+    return '只做模拟采样，不进入实盘下单';
+  }
+  return '等待安全边界确认';
+}
+
+function signalKey(item, index) {
+  return `${item.strategy || item.strategyKey}-${item.direction}-${item.generatedAtIso || item.time || item.eventId || index}`;
+}
+
+function signalReason(item) {
+  return item.reason || item.blocker || item.regime || item.status || '已进入 shadow 候选采样';
+}
+
+function backtestSummary(item) {
+  return item.description || item.acceptance || item.reason || '用于 walk-forward、ParamLab 和治理复核，不直接恢复实盘';
+}
+
+function backtestImportStatus(item) {
+  if (item.status === 'PROMOTABLE') return '统计达标，可进入 shadow 候选复核';
+  if (item.status === 'NEEDS_RETEST') return '统计不足，需要重新回测';
+  return '继续观察，不恢复实盘';
+}
+
 function firstReason(item) {
   const reasons = Array.isArray(item?.reasons) ? item.reasons : [];
   return reasons[0] || '无';
@@ -190,7 +354,20 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    status.value = await fetchUSDJPYStrategyLabStatus();
+    const [statusPayload, catalogPayload, signalsPayload, planPayload, importedPayload, riskPayload] = await Promise.all([
+      fetchUSDJPYStrategyLabStatus(),
+      fetchUSDJPYStrategyCatalog(),
+      fetchUSDJPYStrategySignals({ limit: 20 }),
+      fetchUSDJPYStrategyBacktestPlan(),
+      fetchUSDJPYImportedBacktests({ limit: 20 }),
+      fetchUSDJPYStrategyRiskCheck(),
+    ]);
+    status.value = statusPayload;
+    catalog.value = catalogPayload;
+    signals.value = signalsPayload;
+    backtestPlan.value = planPayload;
+    importedBacktest.value = importedPayload;
+    riskCheck.value = riskPayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 策略政策加载失败';
   } finally {
@@ -203,8 +380,41 @@ async function runChain() {
   error.value = '';
   try {
     status.value = await runUSDJPYStrategyLab();
+    const [signalsPayload, riskPayload] = await Promise.all([
+      fetchUSDJPYStrategySignals({ limit: 20 }),
+      fetchUSDJPYStrategyRiskCheck(),
+    ]);
+    signals.value = signalsPayload;
+    riskCheck.value = riskPayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 策略政策生成失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runSignals() {
+  loading.value = true;
+  error.value = '';
+  try {
+    signals.value = await runUSDJPYStrategySignals();
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 候选信号刷新失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runImportBacktest() {
+  if (!importSource.value.trim()) return;
+  loading.value = true;
+  error.value = '';
+  try {
+    await importUSDJPYBacktest({ source: importSource.value.trim() });
+    importedBacktest.value = await fetchUSDJPYImportedBacktests({ limit: 20 });
+    importSource.value = '';
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 回测结果导入失败';
   } finally {
     loading.value = false;
   }
@@ -388,6 +598,114 @@ onMounted(load);
   color: #fecaca;
 }
 
+.qg-usdjpy-panel__factory {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.qg-usdjpy-panel__factory--secondary {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
+}
+
+.qg-usdjpy-panel__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.qg-usdjpy-panel__section-title span {
+  color: var(--qg-text-muted, #94a3b8);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.qg-usdjpy-panel__strategy-cards,
+.qg-usdjpy-panel__signal-list,
+.qg-usdjpy-panel__plan-grid,
+.qg-usdjpy-panel__import-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-panel__signal-list,
+.qg-usdjpy-panel__plan-grid,
+.qg-usdjpy-panel__import-list {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.qg-usdjpy-panel__strategy-card,
+.qg-usdjpy-panel__signal-list article,
+.qg-usdjpy-panel__plan-grid article,
+.qg-usdjpy-panel__import-list article {
+  border: 1px solid var(--qg-border-subtle, rgb(148, 163, 184, 0.14));
+  border-radius: 12px;
+  padding: 10px;
+  background: rgb(15, 23, 42, 0.34);
+  min-width: 0;
+}
+
+.qg-usdjpy-panel__strategy-card p,
+.qg-usdjpy-panel__strategy-card strong,
+.qg-usdjpy-panel__strategy-card span,
+.qg-usdjpy-panel__strategy-card small,
+.qg-usdjpy-panel__signal-list strong,
+.qg-usdjpy-panel__signal-list span,
+.qg-usdjpy-panel__signal-list small,
+.qg-usdjpy-panel__plan-grid strong,
+.qg-usdjpy-panel__plan-grid span,
+.qg-usdjpy-panel__plan-grid small,
+.qg-usdjpy-panel__import-list strong,
+.qg-usdjpy-panel__import-list span,
+.qg-usdjpy-panel__import-list small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.qg-usdjpy-panel__strategy-card p {
+  margin: 0 0 4px;
+  color: #7dd3fc;
+  font-weight: 700;
+}
+
+.qg-usdjpy-panel__strategy-card span,
+.qg-usdjpy-panel__signal-list span,
+.qg-usdjpy-panel__plan-grid span,
+.qg-usdjpy-panel__import-list span {
+  margin-top: 6px;
+  color: var(--qg-text-secondary, #cbd5e1);
+}
+
+.qg-usdjpy-panel__strategy-card small,
+.qg-usdjpy-panel__signal-list small,
+.qg-usdjpy-panel__plan-grid small,
+.qg-usdjpy-panel__import-list small,
+.qg-usdjpy-panel__muted {
+  margin-top: 6px;
+  color: var(--qg-text-muted, #94a3b8);
+  line-height: 1.45;
+}
+
+.qg-usdjpy-panel__import-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.qg-usdjpy-panel__import-row input {
+  min-width: 0;
+  border: 1px solid var(--qg-border-subtle, rgb(148, 163, 184, 0.22));
+  border-radius: 12px;
+  background: rgb(15, 23, 42, 0.58);
+  color: inherit;
+  padding: 8px 10px;
+}
+
 .qg-usdjpy-panel__table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -424,7 +742,9 @@ onMounted(load);
 
 @media (width <= 900px) {
   .qg-usdjpy-panel__header,
-  .qg-usdjpy-panel__grid {
+  .qg-usdjpy-panel__grid,
+  .qg-usdjpy-panel__factory,
+  .qg-usdjpy-panel__factory--secondary {
     grid-template-columns: 1fr;
     display: grid;
   }
