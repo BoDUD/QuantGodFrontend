@@ -43,12 +43,16 @@ const visibleRows = computed(() => props.rows.slice(0, props.limit));
 
 function parseNumeric(value) {
   if (typeof value === 'number') return value;
-  const parsed = Number(String(value ?? '').replace(/[^0-9.+-]/g, ''));
+  const normalized = String(value ?? '').replace(/[^0-9.+-]/g, '');
+  if (!normalized || !/[0-9]/.test(normalized)) return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function isPnlColumn(column) {
-  return /盈亏|浮盈|profit|pnl/i.test(String(column || ''));
+  const text = String(column || '');
+  if (/盈亏比|PF|profit\s*factor/i.test(text)) return false;
+  return /盈亏|浮盈|profit|pnl/i.test(text);
 }
 
 function stringifyCell(column, value) {

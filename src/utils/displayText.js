@@ -64,6 +64,7 @@ const STATUS_LABELS = new Map([
   ['READ_ONLY_MARKET_CATALOG_NO_WALLET_WRITE', '只读市场目录，不写钱包'],
   ['SOURCE_EMPTY', '来源为空'],
   ['PARSED_AGENT_ARTIFACTS', '报告已解析'],
+  ['PENDING_REPORT', '等待报告回灌'],
   ['AUTO_PAUSED_BLOCKED', '自动暂停阻断'],
   ['SESSION_BLOCK', '交易时段阻断'],
   ['NO_CROSS_OBSERVED', '未出现交叉，仅观察'],

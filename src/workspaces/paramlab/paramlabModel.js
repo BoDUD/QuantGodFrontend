@@ -119,6 +119,10 @@ function statusFromText(value) {
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data?.rows)) return payload.data.rows;
+  if (Array.isArray(payload?.data?.results)) return payload.data.results;
+  if (Array.isArray(payload?.data?.runs)) return payload.data.runs;
+  if (Array.isArray(payload?.data?.queue)) return payload.data.queue;
+  if (Array.isArray(payload?.data?.jobs)) return payload.data.jobs;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.rows)) return payload.rows;
   if (Array.isArray(payload?.items)) return payload.items;
@@ -139,21 +143,118 @@ function rowValue(row, paths, fallback = EMPTY_TEXT) {
   return pick(row?.data || row || {}, paths, fallback);
 }
 
+function isPendingReport(source) {
+  return String(rowValue(source, ['status', 'Status', 'state', 'State'], ''))
+    .toLowerCase()
+    .includes('pending');
+}
+
+function metricDisplay(value, source, fallback = EMPTY_TEXT, options = {}) {
+  const trades = numberFrom(
+    rowValue(
+      source,
+      ['closedTrades', 'ClosedTrades', 'metrics.closedTrades', 'trades', 'trade_count', 'n_trades'],
+      null,
+    ),
+    null,
+  );
+  if (options.noTradesAsLabel && trades === 0) return '无成交';
+  if (options.pendingAsLabel && isPendingReport(source)) return '待报告';
+  if (value !== undefined && value !== null && value !== '') return formatDisplayValue(value);
+  if (trades === 0) return '无成交';
+  return fallback;
+}
+
+function winRateDisplay(value, source) {
+  const trades = numberFrom(
+    rowValue(
+      source,
+      ['closedTrades', 'ClosedTrades', 'metrics.closedTrades', 'trades', 'trade_count', 'n_trades'],
+      null,
+    ),
+    null,
+  );
+  const numeric = numberFrom(value, null);
+  if (trades === 0) return '无成交';
+  if (isPendingReport(source)) return '待报告';
+  if (numeric !== null) {
+    const pct = Math.abs(numeric) <= 1 ? numeric * 100 : numeric;
+    return `${pct.toFixed(1)}%`;
+  }
+  return EMPTY_TEXT;
+}
+
 function normalizeRows(rows, limit = 200) {
   return asArray(rows)
     .slice(0, limit)
     .map((row, index) => {
       const source = row?.data || row || {};
+      const pf = rowValue(
+        source,
+        ['profitFactor', 'ProfitFactor', 'metrics.profitFactor', 'pf', 'profit_factor'],
+        null,
+      );
+      const winRate = rowValue(source, ['winRate', 'WinRate', 'metrics.winRate', 'win_rate', 'wr'], null);
+      const trades = rowValue(source, [
+        'closedTrades',
+        'ClosedTrades',
+        'metrics.closedTrades',
+        'trades',
+        'trade_count',
+        'n_trades',
+      ]);
       return {
         '#': index + 1,
-        路线: rowValue(source, ['route', 'route_name', 'strategy', 'name', 'preset'], `项目-${index + 1}`),
-        品种: rowValue(source, ['symbol', 'pair', 'instrument']),
-        周期: rowValue(source, ['tf', 'timeframe', 'time_frame']),
-        状态: humanizeStatus(rowValue(source, ['status', 'state', 'result', 'decision'])),
-        PF: formatDisplayValue(rowValue(source, ['pf', 'profit_factor', 'profitFactor', 'score'])),
-        胜率: formatDisplayValue(rowValue(source, ['win_rate', 'winRate', 'wr'])),
-        交易数: formatDisplayValue(rowValue(source, ['trades', 'trade_count', 'n_trades'])),
-        更新时间: rowValue(source, ['updated_at', 'timestamp', 'generated_at', 'as_of']),
+        路线: rowValue(
+          source,
+          [
+            'routeKey',
+            'RouteKey',
+            'route',
+            'route_name',
+            'strategy',
+            'Strategy',
+            'name',
+            'preset',
+            'candidateId',
+            'CandidateId',
+          ],
+          `项目-${index + 1}`,
+        ),
+        品种: rowValue(source, ['symbol', 'Symbol', 'pair', 'instrument']),
+        周期: rowValue(source, ['tf', 'TF', 'timeframe', 'Timeframe', 'time_frame']),
+        状态: humanizeStatus(
+          rowValue(source, [
+            'status',
+            'Status',
+            'state',
+            'State',
+            'result',
+            'decision',
+            'promotionReadiness',
+            'PromotionReadiness',
+            'metrics.sampleStatus',
+          ]),
+        ),
+        '盈亏比(PF)': metricDisplay(pf, source, EMPTY_TEXT, {
+          noTradesAsLabel: true,
+          pendingAsLabel: true,
+        }),
+        胜率: winRateDisplay(winRate, source),
+        交易数: metricDisplay(trades, source),
+        净盈亏: metricDisplay(
+          rowValue(source, ['netProfit', 'NetProfit', 'metrics.netProfit', 'net_pnl', 'pnl'], null),
+          source,
+        ),
+        更新时间: rowValue(source, [
+          'generatedAtIso',
+          'GeneratedAtIso',
+          'updated_at',
+          'updatedAt',
+          'timestamp',
+          'generated_at',
+          'as_of',
+        ]),
       };
     });
 }
@@ -416,7 +517,7 @@ export function buildMetricItems(state = {}) {
   const scheduler = buildSchedulerSummary(state);
   const recovery = buildRecoverySummary(state);
   const bestPf = batch.resultRows.reduce((best, row) => {
-    const value = numberFrom(row.pf, null);
+    const value = numberFrom(row['盈亏比(PF)'], null);
     return value === null ? best : Math.max(best, value);
   }, null);
   return [
@@ -439,9 +540,9 @@ export function buildMetricItems(state = {}) {
       status: scheduler.status,
     },
     {
-      label: '最佳 PF',
+      label: '最佳盈亏比(PF)',
       value: bestPf === null ? EMPTY_TEXT : bestPf.toFixed(2),
-      hint: '当前可见结果',
+      hint: '总盈利 / 总亏损，大于 1 才代表整体盈利',
       status: bestPf === null ? 'unknown' : bestPf >= 1 ? 'ok' : 'warn',
     },
     {

@@ -8,6 +8,7 @@
     @refresh="load"
   >
     <section class="qg-readonly-banner" aria-label="ParamLab 安全边界">
+      <!-- tester-only evidence -->
       <StatusPill status="locked" label="仅测试器证据" />
       <span>
         ParamLab 工作区仅展示实验、调度和恢复证据；不会写 live preset，也不会触发实盘交易或治理升级。
@@ -50,6 +51,14 @@
         <KeyValueList :items="viewModel.recovery.rows" />
       </section>
     </div>
+
+    <section class="qg-readonly-banner" aria-label="参数实验指标说明">
+      <StatusPill status="locked" label="指标说明" />
+      <span>
+        盈亏比(PF) = 总盈利 / 总亏损；大于 1 才说明回测整体盈利。若测试窗口内 0
+        成交，胜率和盈亏比会显示“无成交”。
+      </span>
+    </section>
 
     <LedgerTable title="实验结果排行" :rows="viewModel.resultRows" :limit="20" />
     <LedgerTable title="调度流水" :rows="viewModel.schedulerRows" :limit="20" />
