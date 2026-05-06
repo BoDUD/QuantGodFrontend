@@ -15,6 +15,10 @@ test('automation chain frontend uses api facade and Chinese UX', () => {
   assert.doesNotMatch(service + panel, /USDJPYc,EURUSDc,XAUUSDc/);
   assert.doesNotMatch(service, /apiGet|apiPost/);
   assert.match(panel, /USDJPY 自动化链路/);
+  assert.match(panel, /主状态来源/);
+  assert.match(panel, /实盘候选/);
+  assert.match(panel, /USDJPY Strategy Lab/);
+  assert.match(panel, /Live Loop/);
   assert.match(panel, /缺失证据/);
   assert.match(panel, /阻断原因/);
   assert.match(panel, /机会入场/);

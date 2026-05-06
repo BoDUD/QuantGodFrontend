@@ -3,8 +3,8 @@
     <header class="qg-automation-chain-panel__header">
       <div>
         <p class="qg-automation-chain-panel__eyebrow">USDJPY 自动化链路</p>
-        <h2>USDJPY 证据链与入场政策</h2>
-        <p class="qg-automation-chain-panel__subtitle">只检查 USDJPYc 的行情质量、策略资格、止盈止损、入场触发和建议仓位；其他品种不再参与阻断判断。</p>
+        <h2>USDJPY 实盘恢复闭环</h2>
+        <p class="qg-automation-chain-panel__subtitle">主状态来自 USDJPY Strategy Lab 与 Live Loop；Dashboard、Telegram、EA 干跑都看同一份恢复证据。</p>
       </div>
       <div class="qg-automation-chain-panel__actions">
         <button type="button" @click="loadStatus" :disabled="loading">刷新</button>
@@ -32,6 +32,29 @@
           <span>阻断</span>
           <strong>{{ payload.blockedCount || 0 }}</strong>
         </div>
+      </div>
+
+      <div class="qg-automation-chain-panel__truth">
+        <article>
+          <span>主状态来源</span>
+          <strong>{{ payload.singleSourceOfTruth || 'USDJPY_LIVE_LOOP' }}</strong>
+          <small>USDJPY 策略政策、EA 干跑、实盘恢复闭环统一读取</small>
+        </article>
+        <article>
+          <span>实盘候选</span>
+          <strong>{{ livePolicyLabel }}</strong>
+          <small>只有 RSI_Reversal 买入路线可进入恢复复核</small>
+        </article>
+        <article>
+          <span>影子第一名</span>
+          <strong>{{ shadowPolicyLabel }}</strong>
+          <small>影子研究不会抢占实盘恢复路线</small>
+        </article>
+        <article>
+          <span>EA 干跑</span>
+          <strong>{{ dryRunLabel }}</strong>
+          <small>干跑只验证政策读取，不代表工具下单</small>
+        </article>
       </div>
 
       <div class="qg-automation-chain-panel__grid">
@@ -86,6 +109,23 @@ const steps = computed(() => payload.value.steps || []);
 const missingEvidence = computed(() => payload.value.missingEvidence || []);
 const blockedReasons = computed(() => payload.value.blockedReasons || []);
 const opportunities = computed(() => payload.value.policySummary?.opportunities || []);
+const topLive = computed(() => payload.value.topLiveEligiblePolicy || payload.value.liveLoopStatus?.topLiveEligiblePolicy || {});
+const topShadow = computed(() => payload.value.topShadowPolicy || payload.value.liveLoopStatus?.topShadowPolicy || {});
+const dryRun = computed(() => payload.value.dryRunDecision || payload.value.liveLoopStatus?.dryRun || {});
+const livePolicyLabel = computed(() => {
+  const item = topLive.value || {};
+  if (!item.strategy) return '暂无实盘候选';
+  return `${item.strategy}｜${directionZh(item.direction)}｜${entryModeZh(item.entryMode)}`;
+});
+const shadowPolicyLabel = computed(() => {
+  const item = topShadow.value || {};
+  if (!item.strategy) return '暂无影子候选';
+  return `${item.strategy}｜${directionZh(item.direction)}｜${entryModeZh(item.entryMode)}`;
+});
+const dryRunLabel = computed(() => {
+  const item = dryRun.value || {};
+  return item.decision || '暂无干跑结果';
+});
 const stateClass = computed(() => {
   const state = String(payload.value.state || '');
   if (state.includes('READY')) return 'good';
@@ -95,6 +135,21 @@ const stateClass = computed(() => {
 
 function unwrap(response) {
   return response?.payload || response || {};
+}
+
+function directionZh(value) {
+  const text = String(value || '').toUpperCase();
+  if (text === 'LONG' || text === 'BUY') return '买入观察';
+  if (text === 'SHORT' || text === 'SELL') return '卖出观察';
+  return '方向待确认';
+}
+
+function entryModeZh(value) {
+  return {
+    STANDARD_ENTRY: '标准入场',
+    OPPORTUNITY_ENTRY: '机会入场',
+    BLOCKED: '阻断',
+  }[String(value || '')] || '状态待确认';
 }
 
 async function loadStatus() {
@@ -135,6 +190,7 @@ onMounted(loadStatus);
 
 .qg-automation-chain-panel__header,
 .qg-automation-chain-panel__summary,
+.qg-automation-chain-panel__truth,
 .qg-automation-chain-panel__grid {
   display: grid;
   gap: 12px;
@@ -188,6 +244,7 @@ onMounted(loadStatus);
 }
 
 .qg-automation-chain-panel__summary > div,
+.qg-automation-chain-panel__truth > article,
 .qg-automation-chain-panel__grid > article {
   border: 1px solid var(--qg-border-subtle, rgba(148, 163, 184, 0.18));
   border-radius: 14px;
@@ -201,11 +258,28 @@ onMounted(loadStatus);
   font-size: 12px;
 }
 
-.qg-automation-chain-panel__summary strong {
+.qg-automation-chain-panel__summary strong,
+.qg-automation-chain-panel__truth strong {
   display: block;
   margin-top: 4px;
   font-size: 18px;
   font-variant-numeric: tabular-nums;
+}
+
+.qg-automation-chain-panel__truth {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.qg-automation-chain-panel__truth span,
+.qg-automation-chain-panel__truth small {
+  display: block;
+  color: var(--qg-text-muted, #94a3b8);
+}
+
+.qg-automation-chain-panel__truth small {
+  margin-top: 6px;
+  line-height: 1.45;
 }
 
 .qg-automation-chain-panel__grid {
@@ -253,6 +327,7 @@ onMounted(loadStatus);
 @media (max-width: 900px) {
   .qg-automation-chain-panel__header,
   .qg-automation-chain-panel__summary,
+  .qg-automation-chain-panel__truth,
   .qg-automation-chain-panel__grid {
     grid-template-columns: 1fr;
   }
