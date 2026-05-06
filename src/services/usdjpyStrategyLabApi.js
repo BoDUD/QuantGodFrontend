@@ -72,3 +72,43 @@ export function fetchUSDJPYLiveLoopTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/live-loop/telegram-text${query}`);
 }
+
+export function fetchUSDJPYEvolutionStatus() {
+  return fetchJson(`${BASE}/evolution/status`);
+}
+
+export function runUSDJPYEvolutionBuild() {
+  return postJson(`${BASE}/evolution/build`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYReplayReport({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/evolution/replay${query}`);
+}
+
+export function runUSDJPYReplayReport() {
+  return postJson(`${BASE}/evolution/replay`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYParamTuning({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/evolution/tune${query}`);
+}
+
+export function runUSDJPYParamTuning() {
+  return postJson(`${BASE}/evolution/tune`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYConfigProposal({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/evolution/proposal${query}`);
+}
+
+export function runUSDJPYConfigProposal() {
+  return postJson(`${BASE}/evolution/proposal`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYEvolutionTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/evolution/telegram-text${query}`);
+}

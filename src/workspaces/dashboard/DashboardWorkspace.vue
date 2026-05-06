@@ -81,6 +81,7 @@
     </section>
 
     <USDJPYStrategyPolicyPanel />
+    <USDJPYEvolutionPanel />
     <AutomationChainPanel class="qg-dashboard-automation-chain" />
 
     <details class="qg-domain-panel qg-domain-panel--details">
@@ -100,6 +101,7 @@
 
 <script setup>
 import USDJPYStrategyPolicyPanel from '../../components/USDJPYStrategyPolicyPanel.vue';
+import USDJPYEvolutionPanel from '../../components/USDJPYEvolutionPanel.vue';
 import AutomationChainPanel from '../../components/AutomationChainPanel.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { loadDashboardWorkspace } from '../../services/domainApi.js';
