@@ -10,6 +10,7 @@
         <button type="button" :disabled="loading" @click="load">刷新</button>
         <button type="button" :disabled="loading" @click="runCausalReplay">生成因果回放</button>
         <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行自主治理</button>
+        <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
       </div>
     </header>
@@ -20,30 +21,82 @@
       <article class="qg-usdjpy-evolution__card">
         <span>运行数据集</span>
         <strong>{{ datasetSummary.sampleCount || 0 }}</strong>
-        <p>
-          准入 {{ datasetSummary.readySignalCount || 0 }} / 实盘 {{ datasetSummary.actualEntryCount || 0 }} /
-          阻断 {{ datasetSummary.blockedCount || 0 }}
-        </p>
+        <p>准入 {{ datasetSummary.readySignalCount || 0 }} / 实盘 {{ datasetSummary.actualEntryCount || 0 }} / 阻断 {{ datasetSummary.blockedCount || 0 }}</p>
       </article>
-
       <article class="qg-usdjpy-evolution__card">
         <span>回放复盘</span>
         <strong>{{ replayStatus }}</strong>
         <p>错失 {{ replaySummary.missedOpportunityCount || 0 }} / 过早出场 {{ replaySummary.earlyExitCount || 0 }}</p>
       </article>
-
       <article class="qg-usdjpy-evolution__card">
         <span>参数候选</span>
         <strong>{{ tuningSummary.candidateCount || 0 }}</strong>
         <p>{{ tuning?.statusZh || '等待回放数据生成候选' }}</p>
       </article>
-
       <article class="qg-usdjpy-evolution__card">
         <span>自主治理 Agent</span>
         <strong>{{ autonomousAgent?.stageZh || autonomousAgent?.stage || proposal?.statusZh || '等待治理门' }}</strong>
-        <p>{{ autonomousAgent?.patchAllowed ? '已允许写入受控 patch' : '未放行 patch' }}；不会改源码或 live preset。</p>
+        <p>{{ patchWritable ? '已允许写入受控 patch' : '未放行 patch' }}；不会改源码或 live preset。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>美分账户</span>
+        <strong>{{ centAccount.accountMode || 'cent' }} / {{ centAccount.accountCurrencyUnit || 'USC' }}</strong>
+        <p>加速 {{ centAccount.centAccountAcceleration ? '开启' : '关闭' }}；最大 {{ centAccount.maxLot ?? 2 }} 是上限，不是固定仓位。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>MT5 模拟车道</span>
+        <strong>{{ mt5ShadowSummary.routeCount || 0 }} 条路线</strong>
+        <p>快速模拟 {{ mt5ShadowSummary.fastShadow || 0 }} / 测试器 {{ mt5ShadowSummary.testerOnly || 0 }} / 暂停 {{ mt5ShadowSummary.paused || 0 }}</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Polymarket 模拟车道</span>
+        <strong>{{ polymarketShadow.stageZh || polymarketShadow.stage || '模拟观察' }}</strong>
+        <p>模拟 PF {{ polymarketSummary.shadowProfitFactor ?? 0 }}；真实钱包和下单永远关闭。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>EA 对账</span>
+        <strong>{{ eaRepro.statusZh || '等待对账' }}</strong>
+        <p>源码 / ex5 / preset hash 只读校验；Watchlist 期望 USDJPY-only。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Daily Autopilot 2.0</span>
+        <strong>{{ dailyAutopilot?.titleZh || '等待自动日报' }}</strong>
+        <p>{{ dailyAutopilot?.morningPlan?.liveLane?.stageZh || '自动生成早盘计划和夜盘复盘。' }}</p>
       </article>
     </div>
+
+    <section v-if="lanes" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--lanes">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>三车道自主生命周期</h3>
+          <p>实盘要窄，模拟要宽，升降级要快，回滚要硬。</p>
+        </div>
+        <strong>{{ autonomousLifecycle?.singleSourceOfTruth || 'USDJPY_LIVE_LOOP_WITH_AUTONOMOUS_LIFECYCLE' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>Live Lane</span>
+          <strong>{{ liveLane.strategy || 'RSI_Reversal' }} / {{ directionZh(liveLane.direction || 'LONG') }}</strong>
+          <p>只允许 USDJPYc 买入路线进入 MICRO_LIVE / LIVE_LIMITED。</p>
+        </article>
+        <article>
+          <span>MT5 Shadow Lane</span>
+          <strong>{{ mt5ShadowSummary.topShadowStrategy || '多策略观察' }}</strong>
+          <p>模拟池包含 RSI、MA、BB、MACD、S/R、东京突破、夜盘回归和 H4 回调。</p>
+        </article>
+        <article>
+          <span>Polymarket Shadow Lane</span>
+          <strong>{{ polymarketShadow.stageZh || polymarketShadow.stage || '模拟观察' }}</strong>
+          <p>{{ polymarketShadow.reasonZh || '只做模拟账本、跟单研究和事件风险上下文。' }}</p>
+        </article>
+        <article>
+          <span>自动回滚</span>
+          <strong>{{ rollbackBlockers.length ? '已触发' : '待命' }}</strong>
+          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和新闻是不可放宽硬门禁。' }}</p>
+        </article>
+      </div>
+      <p class="qg-usdjpy-evolution__note">MT5 Shadow 第一名不会抢实盘路线；Polymarket 永远不接真钱钱包；DeepSeek 只解释，不批准越权。</p>
+    </section>
 
     <section v-if="autonomousAgent" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--agent">
       <div class="qg-usdjpy-evolution__section-head">
@@ -61,7 +114,7 @@
         </article>
         <article>
           <span>受控 patch</span>
-          <strong>{{ autonomousAgent.patchAllowed ? '已放行' : '未放行' }}</strong>
+          <strong>{{ patchWritable ? '已放行' : '未放行' }}</strong>
           <p>{{ patchChangeText }}</p>
         </article>
         <article>
@@ -75,9 +128,44 @@
           <p>当前阶段 / 系统上限；最大 2.0 只是上限，不是固定仓位。</p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">
-        DeepSeek 只解释晋级和回滚原因，不能批准 live、不能取消回滚、不能提高最大仓位、不能放宽新闻/点差/runtime 门禁。
-      </p>
+      <p class="qg-usdjpy-evolution__note">DeepSeek 只解释晋级和回滚原因，不能批准 live、不能取消回滚、不能提高最大仓位、不能放宽新闻/点差/runtime 门禁。</p>
+    </section>
+
+    <section v-if="dailyAutopilot" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--daily">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>Daily Autopilot 2.0</h3>
+          <p>自动中文早盘计划和夜盘复盘；不再把已完成事项留给人工回灌。</p>
+        </div>
+        <strong>{{ dailyAutopilot.autonomousAgent?.stageZh || dailyAutopilot.autonomousAgent?.stage || '自主评估' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>早盘作战计划</span>
+          <strong>{{ dailyAutopilot.morningPlan?.liveLane?.strategy || 'RSI_Reversal' }}</strong>
+          <p>
+            {{ dailyAutopilot.morningPlan?.liveLane?.symbol || 'USDJPYc' }}
+            {{ directionZh(dailyAutopilot.morningPlan?.liveLane?.direction || 'LONG') }}；
+            阶段仓位 {{ dailyAutopilot.morningPlan?.liveLane?.stageMaxLot ?? 0 }} /
+            上限 {{ dailyAutopilot.morningPlan?.liveLane?.maxLot ?? 2 }}
+          </p>
+        </article>
+        <article>
+          <span>MT5 模拟日报</span>
+          <strong>{{ dailyAutopilot.eveningReview?.mt5ShadowLane?.routeCount || mt5ShadowSummary.routeCount || 0 }} 条路线</strong>
+          <p>晋级/强化 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.promotedCount || 0 }}，暂停 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.pausedCount || 0 }}，淘汰 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.rejectedCount || 0 }}</p>
+        </article>
+        <article>
+          <span>Polymarket 日报</span>
+          <strong>{{ dailyAutopilot.morningPlan?.polymarketShadowLane?.stageZh || '模拟观察' }}</strong>
+          <p>只做模拟账本和事件风险；不连接真钱钱包。</p>
+        </article>
+        <article>
+          <span>今日硬禁止</span>
+          <strong>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.length || 0 }} 项</strong>
+          <p>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] || '新闻、点差、runtime 和快通道门禁不可放宽。' }}</p>
+        </article>
+      </div>
     </section>
 
     <section v-if="barReplay" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--causal">
@@ -110,9 +198,7 @@
           <p>净变化 {{ signedMetric(causalMetric('exit', 1, 'netRDelta')) }}R / 结论 {{ conclusionZh(causalMetric('exit', 1, 'conclusion')) }}</p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">
-        {{ barReplay?.causalReplay?.explanationZh || '后验窗口只能用于评分，不能决定当时是否入场。' }}
-      </p>
+      <p class="qg-usdjpy-evolution__note">{{ barReplay?.causalReplay?.explanationZh || '后验窗口只能用于评分，不能决定当时是否入场。' }}</p>
     </section>
 
     <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
@@ -121,10 +207,7 @@
         <article v-for="item in scenarioItems" :key="item.scenario">
           <span>{{ item.labelZh || item.scenario }}</span>
           <strong>{{ formatScenarioDelta(item) }}</strong>
-          <p>
-            样本 {{ item.sampleCount || 0 }} /
-            {{ item.verdict === 'shadow_only' ? '只进入影子验证' : scenarioVerdictZh(item.verdict) }}
-          </p>
+          <p>样本 {{ item.sampleCount || 0 }} / {{ item.verdict === 'shadow_only' ? '只进入影子验证' : scenarioVerdictZh(item.verdict) }}</p>
         </article>
       </div>
       <p class="qg-usdjpy-evolution__note">{{ unitPolicy.note || '回放主口径使用 R 倍数，pips 辅助；USC 只作为账面参考。' }}</p>
@@ -164,11 +247,18 @@
 import { computed, onMounted, ref } from 'vue';
 import {
   fetchUSDJPYAutonomousAgent,
+  fetchUSDJPYAutonomousLanes,
+  fetchUSDJPYAutonomousLifecycle,
   fetchUSDJPYBarReplayStatus,
+  fetchUSDJPYDailyAutopilotV2,
+  fetchUSDJPYEaReproducibility,
   fetchUSDJPYEvolutionStatus,
+  fetchUSDJPYMt5ShadowLane,
+  fetchUSDJPYPolymarketShadowLane,
   fetchUSDJPYWalkForwardStatus,
   runUSDJPYAutonomousAgent,
   runUSDJPYBarReplayBuild,
+  runUSDJPYDailyAutopilotV2,
   runUSDJPYEvolutionBuild,
   runUSDJPYConfigProposal,
   runUSDJPYParamTuning,
@@ -180,6 +270,12 @@ const payload = ref(null);
 const barReplay = ref(null);
 const walkForward = ref(null);
 const autonomousAgent = ref(null);
+const lifecyclePayload = ref(null);
+const lanesPayload = ref(null);
+const mt5ShadowPayload = ref(null);
+const polymarketShadowPayload = ref(null);
+const eaReproPayload = ref(null);
+const dailyAutopilot = ref(null);
 const loading = ref(false);
 const error = ref('');
 
@@ -198,6 +294,16 @@ const barReplayStatus = computed(() => barReplay.value?.statusZh || barReplay.va
 const walkForwardCandidates = computed(() => (Array.isArray(walkForward.value?.candidates) ? walkForward.value.candidates : []));
 const agentPatch = computed(() => autonomousAgent.value?.currentPatch || {});
 const agentLimits = computed(() => agentPatch.value?.limits || {});
+const patchWritable = computed(() => Boolean(autonomousAgent.value?.patchWritable ?? autonomousAgent.value?.patchAllowed));
+const autonomousLifecycle = computed(() => lifecyclePayload.value || autonomousAgent.value?.autonomousLifecycle || {});
+const centAccount = computed(() => autonomousAgent.value?.centAccount || autonomousLifecycle.value?.centAccount || {});
+const lanes = computed(() => lanesPayload.value?.lanes || autonomousAgent.value?.lanes || autonomousLifecycle.value?.lanes || null);
+const liveLane = computed(() => lanes.value?.live || {});
+const mt5Shadow = computed(() => mt5ShadowPayload.value || lanes.value?.mt5Shadow || {});
+const polymarketShadow = computed(() => polymarketShadowPayload.value || lanes.value?.polymarketShadow || {});
+const mt5ShadowSummary = computed(() => mt5Shadow.value?.summary || {});
+const polymarketSummary = computed(() => polymarketShadow.value?.summary || {});
+const eaRepro = computed(() => eaReproPayload.value || autonomousAgent.value?.eaReproducibility || autonomousLifecycle.value?.eaReproducibility || {});
 const rollbackBlockers = computed(() => {
   const rollback = agentPatch.value?.rollback || {};
   return Array.isArray(rollback.hardBlockers) ? rollback.hardBlockers : [];
@@ -210,12 +316,8 @@ const patchChangeText = computed(() => {
 });
 
 function formatScenarioDelta(item) {
-  if (item.scenario === 'current') {
-    return item.netR == null ? '基准待补样本' : `${item.netR}R`;
-  }
-  if (item.netRDelta == null) {
-    return '需要补回放';
-  }
+  if (item.scenario === 'current') return item.netR == null ? '基准待补样本' : `${item.netR}R`;
+  if (item.netRDelta == null) return '需要补回放';
   return `${item.netRDelta > 0 ? '+' : ''}${item.netRDelta}R`;
 }
 
@@ -256,27 +358,74 @@ function ratioMetric(value) {
 function conclusionZh(value) {
   const map = {
     REJECTED: '拒绝',
+    SHADOW: '模拟观察',
+    FAST_SHADOW: '快速模拟',
     SHADOW_ONLY: '只进影子',
     TESTER_ONLY: '只进测试器',
+    PAPER_LIVE_SIM: '实盘行情干跑',
+    MICRO_LIVE: '极小仓实盘',
+    LIVE_LIMITED: '限制实盘',
+    PAUSED: '暂停',
+    ROLLBACK: '自动回滚',
+    QUARANTINED: '隔离',
+    PAPER_CONTEXT: '事件参考',
     LIVE_CONFIG_PROPOSAL_ELIGIBLE: '可进配置提案',
   };
   return map[value] || value || '待补样本';
+}
+
+function directionZh(value) {
+  const text = String(value || '').toUpperCase();
+  if (text === 'LONG' || text === 'BUY') return '买入';
+  if (text === 'SHORT' || text === 'SELL') return '卖出';
+  return value || '—';
+}
+
+function assignLoaded(results) {
+  payload.value = results.evolutionPayload;
+  barReplay.value = results.causalPayload;
+  walkForward.value = results.walkForwardPayload;
+  autonomousAgent.value = results.autonomousPayload;
+  lifecyclePayload.value = results.lifecycle;
+  lanesPayload.value = results.lanesState;
+  mt5ShadowPayload.value = results.mt5ShadowState;
+  polymarketShadowPayload.value = results.polymarketShadowState;
+  eaReproPayload.value = results.eaReproState;
+  dailyAutopilot.value = results.dailyState;
+}
+
+async function loadAll() {
+  const [
+    evolutionPayload,
+    causalPayload,
+    walkForwardPayload,
+    autonomousPayload,
+    lifecycle,
+    lanesState,
+    mt5ShadowState,
+    polymarketShadowState,
+    eaReproState,
+    dailyState,
+  ] = await Promise.all([
+    fetchUSDJPYEvolutionStatus(),
+    fetchUSDJPYBarReplayStatus(),
+    fetchUSDJPYWalkForwardStatus(),
+    fetchUSDJPYAutonomousAgent(),
+    fetchUSDJPYAutonomousLifecycle(),
+    fetchUSDJPYAutonomousLanes(),
+    fetchUSDJPYMt5ShadowLane(),
+    fetchUSDJPYPolymarketShadowLane(),
+    fetchUSDJPYEaReproducibility(),
+    fetchUSDJPYDailyAutopilotV2(),
+  ]);
+  assignLoaded({ evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload, lifecycle, lanesState, mt5ShadowState, polymarketShadowState, eaReproState, dailyState });
 }
 
 async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload] = await Promise.all([
-      fetchUSDJPYEvolutionStatus(),
-      fetchUSDJPYBarReplayStatus(),
-      fetchUSDJPYWalkForwardStatus(),
-      fetchUSDJPYAutonomousAgent(),
-    ]);
-    payload.value = evolutionPayload;
-    barReplay.value = causalPayload;
-    walkForward.value = walkForwardPayload;
-    autonomousAgent.value = autonomousPayload;
+    await loadAll();
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环加载失败';
   } finally {
@@ -291,8 +440,22 @@ async function runAutonomousGovernance() {
     await runUSDJPYWalkForwardBuild();
     autonomousAgent.value = await runUSDJPYAutonomousAgent();
     walkForward.value = await fetchUSDJPYWalkForwardStatus();
+    lifecyclePayload.value = await fetchUSDJPYAutonomousLifecycle({ refresh: true });
+    lanesPayload.value = await fetchUSDJPYAutonomousLanes({ refresh: true });
   } catch (err) {
     error.value = err?.message || 'USDJPY 自主治理运行失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runDailyAutopilotV2() {
+  loading.value = true;
+  error.value = '';
+  try {
+    dailyAutopilot.value = await runUSDJPYDailyAutopilotV2();
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 自动日报生成失败';
   } finally {
     loading.value = false;
   }
@@ -321,16 +484,8 @@ async function runFullEvolution() {
     await runUSDJPYParamTuning();
     await runUSDJPYConfigProposal();
     await runUSDJPYAutonomousAgent();
-    const [evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload] = await Promise.all([
-      fetchUSDJPYEvolutionStatus(),
-      fetchUSDJPYBarReplayStatus(),
-      fetchUSDJPYWalkForwardStatus(),
-      fetchUSDJPYAutonomousAgent(),
-    ]);
-    payload.value = evolutionPayload;
-    barReplay.value = causalPayload;
-    walkForward.value = walkForwardPayload;
-    autonomousAgent.value = autonomousPayload;
+    await runUSDJPYDailyAutopilotV2();
+    await loadAll();
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环生成失败';
   } finally {

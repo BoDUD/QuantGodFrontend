@@ -180,6 +180,45 @@ export function fetchUSDJPYAutonomousPatch({ refresh = false } = {}) {
   return fetchJson(`${BASE}/autonomous-agent/patch${query}`);
 }
 
+export function fetchUSDJPYAutonomousLifecycle({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/lifecycle${query}`);
+}
+
+export function fetchUSDJPYAutonomousLanes({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/lanes${query}`);
+}
+
+export function fetchUSDJPYMt5ShadowLane({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/mt5-shadow${query}`);
+}
+
+export function fetchUSDJPYPolymarketShadowLane({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/polymarket-shadow${query}`);
+}
+
+export function fetchUSDJPYEaReproducibility({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/ea-repro${query}`);
+}
+
+export function fetchUSDJPYDailyAutopilotV2({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/daily-autopilot-v2${query}`);
+}
+
+export function runUSDJPYDailyAutopilotV2() {
+  return postJson(`${BASE}/autonomous-agent/daily-autopilot-v2/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYDailyAutopilotV2TelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/daily-autopilot-v2/telegram-text${query}`);
+}
+
 export function fetchUSDJPYAutonomousTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/autonomous-agent/telegram-text${query}`);
