@@ -27,7 +27,7 @@
     <section class="backtest-ai-settings">
       <label>
         <span>回测品种</span>
-        <input v-model="symbolText" autocomplete="off" placeholder="USDJPYc,EURUSDc,XAUUSDc" />
+        <input v-model="symbolText" autocomplete="off" placeholder="USDJPYc" />
       </label>
       <label>
         <span>回看天数</span>

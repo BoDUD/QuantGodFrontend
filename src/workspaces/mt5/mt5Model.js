@@ -366,7 +366,7 @@ export function buildMt5SimulationItems(snapshot) {
   const shadowUniverse =
     snapshot.researchSummary.shadowResearchUniverseLabel ||
     snapshot.researchSummary.shadowResearchUniverse?.join(', ') ||
-    'USDJPYc, EURUSDc, XAUUSDc';
+    'USDJPYc';
   const queue = rowsFromPayload(snapshot.dailyReview?.actionQueue);
   const completed = rowsFromPayload(snapshot.dailyReview?.completedActionQueue);
   const queuedText = queue.length

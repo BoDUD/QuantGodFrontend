@@ -16,13 +16,19 @@ const panel = readFileSync(join(root, 'src/components/AutomationChainPanel.vue')
 if (!service.includes('/api/automation-chain')) {
   throw new Error('automationChainApi must call /api/automation-chain only');
 }
+if (!service.includes('symbols=USDJPYc')) {
+  throw new Error('automationChainApi must scope every request to USDJPYc');
+}
+if (/USDJPYc,EURUSDc,XAUUSDc/.test(service + panel)) {
+  throw new Error('automation chain frontend must not default to multi-symbol scope');
+}
 if (/QuantGod_.*\.(json|csv)/i.test(service + panel)) {
   throw new Error('frontend automation chain must not read QuantGod runtime files directly');
 }
 if (/OrderSend|quick-trade|telegram command|privateKey|password|apiKey/i.test(service + panel)) {
   throw new Error('frontend automation chain contains forbidden execution/secret wording');
 }
-if (!panel.includes('自动化链路') || !panel.includes('阻断原因') || !panel.includes('机会入场')) {
+if (!panel.includes('USDJPY 自动化链路') || !panel.includes('阻断原因') || !panel.includes('机会入场')) {
   throw new Error('AutomationChainPanel must expose Chinese status sections');
 }
 console.log('frontend automation chain guard OK');

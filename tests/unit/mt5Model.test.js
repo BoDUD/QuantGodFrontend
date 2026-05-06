@@ -79,7 +79,7 @@ describe('mt5Model ledgers', () => {
       researchStats: {
         summary: {
           liveUniverseLabel: 'USDJPYc',
-          shadowResearchUniverseLabel: 'USDJPYc,EURUSDc,XAUUSDc',
+          shadowResearchUniverseLabel: 'USDJPYc',
         },
       },
       governanceAdvisor: {
@@ -97,7 +97,7 @@ describe('mt5Model ledgers', () => {
     const items = buildMt5SimulationItems(snapshot);
 
     expect(items.find((item) => item.label === '实盘Universe')?.value).toBe('USDJPYc');
-    expect(items.find((item) => item.label === '模拟Universe')?.value).toBe('USDJPYc,EURUSDc,XAUUSDc');
+    expect(items.find((item) => item.label === '模拟Universe')?.value).toBe('USDJPYc');
     expect(items.find((item) => item.label === '当前实盘策略')?.value).toBe('RSI 买入侧观察');
     expect(items.find((item) => item.label === '今日待办')?.hint).toContain('20:10-23:30');
     expect(items.find((item) => item.label === '缠论/MACD-TD')?.value).toContain('尚未进入');

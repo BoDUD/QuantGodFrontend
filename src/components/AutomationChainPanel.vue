@@ -2,9 +2,9 @@
   <section class="qg-automation-chain-panel" aria-label="自动化链路状态">
     <header class="qg-automation-chain-panel__header">
       <div>
-        <p class="qg-automation-chain-panel__eyebrow">自动化链路</p>
-        <h2>自动证据链与入场政策</h2>
-        <p class="qg-automation-chain-panel__subtitle">连续检查行情质量、策略资格、止盈止损、入场触发和建议仓位；只生成证据，不执行交易。</p>
+        <p class="qg-automation-chain-panel__eyebrow">USDJPY 自动化链路</p>
+        <h2>USDJPY 证据链与入场政策</h2>
+        <p class="qg-automation-chain-panel__subtitle">只检查 USDJPYc 的行情质量、策略资格、止盈止损、入场触发和建议仓位；其他品种不再参与阻断判断。</p>
       </div>
       <div class="qg-automation-chain-panel__actions">
         <button type="button" @click="loadStatus" :disabled="loading">刷新</button>

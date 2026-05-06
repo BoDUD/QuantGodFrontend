@@ -184,7 +184,7 @@ export function loadAiMonitorConfig() {
 export function runMt5AiMonitor({
   send = false,
   dryRun = true,
-  symbols = 'USDJPYc,EURUSDc,XAUUSDc',
+  symbols = 'USDJPYc',
   timeframes = 'M15,H1',
   noDeepseek = false,
 } = {}) {

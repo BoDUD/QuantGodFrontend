@@ -1,7 +1,7 @@
 const JSON_HEADERS = { Accept: 'application/json' };
 const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
 
-export const DEFAULT_BACKTEST_SYMBOLS = ['USDJPYc', 'EURUSDc', 'XAUUSDc'];
+export const DEFAULT_BACKTEST_SYMBOLS = ['USDJPYc'];
 export const DEFAULT_BACKTEST_TIMEFRAMES = ['M15', 'H1', 'H4', 'D1'];
 
 const SAFETY = Object.freeze({

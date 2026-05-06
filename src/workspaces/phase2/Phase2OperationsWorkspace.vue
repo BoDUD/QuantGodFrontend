@@ -180,7 +180,7 @@ const notifyHistory = ref(null);
 const aiMonitorConfig = ref(null);
 const opsLoading = ref(false);
 const opsResult = ref(null);
-const monitorSymbols = ref('USDJPYc,EURUSDc,XAUUSDc');
+const monitorSymbols = ref('USDJPYc');
 const monitorTimeframes = ref('M15,H1');
 
 const activeGroup = computed(() => groups.find((item) => item.key === selectedKeys.value[0]) || groups[0]);
