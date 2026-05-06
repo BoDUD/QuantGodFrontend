@@ -136,3 +136,51 @@ export function fetchUSDJPYBarReplayTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/bar-replay/telegram-text${query}`);
 }
+
+export function fetchUSDJPYWalkForwardStatus({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/walk-forward/status${query}`);
+}
+
+export function runUSDJPYWalkForwardBuild() {
+  return postJson(`${BASE}/walk-forward/build`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYWalkForwardSelection({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/walk-forward/selection${query}`);
+}
+
+export function fetchUSDJPYWalkForwardProposal({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/walk-forward/proposal${query}`);
+}
+
+export function fetchUSDJPYWalkForwardTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/walk-forward/telegram-text${query}`);
+}
+
+export function fetchUSDJPYAutonomousAgent({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/state${query}`);
+}
+
+export function runUSDJPYAutonomousAgent() {
+  return postJson(`${BASE}/autonomous-agent/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYAutonomousDecision({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/decision${query}`);
+}
+
+export function fetchUSDJPYAutonomousPatch({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/patch${query}`);
+}
+
+export function fetchUSDJPYAutonomousTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/autonomous-agent/telegram-text${query}`);
+}

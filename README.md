@@ -55,6 +55,8 @@ python scripts\qg-workspace.py --workspace workspace\quantgod.workspace.json syn
 
 前端不能直接读取本地 JSON/CSV 文件，也不能保存凭据。所有数据必须通过后端 `/api/*` facade 获取。除非后端暴露了明确受保护的操作 API，否则前端只做只读展示、研究分析和人工复核入口。
 
+USDJPY 自学习面板现在展示因果回放、walk-forward 稳定性筛选和自主治理 Agent。这里的“自主”只代表机器硬风控通过后可写受控 patch；前端仍不下单、不修改 live preset、不接 Telegram 交易命令。
+
 ## 样式要求
 
 QuantGod 工作台以深色、高密度、可扫描为主。新页面必须适配 Mac、桌面、平板和窄屏，不允许文字溢出、卡片嵌套卡片、白底默认组件或无意义大空白。

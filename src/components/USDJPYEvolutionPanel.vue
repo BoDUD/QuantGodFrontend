@@ -3,12 +3,13 @@
     <header class="qg-usdjpy-evolution__header">
       <div>
         <p class="qg-usdjpy-evolution__eyebrow">USDJPY 自学习闭环</p>
-        <h2>数据集、回放、调参与提案</h2>
-        <p>每天把 EA 守门、错失机会、过早出场和参数候选整理成只读证据；不会自动改实盘。</p>
+        <h2>数据集、回放、Walk-forward 与自主治理</h2>
+        <p>每天把 EA 守门、错失机会、过早出场和参数候选整理成证据；无需人工审批，但必须通过机器硬风控和自动回滚。</p>
       </div>
       <div class="qg-usdjpy-evolution__actions">
         <button type="button" :disabled="loading" @click="load">刷新</button>
         <button type="button" :disabled="loading" @click="runCausalReplay">生成因果回放</button>
+        <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行自主治理</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
       </div>
     </header>
@@ -38,11 +39,46 @@
       </article>
 
       <article class="qg-usdjpy-evolution__card">
-        <span>实盘配置提案</span>
-        <strong>{{ proposal?.statusZh || '暂无提案' }}</strong>
-        <p>必须人工复核；系统不会自动修改 live preset。</p>
+        <span>自主治理 Agent</span>
+        <strong>{{ autonomousAgent?.stageZh || autonomousAgent?.stage || proposal?.statusZh || '等待治理门' }}</strong>
+        <p>{{ autonomousAgent?.patchAllowed ? '已允许写入受控 patch' : '未放行 patch' }}；不会改源码或 live preset。</p>
       </article>
     </div>
+
+    <section v-if="autonomousAgent" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--agent">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>自主治理 Agent</h3>
+          <p>取消人工审批不等于取消风控：Agent 只能写受控 patch，硬风控失败会自动回滚或暂停。</p>
+        </div>
+        <strong>{{ autonomousAgent.stageZh || autonomousAgent.stage || '等待状态' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>当前阶段</span>
+          <strong>{{ autonomousAgent.stageZh || autonomousAgent.stage || '—' }}</strong>
+          <p>USDJPY-only / RSI_Reversal LONG 主线</p>
+        </article>
+        <article>
+          <span>受控 patch</span>
+          <strong>{{ autonomousAgent.patchAllowed ? '已放行' : '未放行' }}</strong>
+          <p>{{ patchChangeText }}</p>
+        </article>
+        <article>
+          <span>自动回滚</span>
+          <strong>{{ rollbackBlockers.length ? `${rollbackBlockers.length} 项` : '未触发' }}</strong>
+          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和新闻仍是硬门禁。' }}</p>
+        </article>
+        <article>
+          <span>仓位上限</span>
+          <strong>{{ agentLimits.stageMaxLot ?? 0 }} / {{ agentLimits.maxLot ?? 2 }}</strong>
+          <p>当前阶段 / 系统上限；最大 2.0 只是上限，不是固定仓位。</p>
+        </article>
+      </div>
+      <p class="qg-usdjpy-evolution__note">
+        DeepSeek 只解释晋级和回滚原因，不能批准 live、不能取消回滚、不能提高最大仓位、不能放宽新闻/点差/runtime 门禁。
+      </p>
+    </section>
 
     <section v-if="barReplay" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--causal">
       <div class="qg-usdjpy-evolution__section-head">
@@ -94,6 +130,23 @@
       <p class="qg-usdjpy-evolution__note">{{ unitPolicy.note || '回放主口径使用 R 倍数，pips 辅助；USC 只作为账面参考。' }}</p>
     </section>
 
+    <section v-if="walkForward" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--walk-forward">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>Walk-forward 稳定性筛选</h3>
+          <p>按 train / validation / forward 三段筛掉不稳定候选；后验数据只评分，不能反推当时入场。</p>
+        </div>
+        <strong>{{ walkForward.statusZh || walkForward.status || '等待筛选' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article v-for="item in walkForwardCandidates" :key="item.variant">
+          <span>{{ item.labelZh || item.variant }}</span>
+          <strong>{{ conclusionZh(item.conclusion) }}</strong>
+          <p>总净变化 {{ signedMetric(item.summary?.netRDelta ?? '—') }}R / forward {{ signedMetric(item.summary?.forwardNetRDelta ?? '—') }}R</p>
+        </article>
+      </div>
+    </section>
+
     <section v-if="candidateItems.length" class="qg-usdjpy-evolution__list">
       <h3>下一轮 tester-only 参数候选</h3>
       <article v-for="item in candidateItems.slice(0, 4)" :key="item.param">
@@ -110,17 +163,23 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import {
+  fetchUSDJPYAutonomousAgent,
   fetchUSDJPYBarReplayStatus,
   fetchUSDJPYEvolutionStatus,
+  fetchUSDJPYWalkForwardStatus,
+  runUSDJPYAutonomousAgent,
   runUSDJPYBarReplayBuild,
   runUSDJPYEvolutionBuild,
   runUSDJPYConfigProposal,
   runUSDJPYParamTuning,
   runUSDJPYReplayReport,
+  runUSDJPYWalkForwardBuild,
 } from '../services/usdjpyStrategyLabApi.js';
 
 const payload = ref(null);
 const barReplay = ref(null);
+const walkForward = ref(null);
+const autonomousAgent = ref(null);
 const loading = ref(false);
 const error = ref('');
 
@@ -136,6 +195,19 @@ const scenarioItems = computed(() => (Array.isArray(replay.value?.scenarioCompar
 const unitPolicy = computed(() => replay.value?.unitPolicy || {});
 const replayStatus = computed(() => replay.value?.statusZh || replay.value?.status || '等待回放');
 const barReplayStatus = computed(() => barReplay.value?.statusZh || barReplay.value?.status || '等待因果回放');
+const walkForwardCandidates = computed(() => (Array.isArray(walkForward.value?.candidates) ? walkForward.value.candidates : []));
+const agentPatch = computed(() => autonomousAgent.value?.currentPatch || {});
+const agentLimits = computed(() => agentPatch.value?.limits || {});
+const rollbackBlockers = computed(() => {
+  const rollback = agentPatch.value?.rollback || {};
+  return Array.isArray(rollback.hardBlockers) ? rollback.hardBlockers : [];
+});
+const patchChangeText = computed(() => {
+  const changes = agentPatch.value?.changes || {};
+  const entries = Object.entries(changes);
+  if (!entries.length) return '没有可写入变更；继续 shadow/tester/paper 观察。';
+  return entries.map(([key, value]) => `${key}=${value}`).join(' / ');
+});
 
 function formatScenarioDelta(item) {
   if (item.scenario === 'current') {
@@ -195,14 +267,32 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [evolutionPayload, causalPayload] = await Promise.all([
+    const [evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload] = await Promise.all([
       fetchUSDJPYEvolutionStatus(),
       fetchUSDJPYBarReplayStatus(),
+      fetchUSDJPYWalkForwardStatus(),
+      fetchUSDJPYAutonomousAgent(),
     ]);
     payload.value = evolutionPayload;
     barReplay.value = causalPayload;
+    walkForward.value = walkForwardPayload;
+    autonomousAgent.value = autonomousPayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环加载失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runAutonomousGovernance() {
+  loading.value = true;
+  error.value = '';
+  try {
+    await runUSDJPYWalkForwardBuild();
+    autonomousAgent.value = await runUSDJPYAutonomousAgent();
+    walkForward.value = await fetchUSDJPYWalkForwardStatus();
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 自主治理运行失败';
   } finally {
     loading.value = false;
   }
@@ -227,14 +317,20 @@ async function runFullEvolution() {
     await runUSDJPYEvolutionBuild();
     await runUSDJPYReplayReport();
     await runUSDJPYBarReplayBuild();
+    await runUSDJPYWalkForwardBuild();
     await runUSDJPYParamTuning();
     await runUSDJPYConfigProposal();
-    const [evolutionPayload, causalPayload] = await Promise.all([
+    await runUSDJPYAutonomousAgent();
+    const [evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload] = await Promise.all([
       fetchUSDJPYEvolutionStatus(),
       fetchUSDJPYBarReplayStatus(),
+      fetchUSDJPYWalkForwardStatus(),
+      fetchUSDJPYAutonomousAgent(),
     ]);
     payload.value = evolutionPayload;
     barReplay.value = causalPayload;
+    walkForward.value = walkForwardPayload;
+    autonomousAgent.value = autonomousPayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环生成失败';
   } finally {
