@@ -63,6 +63,11 @@
         <strong>{{ agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status || '等待 Agent 待办' }}</strong>
         <p>{{ agentDailyTodo?.summaryZh || dailyAutopilot?.dailyTodo?.summaryZh || 'Agent 自动生成早盘计划、今日待办和夜盘复盘。' }}</p>
       </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>下一阶段任务</span>
+        <strong>{{ nextPhaseTodos.status || 'WAITING_NEXT_PHASE' }}</strong>
+        <p>Strategy JSON、GA Evolution、Telegram Gateway 等待下一阶段；当前不假装完成。</p>
+      </article>
     </div>
 
     <section v-if="lanes" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--lanes">
@@ -183,10 +188,22 @@
           <strong>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.length || 0 }} 项</strong>
           <p>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] || '新闻、点差、runtime 和快通道门禁不可放宽。' }}</p>
         </article>
+        <article>
+          <span>下一阶段任务</span>
+          <strong>{{ nextPhaseItems.length || 3 }} 项等待</strong>
+          <p>Strategy JSON / GA Evolution / Telegram Gateway 会由后续阶段实现；当前只生成 Agent 任务，不接实盘。</p>
+        </article>
       </div>
       <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
         <article v-for="item in dailyTodoItems.slice(0, 6)" :key="item.id">
           <span>{{ item.laneZh || item.lane }}</span>
+          <strong>{{ item.status }}</strong>
+          <p>{{ item.summaryZh }}</p>
+        </article>
+      </div>
+      <div v-if="nextPhaseItems.length" class="qg-usdjpy-evolution__mini-list">
+        <article v-for="item in nextPhaseItems" :key="item.id">
+          <span>{{ item.titleZh || item.id }}</span>
           <strong>{{ item.status }}</strong>
           <p>{{ item.summaryZh }}</p>
         </article>
@@ -341,6 +358,11 @@ const rollbackBlockers = computed(() => {
 });
 const dailyTodoItems = computed(() => {
   const items = agentDailyTodo.value?.items || dailyAutopilot.value?.dailyTodo?.items || [];
+  return Array.isArray(items) ? items : [];
+});
+const nextPhaseTodos = computed(() => dailyAutopilot.value?.nextPhaseTodos || agentDailyTodo.value?.nextPhaseTodos || {});
+const nextPhaseItems = computed(() => {
+  const items = nextPhaseTodos.value?.items || [];
   return Array.isArray(items) ? items : [];
 });
 const dailyReviewMetrics = computed(() => agentDailyReview.value?.metrics || dailyAutopilot.value?.dailyReview?.metrics || {});
