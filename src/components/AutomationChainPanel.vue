@@ -2,9 +2,9 @@
   <section class="qg-automation-chain-panel" aria-label="自动化链路状态">
     <header class="qg-automation-chain-panel__header">
       <div>
-        <p class="qg-automation-chain-panel__eyebrow">USDJPY 自动化链路</p>
-        <h2>USDJPY 实盘恢复闭环</h2>
-        <p class="qg-automation-chain-panel__subtitle">主状态来自 USDJPY Strategy Lab 与 Live Loop；Dashboard、Telegram、EA 干跑都看同一份恢复证据。</p>
+        <p class="qg-automation-chain-panel__eyebrow">USDJPY 实盘 EA 恢复状态</p>
+        <h2>USDJPY 实盘 EA 恢复状态</h2>
+        <p class="qg-automation-chain-panel__subtitle">读取 USDJPY 策略政策、EA 干跑和实盘恢复闭环，告诉你现有 EA 能不能继续等 RSI 买入信号。</p>
       </div>
       <div class="qg-automation-chain-panel__actions">
         <button type="button" @click="loadStatus" :disabled="loading">刷新</button>
@@ -38,7 +38,7 @@
         <article>
           <span>主状态来源</span>
           <strong>{{ payload.singleSourceOfTruth || 'USDJPY_LIVE_LOOP' }}</strong>
-          <small>USDJPY 策略政策、EA 干跑、实盘恢复闭环统一读取</small>
+          <small>页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop</small>
         </article>
         <article>
           <span>实盘候选</span>
@@ -59,7 +59,7 @@
 
       <div class="qg-automation-chain-panel__grid">
         <article>
-          <h3>链路步骤</h3>
+          <h3>技术链路详情</h3>
           <ul>
             <li v-for="step in steps" :key="step.name">
               <span :class="step.ok ? 'ok' : 'bad'">{{ step.ok ? '通过' : '未通过' }}</span>

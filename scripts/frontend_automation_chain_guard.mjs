@@ -28,10 +28,10 @@ if (/QuantGod_.*\.(json|csv)/i.test(service + panel)) {
 if (/OrderSend|quick-trade|telegram command|privateKey|password|apiKey/i.test(service + panel)) {
   throw new Error('frontend automation chain contains forbidden execution/secret wording');
 }
-if (!panel.includes('USDJPY 自动化链路') || !panel.includes('主状态来源') || !panel.includes('实盘候选') || !panel.includes('阻断原因') || !panel.includes('机会入场')) {
+if (!panel.includes('USDJPY 实盘 EA 恢复状态') || !panel.includes('主状态来源') || !panel.includes('实盘候选') || !panel.includes('阻断原因') || !panel.includes('机会入场')) {
   throw new Error('AutomationChainPanel must expose Chinese status sections');
 }
-if (!panel.includes('USDJPY Strategy Lab') || !panel.includes('Live Loop')) {
+if (!panel.includes('USDJPY Live Loop') || !panel.includes('技术链路详情')) {
   throw new Error('AutomationChainPanel must explain USDJPY live loop source of truth');
 }
 console.log('frontend automation chain guard OK');
