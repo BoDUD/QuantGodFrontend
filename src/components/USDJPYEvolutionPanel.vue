@@ -43,12 +43,29 @@
       </article>
     </div>
 
+    <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
+      <h3>回放候选对比</h3>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article v-for="item in scenarioItems" :key="item.scenario">
+          <span>{{ item.labelZh || item.scenario }}</span>
+          <strong>{{ formatScenarioDelta(item) }}</strong>
+          <p>
+            样本 {{ item.sampleCount || 0 }} /
+            {{ item.verdict === 'shadow_only' ? '只进入影子验证' : scenarioVerdictZh(item.verdict) }}
+          </p>
+        </article>
+      </div>
+      <p class="qg-usdjpy-evolution__note">{{ unitPolicy.note || '回放主口径使用 R 倍数，pips 辅助；USC 只作为账面参考。' }}</p>
+    </section>
+
     <section v-if="candidateItems.length" class="qg-usdjpy-evolution__list">
       <h3>下一轮 tester-only 参数候选</h3>
       <article v-for="item in candidateItems.slice(0, 4)" :key="item.param">
         <strong>{{ item.param }}</strong>
         <span>{{ item.current }} → {{ item.proposed }}</span>
         <p>{{ item.reason }}</p>
+        <p>预期影响：{{ item.expectedImpact || '等待回放补证' }}</p>
+        <p>风险变化：{{ item.riskDelta || '未知，禁止直接改实盘' }}</p>
       </article>
     </section>
   </section>
@@ -76,7 +93,28 @@ const datasetSummary = computed(() => dataset.value?.summary || {});
 const replaySummary = computed(() => replay.value?.summary || {});
 const tuningSummary = computed(() => tuning.value?.summary || {});
 const candidateItems = computed(() => (Array.isArray(tuning.value?.candidates) ? tuning.value.candidates : []));
+const scenarioItems = computed(() => (Array.isArray(replay.value?.scenarioComparisons) ? replay.value.scenarioComparisons : []));
+const unitPolicy = computed(() => replay.value?.unitPolicy || {});
 const replayStatus = computed(() => replay.value?.statusZh || replay.value?.status || '等待回放');
+
+function formatScenarioDelta(item) {
+  if (item.scenario === 'current') {
+    return item.netR == null ? '基准待补样本' : `${item.netR}R`;
+  }
+  if (item.netRDelta == null) {
+    return '需要补回放';
+  }
+  return `${item.netRDelta > 0 ? '+' : ''}${item.netRDelta}R`;
+}
+
+function scenarioVerdictZh(verdict) {
+  const map = {
+    baseline: '当前基准',
+    needs_bar_replay: '需要 bar/tick 回放',
+    no_action: '暂无动作',
+  };
+  return map[verdict] || verdict || '待验证';
+}
 
 async function load() {
   loading.value = true;
@@ -197,6 +235,17 @@ onMounted(load);
   margin-top: 18px;
   display: grid;
   gap: 10px;
+}
+
+.qg-usdjpy-evolution__scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__note {
+  color: #8ea3bd;
+  font-size: 14px;
 }
 
 .qg-usdjpy-evolution__state {

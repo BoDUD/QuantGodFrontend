@@ -40,7 +40,7 @@ if (!service.includes('fetchJson') || !service.includes('postJson')) {
 }
 
 const panel = read('src/components/USDJPYEvolutionPanel.vue');
-for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '实盘配置提案', '不会自动改实盘']) {
+for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '实盘配置提案', '不会自动改实盘', '回放候选对比', '预期影响', '风险变化']) {
   if (!panel.includes(marker)) errors.push(`panel missing Chinese marker: ${marker}`);
 }
 if (!panel.includes('fetchUSDJPYEvolutionStatus') || !panel.includes('runUSDJPYEvolutionBuild')) {
