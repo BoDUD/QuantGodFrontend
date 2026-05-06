@@ -8,6 +8,7 @@
       </div>
       <div class="qg-usdjpy-evolution__actions">
         <button type="button" :disabled="loading" @click="load">刷新</button>
+        <button type="button" :disabled="loading" @click="runCausalReplay">生成因果回放</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
       </div>
     </header>
@@ -43,6 +44,41 @@
       </article>
     </div>
 
+    <section v-if="barReplay" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--causal">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>因果 bar/tick 回放</h3>
+          <p>只用当时已存在的 RSI、时段、点差、新闻、冷却和守门状态；未来后验只评分，不触发。</p>
+        </div>
+        <strong>{{ barReplayStatus }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>当前规则</span>
+          <strong>{{ causalMetric('entry', 0, 'sampleCount') }} 次</strong>
+          <p>净值 {{ causalMetric('entry', 0, 'netR') }}R / 最大不利 {{ causalMetric('entry', 0, 'maxAdverseR') }}R</p>
+        </article>
+        <article>
+          <span>放宽 RSI 一档</span>
+          <strong>{{ causalMetric('entry', 1, 'entryCountDelta') }} 次增量</strong>
+          <p>净变化 {{ signedMetric(causalMetric('entry', 1, 'netRDelta')) }}R / 结论 {{ conclusionZh(causalMetric('entry', 1, 'conclusion')) }}</p>
+        </article>
+        <article>
+          <span>当前出场</span>
+          <strong>{{ ratioMetric(causalMetric('exit', 0, 'profitCaptureRatio')) }}</strong>
+          <p>利润捕获率 / 样本 {{ causalMetric('exit', 0, 'sampleCount') }} 次</p>
+        </article>
+        <article>
+          <span>盈利多拿一段</span>
+          <strong>{{ ratioMetric(causalMetric('exit', 1, 'profitCaptureRatio')) }}</strong>
+          <p>净变化 {{ signedMetric(causalMetric('exit', 1, 'netRDelta')) }}R / 结论 {{ conclusionZh(causalMetric('exit', 1, 'conclusion')) }}</p>
+        </article>
+      </div>
+      <p class="qg-usdjpy-evolution__note">
+        {{ barReplay?.causalReplay?.explanationZh || '后验窗口只能用于评分，不能决定当时是否入场。' }}
+      </p>
+    </section>
+
     <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
       <h3>回放候选对比</h3>
       <div class="qg-usdjpy-evolution__scenario-grid">
@@ -74,7 +110,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import {
+  fetchUSDJPYBarReplayStatus,
   fetchUSDJPYEvolutionStatus,
+  runUSDJPYBarReplayBuild,
   runUSDJPYEvolutionBuild,
   runUSDJPYConfigProposal,
   runUSDJPYParamTuning,
@@ -82,6 +120,7 @@ import {
 } from '../services/usdjpyStrategyLabApi.js';
 
 const payload = ref(null);
+const barReplay = ref(null);
 const loading = ref(false);
 const error = ref('');
 
@@ -96,6 +135,7 @@ const candidateItems = computed(() => (Array.isArray(tuning.value?.candidates) ?
 const scenarioItems = computed(() => (Array.isArray(replay.value?.scenarioComparisons) ? replay.value.scenarioComparisons : []));
 const unitPolicy = computed(() => replay.value?.unitPolicy || {});
 const replayStatus = computed(() => replay.value?.statusZh || replay.value?.status || '等待回放');
+const barReplayStatus = computed(() => barReplay.value?.statusZh || barReplay.value?.status || '等待因果回放');
 
 function formatScenarioDelta(item) {
   if (item.scenario === 'current') {
@@ -116,13 +156,65 @@ function scenarioVerdictZh(verdict) {
   return map[verdict] || verdict || '待验证';
 }
 
+function causalVariant(group, index) {
+  const source = group === 'exit' ? barReplay.value?.exitComparison : barReplay.value?.entryComparison;
+  const variants = Array.isArray(source?.variants) ? source.variants : [];
+  return variants[index]?.metrics || {};
+}
+
+function causalMetric(group, index, key) {
+  const value = causalVariant(group, index)[key];
+  return value == null || value === '' ? '—' : value;
+}
+
+function signedMetric(value) {
+  if (value === '—') return value;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  return `${numeric > 0 ? '+' : ''}${numeric}`;
+}
+
+function ratioMetric(value) {
+  if (value === '—') return value;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  return `${Math.round(numeric * 100)}%`;
+}
+
+function conclusionZh(value) {
+  const map = {
+    REJECTED: '拒绝',
+    SHADOW_ONLY: '只进影子',
+    TESTER_ONLY: '只进测试器',
+    LIVE_CONFIG_PROPOSAL_ELIGIBLE: '可进配置提案',
+  };
+  return map[value] || value || '待补样本';
+}
+
 async function load() {
   loading.value = true;
   error.value = '';
   try {
-    payload.value = await fetchUSDJPYEvolutionStatus();
+    const [evolutionPayload, causalPayload] = await Promise.all([
+      fetchUSDJPYEvolutionStatus(),
+      fetchUSDJPYBarReplayStatus(),
+    ]);
+    payload.value = evolutionPayload;
+    barReplay.value = causalPayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环加载失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runCausalReplay() {
+  loading.value = true;
+  error.value = '';
+  try {
+    barReplay.value = await runUSDJPYBarReplayBuild();
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 因果回放生成失败';
   } finally {
     loading.value = false;
   }
@@ -134,9 +226,15 @@ async function runFullEvolution() {
   try {
     await runUSDJPYEvolutionBuild();
     await runUSDJPYReplayReport();
+    await runUSDJPYBarReplayBuild();
     await runUSDJPYParamTuning();
     await runUSDJPYConfigProposal();
-    payload.value = await fetchUSDJPYEvolutionStatus();
+    const [evolutionPayload, causalPayload] = await Promise.all([
+      fetchUSDJPYEvolutionStatus(),
+      fetchUSDJPYBarReplayStatus(),
+    ]);
+    payload.value = evolutionPayload;
+    barReplay.value = causalPayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环生成失败';
   } finally {
@@ -235,6 +333,26 @@ onMounted(load);
   margin-top: 18px;
   display: grid;
   gap: 10px;
+}
+
+.qg-usdjpy-evolution__section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.qg-usdjpy-evolution__section-head > strong {
+  border: 1px solid rgba(126, 203, 255, 0.35);
+  border-radius: 999px;
+  color: #bfe7ff;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.qg-usdjpy-evolution__section-head p {
+  color: #aebbd0;
+  margin-top: 6px;
 }
 
 .qg-usdjpy-evolution__scenario-grid {

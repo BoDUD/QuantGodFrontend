@@ -112,3 +112,27 @@ export function fetchUSDJPYEvolutionTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/evolution/telegram-text${query}`);
 }
+
+export function fetchUSDJPYBarReplayStatus({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/bar-replay/status${query}`);
+}
+
+export function runUSDJPYBarReplayBuild() {
+  return postJson(`${BASE}/bar-replay/build`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYBarReplayEntry({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/bar-replay/entry${query}`);
+}
+
+export function fetchUSDJPYBarReplayExit({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/bar-replay/exit${query}`);
+}
+
+export function fetchUSDJPYBarReplayTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/bar-replay/telegram-text${query}`);
+}
