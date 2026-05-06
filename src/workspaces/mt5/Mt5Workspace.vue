@@ -84,14 +84,49 @@
       <LedgerTable title="交易流水" :rows="tradeJournalRows" :limit="40" class="qg-ledger-table--important" />
     </div>
 
-    <div class="qg-domain-grid">
-      <LedgerTable title="实时持仓" :rows="positionRows" :limit="30" />
-      <LedgerTable title="挂单状态" :rows="orderRows" :limit="30" />
-      <LedgerTable title="策略运行位置" :rows="routeModeRows" :limit="10" />
-      <LedgerTable title="模拟阻断原因" :rows="shadowBlockerRows" :limit="20" />
-      <LedgerTable title="今日待办" :rows="todoRows" :limit="10" />
-      <LedgerTable title="每日复盘" :rows="reviewRows" :limit="10" />
-      <LedgerTable title="品种状态" :rows="symbolRows" :limit="40" />
+    <div class="qg-mt5-operations-grid">
+      <LedgerTable
+        title="实时持仓"
+        :rows="positionRows"
+        :limit="30"
+        class="qg-ledger-table--mt5-focus qg-ledger-table--mt5-fit"
+      />
+      <LedgerTable
+        title="挂单状态"
+        :rows="orderRows"
+        :limit="30"
+        class="qg-ledger-table--mt5-focus qg-ledger-table--mt5-fit"
+      />
+      <LedgerTable
+        title="策略运行位置"
+        :rows="routeModeRows"
+        :limit="10"
+        class="qg-ledger-table--mt5-focus"
+      />
+      <LedgerTable
+        title="模拟阻断原因"
+        :rows="shadowBlockerRows"
+        :limit="20"
+        class="qg-ledger-table--mt5-focus"
+      />
+      <LedgerTable
+        title="今日待办"
+        :rows="todoRows"
+        :limit="10"
+        class="qg-ledger-table--mt5-focus qg-ledger-table--mt5-full"
+      />
+      <LedgerTable
+        title="每日复盘"
+        :rows="reviewRows"
+        :limit="10"
+        class="qg-ledger-table--mt5-focus qg-ledger-table--mt5-full"
+      />
+      <LedgerTable
+        title="品种状态"
+        :rows="symbolRows"
+        :limit="40"
+        class="qg-ledger-table--mt5-focus qg-ledger-table--mt5-full"
+      />
     </div>
 
     <details class="qg-raw-evidence">

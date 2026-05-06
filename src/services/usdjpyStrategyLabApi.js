@@ -58,3 +58,17 @@ export function runUSDJPYStrategyLab() {
 export function fetchUSDJPYStrategyDryRun() {
   return fetchJson(`${BASE}/dry-run`);
 }
+
+export function fetchUSDJPYLiveLoop({ write = false } = {}) {
+  const query = write ? '?write=1' : '';
+  return fetchJson(`${BASE}/live-loop${query}`);
+}
+
+export function runUSDJPYLiveLoop() {
+  return postJson(`${BASE}/live-loop/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYLiveLoopTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/live-loop/telegram-text${query}`);
+}

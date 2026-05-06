@@ -11,6 +11,7 @@
       <div class="qg-usdjpy-panel__actions">
         <button type="button" :disabled="loading" @click="load">刷新</button>
         <button type="button" :disabled="loading" @click="runChain">生成政策</button>
+        <button type="button" :disabled="loading" @click="runLiveLoop">刷新实盘闭环</button>
         <button type="button" :disabled="loading" @click="runSignals">刷新信号</button>
       </div>
     </header>
@@ -36,6 +37,25 @@
           <strong>{{ formatLot(status?.maxLot ?? 2) }}</strong>
         </article>
       </div>
+
+      <article class="qg-usdjpy-panel__card qg-usdjpy-panel__live">
+        <div>
+          <p class="qg-usdjpy-panel__eyebrow">实盘 EA 恢复状态</p>
+          <h3>{{ liveLoop?.stateZh || '等待 USDJPY 实盘闭环证据' }}</h3>
+          <p>
+            {{ liveLoop?.liveRouteZh || '只允许 RSI_Reversal 买入路线由现有 EA 评估；其他路线保持模拟。' }}
+          </p>
+        </div>
+        <div class="qg-usdjpy-panel__live-grid">
+          <span :class="evidenceClass(liveLoop?.runtimeReady)">运行快照 {{ boolLabel(liveLoop?.runtimeReady) }}</span>
+          <span :class="evidenceClass(liveLoop?.presetReady)">实盘配置 {{ boolLabel(liveLoop?.presetReady) }}</span>
+          <span :class="evidenceClass(liveLoop?.policyReady)">政策就绪 {{ boolLabel(liveLoop?.policyReady) }}</span>
+          <span>自动仓位上限 {{ liveLoop?.maxEaPositions ?? 2 }}，人工仓位不计入</span>
+        </div>
+        <ul v-if="liveWhyNoEntry.length">
+          <li v-for="reason in liveWhyNoEntry" :key="reason">{{ reason }}</li>
+        </ul>
+      </article>
 
       <div class="qg-usdjpy-panel__grid">
         <article class="qg-usdjpy-panel__card qg-usdjpy-panel__card--primary">
@@ -219,12 +239,14 @@
 import { computed, onMounted, ref } from 'vue';
 import {
   fetchUSDJPYImportedBacktests,
+  fetchUSDJPYLiveLoop,
   fetchUSDJPYStrategyBacktestPlan,
   fetchUSDJPYStrategyCatalog,
   fetchUSDJPYStrategyLabStatus,
   fetchUSDJPYStrategyRiskCheck,
   fetchUSDJPYStrategySignals,
   importUSDJPYBacktest,
+  runUSDJPYLiveLoop,
   runUSDJPYStrategyLab,
   runUSDJPYStrategySignals,
 } from '../services/usdjpyStrategyLabApi.js';
@@ -235,6 +257,7 @@ const signals = ref(null);
 const backtestPlan = ref(null);
 const importedBacktest = ref(null);
 const riskCheck = ref(null);
+const liveLoop = ref(null);
 const importSource = ref('');
 const loading = ref(false);
 const error = ref('');
@@ -262,6 +285,9 @@ const riskOk = computed(() => {
   if (riskCheck.value.ok === false || riskCheck.value.riskOk === false) return false;
   return ['runtimeOk', 'fastlaneOk', 'newsOk', 'shadowOnly'].every((key) => riskCheck.value?.[key] !== false);
 });
+const liveWhyNoEntry = computed(() =>
+  Array.isArray(liveLoop.value?.whyNoEntry) ? liveLoop.value.whyNoEntry.slice(0, 5) : [],
+);
 const topReasons = computed(() =>
   Array.isArray(topPolicy.value?.reasons) ? topPolicy.value.reasons.slice(0, 5) : [],
 );
@@ -354,13 +380,14 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [statusPayload, catalogPayload, signalsPayload, planPayload, importedPayload, riskPayload] = await Promise.all([
+    const [statusPayload, catalogPayload, signalsPayload, planPayload, importedPayload, riskPayload, livePayload] = await Promise.all([
       fetchUSDJPYStrategyLabStatus(),
       fetchUSDJPYStrategyCatalog(),
       fetchUSDJPYStrategySignals({ limit: 20 }),
       fetchUSDJPYStrategyBacktestPlan(),
       fetchUSDJPYImportedBacktests({ limit: 20 }),
       fetchUSDJPYStrategyRiskCheck(),
+      fetchUSDJPYLiveLoop(),
     ]);
     status.value = statusPayload;
     catalog.value = catalogPayload;
@@ -368,6 +395,7 @@ async function load() {
     backtestPlan.value = planPayload;
     importedBacktest.value = importedPayload;
     riskCheck.value = riskPayload;
+    liveLoop.value = livePayload;
   } catch (err) {
     error.value = err?.message || 'USDJPY 策略政策加载失败';
   } finally {
@@ -400,6 +428,18 @@ async function runSignals() {
     signals.value = await runUSDJPYStrategySignals();
   } catch (err) {
     error.value = err?.message || 'USDJPY 候选信号刷新失败';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runLiveLoop() {
+  loading.value = true;
+  error.value = '';
+  try {
+    liveLoop.value = await runUSDJPYLiveLoop();
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 实盘闭环刷新失败';
   } finally {
     loading.value = false;
   }
@@ -527,6 +567,37 @@ onMounted(load);
   grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.qg-usdjpy-panel__live {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  margin-bottom: 14px;
+  border-color: rgb(56, 189, 248, 0.26);
+  background: linear-gradient(135deg, rgb(14, 165, 233, 0.12), rgb(15, 23, 42, 0.42));
+}
+
+.qg-usdjpy-panel__live p {
+  margin: 6px 0 0;
+  color: var(--qg-text-secondary, #cbd5e1);
+  line-height: 1.5;
+}
+
+.qg-usdjpy-panel__live-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.qg-usdjpy-panel__live-grid span {
+  border: 1px solid var(--qg-border-subtle, rgb(148, 163, 184, 0.18));
+  border-radius: 12px;
+  padding: 10px;
+  background: rgb(2, 6, 23, 0.26);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .qg-usdjpy-panel__card,
@@ -742,6 +813,7 @@ onMounted(load);
 
 @media (width <= 900px) {
   .qg-usdjpy-panel__header,
+  .qg-usdjpy-panel__live,
   .qg-usdjpy-panel__grid,
   .qg-usdjpy-panel__factory,
   .qg-usdjpy-panel__factory--secondary {
@@ -765,6 +837,10 @@ onMounted(load);
   }
 
   .qg-usdjpy-panel dl {
+    grid-template-columns: 1fr;
+  }
+
+  .qg-usdjpy-panel__live-grid {
     grid-template-columns: 1fr;
   }
 
