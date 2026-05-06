@@ -106,6 +106,35 @@ function formatDiagnosticNumber(value, digits = 2) {
   return numeric.toFixed(digits);
 }
 
+function formatLot(value) {
+  const numeric = numberValue(value);
+  if (numeric === null) return '—';
+  return numeric.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function directionZh(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('LONG') || text.includes('BUY')) return '买入观察';
+  if (text.includes('SHORT') || text.includes('SELL')) return '卖出观察';
+  return humanizeStatus(value || '—');
+}
+
+function entryModeZh(value) {
+  const text = String(value || '').toUpperCase();
+  if (text === 'STANDARD_ENTRY') return '标准入场';
+  if (text === 'OPPORTUNITY_ENTRY') return '机会入场';
+  if (text === 'BLOCKED') return '阻断';
+  return humanizeStatus(value || '—');
+}
+
+function liveLoopStatusTone(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('READY')) return 'ok';
+  if (text.includes('BLOCK') || text.includes('PAUSE') || text.includes('MISSING')) return 'error';
+  if (text.includes('WAIT')) return 'warn';
+  return 'warn';
+}
+
 function safetyEnvelope(raw = {}) {
   const candidates = [
     raw.status?.safety,
@@ -125,6 +154,7 @@ export function normalizeMt5Snapshot(raw = {}) {
   const account = isObject(accountEnvelope.account) ? accountEnvelope.account : accountEnvelope;
   const snapshot = unwrap(raw.snapshot) || {};
   const latest = unwrap(raw.latest) || {};
+  const usdJpyLiveLoop = unwrap(raw.usdJpyLiveLoop) || {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
   const orders = rowsFromPayload(raw.orders);
@@ -190,6 +220,7 @@ export function normalizeMt5Snapshot(raw = {}) {
     dailyAutopilot: raw.dailyAutopilot || {},
     researchStats: raw.researchStats || {},
     governanceAdvisor: raw.governanceAdvisor || {},
+    usdJpyLiveLoop,
     researchSummary,
     governanceSummary,
     safety,
@@ -301,7 +332,7 @@ export function buildMt5Metrics(snapshot) {
   return [
     {
       label: 'EA交易状态',
-      value: snapshot.eaTradeReady ? '可按守门入场' : '等待守门条件',
+      value: snapshot.eaTradeReady ? '权限已打开' : '守门仍在等待',
       hint: humanizeStatus(snapshot.tradeStatus),
     },
     {
@@ -334,7 +365,7 @@ export function buildSafetyItems(snapshot) {
     },
     {
       label: 'EA交易权限',
-      value: snapshot.eaTradeReady ? '可按守门规则入场' : '当前不入场',
+      value: snapshot.eaTradeReady ? '交易权限已打开' : '守门仍在等待',
       status: snapshot.eaTradeReady ? 'ok' : 'warn',
     },
     {
@@ -382,6 +413,13 @@ export function buildMt5SimulationItems(snapshot) {
   const evidenceQueue = rowsFromPayload(iteration.evidenceIterationQueue);
   const findings = rowsFromPayload(iteration.findings);
   const hasNoTradeFinding = findings.some((row) => row.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
+  const noTradeRetune = strategyQueue.find((row) => row?.type === 'PARAMLAB_NO_TRADE_RETUNE');
+  const noTradePlanReady =
+    Boolean(noTradeRetune?.iterationApplied) ||
+    ['RETUNE_PLAN_READY_TESTER_ONLY', 'APPLIED_TESTER_ONLY', 'APPLIED_SHADOW_ONLY'].includes(
+      String(noTradeRetune?.status || '').toUpperCase(),
+    ) ||
+    (Array.isArray(noTradeRetune?.routePlans) && noTradeRetune.routePlans.length > 0);
   const liveUniverse =
     snapshot.researchSummary.liveUniverseLabel ||
     snapshot.researchSummary.liveUniverse?.join(', ') ||
@@ -438,11 +476,19 @@ export function buildMt5SimulationItems(snapshot) {
     },
     {
       label: '复盘迭代',
-      value: hasNoTradeFinding ? '需要调参重跑' : summary.dailyIterationRequired ? '需要复核' : '暂无阻塞',
-      hint: hasNoTradeFinding
-        ? `今日 tester 已解析但无成交；策略 ${strategyQueue.length} 项、证据 ${evidenceQueue.length} 项待迭代`
+      value: noTradePlanReady
+        ? '调参方案已生成'
+        : hasNoTradeFinding
+          ? '需要调参重跑'
+        : summary.dailyIterationRequired
+          ? '需要复核'
+          : '暂无阻塞',
+      hint: noTradePlanReady
+        ? `${noTradeRetune?.recommendation || '下一轮 tester-only 参数方案已生成'}；等待测试窗口执行。`
+        : hasNoTradeFinding
+          ? `今日 tester 已解析但无成交；策略 ${strategyQueue.length} 项、证据 ${evidenceQueue.length} 项待迭代`
         : '只影响模拟和 tester，不修改实盘 preset',
-      status: hasNoTradeFinding || summary.dailyIterationRequired ? 'warn' : 'ok',
+      status: noTradePlanReady ? 'ok' : hasNoTradeFinding || summary.dailyIterationRequired ? 'warn' : 'ok',
     },
     {
       label: '策略效果',
@@ -647,6 +693,75 @@ export function buildMt5RouteModeRows(snapshot) {
   });
 }
 
+export function buildUsdJpyLiveLoopItems(snapshot) {
+  const loop = snapshot.usdJpyLiveLoop || {};
+  const status = loop.status || loop.latest || loop;
+  const topLive = status.topLiveEligiblePolicy || status.topPolicy || status.liveRecoveryCandidate || {};
+  const topShadow = status.topShadowPolicy || {};
+  const dryRun = status.dryRunDecision || status.eaDryRunDecision || {};
+  const blockers = rowsFromPayload(status.blockers || status.primaryBlockers || status.mainBlockers);
+  const reasons = rowsFromPayload(topLive.reasons || status.reasons || status.nextActions);
+  const state = status.state || status.status || status.overallState || '等待同步';
+  const stateZh = status.stateZh || status.conclusionZh || humanizeStatus(state);
+  const liveStrategy = topLive.strategy || topLive.route || topLive.routeKey || '—';
+  const liveDirection = directionZh(topLive.direction || topLive.side || topLive.action);
+  const entryMode = entryModeZh(topLive.entryMode || topLive.mode || topLive.decision);
+  const recommendedLot = topLive.recommendedLot ?? topLive.lot ?? status.recommendedLot;
+  const maxLot = topLive.maxLot ?? status.maxLot ?? status.autoMaxLot;
+  const blockerText = blockers.length
+    ? blockers
+        .slice(0, 2)
+        .map((row) => row.reasonZh || row.reason || row.code || row.label || humanizeStatus(row))
+        .join('；')
+    : status.primaryBlocker || status.mainBlocker || '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估';
+  const reasonText = reasons.length
+    ? reasons
+        .slice(0, 2)
+        .map((row) => row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row))
+        .join('；')
+    : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
+
+  return [
+    {
+      label: 'USDJPY Live Loop',
+      value: stateZh,
+      status: liveLoopStatusTone(state),
+      hint: status.singleSourceOfTruth || 'USDJPY_LIVE_LOOP',
+    },
+    {
+      label: '实盘候选策略',
+      value: `${liveStrategy}｜${liveDirection}｜${entryMode}`,
+      status: liveStrategy !== '—' ? 'ok' : 'warn',
+      hint: reasonText,
+    },
+    {
+      label: '建议策略仓位',
+      value: `${formatLot(recommendedLot)} / 最大 ${formatLot(maxLot)}`,
+      status: recommendedLot ? 'ok' : 'warn',
+      hint: '人工持仓不计入 EA 自动策略仓位；实际下单仍由 MT5 EA 守门。',
+    },
+    {
+      label: '主阻断原因',
+      value: blockerText,
+      status: blockers.length || status.primaryBlocker ? 'warn' : 'ok',
+      hint: '无阻断不代表强制入场，代表后端策略链路不再挡 RSI 买入路线。',
+    },
+    {
+      label: 'EA 干跑状态',
+      value: dryRun.decisionZh || dryRun.decision || status.dryRunStateZh || '等待 EA 干跑同步',
+      status: dryRun.decision || status.dryRunStateZh ? 'ok' : 'warn',
+      hint: dryRun.reason || dryRun.summary || '用于确认 EA 看到的政策，不由前端下单。',
+    },
+    {
+      label: '影子第一名',
+      value: topShadow.strategy
+        ? `${topShadow.strategy}｜${directionZh(topShadow.direction)}｜${entryModeZh(topShadow.entryMode)}`
+        : '暂无影子第一名',
+      hint: '影子第一名只做研究，不会抢 RSI_Reversal 买入实盘路线。',
+    },
+  ];
+}
+
 export function buildRsiEntryDiagnosticRows(snapshot) {
   const diagnostics = snapshot.usdJpyRsiEntryDiagnostics || {};
   if (!present(diagnostics)) {
@@ -721,8 +836,8 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
     },
     {
       项目: '最近 EA 评估',
-      结论: humanizeStatus(route.lastStatus || rsi.evalCode || '等待信号'),
-      说明: route.lastReason || rsi.evalReason || '等待下一次 H1 RSI 评估。',
+      结论: humanizeStatus(rsi.evalCode || route.lastStatus || '等待信号'),
+      说明: rsi.evalReason || route.lastReason || '等待下一次 H1 RSI 评估。',
     },
   ];
 

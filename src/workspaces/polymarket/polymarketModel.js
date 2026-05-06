@@ -334,6 +334,16 @@ function dailyIteration(payload) {
   return payload?.dailyReview?.dailyIteration || {};
 }
 
+function queueItemDone(item) {
+  const status = String(item?.status || '').toUpperCase();
+  return (
+    Boolean(item?.iterationApplied) ||
+    status.includes('APPLIED') ||
+    status.includes('READY') ||
+    status.includes('PLAN')
+  );
+}
+
 function blockerText(blockers = []) {
   const labels = {
     sample_lt_200: '样本少于 200',
@@ -361,6 +371,8 @@ function buildSimulationItems(payload) {
     : [];
   const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
   const copyQueue = strategyQueue.find((item) => item?.type === 'POLYMARKET_COPY_TRADING_RETUNE');
+  const polyRetuneDone = queueItemDone(polyRetune);
+  const copyRetuneDone = queueItemDone(copyQueue);
   const canaryRows = countRows(payload.canaryLedger) || countRows(payload.canaryRun);
   const governanceRows = countRows(payload.autoGovernanceLedger) || countRows(payload.autoGovernance);
   const realTradeRows = countRows(payload.realTrades);
@@ -388,10 +400,10 @@ function buildSimulationItems(payload) {
     {
       label: '跟单资金模拟',
       value: copyReview.active
-        ? `当前现金 ${formatSignedUsd(copyCapital.cashScaledPnlUSDC)} / 账本 ${formatSignedUsd(copyCapital.shadowLedgerPnlUSDC)}`
+        ? `真实资金折算 ${formatSignedUsd(copyCapital.cashScaledPnlUSDC)} / 模拟账本 ${formatSignedUsd(copyCapital.shadowLedgerPnlUSDC)}`
         : '暂无估算',
       hint: copyReview.active
-        ? `按真实可用现金 ${formatUsd(copyCapital.accountCashUSDC)}、配置 bankroll ${formatUsd(copyCapital.configuredBankrollUSDC)} 做等比例 shadow accounting；不连接钱包。`
+        ? `按真实可用现金 ${formatUsd(copyCapital.accountCashUSDC)}、配置模拟本金 ${formatUsd(copyCapital.configuredBankrollUSDC)} 等比例记账；这里只显示模拟盈亏，不连接钱包。`
         : '等待跟单 shadow 样本后再估算真实资金规模盈亏。',
       status: Number(copyCapital.cashScaledPnlUSDC) > 0 ? 'ok' : 'warn',
     },
@@ -420,7 +432,7 @@ function buildSimulationItems(payload) {
           ? `${copyPlan.candidateVariants.length} 个模拟变体`
           : '待生成',
       hint: copyPlan.diagnosis || '下一轮会按来源质量、市场家族、流动性和结算表现拆分验证。',
-      status: copyPlan.retuneRequired ? 'warn' : 'ok',
+      status: copyPlan.retuneRequired && !copyRetuneDone ? 'warn' : 'ok',
     },
     {
       label: '当前效果',
@@ -429,11 +441,16 @@ function buildSimulationItems(payload) {
     },
     {
       label: '策略迭代',
-      value: polyRetune || copyQueue ? '需要重调模拟' : '暂无新增迭代',
+      value:
+        polyRetuneDone || copyRetuneDone
+          ? '重调方案已生成'
+          : polyRetune || copyQueue
+            ? '需要重调模拟'
+            : '暂无新增迭代',
       hint: polyRetune
         ? `${polyRetune.recommendation || '只在 shadow-only 重建筛选器'}；跟单策略不限制市场类别。`
         : copyQueue?.recommendation || '保持只读观察',
-      status: polyRetune || copyQueue ? 'warn' : 'ok',
+      status: polyRetuneDone || copyRetuneDone ? 'ok' : polyRetune || copyQueue ? 'warn' : 'ok',
     },
     {
       label: '今日待办',
@@ -461,6 +478,10 @@ function buildReviewItems(payload) {
     ? iteration.strategyIterationQueue
     : [];
   const polyRetune = strategyQueue.find((item) => item?.type === 'POLYMARKET_FILTER_RETUNE');
+  const copyQueue = strategyQueue.find((item) => item?.type === 'POLYMARKET_COPY_TRADING_RETUNE');
+  const polyRetuneDone = queueItemDone(polyRetune);
+  const copyRetuneDone = queueItemDone(copyQueue);
+  const copyVariantCount = Array.isArray(copyPlan.candidateVariants) ? copyPlan.candidateVariants.length : 0;
   return [
     {
       label: '亏损复盘',
@@ -470,41 +491,52 @@ function buildReviewItems(payload) {
     },
     {
       label: '复盘结论',
-      value: polyRetune
-        ? '需要策略迭代'
+      value: polyRetuneDone
+        ? '策略重调已生成'
+        : polyRetune
+          ? '需要策略迭代'
         : friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
-      hint: polyRetune
-        ? '预测市场长期隔离不是成功状态，需要继续调筛选器并模拟验证'
+      hint: polyRetuneDone
+        ? `${polyRetune?.recommendation || '今日 shadow-only retune 已生成'}；继续隔离并等待明日样本验证。`
+        : polyRetune
+          ? '预测市场长期隔离不是成功状态，需要继续调筛选器并模拟验证'
         : `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
-      status: summary.codexReviewRequired ? 'warn' : 'ok',
+      status: polyRetuneDone ? 'ok' : summary.codexReviewRequired ? 'warn' : 'ok',
     },
     {
       label: '跟单复盘',
-      value: copyReview.active
+      value: copyRetuneDone
+        ? '跟单方案已生成'
+        : copyReview.active
         ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
         : '暂无跟单样本',
-      hint: copyReview.active
+      hint: copyRetuneDone
+        ? `${copyQueue?.recommendation || copyReview.summary || '跟单 shadow-only 重调方案已生成'} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
+        : copyReview.active
         ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
         : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
-      status: copyReview.active ? 'warn' : 'unknown',
+      status: copyRetuneDone ? 'ok' : copyReview.active ? 'warn' : 'unknown',
     },
     {
       label: '跟单迭代方案',
       value:
-        Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
-          ? `${copyPlan.candidateVariants.length} 个 shadow-only 变体`
+        copyVariantCount
+          ? `${copyVariantCount} 个 shadow-only 变体`
           : '等待重调证据',
       hint:
         Array.isArray(copyPlan.acceptanceCriteria) && copyPlan.acceptanceCriteria.length
           ? `恢复复核门槛：${copyPlan.acceptanceCriteria.join(' / ')}`
           : '必须先证明跟单模拟长期正收益，再人工复核真钱恢复。',
-      status: copyPlan.retuneRequired ? 'warn' : 'ok',
+      status: copyVariantCount || copyRetuneDone ? 'ok' : copyPlan.retuneRequired ? 'warn' : 'ok',
     },
     {
       label: '今日重调',
       value: `${polySummary.retuneRed || 0} 红 / ${polySummary.retuneYellow || 0} 黄 / 跟单 ${polySummary.retuneCopyTrading || 0}`,
-      hint: '红/黄只进入 shadow-only retune；不会恢复真钱或自动下注。',
-      status: polySummary.retuneRed || polySummary.retuneYellow ? 'warn' : 'ok',
+      hint:
+        polyRetuneDone || copyRetuneDone
+          ? '今日 shadow-only 重调已生成；不会恢复真钱或自动下注。'
+          : '红/黄只进入 shadow-only retune；不会恢复真钱或自动下注。',
+      status: polyRetuneDone || copyRetuneDone ? 'ok' : polySummary.retuneRed || polySummary.retuneYellow ? 'warn' : 'ok',
     },
   ];
 }

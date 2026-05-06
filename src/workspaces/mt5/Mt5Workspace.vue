@@ -10,7 +10,7 @@
     <div class="qg-readonly-banner">
       <StatusPill
         :status="snapshot.eaTradeReady ? 'ok' : 'warn'"
-        :label="snapshot.eaTradeReady ? 'EA可按守门入场' : 'EA入场受阻'"
+        :label="snapshot.eaTradeReady ? 'EA交易权限已打开' : 'EA守门仍在等待'"
       />
       <span
         >前端数据桥保持只读，不会发单；当前 RSI 实盘路线会在 MT5 EA 的
@@ -19,6 +19,22 @@
     </div>
 
     <MetricGrid :items="metrics" />
+
+    <section class="qg-section-card qg-section-card--operator">
+      <header>
+        <p class="qg-eyebrow">USDJPY Live Loop</p>
+        <h2>USDJPY 实盘 EA 恢复状态</h2>
+      </header>
+      <KeyValueList :items="usdJpyLiveLoopItems" />
+    </section>
+
+    <LedgerTable
+      title="RSI 入场诊断"
+      :rows="rsiEntryDiagnosticRows"
+      :limit="14"
+      class="qg-ledger-table--important qg-ledger-table--mt5-full"
+    />
+
     <EndpointHealthGrid :items="endpointHealth" />
 
     <section class="qg-section-card qg-section-card--operator">
@@ -83,13 +99,6 @@
       />
       <LedgerTable title="交易流水" :rows="tradeJournalRows" :limit="40" class="qg-ledger-table--important" />
     </div>
-
-    <LedgerTable
-      title="RSI 入场诊断"
-      :rows="rsiEntryDiagnosticRows"
-      :limit="14"
-      class="qg-ledger-table--important qg-ledger-table--mt5-full"
-    />
 
     <div class="qg-mt5-operations-grid">
       <LedgerTable
@@ -181,6 +190,7 @@ import {
   buildRsiEntryDiagnosticRows,
   buildSafetyItems,
   buildSymbolRows,
+  buildUsdJpyLiveLoopItems,
   normalizeMt5Snapshot,
 } from './mt5Model.js';
 
@@ -204,6 +214,7 @@ const state = reactive({
   shadowOutcomes: null,
   shadowCandidates: null,
   shadowCandidateOutcomes: null,
+  usdJpyLiveLoop: null,
 });
 
 const snapshot = computed(() => normalizeMt5Snapshot(state));
@@ -226,6 +237,7 @@ const todoRows = computed(() => buildMt5TodoRows(snapshot.value));
 const reviewRows = computed(() => buildMt5ReviewRows(snapshot.value));
 const routeModeRows = computed(() => buildMt5RouteModeRows(snapshot.value));
 const rsiEntryDiagnosticRows = computed(() => buildRsiEntryDiagnosticRows(snapshot.value));
+const usdJpyLiveLoopItems = computed(() => buildUsdJpyLiveLoopItems(snapshot.value));
 let refreshTimer = null;
 
 async function load(options = {}) {

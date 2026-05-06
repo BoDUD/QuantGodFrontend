@@ -60,7 +60,7 @@
       <div class="qg-automation-chain-panel__grid">
         <article>
           <h3>技术链路详情</h3>
-          <ul>
+          <ul class="qg-automation-chain-panel__plain-list">
             <li v-for="step in steps" :key="step.name">
               <span :class="step.ok ? 'ok' : 'bad'">{{ step.ok ? '通过' : '未通过' }}</span>
               {{ step.labelZh || step.name }}
@@ -70,21 +70,21 @@
         </article>
         <article>
           <h3>缺失证据</h3>
-          <ul>
+          <ul class="qg-automation-chain-panel__plain-list">
             <li v-for="item in missingEvidence" :key="item">{{ item }}</li>
             <li v-if="!missingEvidence.length">暂无缺失证据</li>
           </ul>
         </article>
         <article>
           <h3>阻断原因</h3>
-          <ul>
+          <ul class="qg-automation-chain-panel__plain-list">
             <li v-for="item in blockedReasons" :key="item">{{ item }}</li>
             <li v-if="!blockedReasons.length">暂无阻断原因</li>
           </ul>
         </article>
         <article>
           <h3>机会入场</h3>
-          <ul>
+          <ul class="qg-automation-chain-panel__plain-list">
             <li v-for="item in opportunities" :key="`${item.symbol}-${item.direction}`">
               {{ item.symbol }}｜{{ item.directionZh || item.direction }}｜{{ item.entryModeZh || item.entryMode }}｜建议仓位 {{ item.recommendedLot || 0 }}
             </li>
@@ -290,6 +290,11 @@ onMounted(loadStatus);
 .qg-automation-chain-panel ul {
   margin: 10px 0 0;
   padding-left: 18px;
+}
+
+.qg-automation-chain-panel__plain-list {
+  list-style: none;
+  padding-left: 0 !important;
 }
 
 .qg-automation-chain-panel li {

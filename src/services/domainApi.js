@@ -34,6 +34,7 @@ export async function loadMt5Workspace() {
     shadowOutcomes,
     shadowCandidates,
     shadowCandidateOutcomes,
+    usdJpyLiveLoop,
   ] = await Promise.all([
     fetchJson('/api/mt5-readonly/status'),
     fetchJson('/api/mt5-readonly/account'),
@@ -52,6 +53,7 @@ export async function loadMt5Workspace() {
     fetchJson('/api/shadow/outcomes?limit=500&days=30'),
     fetchJson('/api/shadow/candidates?limit=500&days=30'),
     fetchJson('/api/shadow/candidate-outcomes?limit=500&days=30'),
+    fetchJson('/api/usdjpy-strategy-lab/live-loop'),
   ]);
   return {
     status,
@@ -71,6 +73,7 @@ export async function loadMt5Workspace() {
     shadowOutcomes,
     shadowCandidates,
     shadowCandidateOutcomes,
+    usdJpyLiveLoop,
   };
 }
 
