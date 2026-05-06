@@ -40,6 +40,7 @@ function checkMt5Workspace(root) {
     'EndpointHealthGrid',
     'KeyValueList',
     'LedgerTable',
+    'RSI 入场诊断',
     'StatusPill',
     'Safety Envelope',
     'Raw MT5 evidence',
@@ -80,6 +81,7 @@ function checkMt5Model(root) {
     'buildPositionRows',
     'buildOrderRows',
     'buildSymbolRows',
+    'buildRsiEntryDiagnosticRows',
     'buildEndpointHealth',
     'rowsFromPayload',
   ]) {

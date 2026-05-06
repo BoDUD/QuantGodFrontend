@@ -23,13 +23,14 @@ const model = [
   'export function buildPositionRows() {}',
   'export function buildOrderRows() {}',
   'export function buildSymbolRows() {}',
+  'export function buildRsiEntryDiagnosticRows() {}',
   'export function buildEndpointHealth() {}',
   'export function rowsFromPayload() {}',
   'const fields = ["orderSendAllowed", "closeAllowed", "cancelAllowed", "credentialStorageAllowed", "livePresetMutationAllowed"];',
 ].join('\n');
 
 const workspace = [
-  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable /><StatusPill />Safety Envelope Raw MT5 evidence</template>',
+  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="RSI 入场诊断" /><StatusPill />Safety Envelope Raw MT5 evidence</template>',
   '<script setup>',
   "import { loadMt5Workspace } from '../../services/domainApi.js';",
   "import { normalizeMt5Snapshot } from './mt5Model.js';",

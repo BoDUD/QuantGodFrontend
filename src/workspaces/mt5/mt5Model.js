@@ -88,6 +88,24 @@ function boolLike(value, trueStatus = 'ok', falseStatus = 'warn') {
   return 'unknown';
 }
 
+function passText(value) {
+  if (value === true || value === 'true' || value === 1 || value === '1' || value === 'yes') return '通过';
+  if (value === false || value === 'false' || value === 0 || value === '0' || value === 'no') return '未通过';
+  return '待同步';
+}
+
+function onOffText(value) {
+  if (value === true || value === 'true' || value === 1 || value === '1' || value === 'yes') return '是';
+  if (value === false || value === 'false' || value === 0 || value === '0' || value === 'no') return '否';
+  return '待同步';
+}
+
+function formatDiagnosticNumber(value, digits = 2) {
+  const numeric = numberValue(value);
+  if (numeric === null) return '—';
+  return numeric.toFixed(digits);
+}
+
 function safetyEnvelope(raw = {}) {
   const candidates = [
     raw.status?.safety,
@@ -206,6 +224,11 @@ export function normalizeMt5Snapshot(raw = {}) {
     rsiRoute: pick(
       { latest },
       ['latest.strategies.RSI_Reversal', 'latest.symbols.0.strategies.RSI_Reversal'],
+      {},
+    ),
+    usdJpyRsiEntryDiagnostics: pick(
+      { snapshot, latest },
+      ['snapshot.usdJpyRsiEntryDiagnostics', 'latest.usdJpyRsiEntryDiagnostics'],
       {},
     ),
     strategies: pick({ latest }, ['latest.strategies', 'latest.symbols.0.strategies'], {}),
@@ -622,6 +645,95 @@ export function buildMt5RouteModeRows(snapshot) {
       说明: humanizeStatus(route.reason || route.state || route.blocker || '等待信号'),
     };
   });
+}
+
+export function buildRsiEntryDiagnosticRows(snapshot) {
+  const diagnostics = snapshot.usdJpyRsiEntryDiagnostics || {};
+  if (!present(diagnostics)) {
+    return [
+      {
+        项目: '诊断状态',
+        结论: '等待 EA 同步',
+        说明: 'MT5 尚未写入 USDJPY RSI 入场诊断；请等待下一次 Dashboard 快照。',
+      },
+    ];
+  }
+
+  const route = diagnostics.route || {};
+  const permissions = diagnostics.permissions || {};
+  const guards = diagnostics.guards || {};
+  const rsi = diagnostics.rsi || {};
+  const reasons = rowsFromPayload(diagnostics.whyNoEntry);
+  const permissionReady = Boolean(permissions.liveMode && permissions.tradeAllowed);
+  const cooldownOrStartup = Boolean(guards.cooldownActive || guards.startupGuardActive);
+  const buyConditionText = `${passText(rsi.buyReversal)} / ${passText(rsi.buyBand)}`;
+  const buyConditionDetail = `RSI ${formatDiagnosticNumber(rsi.rsiClosed2)} → ${formatDiagnosticNumber(
+    rsi.rsiClosed1,
+  )}，布林下轨 ${formatDiagnosticNumber(rsi.lowerBand, 3)}，买入分 ${formatDiagnosticNumber(
+    rsi.buyScore,
+    1,
+  )}`;
+  const rows = [
+    {
+      项目: '当前结论',
+      结论: diagnostics.stateZh || humanizeStatus(diagnostics.state),
+      说明: diagnostics.summary || '等待 EA 自身信号。',
+    },
+    {
+      项目: 'RSI 买入条件',
+      结论: buyConditionText,
+      说明: buyConditionDetail,
+    },
+    {
+      项目: '交易权限',
+      结论: permissionReady ? '通过' : '未通过',
+      说明: permissions.blocker ? humanizeStatus(permissions.blocker) : 'MT5 终端、账户、EA 和品种权限均未报告阻断。',
+    },
+    {
+      项目: '交易时段',
+      结论: passText(guards.sessionOpen),
+      说明: `允许 UTC ${guards.sessionWindowUtc || '—'}，EA 只在该窗口内评估新入场。`,
+    },
+    {
+      项目: '点差',
+      结论: passText(guards.spreadAllowed),
+      说明: `${formatDiagnosticNumber(guards.spreadPips, 1)} / ${formatDiagnosticNumber(
+        guards.maxSpreadPips,
+        1,
+      )} pips`,
+    },
+    {
+      项目: '新闻过滤',
+      结论: guards.newsBlocked ? '阻断中' : '未阻断',
+      说明: guards.newsReason || '当前没有 USDJPY 高影响新闻阻断。',
+    },
+    {
+      项目: '冷却 / 启动保护',
+      结论: cooldownOrStartup ? '等待保护解除' : '通过',
+      说明: guards.cooldownReason || guards.startupGuardReason || '没有亏损冷却或启动保护阻断。',
+    },
+    {
+      项目: '仓位容量',
+      结论: `${guards.symbolPositions ?? 0}/${guards.maxPositionsPerSymbol ?? '—'}（USDJPY）`,
+      说明: `EA 总仓位 ${guards.portfolioPositions ?? 0}/${
+        guards.maxTotalPositions ?? '—'
+      }；人工持仓占用：${onOffText(guards.manualPositionBlock)}`,
+    },
+    {
+      项目: '最近 EA 评估',
+      结论: humanizeStatus(route.lastStatus || rsi.evalCode || '等待信号'),
+      说明: route.lastReason || rsi.evalReason || '等待下一次 H1 RSI 评估。',
+    },
+  ];
+
+  return [
+    ...rows,
+    ...reasons.slice(0, 5).map((reason) => ({
+      项目: reason.label || humanizeStatus(reason.code),
+      结论: humanizeStatus(reason.code),
+      说明: reason.detail || '—',
+    })),
+  ];
 }
 
 export function buildAccountItems(snapshot) {

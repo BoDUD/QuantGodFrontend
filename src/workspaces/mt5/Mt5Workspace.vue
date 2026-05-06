@@ -84,6 +84,13 @@
       <LedgerTable title="交易流水" :rows="tradeJournalRows" :limit="40" class="qg-ledger-table--important" />
     </div>
 
+    <LedgerTable
+      title="RSI 入场诊断"
+      :rows="rsiEntryDiagnosticRows"
+      :limit="14"
+      class="qg-ledger-table--important qg-ledger-table--mt5-full"
+    />
+
     <div class="qg-mt5-operations-grid">
       <LedgerTable
         title="实时持仓"
@@ -171,6 +178,7 @@ import {
   buildMt5ReviewRows,
   buildMt5RouteModeRows,
   buildMt5SimulationItems,
+  buildRsiEntryDiagnosticRows,
   buildSafetyItems,
   buildSymbolRows,
   normalizeMt5Snapshot,
@@ -217,6 +225,7 @@ const shadowBlockerRows = computed(() => buildMt5ShadowBlockerRows(snapshot.valu
 const todoRows = computed(() => buildMt5TodoRows(snapshot.value));
 const reviewRows = computed(() => buildMt5ReviewRows(snapshot.value));
 const routeModeRows = computed(() => buildMt5RouteModeRows(snapshot.value));
+const rsiEntryDiagnosticRows = computed(() => buildRsiEntryDiagnosticRows(snapshot.value));
 let refreshTimer = null;
 
 async function load(options = {}) {
