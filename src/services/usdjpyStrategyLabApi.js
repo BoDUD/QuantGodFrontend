@@ -219,6 +219,34 @@ export function fetchUSDJPYDailyAutopilotV2TelegramText({ refresh = false } = {}
   return fetchJson(`${BASE}/autonomous-agent/daily-autopilot-v2/telegram-text${query}`);
 }
 
+export function fetchUSDJPYAgentDailyTodo({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/daily-todo${query}`);
+}
+
+export function runUSDJPYAgentDailyTodo() {
+  return postJson(`${BASE}/daily-todo/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYAgentDailyTodoTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/daily-todo/telegram-text${query}`);
+}
+
+export function fetchUSDJPYAgentDailyReview({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/daily-review${query}`);
+}
+
+export function runUSDJPYAgentDailyReview() {
+  return postJson(`${BASE}/daily-review/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYAgentDailyReviewTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/daily-review/telegram-text${query}`);
+}
+
 export function fetchUSDJPYAutonomousTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/autonomous-agent/telegram-text${query}`);

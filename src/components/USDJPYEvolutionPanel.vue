@@ -60,8 +60,8 @@
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Daily Autopilot 2.0</span>
-        <strong>{{ dailyAutopilot?.titleZh || '等待自动日报' }}</strong>
-        <p>{{ dailyAutopilot?.morningPlan?.liveLane?.stageZh || '自动生成早盘计划和夜盘复盘。' }}</p>
+        <strong>{{ agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status || '等待 Agent 待办' }}</strong>
+        <p>{{ agentDailyTodo?.summaryZh || dailyAutopilot?.dailyTodo?.summaryZh || 'Agent 自动生成早盘计划、今日待办和夜盘复盘。' }}</p>
       </article>
     </div>
 
@@ -135,11 +135,29 @@
       <div class="qg-usdjpy-evolution__section-head">
         <div>
           <h3>Daily Autopilot 2.0</h3>
-          <p>自动中文早盘计划和夜盘复盘；不再把已完成事项留给人工回灌。</p>
+          <p>自动中文早盘计划、Agent 今日待办和每日复盘；已完成事项由 Agent 自动闭环。</p>
         </div>
-        <strong>{{ dailyAutopilot.autonomousAgent?.stageZh || dailyAutopilot.autonomousAgent?.stage || '自主评估' }}</strong>
+        <strong>{{ agentDailyTodo?.status || dailyAutopilot.dailyTodo?.status || dailyAutopilot.autonomousAgent?.stageZh || '自主评估' }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>Agent 今日待办</span>
+          <strong>{{ agentDailyTodo?.completedByAgent || dailyAutopilot.dailyTodo?.completedByAgent ? '已自动完成' : '等待 Agent' }}</strong>
+          <p>
+            {{ dailyTodoItems.length }} 项；
+            {{ agentDailyTodo?.autoAppliedByAgent || dailyAutopilot.dailyTodo?.autoAppliedByAgent ? '已自动推动阶段/patch' : '无需自动推动' }}；
+            {{ agentDailyTodo?.rollbackTriggered || dailyAutopilot.dailyTodo?.rollbackTriggered ? '已触发回滚' : '未触发回滚' }}
+          </p>
+        </article>
+        <article>
+          <span>Agent 每日复盘</span>
+          <strong>{{ agentDailyReview?.completedByAgent || dailyAutopilot.dailyReview?.completedByAgent ? '已自动复盘' : '等待复盘' }}</strong>
+          <p>
+            净 R {{ metricText(dailyReviewMetrics.netR) }}；
+            最大不利 {{ metricText(dailyReviewMetrics.maxAdverseR, 'R') }}；
+            错失 {{ metricText(dailyReviewMetrics.missedOpportunity) }}
+          </p>
+        </article>
         <article>
           <span>早盘作战计划</span>
           <strong>{{ dailyAutopilot.morningPlan?.liveLane?.strategy || 'RSI_Reversal' }}</strong>
@@ -164,6 +182,13 @@
           <span>今日硬禁止</span>
           <strong>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.length || 0 }} 项</strong>
           <p>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] || '新闻、点差、runtime 和快通道门禁不可放宽。' }}</p>
+        </article>
+      </div>
+      <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
+        <article v-for="item in dailyTodoItems.slice(0, 6)" :key="item.id">
+          <span>{{ item.laneZh || item.lane }}</span>
+          <strong>{{ item.status }}</strong>
+          <p>{{ item.summaryZh }}</p>
         </article>
       </div>
     </section>
@@ -249,6 +274,8 @@ import {
   fetchUSDJPYAutonomousAgent,
   fetchUSDJPYAutonomousLanes,
   fetchUSDJPYAutonomousLifecycle,
+  fetchUSDJPYAgentDailyReview,
+  fetchUSDJPYAgentDailyTodo,
   fetchUSDJPYBarReplayStatus,
   fetchUSDJPYDailyAutopilotV2,
   fetchUSDJPYEaReproducibility,
@@ -258,6 +285,8 @@ import {
   fetchUSDJPYWalkForwardStatus,
   runUSDJPYAutonomousAgent,
   runUSDJPYBarReplayBuild,
+  runUSDJPYAgentDailyReview,
+  runUSDJPYAgentDailyTodo,
   runUSDJPYDailyAutopilotV2,
   runUSDJPYEvolutionBuild,
   runUSDJPYConfigProposal,
@@ -276,6 +305,8 @@ const mt5ShadowPayload = ref(null);
 const polymarketShadowPayload = ref(null);
 const eaReproPayload = ref(null);
 const dailyAutopilot = ref(null);
+const agentDailyTodo = ref(null);
+const agentDailyReview = ref(null);
 const loading = ref(false);
 const error = ref('');
 
@@ -294,7 +325,7 @@ const barReplayStatus = computed(() => barReplay.value?.statusZh || barReplay.va
 const walkForwardCandidates = computed(() => (Array.isArray(walkForward.value?.candidates) ? walkForward.value.candidates : []));
 const agentPatch = computed(() => autonomousAgent.value?.currentPatch || {});
 const agentLimits = computed(() => agentPatch.value?.limits || {});
-const patchWritable = computed(() => Boolean(autonomousAgent.value?.patchWritable ?? autonomousAgent.value?.patchAllowed));
+const patchWritable = computed(() => Boolean(autonomousAgent.value?.patchWritable));
 const autonomousLifecycle = computed(() => lifecyclePayload.value || autonomousAgent.value?.autonomousLifecycle || {});
 const centAccount = computed(() => autonomousAgent.value?.centAccount || autonomousLifecycle.value?.centAccount || {});
 const lanes = computed(() => lanesPayload.value?.lanes || autonomousAgent.value?.lanes || autonomousLifecycle.value?.lanes || null);
@@ -308,6 +339,11 @@ const rollbackBlockers = computed(() => {
   const rollback = agentPatch.value?.rollback || {};
   return Array.isArray(rollback.hardBlockers) ? rollback.hardBlockers : [];
 });
+const dailyTodoItems = computed(() => {
+  const items = agentDailyTodo.value?.items || dailyAutopilot.value?.dailyTodo?.items || [];
+  return Array.isArray(items) ? items : [];
+});
+const dailyReviewMetrics = computed(() => agentDailyReview.value?.metrics || dailyAutopilot.value?.dailyReview?.metrics || {});
 const patchChangeText = computed(() => {
   const changes = agentPatch.value?.changes || {};
   const entries = Object.entries(changes);
@@ -355,6 +391,11 @@ function ratioMetric(value) {
   return `${Math.round(numeric * 100)}%`;
 }
 
+function metricText(value, suffix = '') {
+  if (value == null || value === '') return '—';
+  return `${value}${suffix}`;
+}
+
 function conclusionZh(value) {
   const map = {
     REJECTED: '拒绝',
@@ -392,6 +433,8 @@ function assignLoaded(results) {
   polymarketShadowPayload.value = results.polymarketShadowState;
   eaReproPayload.value = results.eaReproState;
   dailyAutopilot.value = results.dailyState;
+  agentDailyTodo.value = results.dailyTodoState || results.dailyState?.dailyTodo || null;
+  agentDailyReview.value = results.dailyReviewState || results.dailyState?.dailyReview || null;
 }
 
 async function loadAll() {
@@ -406,6 +449,8 @@ async function loadAll() {
     polymarketShadowState,
     eaReproState,
     dailyState,
+    dailyTodoState,
+    dailyReviewState,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
     fetchUSDJPYBarReplayStatus(),
@@ -417,8 +462,10 @@ async function loadAll() {
     fetchUSDJPYPolymarketShadowLane(),
     fetchUSDJPYEaReproducibility(),
     fetchUSDJPYDailyAutopilotV2(),
+    fetchUSDJPYAgentDailyTodo(),
+    fetchUSDJPYAgentDailyReview(),
   ]);
-  assignLoaded({ evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload, lifecycle, lanesState, mt5ShadowState, polymarketShadowState, eaReproState, dailyState });
+  assignLoaded({ evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload, lifecycle, lanesState, mt5ShadowState, polymarketShadowState, eaReproState, dailyState, dailyTodoState, dailyReviewState });
 }
 
 async function load() {
@@ -454,6 +501,8 @@ async function runDailyAutopilotV2() {
   error.value = '';
   try {
     dailyAutopilot.value = await runUSDJPYDailyAutopilotV2();
+    agentDailyTodo.value = await runUSDJPYAgentDailyTodo();
+    agentDailyReview.value = await runUSDJPYAgentDailyReview();
   } catch (err) {
     error.value = err?.message || 'USDJPY 自动日报生成失败';
   } finally {
@@ -610,6 +659,16 @@ onMounted(load);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
+}
+
+.qg-usdjpy-evolution__mini-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__mini-list article {
+  padding: 12px;
 }
 
 .qg-usdjpy-evolution__note {
