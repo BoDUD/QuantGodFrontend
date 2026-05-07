@@ -79,7 +79,7 @@ describe('mt5Model ledgers', () => {
       researchStats: {
         summary: {
           liveUniverseLabel: 'USDJPYc',
-          shadowResearchUniverseLabel: 'USDJPYc',
+          shadowResearchUniverseLabel: 'USDJPYc / EURUSDc / XAUUSDc',
         },
       },
       governanceAdvisor: {

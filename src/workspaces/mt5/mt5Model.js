@@ -127,6 +127,10 @@ function entryModeZh(value) {
   return humanizeStatus(value || '—');
 }
 
+function usdJpyOnlyUniverseLabel() {
+  return 'USDJPYc';
+}
+
 function liveLoopStatusTone(value) {
   const text = String(value || '').toUpperCase();
   if (text.includes('READY')) return 'ok';
@@ -420,14 +424,12 @@ export function buildMt5SimulationItems(snapshot) {
       String(noTradeRetune?.status || '').toUpperCase(),
     ) ||
     (Array.isArray(noTradeRetune?.routePlans) && noTradeRetune.routePlans.length > 0);
-  const liveUniverse =
-    snapshot.researchSummary.liveUniverseLabel ||
-    snapshot.researchSummary.liveUniverse?.join(', ') ||
-    'USDJPYc';
-  const shadowUniverse =
-    snapshot.researchSummary.shadowResearchUniverseLabel ||
-    snapshot.researchSummary.shadowResearchUniverse?.join(', ') ||
-    'USDJPYc';
+  const liveUniverse = usdJpyOnlyUniverseLabel(
+    snapshot.researchSummary.liveUniverseLabel || snapshot.researchSummary.liveUniverse,
+  );
+  const shadowUniverse = usdJpyOnlyUniverseLabel(
+    snapshot.researchSummary.shadowResearchUniverseLabel || snapshot.researchSummary.shadowResearchUniverse,
+  );
   const queue = rowsFromPayload(snapshot.dailyReview?.actionQueue);
   const completed = rowsFromPayload(snapshot.dailyReview?.completedActionQueue);
   const queuedText = queue.length
