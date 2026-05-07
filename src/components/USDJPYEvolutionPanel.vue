@@ -60,13 +60,13 @@
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Daily Autopilot 2.0</span>
-        <strong>{{ agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status || '等待 Agent 待办' }}</strong>
+        <strong>{{ statusZh(agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status, '等待生成日报') }}</strong>
         <p>{{ agentDailyTodo?.summaryZh || dailyAutopilot?.dailyTodo?.summaryZh || 'Agent 自动生成早盘计划、今日待办和夜盘复盘。' }}</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>下一阶段任务</span>
-        <strong>{{ nextPhaseTodos.status || 'WAITING_NEXT_PHASE' }}</strong>
-        <p>Strategy JSON、GA Evolution、Telegram Gateway 等待下一阶段；当前不假装完成。</p>
+        <strong>{{ statusZh(nextPhaseTodos.status, '等待下一阶段') }}</strong>
+        <p>策略契约、进化引擎、Telegram 网关等待下一阶段；当前不假装完成。</p>
       </article>
     </div>
 
@@ -197,14 +197,14 @@
       <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
         <article v-for="item in dailyTodoItems.slice(0, 6)" :key="item.id">
           <span>{{ item.laneZh || item.lane }}</span>
-          <strong>{{ item.status }}</strong>
+          <strong>{{ statusZh(item.status) }}</strong>
           <p>{{ item.summaryZh }}</p>
         </article>
       </div>
       <div v-if="nextPhaseItems.length" class="qg-usdjpy-evolution__mini-list">
         <article v-for="item in nextPhaseItems" :key="item.id">
           <span>{{ item.titleZh || item.id }}</span>
-          <strong>{{ item.status }}</strong>
+          <strong>{{ statusZh(item.status) }}</strong>
           <p>{{ item.summaryZh }}</p>
         </article>
       </div>
@@ -416,6 +416,23 @@ function ratioMetric(value) {
 function metricText(value, suffix = '') {
   if (value == null || value === '') return '—';
   return `${value}${suffix}`;
+}
+
+function statusZh(value, fallback = '等待 Agent 处理') {
+  const map = {
+    COMPLETED_BY_AGENT: 'Agent 已完成',
+    AUTO_APPLIED_BY_AGENT: 'Agent 已推动',
+    WAITING_NEXT_PHASE: '等待下一阶段',
+    PENDING: '等待 Agent',
+    PROMOTED: '已晋级',
+    MICRO_LIVE: '极小仓实盘',
+    LIVE_LIMITED: '限制实盘',
+    ROLLBACK: '已回滚',
+    PAUSED: '已暂停',
+    REJECTED: '已淘汰',
+  };
+  const key = String(value || '').toUpperCase();
+  return map[key] || value || fallback;
 }
 
 function conclusionZh(value) {
@@ -640,8 +657,9 @@ onMounted(load);
 .qg-usdjpy-evolution__card strong {
   display: block;
   margin-top: 8px;
-  font-size: clamp(24px, 3vw, 34px);
+  font-size: clamp(22px, 2.4vw, 30px);
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .qg-usdjpy-evolution__card p,
@@ -691,6 +709,11 @@ onMounted(load);
 
 .qg-usdjpy-evolution__mini-list article {
   padding: 12px;
+}
+
+.qg-usdjpy-evolution__mini-list strong,
+.qg-usdjpy-evolution__list article strong {
+  overflow-wrap: anywhere;
 }
 
 .qg-usdjpy-evolution__note {

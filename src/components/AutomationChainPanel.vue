@@ -63,7 +63,7 @@
           <ul class="qg-automation-chain-panel__plain-list">
             <li v-for="step in steps" :key="step.name">
               <span :class="step.ok ? 'ok' : 'bad'">{{ step.ok ? '通过' : '未通过' }}</span>
-              {{ step.labelZh || step.name }}
+              {{ cleanStepLabel(step.labelZh || step.name) }}
               <small>{{ step.summaryZh || step.reason || '' }}</small>
             </li>
           </ul>
@@ -150,6 +150,15 @@ function entryModeZh(value) {
     OPPORTUNITY_ENTRY: '机会入场',
     BLOCKED: '阻断',
   }[String(value || '')] || '状态待确认';
+}
+
+function cleanStepLabel(value) {
+  const text = String(value || '').trim();
+  return text
+    .replace(/^P3-\d+\s*/i, '')
+    .replace(/^P\d+\s*/i, '')
+    .replace(/^[-:：\s]+/, '')
+    .trim() || '链路检查';
 }
 
 async function loadStatus() {
