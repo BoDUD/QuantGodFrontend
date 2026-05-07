@@ -782,6 +782,12 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
   const permissionReady = Boolean(permissions.liveMode && permissions.tradeAllowed);
   const cooldownOrStartup = Boolean(guards.cooldownActive || guards.startupGuardActive);
   const buyConditionText = `${passText(rsi.buyReversal)} / ${passText(rsi.buyBand)}`;
+  const sessionWindowText = String(guards.sessionWindowUtc || '').trim();
+  const sessionIsAlwaysOpen =
+    !sessionWindowText || ['全天', '24h', '24H', '0-23', '0-24', '00-23', '00-24'].includes(sessionWindowText);
+  const sessionDetail = sessionIsAlwaysOpen
+    ? '全天评估新入场；仍受新闻、点差、快通道、冷却、启动保护、仓位容量和亏损熔断约束。'
+    : `允许 ${sessionWindowText}，EA 只在该窗口内评估新入场。`;
   const buyConditionDetail = `RSI ${formatDiagnosticNumber(rsi.rsiClosed2)} → ${formatDiagnosticNumber(
     rsi.rsiClosed1,
   )}，布林下轨 ${formatDiagnosticNumber(rsi.lowerBand, 3)}，买入分 ${formatDiagnosticNumber(
@@ -807,7 +813,7 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
     {
       项目: '交易时段',
       结论: passText(guards.sessionOpen),
-      说明: `允许 UTC ${guards.sessionWindowUtc || '—'}，EA 只在该窗口内评估新入场。`,
+      说明: sessionDetail,
     },
     {
       项目: '点差',
