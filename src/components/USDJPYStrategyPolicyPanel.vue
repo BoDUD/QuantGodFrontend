@@ -47,9 +47,15 @@
           </p>
         </div>
         <div class="qg-usdjpy-panel__live-grid">
-          <span :class="evidenceClass(liveLoop?.runtimeReady)">运行快照 {{ boolLabel(liveLoop?.runtimeReady) }}</span>
-          <span :class="evidenceClass(liveLoop?.presetReady)">实盘配置 {{ boolLabel(liveLoop?.presetReady) }}</span>
-          <span :class="evidenceClass(liveLoop?.policyReady)">政策就绪 {{ boolLabel(liveLoop?.policyReady) }}</span>
+          <span :class="evidenceClass(liveLoop?.runtimeReady)"
+            >运行快照 {{ boolLabel(liveLoop?.runtimeReady) }}</span
+          >
+          <span :class="evidenceClass(liveLoop?.presetReady)"
+            >实盘配置 {{ boolLabel(liveLoop?.presetReady) }}</span
+          >
+          <span :class="evidenceClass(liveLoop?.policyReady)"
+            >政策就绪 {{ boolLabel(liveLoop?.policyReady) }}</span
+          >
           <span>自动仓位上限 {{ liveLoop?.maxEaPositions ?? 2 }}，人工仓位不计入</span>
         </div>
         <ul v-if="liveWhyNoEntry.length">
@@ -118,7 +124,11 @@
             <span>{{ catalogItems.length }} 条 shadow 策略</span>
           </div>
           <div class="qg-usdjpy-panel__strategy-cards">
-            <article v-for="item in catalogItems" :key="item.strategyKey || item.key" class="qg-usdjpy-panel__strategy-card">
+            <article
+              v-for="item in catalogItems"
+              :key="item.strategyKey || item.key"
+              class="qg-usdjpy-panel__strategy-card"
+            >
               <p>{{ item.displayName || item.name || item.strategyKey || item.key }}</p>
               <strong>{{ item.strategyKey || item.key }}</strong>
               <span>{{ strategySummary(item) }}</span>
@@ -139,7 +149,9 @@
               <small>{{ signalReason(item) }}</small>
             </article>
           </div>
-          <p v-else class="qg-usdjpy-panel__muted">还没有新的 shadow 候选信号，等待东京突破、夜盘回归或 H4 回调采样。</p>
+          <p v-else class="qg-usdjpy-panel__muted">
+            还没有新的 shadow 候选信号，等待东京突破、夜盘回归或 H4 回调采样。
+          </p>
         </article>
       </section>
 
@@ -151,7 +163,9 @@
           </div>
           <div class="qg-usdjpy-panel__plan-grid">
             <article v-for="item in backtestPlans" :key="item.strategyKey || item.strategy">
-              <strong>{{ item.displayName || item.strategyName || item.strategyKey || item.strategy }}</strong>
+              <strong>{{
+                item.displayName || item.strategyName || item.strategyKey || item.strategy
+              }}</strong>
               <span>{{ item.timeframe || 'M15' }} · {{ item.window || item.period || 'walk-forward' }}</span>
               <small>{{ backtestSummary(item) }}</small>
             </article>
@@ -175,9 +189,15 @@
             </button>
           </div>
           <div v-if="importedBacktests.length" class="qg-usdjpy-panel__import-list">
-            <article v-for="item in importedBacktests.slice(0, 4)" :key="`${item.strategy}-${item.importedAt}`">
+            <article
+              v-for="item in importedBacktests.slice(0, 4)"
+              :key="`${item.strategy}-${item.importedAt}`"
+            >
               <strong>{{ item.strategyName || item.strategy }}</strong>
-              <span>PF {{ formatScore(item.profitFactor) }} · 胜率 {{ percentLabel(item.winRate) }} · {{ item.trades || 0 }} 笔</span>
+              <span
+                >PF {{ formatScore(item.profitFactor) }} · 胜率 {{ percentLabel(item.winRate) }} ·
+                {{ item.trades || 0 }} 笔</span
+              >
               <small>{{ backtestImportStatus(item) }}</small>
             </article>
           </div>
@@ -192,10 +212,18 @@
             <span :class="evidenceClass(riskOk)">{{ riskOk ? '通过' : '等待证据' }}</span>
           </div>
           <ul class="qg-usdjpy-panel__evidence">
-            <li :class="evidenceClass(riskCheck?.runtimeOk)">运行快照：{{ boolLabel(riskCheck?.runtimeOk) }}</li>
-            <li :class="evidenceClass(riskCheck?.fastlaneOk)">快通道：{{ boolLabel(riskCheck?.fastlaneOk) }}</li>
-            <li :class="evidenceClass(riskCheck?.newsOk)">USD/JPY 新闻：{{ boolLabel(riskCheck?.newsOk) }}</li>
-            <li :class="evidenceClass(riskCheck?.shadowOnly)">新策略隔离：{{ boolLabel(riskCheck?.shadowOnly) }}</li>
+            <li :class="evidenceClass(riskCheck?.runtimeOk)">
+              运行快照：{{ boolLabel(riskCheck?.runtimeOk) }}
+            </li>
+            <li :class="evidenceClass(riskCheck?.fastlaneOk)">
+              快通道：{{ boolLabel(riskCheck?.fastlaneOk) }}
+            </li>
+            <li :class="evidenceClass(riskCheck?.newsOk)">
+              USD/JPY 新闻：{{ boolLabel(riskCheck?.newsOk) }}
+            </li>
+            <li :class="evidenceClass(riskCheck?.shadowOnly)">
+              新策略隔离：{{ boolLabel(riskCheck?.shadowOnly) }}
+            </li>
           </ul>
         </article>
       </section>
@@ -362,7 +390,12 @@ function signalReason(item) {
 }
 
 function backtestSummary(item) {
-  return item.description || item.acceptance || item.reason || '用于 walk-forward、ParamLab 和治理复核，不直接恢复实盘';
+  return (
+    item.description ||
+    item.acceptance ||
+    item.reason ||
+    '用于 walk-forward、ParamLab 和治理复核，不直接恢复实盘'
+  );
 }
 
 function backtestImportStatus(item) {
@@ -380,7 +413,15 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [statusPayload, catalogPayload, signalsPayload, planPayload, importedPayload, riskPayload, livePayload] = await Promise.all([
+    const [
+      statusPayload,
+      catalogPayload,
+      signalsPayload,
+      planPayload,
+      importedPayload,
+      riskPayload,
+      livePayload,
+    ] = await Promise.all([
       fetchUSDJPYStrategyLabStatus(),
       fetchUSDJPYStrategyCatalog(),
       fetchUSDJPYStrategySignals({ limit: 20 }),

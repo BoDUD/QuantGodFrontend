@@ -1,7 +1,9 @@
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'X-QuantGod-Local': '1' };
 export const USDJPY_FOCUS_SYMBOL = 'USDJPYc';
 
-const USDJPY_SYMBOL_FALLBACK = [{ symbol: USDJPY_FOCUS_SYMBOL, label: USDJPY_FOCUS_SYMBOL, assetClass: 'Forex' }];
+const USDJPY_SYMBOL_FALLBACK = [
+  { symbol: USDJPY_FOCUS_SYMBOL, label: USDJPY_FOCUS_SYMBOL, assetClass: 'Forex' },
+];
 
 function isUsdJpySymbol(value) {
   return String(value || '')

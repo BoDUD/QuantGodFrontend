@@ -485,14 +485,14 @@ export function buildMt5SimulationItems(snapshot) {
         ? '调参方案已生成'
         : hasNoTradeFinding
           ? '需要调参重跑'
-        : summary.dailyIterationRequired
-          ? '需要复核'
-          : '暂无阻塞',
+          : summary.dailyIterationRequired
+            ? '需要复核'
+            : '暂无阻塞',
       hint: noTradePlanReady
         ? `${noTradeRetune?.recommendation || '下一轮 tester-only 参数方案已生成'}；等待测试窗口执行。`
         : hasNoTradeFinding
           ? `今日 tester 已解析但无成交；策略 ${strategyQueue.length} 项、证据 ${evidenceQueue.length} 项待迭代`
-        : '只影响模拟和 tester，不修改实盘 preset',
+          : '只影响模拟和 tester，不修改实盘 preset',
       status: noTradePlanReady ? 'ok' : hasNoTradeFinding || summary.dailyIterationRequired ? 'warn' : 'ok',
     },
     {
@@ -722,18 +722,23 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
         .slice(0, 2)
         .map((row) => row.reasonZh || row.reason || row.code || row.label || humanizeStatus(row))
         .join('；')
-    : status.primaryBlocker
-      || status.mainBlocker
-      || (shouldSurfaceReasons && reasons.length
+    : status.primaryBlocker ||
+      status.mainBlocker ||
+      (shouldSurfaceReasons && reasons.length
         ? reasons
             .slice(0, 2)
-            .map((row) => row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row))
+            .map(
+              (row) =>
+                row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row),
+            )
             .join('；')
         : '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估');
   const reasonText = reasons.length
     ? reasons
         .slice(0, 2)
-        .map((row) => row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row))
+        .map(
+          (row) => row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row),
+        )
         .join('；')
     : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
 
@@ -818,7 +823,8 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
   const buyConditionText = `${passText(rsi.buyReversal)} / ${passText(rsi.buyBand)}`;
   const sessionWindowText = String(guards.sessionWindowUtc || '').trim();
   const sessionIsAlwaysOpen =
-    !sessionWindowText || ['全天', '24h', '24H', '0-23', '0-24', '00-23', '00-24'].includes(sessionWindowText);
+    !sessionWindowText ||
+    ['全天', '24h', '24H', '0-23', '0-24', '00-23', '00-24'].includes(sessionWindowText);
   const sessionDetail = sessionIsAlwaysOpen
     ? '全天评估新入场；仍受新闻、点差、快通道、冷却、启动保护、仓位容量和亏损熔断约束。'
     : `允许 ${sessionWindowText}，EA 只在该窗口内评估新入场。`;
@@ -842,7 +848,9 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
     {
       项目: '交易权限',
       结论: permissionReady ? '通过' : '未通过',
-      说明: permissions.blocker ? humanizeStatus(permissions.blocker) : 'MT5 终端、账户、EA 和品种权限均未报告阻断。',
+      说明: permissions.blocker
+        ? humanizeStatus(permissions.blocker)
+        : 'MT5 终端、账户、EA 和品种权限均未报告阻断。',
     },
     {
       项目: '交易时段',

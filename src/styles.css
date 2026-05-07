@@ -5178,9 +5178,7 @@ tbody tr:hover td {
 .qg-mt5-operations-grid .qg-ledger-table {
   min-height: clamp(260px, 34vh, 430px);
   border-color: rgba(96, 165, 250, 0.24);
-  background:
-    linear-gradient(135deg, rgba(37, 99, 235, 0.09), transparent 44%),
-    rgba(15, 23, 42, 0.72);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.09), transparent 44%), rgba(15, 23, 42, 0.72);
 }
 
 .qg-mt5-operations-grid .qg-ledger-table--mt5-full {

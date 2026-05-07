@@ -62,8 +62,7 @@ for (const token of mustContain) {
 }
 
 assert(
-  main.includes('./styles/responsive-hardening.css') ||
-    main.includes('src/styles/responsive-hardening.css'),
+  main.includes('./styles/responsive-hardening.css') || main.includes('src/styles/responsive-hardening.css'),
   'src/main.js must import ./styles/responsive-hardening.css',
 );
 

@@ -495,12 +495,12 @@ function buildReviewItems(payload) {
         ? '策略重调已生成'
         : polyRetune
           ? '需要策略迭代'
-        : friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
+          : friendlyText(summary.completionReportStatus || 'COMPLETE_NO_ACTION'),
       hint: polyRetuneDone
         ? `${polyRetune?.recommendation || '今日 shadow-only retune 已生成'}；继续隔离并等待明日样本验证。`
         : polyRetune
           ? '预测市场长期隔离不是成功状态，需要继续调筛选器并模拟验证'
-        : `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
+          : `${summary.completionRecommendationCount ?? 0} 条建议；${summary.codexReviewRequired ? '需要判断' : '暂无代码迭代'}`,
       status: polyRetuneDone ? 'ok' : summary.codexReviewRequired ? 'warn' : 'ok',
     },
     {
@@ -508,21 +508,18 @@ function buildReviewItems(payload) {
       value: copyRetuneDone
         ? '跟单方案已生成'
         : copyReview.active
-        ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
-        : '暂无跟单样本',
+          ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
+          : '暂无跟单样本',
       hint: copyRetuneDone
         ? `${copyQueue?.recommendation || copyReview.summary || '跟单 shadow-only 重调方案已生成'} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
         : copyReview.active
-        ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
-        : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
+          ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
+          : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
       status: copyRetuneDone ? 'ok' : copyReview.active ? 'warn' : 'unknown',
     },
     {
       label: '跟单迭代方案',
-      value:
-        copyVariantCount
-          ? `${copyVariantCount} 个 shadow-only 变体`
-          : '等待重调证据',
+      value: copyVariantCount ? `${copyVariantCount} 个 shadow-only 变体` : '等待重调证据',
       hint:
         Array.isArray(copyPlan.acceptanceCriteria) && copyPlan.acceptanceCriteria.length
           ? `恢复复核门槛：${copyPlan.acceptanceCriteria.join(' / ')}`
@@ -536,7 +533,12 @@ function buildReviewItems(payload) {
         polyRetuneDone || copyRetuneDone
           ? '今日 shadow-only 重调已生成；不会恢复真钱或自动下注。'
           : '红/黄只进入 shadow-only retune；不会恢复真钱或自动下注。',
-      status: polyRetuneDone || copyRetuneDone ? 'ok' : polySummary.retuneRed || polySummary.retuneYellow ? 'warn' : 'ok',
+      status:
+        polyRetuneDone || copyRetuneDone
+          ? 'ok'
+          : polySummary.retuneRed || polySummary.retuneYellow
+            ? 'warn'
+            : 'ok',
     },
   ];
 }
