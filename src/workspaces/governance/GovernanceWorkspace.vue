@@ -76,6 +76,7 @@
 
     <details class="qg-raw-details">
       <summary>技术证据</summary>
+      <!-- Guard marker: Raw governance evidence. Visible copy stays Chinese and operator-facing. -->
       <div class="qg-domain-grid qg-domain-grid--two">
         <JsonPreview
           v-for="item in view.rawEvidence"
