@@ -8,7 +8,8 @@ const files = [
   'src/components/USDJPYEvolutionPanel.vue',
   'src/workspaces/dashboard/DashboardWorkspace.vue',
 ];
-const forbidden = /\/QuantGod_.*\.(json|csv)|OrderSend|quick-trade|telegramCommandExecutionAllowed\s*[:=]\s*true|fetch\s*\(/i;
+const forbidden =
+  /\/QuantGod_.*\.(json|csv)|OrderSend|quick-trade|telegramCommandExecutionAllowed\s*[:=]\s*true|fetch\s*\(/i;
 
 function read(rel) {
   const full = path.join(repoRoot, rel);
@@ -73,6 +74,13 @@ for (const marker of [
   '/strategy-backtest/sample',
   '/strategy-backtest/run',
   '/strategy-backtest/telegram-text',
+  '/strategy-backtest/sync-klines',
+  '/evidence-os/status',
+  '/evidence-os/run',
+  '/evidence-os/parity',
+  '/evidence-os/execution-feedback',
+  '/evidence-os/case-memory',
+  '/evidence-os/telegram-text',
 ]) {
   if (!service.includes(marker)) errors.push(`service missing ${marker}`);
 }
@@ -81,20 +89,90 @@ if (!service.includes('fetchJson') || !service.includes('postJson')) {
 }
 
 const panel = read('src/components/USDJPYEvolutionPanel.vue');
-for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '自主治理 Agent', '不会改源码或 live preset', '回放候选对比', '预期影响', '风险变化', '因果 bar/tick 回放', '未来后验只评分，不触发', 'Walk-forward 稳定性筛选', '无需人工审批', '机器硬风控', '自动回滚', '三车道自主生命周期', '美分账户', 'MT5 模拟车道', 'Polymarket 模拟车道', 'Daily Autopilot 2.0', 'Agent 今日待办', 'Agent 每日复盘', '下一阶段任务', 'Strategy JSON', 'GA Evolution', 'Telegram Gateway', 'EA 对账', 'actionStatus', '因果回放已完成', '自主治理已完成', '自动日报已完成', '复盘闭环已完成', 'GA 全过程审计', '运行 GA 一代', '第 {{ item.generation }} 代', '种子', '阻断原因', 'Seed Detail', 'fitnessBreakdown', 'blockerCode', 'selectedGASeed', 'Strategy JSON 高保真回测', '运行策略回测', 'USDJPY SQLite K线', '策略回测已完成']) {
+for (const marker of [
+  'USDJPY 自学习闭环',
+  '数据集',
+  '回放',
+  '参数候选',
+  '自主治理 Agent',
+  '不会改源码或 live preset',
+  '回放候选对比',
+  '预期影响',
+  '风险变化',
+  '因果 bar/tick 回放',
+  '未来后验只评分，不触发',
+  'Walk-forward 稳定性筛选',
+  '无需人工审批',
+  '机器硬风控',
+  '自动回滚',
+  '三车道自主生命周期',
+  '美分账户',
+  'MT5 模拟车道',
+  'Polymarket 模拟车道',
+  'Daily Autopilot 2.0',
+  'Agent 今日待办',
+  'Agent 每日复盘',
+  '下一阶段任务',
+  'Strategy JSON',
+  'GA Evolution',
+  'Telegram Gateway',
+  'EA 对账',
+  'actionStatus',
+  '因果回放已完成',
+  '自主治理已完成',
+  '自动日报已完成',
+  '复盘闭环已完成',
+  'GA 全过程审计',
+  '运行 GA 一代',
+  '第 {{ item.generation }} 代',
+  '种子',
+  '阻断原因',
+  'Seed Detail',
+  'fitnessBreakdown',
+  'blockerCode',
+  'selectedGASeed',
+  'Strategy JSON 高保真回测',
+  '运行策略回测',
+  'USDJPY SQLite K线',
+  '策略回测已完成',
+  '真实 K线入库',
+  'Parity 校验',
+  '执行反馈',
+  'Case Memory',
+  '生成证据 OS',
+]) {
   if (!panel.includes(marker)) errors.push(`panel missing Chinese marker: ${marker}`);
 }
 if (panel.includes('patchAllowed') || panel.includes('待人工确认') || panel.includes('人工回灌。')) {
   errors.push('panel must use v2.5 Agent semantics without patchAllowed or human-backfill wording');
 }
-if (!panel.includes('fetchUSDJPYEvolutionStatus') || !panel.includes('runUSDJPYEvolutionBuild') || !panel.includes('fetchUSDJPYBarReplayStatus') || !panel.includes('runUSDJPYBarReplayBuild') || !panel.includes('fetchUSDJPYAutonomousAgent') || !panel.includes('runUSDJPYAutonomousAgent')) {
+if (
+  !panel.includes('fetchUSDJPYEvolutionStatus') ||
+  !panel.includes('runUSDJPYEvolutionBuild') ||
+  !panel.includes('fetchUSDJPYBarReplayStatus') ||
+  !panel.includes('runUSDJPYBarReplayBuild') ||
+  !panel.includes('fetchUSDJPYAutonomousAgent') ||
+  !panel.includes('runUSDJPYAutonomousAgent')
+) {
   errors.push('panel must load and build through USDJPY evolution service helpers');
 }
-if (!panel.includes('fetchUSDJPYGAStatus') || !panel.includes('runUSDJPYGAGeneration') || !panel.includes('fetchUSDJPYGACandidates') || !panel.includes('fetchUSDJPYGAEvolutionPath')) {
+if (
+  !panel.includes('fetchUSDJPYGAStatus') ||
+  !panel.includes('runUSDJPYGAGeneration') ||
+  !panel.includes('fetchUSDJPYGACandidates') ||
+  !panel.includes('fetchUSDJPYGAEvolutionPath')
+) {
   errors.push('panel must load and run Strategy JSON GA through service helpers');
 }
 if (!panel.includes('fetchUSDJPYStrategyBacktestStatus') || !panel.includes('runUSDJPYStrategyBacktest')) {
   errors.push('panel must load and run Strategy JSON backtest through service helpers');
+}
+if (
+  !panel.includes('fetchUSDJPYEvidenceOSStatus') ||
+  !panel.includes('runUSDJPYEvidenceOS') ||
+  !panel.includes('syncUSDJPYStrategyBacktestKlines')
+) {
+  errors.push('panel must load/run USDJPY evidence OS and sync real K-lines through service helpers');
 }
 
 const dashboard = read('src/workspaces/dashboard/DashboardWorkspace.vue');
@@ -102,7 +180,8 @@ if (!dashboard.includes('USDJPYEvolutionPanel')) errors.push('Dashboard must mou
 
 const automationPanel = read('src/components/AutomationChainPanel.vue');
 for (const marker of ['actionStatus', '运行完成', '刷新完成', 'USDJPY_LIVE_LOOP']) {
-  if (!automationPanel.includes(marker)) errors.push(`automation panel missing action feedback marker: ${marker}`);
+  if (!automationPanel.includes(marker))
+    errors.push(`automation panel missing action feedback marker: ${marker}`);
 }
 
 if (errors.length) {

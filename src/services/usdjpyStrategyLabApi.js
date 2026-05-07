@@ -303,3 +303,32 @@ export function fetchUSDJPYStrategyBacktestTelegramText({ refresh = false } = {}
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/strategy-backtest/telegram-text${query}`);
 }
+
+export function syncUSDJPYStrategyBacktestKlines() {
+  return postJson(`${BASE}/strategy-backtest/sync-klines`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYEvidenceOSStatus() {
+  return fetchJson(`${BASE}/evidence-os/status`);
+}
+
+export function runUSDJPYEvidenceOS() {
+  return postJson(`${BASE}/evidence-os/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYEvidenceOSParity() {
+  return fetchJson(`${BASE}/evidence-os/parity`);
+}
+
+export function fetchUSDJPYExecutionFeedback() {
+  return fetchJson(`${BASE}/evidence-os/execution-feedback`);
+}
+
+export function fetchUSDJPYCaseMemory() {
+  return fetchJson(`${BASE}/evidence-os/case-memory`);
+}
+
+export function fetchUSDJPYEvidenceOSTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/evidence-os/telegram-text${query}`);
+}

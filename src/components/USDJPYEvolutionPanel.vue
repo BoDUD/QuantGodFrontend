@@ -4,7 +4,10 @@
       <div>
         <p class="qg-usdjpy-evolution__eyebrow">USDJPY 自学习闭环</p>
         <h2>数据集、回放、Walk-forward 与自主治理</h2>
-        <p>每天把 EA 守门、错失机会、过早出场和参数候选整理成证据；无需人工审批，但必须通过机器硬风控和自动回滚。</p>
+        <p>
+          每天把 EA
+          守门、错失机会、过早出场和参数候选整理成证据；无需人工审批，但必须通过机器硬风控和自动回滚。
+        </p>
       </div>
       <div class="qg-usdjpy-evolution__actions">
         <button type="button" :disabled="loading" @click="load">刷新</button>
@@ -13,6 +16,7 @@
         <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
         <button type="button" :disabled="loading" @click="runStrategyBacktest">运行策略回测</button>
+        <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据 OS</button>
         <button type="button" :disabled="loading" @click="runGAGeneration">运行 GA 一代</button>
       </div>
     </header>
@@ -31,17 +35,25 @@
     </div>
 
     <div v-if="loading" class="qg-usdjpy-evolution__state">正在读取 USDJPY 自学习证据...</div>
-    <div v-else-if="error" class="qg-usdjpy-evolution__state qg-usdjpy-evolution__state--error">{{ error }}</div>
+    <div v-else-if="error" class="qg-usdjpy-evolution__state qg-usdjpy-evolution__state--error">
+      {{ error }}
+    </div>
     <div v-else class="qg-usdjpy-evolution__grid">
       <article class="qg-usdjpy-evolution__card">
         <span>运行数据集</span>
         <strong>{{ datasetSummary.sampleCount || 0 }}</strong>
-        <p>准入 {{ datasetSummary.readySignalCount || 0 }} / 实盘 {{ datasetSummary.actualEntryCount || 0 }} / 阻断 {{ datasetSummary.blockedCount || 0 }}</p>
+        <p>
+          准入 {{ datasetSummary.readySignalCount || 0 }} / 实盘 {{ datasetSummary.actualEntryCount || 0 }} /
+          阻断 {{ datasetSummary.blockedCount || 0 }}
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>回放复盘</span>
         <strong>{{ replayStatus }}</strong>
-        <p>错失 {{ replaySummary.missedOpportunityCount || 0 }} / 过早出场 {{ replaySummary.earlyExitCount || 0 }}</p>
+        <p>
+          错失 {{ replaySummary.missedOpportunityCount || 0 }} / 过早出场
+          {{ replaySummary.earlyExitCount || 0 }}
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>参数候选</span>
@@ -50,18 +62,28 @@
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>自主治理 Agent</span>
-        <strong>{{ autonomousAgent?.stageZh || autonomousAgent?.stage || proposal?.statusZh || '等待治理门' }}</strong>
+        <strong>{{
+          autonomousAgent?.stageZh || autonomousAgent?.stage || proposal?.statusZh || '等待治理门'
+        }}</strong>
         <p>{{ patchWritable ? '已允许写入受控 patch' : '未放行 patch' }}；不会改源码或 live preset。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>美分账户</span>
-        <strong>{{ centAccount.accountMode || 'cent' }} / {{ centAccount.accountCurrencyUnit || 'USC' }}</strong>
-        <p>加速 {{ centAccount.centAccountAcceleration ? '开启' : '关闭' }}；最大 {{ centAccount.maxLot ?? 2 }} 是上限，不是固定仓位。</p>
+        <strong
+          >{{ centAccount.accountMode || 'cent' }} / {{ centAccount.accountCurrencyUnit || 'USC' }}</strong
+        >
+        <p>
+          加速 {{ centAccount.centAccountAcceleration ? '开启' : '关闭' }}；最大
+          {{ centAccount.maxLot ?? 2 }} 是上限，不是固定仓位。
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>MT5 模拟车道</span>
         <strong>{{ mt5ShadowSummary.routeCount || 0 }} 条路线</strong>
-        <p>快速模拟 {{ mt5ShadowSummary.fastShadow || 0 }} / 测试器 {{ mt5ShadowSummary.testerOnly || 0 }} / 暂停 {{ mt5ShadowSummary.paused || 0 }}</p>
+        <p>
+          快速模拟 {{ mt5ShadowSummary.fastShadow || 0 }} / 测试器 {{ mt5ShadowSummary.testerOnly || 0 }} /
+          暂停 {{ mt5ShadowSummary.paused || 0 }}
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Polymarket 模拟车道</span>
@@ -80,8 +102,16 @@
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Daily Autopilot 2.0</span>
-        <strong>{{ statusZh(agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status, '等待生成日报') }}</strong>
-        <p>{{ agentDailyTodo?.summaryZh || dailyAutopilot?.dailyTodo?.summaryZh || 'Agent 自动生成早盘计划、今日待办和夜盘复盘。' }}</p>
+        <strong>{{
+          statusZh(agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status, '等待生成日报')
+        }}</strong>
+        <p>
+          {{
+            agentDailyTodo?.summaryZh ||
+            dailyAutopilot?.dailyTodo?.summaryZh ||
+            'Agent 自动生成早盘计划、今日待办和夜盘复盘。'
+          }}
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>下一阶段任务</span>
@@ -91,7 +121,37 @@
       <article class="qg-usdjpy-evolution__card">
         <span>Strategy JSON 回测</span>
         <strong>{{ strategyBacktestMetrics.netR ?? 0 }}R</strong>
-        <p>交易 {{ strategyBacktestMetrics.tradeCount ?? 0 }} / PF {{ strategyBacktestMetrics.profitFactor ?? 0 }} / 最大回撤 {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R</p>
+        <p>
+          交易 {{ strategyBacktestMetrics.tradeCount ?? 0 }} / PF
+          {{ strategyBacktestMetrics.profitFactor ?? 0 }} / 最大回撤
+          {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R
+        </p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>真实 K线入库</span>
+        <strong>{{ h1BarCount }} 根 H1</strong>
+        <p>
+          M15 {{ klineCounts.M15 || 0 }} / H4 {{ klineCounts.H4 || 0 }} / D1 {{ klineCounts.D1 || 0 }}；只同步
+          USDJPY。
+        </p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Parity 校验</span>
+        <strong>{{ parityStatus }}</strong>
+        <p>Strategy JSON / Python Replay / MQL5 EA 口径审计，不通过不能晋级。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>执行反馈</span>
+        <strong>{{ executionMetrics.feedbackRows || 0 }} 条</strong>
+        <p>
+          拒单 {{ executionMetrics.rejectCount || 0 }} / 滑点
+          {{ executionMetrics.avgAbsSlippagePips || 0 }} pips / 净 R {{ executionMetrics.netR || 0 }}
+        </p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Case Memory</span>
+        <strong>{{ caseMemory.caseCount || 0 }}</strong>
+        <p>{{ caseMemory.queuedForGA || 0 }} 个经验进入 GA 线索；记录错失、早出、执行偏差。</p>
       </article>
     </div>
 
@@ -101,12 +161,17 @@
           <h3>三车道自主生命周期</h3>
           <p>实盘要窄，模拟要宽，升降级要快，回滚要硬。</p>
         </div>
-        <strong>{{ autonomousLifecycle?.singleSourceOfTruth || 'USDJPY_LIVE_LOOP_WITH_AUTONOMOUS_LIFECYCLE' }}</strong>
+        <strong>{{
+          autonomousLifecycle?.singleSourceOfTruth || 'USDJPY_LIVE_LOOP_WITH_AUTONOMOUS_LIFECYCLE'
+        }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
           <span>Live Lane</span>
-          <strong>{{ liveLane.strategy || 'RSI_Reversal' }} / {{ directionZh(liveLane.direction || 'LONG') }}</strong>
+          <strong
+            >{{ liveLane.strategy || 'RSI_Reversal' }} /
+            {{ directionZh(liveLane.direction || 'LONG') }}</strong
+          >
           <p>只允许 USDJPYc 买入路线进入 MICRO_LIVE / LIVE_LIMITED。</p>
         </article>
         <article>
@@ -122,10 +187,16 @@
         <article>
           <span>自动回滚</span>
           <strong>{{ rollbackBlockers.length ? '已触发' : '待命' }}</strong>
-          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和高冲击新闻是不可放宽硬门禁。' }}</p>
+          <p>
+            {{
+              rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和高冲击新闻是不可放宽硬门禁。'
+            }}
+          </p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">MT5 Shadow 第一名不会抢实盘路线；Polymarket 永远不接真钱钱包；DeepSeek 只解释，不批准越权。</p>
+      <p class="qg-usdjpy-evolution__note">
+        MT5 Shadow 第一名不会抢实盘路线；Polymarket 永远不接真钱钱包；DeepSeek 只解释，不批准越权。
+      </p>
     </section>
 
     <section v-if="autonomousAgent" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--agent">
@@ -150,7 +221,9 @@
         <article>
           <span>自动回滚</span>
           <strong>{{ rollbackBlockers.length ? `${rollbackBlockers.length} 项` : '未触发' }}</strong>
-          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和高冲击新闻仍是硬门禁。' }}</p>
+          <p>
+            {{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和高冲击新闻仍是硬门禁。' }}
+          </p>
         </article>
         <article>
           <span>仓位上限</span>
@@ -158,7 +231,10 @@
           <p>当前阶段 / 系统上限；最大 2.0 只是上限，不是固定仓位。</p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">DeepSeek 只解释晋级和回滚原因，不能批准 live、不能取消回滚、不能提高最大仓位、不能放宽点差/runtime/高冲击新闻门禁。</p>
+      <p class="qg-usdjpy-evolution__note">
+        DeepSeek 只解释晋级和回滚原因，不能批准
+        live、不能取消回滚、不能提高最大仓位、不能放宽点差/runtime/高冲击新闻门禁。
+      </p>
     </section>
 
     <section v-if="dailyAutopilot" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--daily">
@@ -167,25 +243,46 @@
           <h3>Daily Autopilot 2.0</h3>
           <p>自动中文早盘计划、Agent 今日待办和每日复盘；已完成事项由 Agent 自动闭环。</p>
         </div>
-        <strong>{{ agentDailyTodo?.status || dailyAutopilot.dailyTodo?.status || dailyAutopilot.autonomousAgent?.stageZh || '自主评估' }}</strong>
+        <strong>{{
+          agentDailyTodo?.status ||
+          dailyAutopilot.dailyTodo?.status ||
+          dailyAutopilot.autonomousAgent?.stageZh ||
+          '自主评估'
+        }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
           <span>Agent 今日待办</span>
-          <strong>{{ agentDailyTodo?.completedByAgent || dailyAutopilot.dailyTodo?.completedByAgent ? '已自动完成' : '等待 Agent' }}</strong>
+          <strong>{{
+            agentDailyTodo?.completedByAgent || dailyAutopilot.dailyTodo?.completedByAgent
+              ? '已自动完成'
+              : '等待 Agent'
+          }}</strong>
           <p>
             {{ dailyTodoItems.length }} 项；
-            {{ agentDailyTodo?.autoAppliedByAgent || dailyAutopilot.dailyTodo?.autoAppliedByAgent ? '已自动推动阶段/patch' : '无需自动推动' }}；
-            {{ agentDailyTodo?.rollbackTriggered || dailyAutopilot.dailyTodo?.rollbackTriggered ? '已触发回滚' : '未触发回滚' }}
+            {{
+              agentDailyTodo?.autoAppliedByAgent || dailyAutopilot.dailyTodo?.autoAppliedByAgent
+                ? '已自动推动阶段/patch'
+                : '无需自动推动'
+            }}；
+            {{
+              agentDailyTodo?.rollbackTriggered || dailyAutopilot.dailyTodo?.rollbackTriggered
+                ? '已触发回滚'
+                : '未触发回滚'
+            }}
           </p>
         </article>
         <article>
           <span>Agent 每日复盘</span>
-          <strong>{{ agentDailyReview?.completedByAgent || dailyAutopilot.dailyReview?.completedByAgent ? '已自动复盘' : '等待复盘' }}</strong>
+          <strong>{{
+            agentDailyReview?.completedByAgent || dailyAutopilot.dailyReview?.completedByAgent
+              ? '已自动复盘'
+              : '等待复盘'
+          }}</strong>
           <p>
-            净 R {{ metricText(dailyReviewMetrics.netR) }}；
-            最大不利 {{ metricText(dailyReviewMetrics.maxAdverseR, 'R') }}；
-            错失 {{ metricText(dailyReviewMetrics.missedOpportunity) }}
+            净 R {{ metricText(dailyReviewMetrics.netR) }}； 最大不利
+            {{ metricText(dailyReviewMetrics.maxAdverseR, 'R') }}； 错失
+            {{ metricText(dailyReviewMetrics.missedOpportunity) }}
           </p>
         </article>
         <article>
@@ -193,15 +290,24 @@
           <strong>{{ dailyAutopilot.morningPlan?.liveLane?.strategy || 'RSI_Reversal' }}</strong>
           <p>
             {{ dailyAutopilot.morningPlan?.liveLane?.symbol || 'USDJPYc' }}
-            {{ directionZh(dailyAutopilot.morningPlan?.liveLane?.direction || 'LONG') }}；
-            阶段仓位 {{ dailyAutopilot.morningPlan?.liveLane?.stageMaxLot ?? 0 }} /
-            上限 {{ dailyAutopilot.morningPlan?.liveLane?.maxLot ?? 2 }}
+            {{ directionZh(dailyAutopilot.morningPlan?.liveLane?.direction || 'LONG') }}； 阶段仓位
+            {{ dailyAutopilot.morningPlan?.liveLane?.stageMaxLot ?? 0 }} / 上限
+            {{ dailyAutopilot.morningPlan?.liveLane?.maxLot ?? 2 }}
           </p>
         </article>
         <article>
           <span>MT5 模拟日报</span>
-          <strong>{{ dailyAutopilot.eveningReview?.mt5ShadowLane?.routeCount || mt5ShadowSummary.routeCount || 0 }} 条路线</strong>
-          <p>晋级/强化 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.promotedCount || 0 }}，暂停 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.pausedCount || 0 }}，淘汰 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.rejectedCount || 0 }}</p>
+          <strong
+            >{{
+              dailyAutopilot.eveningReview?.mt5ShadowLane?.routeCount || mt5ShadowSummary.routeCount || 0
+            }}
+            条路线</strong
+          >
+          <p>
+            晋级/强化 {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.promotedCount || 0 }}，暂停
+            {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.pausedCount || 0 }}，淘汰
+            {{ dailyAutopilot.eveningReview?.mt5ShadowLane?.rejectedCount || 0 }}
+          </p>
         </article>
         <article>
           <span>Polymarket 日报</span>
@@ -211,12 +317,23 @@
         <article>
           <span>今日硬禁止</span>
           <strong>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.length || 0 }} 项</strong>
-          <p>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] || '高冲击新闻、点差、runtime 和快通道门禁不可放宽。' }}</p>
+          <p>
+            {{
+              dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] ||
+              '高冲击新闻、点差、runtime 和快通道门禁不可放宽。'
+            }}
+          </p>
         </article>
         <article>
           <span>新闻门禁日报</span>
           <strong>{{ dailyAutopilot.morningPlan?.newsGate?.mode || newsGate.mode || 'SOFT' }}</strong>
-          <p>{{ dailyAutopilot.morningPlan?.newsGate?.reasonZh || newsGate.reasonZh || '普通新闻不阻断，只降仓；高冲击新闻硬阻断。' }}</p>
+          <p>
+            {{
+              dailyAutopilot.morningPlan?.newsGate?.reasonZh ||
+              newsGate.reasonZh ||
+              '普通新闻不阻断，只降仓；高冲击新闻硬阻断。'
+            }}
+          </p>
         </article>
         <article>
           <span>下一阶段任务</span>
@@ -252,12 +369,18 @@
         <article>
           <span>当前规则</span>
           <strong>{{ causalMetric('entry', 0, 'sampleCount') }} 次</strong>
-          <p>净值 {{ causalMetric('entry', 0, 'netR') }}R / 最大不利 {{ causalMetric('entry', 0, 'maxAdverseR') }}R</p>
+          <p>
+            净值 {{ causalMetric('entry', 0, 'netR') }}R / 最大不利
+            {{ causalMetric('entry', 0, 'maxAdverseR') }}R
+          </p>
         </article>
         <article>
           <span>放宽 RSI 一档</span>
           <strong>{{ causalMetric('entry', 1, 'entryCountDelta') }} 次增量</strong>
-          <p>净变化 {{ signedMetric(causalMetric('entry', 1, 'netRDelta')) }}R / 结论 {{ conclusionZh(causalMetric('entry', 1, 'conclusion')) }}</p>
+          <p>
+            净变化 {{ signedMetric(causalMetric('entry', 1, 'netRDelta')) }}R / 结论
+            {{ conclusionZh(causalMetric('entry', 1, 'conclusion')) }}
+          </p>
         </article>
         <article>
           <span>当前出场</span>
@@ -267,10 +390,15 @@
         <article>
           <span>盈利多拿一段</span>
           <strong>{{ ratioMetric(causalMetric('exit', 1, 'profitCaptureRatio')) }}</strong>
-          <p>净变化 {{ signedMetric(causalMetric('exit', 1, 'netRDelta')) }}R / 结论 {{ conclusionZh(causalMetric('exit', 1, 'conclusion')) }}</p>
+          <p>
+            净变化 {{ signedMetric(causalMetric('exit', 1, 'netRDelta')) }}R / 结论
+            {{ conclusionZh(causalMetric('exit', 1, 'conclusion')) }}
+          </p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">{{ barReplay?.causalReplay?.explanationZh || '后验窗口只能用于评分，不能决定当时是否入场。' }}</p>
+      <p class="qg-usdjpy-evolution__note">
+        {{ barReplay?.causalReplay?.explanationZh || '后验窗口只能用于评分，不能决定当时是否入场。' }}
+      </p>
     </section>
 
     <section v-if="newsGateReplay" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--news">
@@ -285,7 +413,10 @@
         <article v-for="variant in newsGateVariants" :key="variant.variant">
           <span>{{ variant.labelZh || variant.variant }}</span>
           <strong>{{ variant.recommendation || '待评估' }}</strong>
-          <p>净 R 变化 {{ signedMetric(variant.netRDelta ?? 0) }}；最大不利变化 {{ signedMetric(variant.maxAdverseRDelta ?? 0) }}</p>
+          <p>
+            净 R 变化 {{ signedMetric(variant.netRDelta ?? 0) }}；最大不利变化
+            {{ signedMetric(variant.maxAdverseRDelta ?? 0) }}
+          </p>
         </article>
       </div>
     </section>
@@ -294,7 +425,10 @@
       <div class="qg-usdjpy-evolution__section-head">
         <div>
           <h3>GA 全过程审计</h3>
-          <p>Strategy JSON 种子、generation、fitness、阻断、elite 和下一代路径全部可追踪；只进入 MT5 Shadow / Tester / Paper-live-sim。</p>
+          <p>
+            Strategy JSON 种子、generation、fitness、阻断、elite 和下一代路径全部可追踪；只进入 MT5 Shadow /
+            Tester / Paper-live-sim。
+          </p>
         </div>
         <strong>{{ gaStatus.status || '等待第一代' }}</strong>
       </div>
@@ -367,60 +501,90 @@
         <div>
           <span>Fitness 分解</span>
           <p>
-            netR {{ selectedGASeed.fitnessBreakdown?.netR ?? 0 }}；
-            max adverse {{ selectedGASeed.fitnessBreakdown?.maxAdverseR ?? 0 }}；
-            样本 {{ selectedGASeed.fitnessBreakdown?.sampleCount ?? 0 }}；
-            过拟合惩罚 {{ selectedGASeed.fitnessBreakdown?.overfitPenalty ?? 0 }}
+            netR {{ selectedGASeed.fitnessBreakdown?.netR ?? 0 }}； max adverse
+            {{ selectedGASeed.fitnessBreakdown?.maxAdverseR ?? 0 }}； 样本
+            {{ selectedGASeed.fitnessBreakdown?.sampleCount ?? 0 }}； 过拟合惩罚
+            {{ selectedGASeed.fitnessBreakdown?.overfitPenalty ?? 0 }}
           </p>
         </div>
         <pre>{{ strategyJsonPreview(selectedGASeed.strategyJson) }}</pre>
       </div>
-      <p class="qg-usdjpy-evolution__note">GA 不能直接实盘、不能 MICRO_LIVE、不能修改 live preset、不能提高 maxLot、不能绕过 news / spread / runtime / fastlane。</p>
+      <p class="qg-usdjpy-evolution__note">
+        GA 不能直接实盘、不能 MICRO_LIVE、不能修改 live preset、不能提高 maxLot、不能绕过 news / spread /
+        runtime / fastlane。
+      </p>
     </section>
 
-    <section v-if="strategyBacktestReport" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--strategy-backtest">
+    <section
+      v-if="strategyBacktestReport"
+      class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--strategy-backtest"
+    >
       <div class="qg-usdjpy-evolution__section-head">
         <div>
           <h3>Strategy JSON 高保真回测</h3>
-          <p>统一 Strategy JSON 契约读取 USDJPY SQLite K线，输出交易、权益曲线和 GA 可读 fitness evidence。</p>
+          <p>
+            统一 Strategy JSON 契约读取 USDJPY SQLite K线，输出交易、权益曲线和 GA 可读 fitness evidence。
+          </p>
         </div>
         <strong>{{ strategyBacktestReport.evidenceQuality || 'LOW' }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
           <span>回测策略</span>
-          <strong>{{ strategyBacktestReport.strategyFamily || 'RSI_Reversal' }} / {{ directionZh(strategyBacktestReport.direction || 'LONG') }}</strong>
+          <strong
+            >{{ strategyBacktestReport.strategyFamily || 'RSI_Reversal' }} /
+            {{ directionZh(strategyBacktestReport.direction || 'LONG') }}</strong
+          >
           <p>{{ strategyBacktestReport.strategyId || 'Strategy JSON seed' }}</p>
         </article>
         <article>
           <span>净收益</span>
           <strong>{{ strategyBacktestMetrics.netR ?? 0 }}R</strong>
-          <p>{{ strategyBacktestMetrics.netPips ?? 0 }} pips / {{ strategyBacktestMetrics.tradeCount ?? 0 }} 笔</p>
+          <p>
+            {{ strategyBacktestMetrics.netPips ?? 0 }} pips / {{ strategyBacktestMetrics.tradeCount ?? 0 }} 笔
+          </p>
         </article>
         <article>
           <span>稳定性</span>
           <strong>{{ strategyBacktestMetrics.profitFactor ?? 0 }} PF</strong>
-          <p>胜率 {{ strategyBacktestMetrics.winRate ?? 0 }}% / 最大回撤 {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R</p>
+          <p>
+            胜率 {{ strategyBacktestMetrics.winRate ?? 0 }}% / 最大回撤
+            {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R
+          </p>
         </article>
         <article>
           <span>风险捕获</span>
           <strong>{{ strategyBacktestMetrics.profitCaptureRatio ?? 0 }}</strong>
-          <p>Sharpe {{ strategyBacktestMetrics.sharpe ?? 0 }} / Sortino {{ strategyBacktestMetrics.sortino ?? 0 }}</p>
+          <p>
+            Sharpe {{ strategyBacktestMetrics.sharpe ?? 0 }} / Sortino
+            {{ strategyBacktestMetrics.sortino ?? 0 }}
+          </p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；不会下单、不会平仓、不会撤单、不会修改 live preset。</p>
+      <p class="qg-usdjpy-evolution__note">
+        本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；不会下单、不会平仓、不会撤单、不会修改 live
+        preset。
+      </p>
     </section>
 
-    <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
+    <section
+      v-if="scenarioItems.length"
+      class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios"
+    >
       <h3>回放候选对比</h3>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article v-for="item in scenarioItems" :key="item.scenario">
           <span>{{ item.labelZh || item.scenario }}</span>
           <strong>{{ formatScenarioDelta(item) }}</strong>
-          <p>样本 {{ item.sampleCount || 0 }} / {{ item.verdict === 'shadow_only' ? '只进入影子验证' : scenarioVerdictZh(item.verdict) }}</p>
+          <p>
+            样本 {{ item.sampleCount || 0 }} /
+            {{ item.verdict === 'shadow_only' ? '只进入影子验证' : scenarioVerdictZh(item.verdict) }}
+          </p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">{{ unitPolicy.note || '回放主口径使用 R 倍数，pips 辅助；USC 只作为账面参考。' }}</p>
+      <p class="qg-usdjpy-evolution__note">
+        {{ unitPolicy.note || '回放主口径使用 R 倍数，pips 辅助；USC 只作为账面参考。' }}
+      </p>
     </section>
 
     <section v-if="walkForward" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--walk-forward">
@@ -435,7 +599,10 @@
         <article v-for="item in walkForwardCandidates" :key="item.variant">
           <span>{{ item.labelZh || item.variant }}</span>
           <strong>{{ conclusionZh(item.conclusion) }}</strong>
-          <p>总净变化 {{ signedMetric(item.summary?.netRDelta ?? '—') }}R / forward {{ signedMetric(item.summary?.forwardNetRDelta ?? '—') }}R</p>
+          <p>
+            总净变化 {{ signedMetric(item.summary?.netRDelta ?? '—') }}R / forward
+            {{ signedMetric(item.summary?.forwardNetRDelta ?? '—') }}R
+          </p>
         </article>
       </div>
     </section>
@@ -464,6 +631,7 @@ import {
   fetchUSDJPYBarReplayStatus,
   fetchUSDJPYDailyAutopilotV2,
   fetchUSDJPYEaReproducibility,
+  fetchUSDJPYEvidenceOSStatus,
   fetchUSDJPYEvolutionStatus,
   fetchUSDJPYGABlockers,
   fetchUSDJPYGACandidates,
@@ -478,6 +646,7 @@ import {
   runUSDJPYAgentDailyReview,
   runUSDJPYAgentDailyTodo,
   runUSDJPYDailyAutopilotV2,
+  runUSDJPYEvidenceOS,
   runUSDJPYEvolutionBuild,
   runUSDJPYGAGeneration,
   runUSDJPYConfigProposal,
@@ -485,6 +654,7 @@ import {
   runUSDJPYReplayReport,
   runUSDJPYStrategyBacktest,
   runUSDJPYWalkForwardBuild,
+  syncUSDJPYStrategyBacktestKlines,
 } from '../services/usdjpyStrategyLabApi.js';
 
 const payload = ref(null);
@@ -504,6 +674,7 @@ const gaCandidatesPayload = ref(null);
 const gaPathPayload = ref(null);
 const gaBlockersPayload = ref(null);
 const strategyBacktestPayload = ref(null);
+const evidenceOSPayload = ref(null);
 const selectedGASeed = ref(null);
 const loading = ref(false);
 const error = ref('');
@@ -516,24 +687,40 @@ const proposal = computed(() => payload.value?.proposal || {});
 const datasetSummary = computed(() => dataset.value?.summary || {});
 const replaySummary = computed(() => replay.value?.summary || {});
 const tuningSummary = computed(() => tuning.value?.summary || {});
-const candidateItems = computed(() => (Array.isArray(tuning.value?.candidates) ? tuning.value.candidates : []));
-const scenarioItems = computed(() => (Array.isArray(replay.value?.scenarioComparisons) ? replay.value.scenarioComparisons : []));
+const candidateItems = computed(() =>
+  Array.isArray(tuning.value?.candidates) ? tuning.value.candidates : [],
+);
+const scenarioItems = computed(() =>
+  Array.isArray(replay.value?.scenarioComparisons) ? replay.value.scenarioComparisons : [],
+);
 const unitPolicy = computed(() => replay.value?.unitPolicy || {});
 const replayStatus = computed(() => replay.value?.statusZh || replay.value?.status || '等待回放');
-const barReplayStatus = computed(() => barReplay.value?.statusZh || barReplay.value?.status || '等待因果回放');
-const walkForwardCandidates = computed(() => (Array.isArray(walkForward.value?.candidates) ? walkForward.value.candidates : []));
+const barReplayStatus = computed(
+  () => barReplay.value?.statusZh || barReplay.value?.status || '等待因果回放',
+);
+const walkForwardCandidates = computed(() =>
+  Array.isArray(walkForward.value?.candidates) ? walkForward.value.candidates : [],
+);
 const agentPatch = computed(() => autonomousAgent.value?.currentPatch || {});
 const agentLimits = computed(() => agentPatch.value?.limits || {});
 const patchWritable = computed(() => Boolean(autonomousAgent.value?.patchWritable));
-const autonomousLifecycle = computed(() => lifecyclePayload.value || autonomousAgent.value?.autonomousLifecycle || {});
-const centAccount = computed(() => autonomousAgent.value?.centAccount || autonomousLifecycle.value?.centAccount || {});
-const lanes = computed(() => lanesPayload.value?.lanes || autonomousAgent.value?.lanes || autonomousLifecycle.value?.lanes || null);
+const autonomousLifecycle = computed(
+  () => lifecyclePayload.value || autonomousAgent.value?.autonomousLifecycle || {},
+);
+const centAccount = computed(
+  () => autonomousAgent.value?.centAccount || autonomousLifecycle.value?.centAccount || {},
+);
+const lanes = computed(
+  () => lanesPayload.value?.lanes || autonomousAgent.value?.lanes || autonomousLifecycle.value?.lanes || null,
+);
 const liveLane = computed(() => lanes.value?.live || {});
 const mt5Shadow = computed(() => mt5ShadowPayload.value || lanes.value?.mt5Shadow || {});
 const polymarketShadow = computed(() => polymarketShadowPayload.value || lanes.value?.polymarketShadow || {});
 const mt5ShadowSummary = computed(() => mt5Shadow.value?.summary || {});
 const polymarketSummary = computed(() => polymarketShadow.value?.summary || {});
-const newsGate = computed(() => dailyAutopilot.value?.newsGate || payload.value?.policy?.newsGate || barReplay.value?.newsGate || {});
+const newsGate = computed(
+  () => dailyAutopilot.value?.newsGate || payload.value?.policy?.newsGate || barReplay.value?.newsGate || {},
+);
 const newsGateReplay = computed(() => barReplay.value?.newsGateReplay || null);
 const newsGateVariants = computed(() => {
   const variants = newsGateReplay.value?.variants || [];
@@ -552,10 +739,26 @@ const gaBlockerItems = computed(() => {
   const rows = gaBlockersPayload.value?.summary || gaPayload.value?.blockers?.summary || [];
   return Array.isArray(rows) ? rows : [];
 });
-const topGABlocker = computed(() => gaBlockerItems.value.find((item) => item?.blockerCode !== 'PASSED') || null);
-const strategyBacktestReport = computed(() => strategyBacktestPayload.value?.latestReport || strategyBacktestPayload.value || null);
+const topGABlocker = computed(
+  () => gaBlockerItems.value.find((item) => item?.blockerCode !== 'PASSED') || null,
+);
+const strategyBacktestReport = computed(
+  () => strategyBacktestPayload.value?.latestReport || strategyBacktestPayload.value || null,
+);
 const strategyBacktestMetrics = computed(() => strategyBacktestReport.value?.metrics || {});
-const eaRepro = computed(() => eaReproPayload.value || autonomousAgent.value?.eaReproducibility || autonomousLifecycle.value?.eaReproducibility || {});
+const klineCounts = computed(() => strategyBacktestPayload.value?.barCounts || {});
+const h1BarCount = computed(() => klineCounts.value.H1 || strategyBacktestReport.value?.barCount || 0);
+const evidenceOS = computed(() => evidenceOSPayload.value || {});
+const parityStatus = computed(() => evidenceOS.value?.parity?.status || '等待校验');
+const executionMetrics = computed(() => evidenceOS.value?.executionFeedback?.metrics || {});
+const caseMemory = computed(() => evidenceOS.value?.caseMemory || {});
+const eaRepro = computed(
+  () =>
+    eaReproPayload.value ||
+    autonomousAgent.value?.eaReproducibility ||
+    autonomousLifecycle.value?.eaReproducibility ||
+    {},
+);
 const rollbackBlockers = computed(() => {
   const rollback = agentPatch.value?.rollback || {};
   return Array.isArray(rollback.hardBlockers) ? rollback.hardBlockers : [];
@@ -564,12 +767,16 @@ const dailyTodoItems = computed(() => {
   const items = agentDailyTodo.value?.items || dailyAutopilot.value?.dailyTodo?.items || [];
   return Array.isArray(items) ? items : [];
 });
-const nextPhaseTodos = computed(() => dailyAutopilot.value?.nextPhaseTodos || agentDailyTodo.value?.nextPhaseTodos || {});
+const nextPhaseTodos = computed(
+  () => dailyAutopilot.value?.nextPhaseTodos || agentDailyTodo.value?.nextPhaseTodos || {},
+);
 const nextPhaseItems = computed(() => {
   const items = nextPhaseTodos.value?.items || [];
   return Array.isArray(items) ? items : [];
 });
-const dailyReviewMetrics = computed(() => agentDailyReview.value?.metrics || dailyAutopilot.value?.dailyReview?.metrics || {});
+const dailyReviewMetrics = computed(
+  () => agentDailyReview.value?.metrics || dailyAutopilot.value?.dailyReview?.metrics || {},
+);
 const patchChangeText = computed(() => {
   const changes = agentPatch.value?.changes || {};
   const entries = Object.entries(changes);
@@ -707,7 +914,12 @@ function barReplaySummary() {
 }
 
 function governanceSummary() {
-  const stage = statusZh(autonomousAgent.value?.executionStage || autonomousAgent.value?.stage || lifecyclePayload.value?.executionStage, '等待治理门');
+  const stage = statusZh(
+    autonomousAgent.value?.executionStage ||
+      autonomousAgent.value?.stage ||
+      lifecyclePayload.value?.executionStage,
+    '等待治理门',
+  );
   const liveStage = statusZh(liveLane.value?.executionStage || liveLane.value?.stage, '实盘车道等待');
   const mt5Count = mt5ShadowSummary.value?.totalRoutes ?? mt5ShadowSummary.value?.routeCount ?? 0;
   return `自主治理已运行：Agent 阶段 ${stage}；实盘车道 ${liveStage}；MT5 模拟车道 ${mt5Count} 条路线。`;
@@ -716,7 +928,10 @@ function governanceSummary() {
 function dailySummary() {
   const todoCount = dailyTodoItems.value.length;
   const nextCount = nextPhaseItems.value.length;
-  const reviewState = statusZh(agentDailyReview.value?.status || dailyAutopilot.value?.dailyReview?.status, '复盘已刷新');
+  const reviewState = statusZh(
+    agentDailyReview.value?.status || dailyAutopilot.value?.dailyReview?.status,
+    '复盘已刷新',
+  );
   return `自动日报已生成：今日待办 ${todoCount} 条；下一阶段任务 ${nextCount} 条；每日复盘 ${reviewState}。`;
 }
 
@@ -730,10 +945,17 @@ function strategyBacktestSummary() {
   return `策略回测已完成：交易 ${metrics.tradeCount || 0} 笔；净 R ${metrics.netR ?? 0}；PF ${metrics.profitFactor ?? 0}。`;
 }
 
+function evidenceOSSummary() {
+  return `证据 OS 已生成：Parity ${parityStatus.value}；执行反馈 ${executionMetrics.value.feedbackRows || 0} 条；Case ${caseMemory.value.caseCount || 0} 个。`;
+}
+
 function evolutionSummary() {
   const samples = datasetSummary.value?.sampleCount ?? datasetSummary.value?.totalSamples ?? 0;
   const candidates = candidateItems.value.length;
-  const agentStage = statusZh(autonomousAgent.value?.executionStage || autonomousAgent.value?.stage, '等待 Agent');
+  const agentStage = statusZh(
+    autonomousAgent.value?.executionStage || autonomousAgent.value?.stage,
+    '等待 Agent',
+  );
   return `复盘闭环已生成：运行样本 ${samples}；参数候选 ${candidates} 个；Agent 阶段 ${agentStage}。`;
 }
 
@@ -755,6 +977,7 @@ function assignLoaded(results) {
   gaPathPayload.value = results.gaPath;
   gaBlockersPayload.value = results.gaBlockers;
   strategyBacktestPayload.value = results.strategyBacktestState;
+  evidenceOSPayload.value = results.evidenceOSState;
   selectedGASeed.value = results.gaCandidates?.candidates?.[0] || selectedGASeed.value;
 }
 
@@ -777,6 +1000,7 @@ async function loadAll() {
     gaPath,
     gaBlockers,
     strategyBacktestState,
+    evidenceOSState,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
     fetchUSDJPYBarReplayStatus(),
@@ -795,6 +1019,7 @@ async function loadAll() {
     fetchUSDJPYGAEvolutionPath(),
     fetchUSDJPYGABlockers(),
     fetchUSDJPYStrategyBacktestStatus(),
+    fetchUSDJPYEvidenceOSStatus(),
   ]);
   assignLoaded({
     evolutionPayload,
@@ -814,6 +1039,7 @@ async function loadAll() {
     gaPath,
     gaBlockers,
     strategyBacktestState,
+    evidenceOSState,
   });
 }
 
@@ -870,7 +1096,10 @@ async function runDailyAutopilotV2() {
 async function runGAGeneration() {
   loading.value = true;
   error.value = '';
-  setActionRunning('正在运行 GA 一代', '正在生成 Strategy JSON 种子、评分 fitness、选择 elite 并写入全过程 trace。');
+  setActionRunning(
+    '正在运行 GA 一代',
+    '正在生成 Strategy JSON 种子、评分 fitness、选择 elite 并写入全过程 trace。',
+  );
   try {
     gaPayload.value = await runUSDJPYGAGeneration();
     await loadAll();
@@ -886,14 +1115,39 @@ async function runGAGeneration() {
 async function runStrategyBacktest() {
   loading.value = true;
   error.value = '';
-  setActionRunning('正在运行策略回测', '正在用 Strategy JSON 读取 USDJPY SQLite K线，并生成交易、权益曲线和 GA evidence。');
+  setActionRunning(
+    '正在运行策略回测',
+    '正在用 Strategy JSON 读取 USDJPY SQLite K线，并生成交易、权益曲线和 GA evidence。',
+  );
   try {
+    await syncUSDJPYStrategyBacktestKlines();
     strategyBacktestPayload.value = await runUSDJPYStrategyBacktest();
     await loadAll();
     setActionSuccess('策略回测已完成', strategyBacktestSummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY Strategy JSON 回测失败';
     setActionError('策略回测失败', err, 'USDJPY Strategy JSON 回测失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runEvidenceOS() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning(
+    '正在生成证据 OS',
+    '正在同步真实 USDJPY K线、运行 Strategy JSON 回测、Parity、执行反馈和 Case Memory。',
+  );
+  try {
+    await syncUSDJPYStrategyBacktestKlines();
+    strategyBacktestPayload.value = await runUSDJPYStrategyBacktest();
+    evidenceOSPayload.value = await runUSDJPYEvidenceOS();
+    await loadAll();
+    setActionSuccess('证据 OS 已完成', evidenceOSSummary());
+  } catch (err) {
+    error.value = err?.message || 'USDJPY 证据 OS 生成失败';
+    setActionError('证据 OS 失败', err, 'USDJPY 证据 OS 生成失败');
   } finally {
     loading.value = false;
   }
@@ -923,7 +1177,9 @@ async function runFullEvolution() {
     await runUSDJPYEvolutionBuild();
     await runUSDJPYReplayReport();
     await runUSDJPYBarReplayBuild();
+    await syncUSDJPYStrategyBacktestKlines();
     await runUSDJPYStrategyBacktest();
+    await runUSDJPYEvidenceOS();
     await runUSDJPYWalkForwardBuild();
     await runUSDJPYParamTuning();
     await runUSDJPYConfigProposal();
