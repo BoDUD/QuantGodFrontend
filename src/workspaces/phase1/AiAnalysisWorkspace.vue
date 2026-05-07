@@ -89,6 +89,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import {
+  USDJPY_FOCUS_SYMBOL,
   getAiHistory,
   getAiHistoryItem,
   getAiLatest,
@@ -104,7 +105,7 @@ import ReasoningTabs from './ReasoningTabs.vue';
 import SymbolSelector from './SymbolSelector.vue';
 
 const symbols = ref([]);
-const symbol = ref('EURUSDc');
+const symbol = ref(USDJPY_FOCUS_SYMBOL);
 const timeframesText = ref('M15,H1,H4,D1');
 const loading = ref(false);
 const error = ref('');

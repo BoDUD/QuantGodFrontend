@@ -22,6 +22,21 @@ test('Kline workspace uses live quote for realtime market summary', () => {
   assert.match(workspaceSource, /quotePayload\.value\s*=\s*null/);
 });
 
+test('Kline workspace is scoped to USDJPY only', () => {
+  const apiSource = readRepoFile('src/services/phase1Api.js');
+  const workspaceSource = readRepoFile('src/workspaces/phase1/kline/KlineWorkspace.vue');
+  const aiWorkspaceSource = readRepoFile('src/workspaces/phase1/AiAnalysisWorkspace.vue');
+
+  assert.match(apiSource, /USDJPY_FOCUS_SYMBOL\s*=\s*'USDJPYc'/);
+  assert.match(apiSource, /startsWith\('USDJPY'\)/);
+  assert.match(workspaceSource, /normalizeUsdJpySymbols/);
+  assert.match(workspaceSource, /USDJPY_FOCUS_SYMBOL/);
+  assert.match(aiWorkspaceSource, /USDJPY_FOCUS_SYMBOL/);
+  assert.doesNotMatch(workspaceSource, /ref\('EURUSDc'\)/);
+  assert.doesNotMatch(apiSource, /symbol:\s*'EURUSDc'/);
+  assert.doesNotMatch(apiSource, /symbol:\s*'XAUUSDc'/);
+});
+
 test('Kline workspace does not render missing event times as 01/01 09:00', () => {
   const workspaceSource = readRepoFile('src/workspaces/phase1/kline/KlineWorkspace.vue');
 

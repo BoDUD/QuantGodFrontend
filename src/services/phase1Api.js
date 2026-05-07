@@ -1,4 +1,14 @@
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'X-QuantGod-Local': '1' };
+export const USDJPY_FOCUS_SYMBOL = 'USDJPYc';
+
+const USDJPY_SYMBOL_FALLBACK = [{ symbol: USDJPY_FOCUS_SYMBOL, label: USDJPY_FOCUS_SYMBOL, assetClass: 'Forex' }];
+
+function isUsdJpySymbol(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .startsWith('USDJPY');
+}
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, { cache: 'no-store', ...options });
@@ -95,20 +105,17 @@ export async function getSymbolRegistry() {
     const payload = await fetchJson('/api/mt5-symbol-registry');
     const items = payload.items || payload.symbols || payload.registry || [];
     if (Array.isArray(items) && items.length) {
-      return items
+      const normalizedItems = items
         .map((item) => ({
           symbol: item.brokerSymbol || item.symbol || item.canonicalSymbol || item.name,
           label: item.displayName || item.brokerSymbol || item.symbol || item.canonicalSymbol || item.name,
           assetClass: item.assetClass || item.category || '',
         }))
-        .filter((item) => item.symbol);
+        .filter((item) => item.symbol && isUsdJpySymbol(item.symbol));
+      if (normalizedItems.length) return normalizedItems;
     }
   } catch (_error) {
     // Keep Phase 1 usable even when the MT5 symbol registry is not running.
   }
-  return [
-    { symbol: 'EURUSDc', label: 'EURUSDc', assetClass: 'Forex' },
-    { symbol: 'USDJPYc', label: 'USDJPYc', assetClass: 'Forex' },
-    { symbol: 'XAUUSDc', label: 'XAUUSDc', assetClass: 'Metal' },
-  ];
+  return USDJPY_SYMBOL_FALLBACK;
 }

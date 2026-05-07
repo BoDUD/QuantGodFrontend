@@ -114,6 +114,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
+  USDJPY_FOCUS_SYMBOL,
   getChartTrades,
   getKline,
   getQuote,
@@ -125,7 +126,7 @@ import KlineToolbar from './KlineToolbar.vue';
 import SignalOverlay from './SignalOverlay.vue';
 
 const symbols = ref([]);
-const symbol = ref('EURUSDc');
+const symbol = ref(USDJPY_FOCUS_SYMBOL);
 const tf = ref('H1');
 const barsCount = ref(240);
 const indicators = ref(['EMA', 'RSI', 'MACD', 'BOLL', 'VOL']);
@@ -230,11 +231,23 @@ const recentEvents = computed(() => {
   return [...tradeEvents, ...shadowEvents].slice(-5).reverse();
 });
 
+function isUsdJpySymbol(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .startsWith('USDJPY');
+}
+
+function normalizeUsdJpySymbols(items) {
+  const scoped = (Array.isArray(items) ? items : []).filter((item) => isUsdJpySymbol(item?.symbol));
+  return scoped.length
+    ? scoped
+    : [{ symbol: USDJPY_FOCUS_SYMBOL, label: USDJPY_FOCUS_SYMBOL, assetClass: 'Forex' }];
+}
+
 async function bootstrap() {
-  symbols.value = await getSymbolRegistry();
-  if (!symbols.value.find((item) => item.symbol === symbol.value) && symbols.value[0]) {
-    symbol.value = symbols.value[0].symbol;
-  }
+  symbols.value = normalizeUsdJpySymbols(await getSymbolRegistry());
+  symbol.value = symbols.value[0]?.symbol || USDJPY_FOCUS_SYMBOL;
   await loadChart();
   startRealtimeRefresh();
 }
@@ -242,6 +255,10 @@ async function bootstrap() {
 async function loadChart() {
   error.value = '';
   quotePayload.value = null;
+  if (!isUsdJpySymbol(symbol.value)) {
+    symbol.value = symbols.value[0]?.symbol || USDJPY_FOCUS_SYMBOL;
+    return;
+  }
   try {
     const [klinePayload, tradesPayload, shadowPayload] = await Promise.all([
       getKline({ symbol: symbol.value, tf: tf.value, bars: barsCount.value }),
@@ -327,6 +344,10 @@ function minBy(rows, key) {
 }
 
 watch([symbol, tf], () => {
+  if (!isUsdJpySymbol(symbol.value)) {
+    symbol.value = symbols.value[0]?.symbol || USDJPY_FOCUS_SYMBOL;
+    return;
+  }
   quotePayload.value = null;
   loadChart();
 });
