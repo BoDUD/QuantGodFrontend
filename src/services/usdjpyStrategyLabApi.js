@@ -332,3 +332,24 @@ export function fetchUSDJPYEvidenceOSTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/evidence-os/telegram-text${query}`);
 }
+
+export function fetchUSDJPYTelegramGatewayStatus() {
+  return fetchJson(`${BASE}/telegram-gateway/status`);
+}
+
+export function enqueueUSDJPYTelegramGatewayTest({ text = '' } = {}) {
+  return postJson(`${BASE}/telegram-gateway/test-event`, {
+    focusSymbol: 'USDJPYc',
+    text:
+      text ||
+      '【QuantGod Telegram Gateway 测试】独立 Gateway 已接入队列、去重、限频和投递账本；不会接收交易命令。',
+  });
+}
+
+export function dispatchUSDJPYTelegramGateway({ send = false, limit = 8 } = {}) {
+  const params = new URLSearchParams();
+  if (send) params.set('send', '1');
+  if (limit) params.set('limit', String(limit));
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return postJson(`${BASE}/telegram-gateway/dispatch${query}`, { focusSymbol: 'USDJPYc' });
+}

@@ -81,6 +81,9 @@ for (const marker of [
   '/evidence-os/execution-feedback',
   '/evidence-os/case-memory',
   '/evidence-os/telegram-text',
+  '/telegram-gateway/status',
+  '/telegram-gateway/test-event',
+  '/telegram-gateway/dispatch',
 ]) {
   if (!service.includes(marker)) errors.push(`service missing ${marker}`);
 }
@@ -143,6 +146,9 @@ for (const marker of [
   'Parity 校验',
   '执行反馈',
   'Case Memory',
+  'Telegram Gateway',
+  '待投递',
+  'ledger 已接入',
   '生成证据 OS',
 ]) {
   if (!panel.includes(marker)) errors.push(`panel missing Chinese marker: ${marker}`);
@@ -174,9 +180,10 @@ if (!panel.includes('fetchUSDJPYStrategyBacktestStatus') || !panel.includes('run
 if (
   !panel.includes('fetchUSDJPYEvidenceOSStatus') ||
   !panel.includes('runUSDJPYEvidenceOS') ||
-  !panel.includes('syncUSDJPYStrategyBacktestKlines')
+  !panel.includes('syncUSDJPYStrategyBacktestKlines') ||
+  !panel.includes('fetchUSDJPYTelegramGatewayStatus')
 ) {
-  errors.push('panel must load/run USDJPY evidence OS and sync real K-lines through service helpers');
+  errors.push('panel must load/run USDJPY evidence OS, Telegram Gateway, and sync real K-lines through service helpers');
 }
 
 const dashboard = read('src/workspaces/dashboard/DashboardWorkspace.vue');

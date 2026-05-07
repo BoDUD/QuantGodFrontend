@@ -116,7 +116,7 @@
       <article class="qg-usdjpy-evolution__card">
         <span>下一阶段任务</span>
         <strong>{{ statusZh(nextPhaseTodos.status, '等待下一阶段') }}</strong>
-        <p>Strategy JSON 与 GA Trace 已接入；独立 Telegram Gateway 仍等待下一阶段，当前不假装完成。</p>
+        <p>Strategy JSON、GA Trace 与独立 Telegram Gateway 已接入；下一步聚焦真实样本和 parity 深化。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Strategy JSON 回测</span>
@@ -152,6 +152,14 @@
         <span>Case Memory</span>
         <strong>{{ caseMemory.caseCount || 0 }}</strong>
         <p>{{ caseMemory.queuedForGA || 0 }} 个经验进入 GA 线索；记录错失、早出、执行偏差。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Telegram Gateway</span>
+        <strong>{{ telegramGateway.pendingCount || 0 }} 待投递</strong>
+        <p>
+          已投递 {{ telegramGateway.deliveredCount || 0 }}；队列 {{ telegramGateway.queuedCount || 0 }}；去重、限频、
+          ledger 已接入。
+        </p>
       </article>
     </div>
 
@@ -337,8 +345,8 @@
         </article>
         <article>
           <span>下一阶段任务</span>
-          <strong>{{ nextPhaseItems.length || 3 }} 项等待</strong>
-          <p>Strategy JSON / GA Evolution 已进入全过程审计；独立 Telegram Gateway 仍是后续阶段，不接实盘。</p>
+          <strong>{{ statusZh(nextPhaseTodos.status, 'Agent 已接入') }}</strong>
+          <p>Strategy JSON / GA Evolution / Telegram Gateway 已接入；后续继续补真实样本、parity 和执行质量。</p>
         </article>
       </div>
       <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
@@ -656,6 +664,7 @@ import {
   fetchUSDJPYMt5ShadowLane,
   fetchUSDJPYPolymarketShadowLane,
   fetchUSDJPYStrategyBacktestStatus,
+  fetchUSDJPYTelegramGatewayStatus,
   fetchUSDJPYWalkForwardStatus,
   runUSDJPYAutonomousAgent,
   runUSDJPYBarReplayBuild,
@@ -691,6 +700,7 @@ const gaPathPayload = ref(null);
 const gaBlockersPayload = ref(null);
 const strategyBacktestPayload = ref(null);
 const evidenceOSPayload = ref(null);
+const telegramGatewayPayload = ref(null);
 const selectedGASeed = ref(null);
 const loading = ref(false);
 const error = ref('');
@@ -775,6 +785,7 @@ const evidenceOS = computed(() => evidenceOSPayload.value || {});
 const parityStatus = computed(() => evidenceOS.value?.parity?.status || '等待校验');
 const executionMetrics = computed(() => evidenceOS.value?.executionFeedback?.metrics || {});
 const caseMemory = computed(() => evidenceOS.value?.caseMemory || {});
+const telegramGateway = computed(() => telegramGatewayPayload.value || evidenceOS.value?.telegramGateway || {});
 const eaRepro = computed(
   () =>
     eaReproPayload.value ||
@@ -1001,6 +1012,7 @@ function assignLoaded(results) {
   gaBlockersPayload.value = results.gaBlockers;
   strategyBacktestPayload.value = results.strategyBacktestState;
   evidenceOSPayload.value = results.evidenceOSState;
+  telegramGatewayPayload.value = results.telegramGatewayState;
   selectedGASeed.value = results.gaCandidates?.candidates?.[0] || selectedGASeed.value;
 }
 
@@ -1024,6 +1036,7 @@ async function loadAll() {
     gaBlockers,
     strategyBacktestState,
     evidenceOSState,
+    telegramGatewayState,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
     fetchUSDJPYBarReplayStatus(),
@@ -1043,6 +1056,7 @@ async function loadAll() {
     fetchUSDJPYGABlockers(),
     fetchUSDJPYStrategyBacktestStatus(),
     fetchUSDJPYEvidenceOSStatus(),
+    fetchUSDJPYTelegramGatewayStatus(),
   ]);
   assignLoaded({
     evolutionPayload,
@@ -1063,6 +1077,7 @@ async function loadAll() {
     gaBlockers,
     strategyBacktestState,
     evidenceOSState,
+    telegramGatewayState,
   });
 }
 
