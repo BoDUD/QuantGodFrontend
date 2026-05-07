@@ -705,6 +705,10 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
   const reasons = rowsFromPayload(topLive.reasons || status.reasons || status.nextActions);
   const state = status.state || status.status || status.overallState || '等待同步';
   const stateZh = status.stateZh || status.conclusionZh || humanizeStatus(state);
+  const stateUpper = String(state || '').toUpperCase();
+  const isReadyState = ['READY_FOR_EXISTING_EA', 'READY', 'POLICY_READY'].includes(stateUpper);
+  const hasLivePolicy = Boolean(topLive.strategy && topLive.entryMode && topLive.entryMode !== 'BLOCKED');
+  const shouldSurfaceReasons = !isReadyState || status.policyReady === false || topLive.allowed === false;
   const liveStrategy = topLive.strategy || topLive.route || topLive.routeKey || '—';
   const liveDirection = directionZh(topLive.direction || topLive.side || topLive.action);
   const entryMode = entryModeZh(topLive.entryMode || topLive.mode || topLive.decision);
@@ -715,7 +719,14 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
         .slice(0, 2)
         .map((row) => row.reasonZh || row.reason || row.code || row.label || humanizeStatus(row))
         .join('；')
-    : status.primaryBlocker || status.mainBlocker || '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估';
+    : status.primaryBlocker
+      || status.mainBlocker
+      || (shouldSurfaceReasons && reasons.length
+        ? reasons
+            .slice(0, 2)
+            .map((row) => row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row))
+            .join('；')
+        : '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估');
   const reasonText = reasons.length
     ? reasons
         .slice(0, 2)
@@ -733,7 +744,7 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
     {
       label: '实盘候选策略',
       value: `${liveStrategy}｜${liveDirection}｜${entryMode}`,
-      status: liveStrategy !== '—' ? 'ok' : 'warn',
+      status: hasLivePolicy ? 'ok' : 'warn',
       hint: reasonText,
     },
     {
@@ -745,7 +756,7 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
     {
       label: '主阻断原因',
       value: blockerText,
-      status: blockers.length || status.primaryBlocker ? 'warn' : 'ok',
+      status: blockers.length || status.primaryBlocker || shouldSurfaceReasons ? 'warn' : 'ok',
       hint: '无阻断不代表强制入场，代表后端策略链路不再挡 RSI 买入路线。',
     },
     {
