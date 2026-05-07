@@ -1,5 +1,28 @@
 import { readFileSync, existsSync } from 'node:fs';
 
+const failures = [];
+
+function fail(message) {
+  failures.push(message);
+}
+
+function assert(condition, message) {
+  if (!condition) fail(message);
+}
+
+function finish() {
+  if (failures.length === 0) {
+    console.log('frontend responsive hardening guard passed');
+    return;
+  }
+
+  console.error('Frontend responsive hardening guard failed:');
+  for (const failure of failures) {
+    console.error(`- ${failure}`);
+  }
+  process.exit(1);
+}
+
 const requiredFiles = [
   'src/styles/responsive-hardening.css',
   'src/main.js',
@@ -8,10 +31,10 @@ const requiredFiles = [
 ];
 
 for (const file of requiredFiles) {
-  if (!existsSync(file)) {
-    throw new Error(`Missing responsive hardening dependency: ${file}`);
-  }
+  assert(existsSync(file), `Missing responsive hardening dependency: ${file}`);
 }
+
+if (failures.length > 0) finish();
 
 const css = readFileSync('src/styles/responsive-hardening.css', 'utf8');
 const main = readFileSync('src/main.js', 'utf8');
@@ -35,17 +58,14 @@ const mustContain = [
 ];
 
 for (const token of mustContain) {
-  if (!css.includes(token)) {
-    throw new Error(`responsive-hardening.css missing required token: ${token}`);
-  }
+  assert(css.includes(token), `responsive-hardening.css missing required token: ${token}`);
 }
 
-if (
-  !main.includes('./styles/responsive-hardening.css') &&
-  !main.includes('src/styles/responsive-hardening.css')
-) {
-  throw new Error('src/main.js must import ./styles/responsive-hardening.css');
-}
+assert(
+  main.includes('./styles/responsive-hardening.css') ||
+    main.includes('src/styles/responsive-hardening.css'),
+  'src/main.js must import ./styles/responsive-hardening.css',
+);
 
 const forbidden = [
   /fetch\s*\(/,
@@ -54,15 +74,14 @@ const forbidden = [
 ];
 
 for (const pattern of forbidden) {
-  if (pattern.test(css)) {
-    throw new Error(`responsive-hardening.css contains forbidden pattern: ${pattern}`);
-  }
+  assert(!pattern.test(css), `responsive-hardening.css contains forbidden pattern: ${pattern}`);
 }
 
 for (const route of ['mt5', 'research', 'governance', 'paramlab']) {
-  if (!responsiveCheck.includes(`name: '${route}'`)) {
-    throw new Error(`responsive_check.mjs must continue covering ${route}`);
-  }
+  assert(
+    responsiveCheck.includes(`name: '${route}'`),
+    `responsive_check.mjs must continue covering ${route}`,
+  );
 }
 
-console.log('frontend responsive hardening guard passed');
+finish();
