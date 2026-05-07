@@ -69,7 +69,7 @@ if (!service.includes('fetchJson') || !service.includes('postJson')) {
 }
 
 const panel = read('src/components/USDJPYEvolutionPanel.vue');
-for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '自主治理 Agent', '不会改源码或 live preset', '回放候选对比', '预期影响', '风险变化', '因果 bar/tick 回放', '未来后验只评分，不触发', 'Walk-forward 稳定性筛选', '无需人工审批', '机器硬风控', '自动回滚', '三车道自主生命周期', '美分账户', 'MT5 模拟车道', 'Polymarket 模拟车道', 'Daily Autopilot 2.0', 'Agent 今日待办', 'Agent 每日复盘', '下一阶段任务', 'Strategy JSON', 'GA Evolution', 'Telegram Gateway', 'EA 对账']) {
+for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '自主治理 Agent', '不会改源码或 live preset', '回放候选对比', '预期影响', '风险变化', '因果 bar/tick 回放', '未来后验只评分，不触发', 'Walk-forward 稳定性筛选', '无需人工审批', '机器硬风控', '自动回滚', '三车道自主生命周期', '美分账户', 'MT5 模拟车道', 'Polymarket 模拟车道', 'Daily Autopilot 2.0', 'Agent 今日待办', 'Agent 每日复盘', '下一阶段任务', 'Strategy JSON', 'GA Evolution', 'Telegram Gateway', 'EA 对账', 'actionStatus', '因果回放已完成', '自主治理已完成', '自动日报已完成', '复盘闭环已完成']) {
   if (!panel.includes(marker)) errors.push(`panel missing Chinese marker: ${marker}`);
 }
 if (panel.includes('patchAllowed') || panel.includes('待人工确认') || panel.includes('人工回灌。')) {
@@ -81,6 +81,11 @@ if (!panel.includes('fetchUSDJPYEvolutionStatus') || !panel.includes('runUSDJPYE
 
 const dashboard = read('src/workspaces/dashboard/DashboardWorkspace.vue');
 if (!dashboard.includes('USDJPYEvolutionPanel')) errors.push('Dashboard must mount USDJPYEvolutionPanel');
+
+const automationPanel = read('src/components/AutomationChainPanel.vue');
+for (const marker of ['actionStatus', '运行完成', '刷新完成', 'USDJPY_LIVE_LOOP']) {
+  if (!automationPanel.includes(marker)) errors.push(`automation panel missing action feedback marker: ${marker}`);
+}
 
 if (errors.length) {
   console.error(errors.join('\n'));

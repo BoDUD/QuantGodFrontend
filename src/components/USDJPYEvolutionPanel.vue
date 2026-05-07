@@ -15,6 +15,19 @@
       </div>
     </header>
 
+    <div
+      v-if="actionStatus"
+      class="qg-usdjpy-evolution__action-result"
+      :class="`qg-usdjpy-evolution__action-result--${actionStatus.kind}`"
+      role="status"
+    >
+      <div>
+        <strong>{{ actionStatus.title }}</strong>
+        <span>{{ actionStatus.time }}</span>
+      </div>
+      <p>{{ actionStatus.summary }}</p>
+    </div>
+
     <div v-if="loading" class="qg-usdjpy-evolution__state">正在读取 USDJPY 自学习证据...</div>
     <div v-else-if="error" class="qg-usdjpy-evolution__state qg-usdjpy-evolution__state--error">{{ error }}</div>
     <div v-else class="qg-usdjpy-evolution__grid">
@@ -326,6 +339,7 @@ const agentDailyTodo = ref(null);
 const agentDailyReview = ref(null);
 const loading = ref(false);
 const error = ref('');
+const actionStatus = ref(null);
 
 const dataset = computed(() => payload.value?.dataset || {});
 const replay = computed(() => payload.value?.replay || {});
@@ -461,6 +475,55 @@ function directionZh(value) {
   return value || '—';
 }
 
+function actionTime() {
+  return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+}
+
+function setActionStatus(kind, title, summary) {
+  actionStatus.value = { kind, title, summary, time: actionTime() };
+}
+
+function setActionRunning(title, summary = '正在写入本地证据并刷新页面，请稍等。') {
+  setActionStatus('running', title, summary);
+}
+
+function setActionSuccess(title, summary) {
+  setActionStatus('success', title, summary);
+}
+
+function setActionError(title, err, fallback) {
+  setActionStatus('error', title, err?.message || fallback);
+}
+
+function barReplaySummary() {
+  const summary = barReplay.value?.summary || {};
+  const entryVariants = barReplay.value?.entryComparison?.variants?.length || 0;
+  const exitVariants = barReplay.value?.exitComparison?.variants?.length || 0;
+  const sampleCount = summary.sampleCount ?? summary.samples ?? 0;
+  return `已生成因果回放：样本 ${sampleCount}；入场候选 ${entryVariants} 组；出场候选 ${exitVariants} 组。`;
+}
+
+function governanceSummary() {
+  const stage = statusZh(autonomousAgent.value?.executionStage || autonomousAgent.value?.stage || lifecyclePayload.value?.executionStage, '等待治理门');
+  const liveStage = statusZh(liveLane.value?.executionStage || liveLane.value?.stage, '实盘车道等待');
+  const mt5Count = mt5ShadowSummary.value?.totalRoutes ?? mt5ShadowSummary.value?.routeCount ?? 0;
+  return `自主治理已运行：Agent 阶段 ${stage}；实盘车道 ${liveStage}；MT5 模拟车道 ${mt5Count} 条路线。`;
+}
+
+function dailySummary() {
+  const todoCount = dailyTodoItems.value.length;
+  const nextCount = nextPhaseItems.value.length;
+  const reviewState = statusZh(agentDailyReview.value?.status || dailyAutopilot.value?.dailyReview?.status, '复盘已刷新');
+  return `自动日报已生成：今日待办 ${todoCount} 条；下一阶段任务 ${nextCount} 条；每日复盘 ${reviewState}。`;
+}
+
+function evolutionSummary() {
+  const samples = datasetSummary.value?.sampleCount ?? datasetSummary.value?.totalSamples ?? 0;
+  const candidates = candidateItems.value.length;
+  const agentStage = statusZh(autonomousAgent.value?.executionStage || autonomousAgent.value?.stage, '等待 Agent');
+  return `复盘闭环已生成：运行样本 ${samples}；参数候选 ${candidates} 个；Agent 阶段 ${agentStage}。`;
+}
+
 function assignLoaded(results) {
   payload.value = results.evolutionPayload;
   barReplay.value = results.causalPayload;
@@ -507,13 +570,16 @@ async function loadAll() {
   assignLoaded({ evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload, lifecycle, lanesState, mt5ShadowState, polymarketShadowState, eaReproState, dailyState, dailyTodoState, dailyReviewState });
 }
 
-async function load() {
+async function load({ silent = false } = {}) {
   loading.value = true;
   error.value = '';
+  if (!silent) setActionRunning('正在刷新页面证据', '正在读取数据集、回放、治理、三车道和日报状态。');
   try {
     await loadAll();
+    if (!silent) setActionSuccess('刷新完成', evolutionSummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环加载失败';
+    if (!silent) setActionError('刷新失败', err, 'USDJPY 自学习闭环加载失败');
   } finally {
     loading.value = false;
   }
@@ -522,14 +588,15 @@ async function load() {
 async function runAutonomousGovernance() {
   loading.value = true;
   error.value = '';
+  setActionRunning('正在运行自主治理', '正在执行 Walk-forward、Agent 治理门和三车道刷新。');
   try {
     await runUSDJPYWalkForwardBuild();
     autonomousAgent.value = await runUSDJPYAutonomousAgent();
-    walkForward.value = await fetchUSDJPYWalkForwardStatus();
-    lifecyclePayload.value = await fetchUSDJPYAutonomousLifecycle({ refresh: true });
-    lanesPayload.value = await fetchUSDJPYAutonomousLanes({ refresh: true });
+    await loadAll();
+    setActionSuccess('自主治理已完成', governanceSummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY 自主治理运行失败';
+    setActionError('自主治理失败', err, 'USDJPY 自主治理运行失败');
   } finally {
     loading.value = false;
   }
@@ -538,12 +605,16 @@ async function runAutonomousGovernance() {
 async function runDailyAutopilotV2() {
   loading.value = true;
   error.value = '';
+  setActionRunning('正在生成自动日报', 'Agent 正在生成今日待办、每日复盘和下一阶段任务。');
   try {
     dailyAutopilot.value = await runUSDJPYDailyAutopilotV2();
     agentDailyTodo.value = await runUSDJPYAgentDailyTodo();
     agentDailyReview.value = await runUSDJPYAgentDailyReview();
+    await loadAll();
+    setActionSuccess('自动日报已完成', dailySummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY 自动日报生成失败';
+    setActionError('自动日报失败', err, 'USDJPY 自动日报生成失败');
   } finally {
     loading.value = false;
   }
@@ -552,10 +623,14 @@ async function runDailyAutopilotV2() {
 async function runCausalReplay() {
   loading.value = true;
   error.value = '';
+  setActionRunning('正在生成因果回放', '正在运行 causal replay；未来后验只用于评分，不用于触发。');
   try {
     barReplay.value = await runUSDJPYBarReplayBuild();
+    await loadAll();
+    setActionSuccess('因果回放已完成', barReplaySummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY 因果回放生成失败';
+    setActionError('因果回放失败', err, 'USDJPY 因果回放生成失败');
   } finally {
     loading.value = false;
   }
@@ -564,6 +639,7 @@ async function runCausalReplay() {
 async function runFullEvolution() {
   loading.value = true;
   error.value = '';
+  setActionRunning('正在生成复盘闭环', '正在按顺序生成数据集、回放、参数候选、自主治理和日报。');
   try {
     await runUSDJPYEvolutionBuild();
     await runUSDJPYReplayReport();
@@ -574,14 +650,16 @@ async function runFullEvolution() {
     await runUSDJPYAutonomousAgent();
     await runUSDJPYDailyAutopilotV2();
     await loadAll();
+    setActionSuccess('复盘闭环已完成', evolutionSummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环生成失败';
+    setActionError('复盘闭环失败', err, 'USDJPY 自学习闭环生成失败');
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(load);
+onMounted(() => load({ silent: true }));
 </script>
 
 <style scoped>
@@ -632,6 +710,48 @@ onMounted(load);
   color: #dff2ff;
   padding: 10px 14px;
   font-weight: 800;
+}
+
+.qg-usdjpy-evolution__action-result {
+  border: 1px solid rgba(126, 203, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(7, 22, 38, 0.86);
+  padding: 12px 14px;
+  margin: 0 0 16px;
+}
+
+.qg-usdjpy-evolution__action-result div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.qg-usdjpy-evolution__action-result strong {
+  font-size: 15px;
+}
+
+.qg-usdjpy-evolution__action-result span,
+.qg-usdjpy-evolution__action-result p {
+  color: #aebbd0;
+}
+
+.qg-usdjpy-evolution__action-result p {
+  margin-top: 6px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.qg-usdjpy-evolution__action-result--running {
+  border-color: rgba(126, 203, 255, 0.55);
+}
+
+.qg-usdjpy-evolution__action-result--success {
+  border-color: rgba(103, 232, 149, 0.45);
+}
+
+.qg-usdjpy-evolution__action-result--error {
+  border-color: rgba(248, 113, 113, 0.55);
 }
 
 .qg-usdjpy-evolution__grid {

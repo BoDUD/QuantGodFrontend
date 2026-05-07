@@ -12,6 +12,19 @@
       </div>
     </header>
 
+    <div
+      v-if="actionStatus"
+      class="qg-automation-chain-panel__action-result"
+      :class="`qg-automation-chain-panel__action-result--${actionStatus.kind}`"
+      role="status"
+    >
+      <div>
+        <strong>{{ actionStatus.title }}</strong>
+        <span>{{ actionStatus.time }}</span>
+      </div>
+      <p>{{ actionStatus.summary }}</p>
+    </div>
+
     <div v-if="error" class="qg-automation-chain-panel__error">{{ error }}</div>
     <div v-else-if="loading" class="qg-automation-chain-panel__loading">正在读取自动化链路状态...</div>
     <template v-else>
@@ -104,6 +117,7 @@ const loading = ref(false);
 const running = ref(false);
 const error = ref('');
 const payload = ref({});
+const actionStatus = ref(null);
 
 const steps = computed(() => payload.value.steps || []);
 const missingEvidence = computed(() => payload.value.missingEvidence || []);
@@ -161,13 +175,32 @@ function cleanStepLabel(value) {
     .trim() || '链路检查';
 }
 
-async function loadStatus() {
+function actionTime() {
+  return new Date().toLocaleTimeString('zh-CN', { hour12: false });
+}
+
+function setActionStatus(kind, title, summary) {
+  actionStatus.value = { kind, title, summary, time: actionTime() };
+}
+
+function statusSummary() {
+  const state = payload.value.stateZh || payload.value.state || '状态待确认';
+  const source = payload.value.singleSourceOfTruth || 'USDJPY_LIVE_LOOP';
+  const blockers = blockedReasons.value.length;
+  const missing = missingEvidence.value.length;
+  return `已读取 ${source}：${state}；阻断 ${blockers} 条；缺失证据 ${missing} 条。`;
+}
+
+async function loadStatus({ silent = false } = {}) {
   loading.value = true;
   error.value = '';
+  if (!silent) setActionStatus('running', '正在刷新实盘恢复状态', '正在读取 USDJPY Live Loop、EA 干跑和技术链路。');
   try {
     payload.value = unwrap(await fetchAutomationChainStatus());
+    if (!silent) setActionStatus('success', '刷新完成', statusSummary());
   } catch (err) {
     error.value = err?.message || '读取自动化链路失败';
+    if (!silent) setActionStatus('error', '刷新失败', error.value);
   } finally {
     loading.value = false;
   }
@@ -176,16 +209,19 @@ async function loadStatus() {
 async function runOnce() {
   running.value = true;
   error.value = '';
+  setActionStatus('running', '正在运行一次实盘恢复链路', '正在生成 USDJPY policy、EA 干跑和 live-loop 状态。');
   try {
     payload.value = unwrap(await runAutomationChain({ send: false }));
+    setActionStatus('success', '运行完成', statusSummary());
   } catch (err) {
     error.value = err?.message || '运行自动化链路失败';
+    setActionStatus('error', '运行失败', error.value);
   } finally {
     running.value = false;
   }
 }
 
-onMounted(loadStatus);
+onMounted(() => loadStatus({ silent: true }));
 </script>
 
 <style scoped>
@@ -245,6 +281,44 @@ onMounted(loadStatus);
 .qg-automation-chain-panel button.primary {
   background: var(--qg-accent, #38bdf8);
   color: #020617;
+}
+
+.qg-automation-chain-panel__action-result {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.34);
+  padding: 12px;
+  margin-top: 14px;
+}
+
+.qg-automation-chain-panel__action-result div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.qg-automation-chain-panel__action-result span,
+.qg-automation-chain-panel__action-result p {
+  color: var(--qg-text-muted, #94a3b8);
+}
+
+.qg-automation-chain-panel__action-result p {
+  margin: 6px 0 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.qg-automation-chain-panel__action-result--running {
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.qg-automation-chain-panel__action-result--success {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+.qg-automation-chain-panel__action-result--error {
+  border-color: rgba(248, 113, 113, 0.55);
 }
 
 .qg-automation-chain-panel__summary {
