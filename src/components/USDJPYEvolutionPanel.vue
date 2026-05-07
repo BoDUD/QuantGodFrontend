@@ -560,10 +560,26 @@
             {{ strategyBacktestMetrics.sortino ?? 0 }}
           </p>
         </article>
+        <article>
+          <span>Runner 覆盖</span>
+          <strong>{{ backtestCoverageZh }}</strong>
+          <p>
+            主周期 {{ strategyBacktestEngine.primaryTimeframe || strategyBacktestReport.timeframe || 'H1' }} /
+            信号 {{ strategyBacktestEngine.signalCount ?? 0 }}
+          </p>
+        </article>
+        <article>
+          <span>交易成本</span>
+          <strong>{{ backtestCost.roundTurnPips ?? 0 }} pips</strong>
+          <p>
+            点差 {{ backtestCost.spreadPips ?? 0 }} / 滑点 {{ backtestCost.slippagePips ?? 0 }} /
+            手续 {{ backtestCost.commissionPips ?? 0 }}
+          </p>
+        </article>
       </div>
       <p class="qg-usdjpy-evolution__note">
-        本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；不会下单、不会平仓、不会撤单、不会修改 live
-        preset。
+        本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；已覆盖 USDJPY shadow 策略族并向 GA 提供逐 seed
+        fitness evidence；不会下单、不会平仓、不会撤单、不会修改 live preset。
       </p>
     </section>
 
@@ -746,6 +762,13 @@ const strategyBacktestReport = computed(
   () => strategyBacktestPayload.value?.latestReport || strategyBacktestPayload.value || null,
 );
 const strategyBacktestMetrics = computed(() => strategyBacktestReport.value?.metrics || {});
+const strategyBacktestEngine = computed(() => strategyBacktestReport.value?.engine || {});
+const backtestCost = computed(() => strategyBacktestEngine.value?.costModel || {});
+const backtestCoverageZh = computed(() =>
+  strategyBacktestEngine.value?.coverage === 'ALL_SUPPORTED_USDJPY_SHADOW_FAMILIES'
+    ? '全策略族'
+    : '等待覆盖',
+);
 const klineCounts = computed(() => strategyBacktestPayload.value?.barCounts || {});
 const h1BarCount = computed(() => klineCounts.value.H1 || strategyBacktestReport.value?.barCount || 0);
 const evidenceOS = computed(() => evidenceOSPayload.value || {});
