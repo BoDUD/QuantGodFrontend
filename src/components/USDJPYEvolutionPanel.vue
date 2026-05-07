@@ -67,6 +67,11 @@
         <p>模拟 PF {{ polymarketSummary.shadowProfitFactor ?? 0 }}；真实钱包和下单永远关闭。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
+        <span>新闻门禁</span>
+        <strong>{{ newsGate.riskLevel || 'UNKNOWN' }}</strong>
+        <p>{{ newsGate.reasonZh || '默认 SOFT：普通新闻只降仓，高冲击新闻才阻断。' }}</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
         <span>EA 对账</span>
         <strong>{{ eaRepro.statusZh || '等待对账' }}</strong>
         <p>源码 / ex5 / preset hash 只读校验；Watchlist 期望 USDJPY-only。</p>
@@ -110,7 +115,7 @@
         <article>
           <span>自动回滚</span>
           <strong>{{ rollbackBlockers.length ? '已触发' : '待命' }}</strong>
-          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和新闻是不可放宽硬门禁。' }}</p>
+          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和高冲击新闻是不可放宽硬门禁。' }}</p>
         </article>
       </div>
       <p class="qg-usdjpy-evolution__note">MT5 Shadow 第一名不会抢实盘路线；Polymarket 永远不接真钱钱包；DeepSeek 只解释，不批准越权。</p>
@@ -138,7 +143,7 @@
         <article>
           <span>自动回滚</span>
           <strong>{{ rollbackBlockers.length ? `${rollbackBlockers.length} 项` : '未触发' }}</strong>
-          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和新闻仍是硬门禁。' }}</p>
+          <p>{{ rollbackBlockers[0] || '连续亏损、日亏损、快通道、runtime、点差和高冲击新闻仍是硬门禁。' }}</p>
         </article>
         <article>
           <span>仓位上限</span>
@@ -146,7 +151,7 @@
           <p>当前阶段 / 系统上限；最大 2.0 只是上限，不是固定仓位。</p>
         </article>
       </div>
-      <p class="qg-usdjpy-evolution__note">DeepSeek 只解释晋级和回滚原因，不能批准 live、不能取消回滚、不能提高最大仓位、不能放宽新闻/点差/runtime 门禁。</p>
+      <p class="qg-usdjpy-evolution__note">DeepSeek 只解释晋级和回滚原因，不能批准 live、不能取消回滚、不能提高最大仓位、不能放宽点差/runtime/高冲击新闻门禁。</p>
     </section>
 
     <section v-if="dailyAutopilot" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--daily">
@@ -199,7 +204,12 @@
         <article>
           <span>今日硬禁止</span>
           <strong>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.length || 0 }} 项</strong>
-          <p>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] || '新闻、点差、runtime 和快通道门禁不可放宽。' }}</p>
+          <p>{{ dailyAutopilot.morningPlan?.todayForbiddenZh?.[0] || '高冲击新闻、点差、runtime 和快通道门禁不可放宽。' }}</p>
+        </article>
+        <article>
+          <span>新闻门禁日报</span>
+          <strong>{{ dailyAutopilot.morningPlan?.newsGate?.mode || newsGate.mode || 'SOFT' }}</strong>
+          <p>{{ dailyAutopilot.morningPlan?.newsGate?.reasonZh || newsGate.reasonZh || '普通新闻不阻断，只降仓；高冲击新闻硬阻断。' }}</p>
         </article>
         <article>
           <span>下一阶段任务</span>
@@ -227,7 +237,7 @@
       <div class="qg-usdjpy-evolution__section-head">
         <div>
           <h3>因果 bar/tick 回放</h3>
-          <p>只用当时已存在的 RSI、时段、点差、新闻、冷却和守门状态；未来后验只评分，不触发。</p>
+          <p>只用当时已存在的 RSI、时段、点差、新闻风险、冷却和守门状态；未来后验只评分，不触发。</p>
         </div>
         <strong>{{ barReplayStatus }}</strong>
       </div>
@@ -254,6 +264,23 @@
         </article>
       </div>
       <p class="qg-usdjpy-evolution__note">{{ barReplay?.causalReplay?.explanationZh || '后验窗口只能用于评分，不能决定当时是否入场。' }}</p>
+    </section>
+
+    <section v-if="newsGateReplay" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--news">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>新闻门禁回放</h3>
+          <p>比较普通新闻硬挡、软降仓、只挡高冲击和影子忽略新闻；不自动修改实盘 preset。</p>
+        </div>
+        <strong>{{ newsGateReplay.recommendationZh || '默认 SOFT' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__mini-list">
+        <article v-for="variant in newsGateVariants" :key="variant.variant">
+          <span>{{ variant.labelZh || variant.variant }}</span>
+          <strong>{{ variant.recommendation || '待评估' }}</strong>
+          <p>净 R 变化 {{ signedMetric(variant.netRDelta ?? 0) }}；最大不利变化 {{ signedMetric(variant.maxAdverseRDelta ?? 0) }}</p>
+        </article>
+      </div>
     </section>
 
     <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
@@ -365,6 +392,12 @@ const mt5Shadow = computed(() => mt5ShadowPayload.value || lanes.value?.mt5Shado
 const polymarketShadow = computed(() => polymarketShadowPayload.value || lanes.value?.polymarketShadow || {});
 const mt5ShadowSummary = computed(() => mt5Shadow.value?.summary || {});
 const polymarketSummary = computed(() => polymarketShadow.value?.summary || {});
+const newsGate = computed(() => dailyAutopilot.value?.newsGate || payload.value?.policy?.newsGate || barReplay.value?.newsGate || {});
+const newsGateReplay = computed(() => barReplay.value?.newsGateReplay || null);
+const newsGateVariants = computed(() => {
+  const variants = newsGateReplay.value?.variants || [];
+  return Array.isArray(variants) ? variants : [];
+});
 const eaRepro = computed(() => eaReproPayload.value || autonomousAgent.value?.eaReproducibility || autonomousLifecycle.value?.eaReproducibility || {});
 const rollbackBlockers = computed(() => {
   const rollback = agentPatch.value?.rollback || {};

@@ -783,6 +783,24 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
   const reasons = rowsFromPayload(diagnostics.whyNoEntry);
   const permissionReady = Boolean(permissions.liveMode && permissions.tradeAllowed);
   const cooldownOrStartup = Boolean(guards.cooldownActive || guards.startupGuardActive);
+  const newsGate = guards.newsGate || {};
+  const newsRiskLevel = String(
+    newsGate.riskLevel || guards.newsRiskLevel || (guards.newsBlocked ? 'HARD' : 'NONE'),
+  ).toUpperCase();
+  const newsConclusion =
+    newsRiskLevel === 'HARD'
+      ? '高冲击阻断'
+      : newsRiskLevel === 'SOFT'
+        ? '软提示 / 降仓'
+        : newsRiskLevel === 'UNKNOWN'
+          ? '来源未知 / 轻降仓'
+          : '未阻断';
+  const newsDetail =
+    newsGate.reasonZh ||
+    guards.newsReason ||
+    (newsRiskLevel === 'HARD'
+      ? '高冲击事件窗口内暂停 live，shadow / replay 继续。'
+      : '普通新闻不阻断 USDJPY RSI 买入，只做仓位降档和日报记录。');
   const buyConditionText = `${passText(rsi.buyReversal)} / ${passText(rsi.buyBand)}`;
   const sessionWindowText = String(guards.sessionWindowUtc || '').trim();
   const sessionIsAlwaysOpen =
@@ -826,9 +844,9 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
       )} pips`,
     },
     {
-      项目: '新闻过滤',
-      结论: guards.newsBlocked ? '阻断中' : '未阻断',
-      说明: guards.newsReason || '当前没有 USDJPY 高影响新闻阻断。',
+      项目: '新闻门禁',
+      结论: newsConclusion,
+      说明: newsDetail,
     },
     {
       项目: '冷却 / 启动保护',
