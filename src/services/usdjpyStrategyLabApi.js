@@ -285,3 +285,21 @@ export function fetchUSDJPYGATelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/ga/telegram-text${query}`);
 }
+
+export function fetchUSDJPYStrategyBacktestStatus() {
+  return fetchJson(`${BASE}/strategy-backtest/status`);
+}
+
+export function seedUSDJPYStrategyBacktest({ overwrite = false } = {}) {
+  const query = overwrite ? '?overwrite=1' : '';
+  return postJson(`${BASE}/strategy-backtest/sample${query}`, { focusSymbol: 'USDJPYc' });
+}
+
+export function runUSDJPYStrategyBacktest() {
+  return postJson(`${BASE}/strategy-backtest/run`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYStrategyBacktestTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/strategy-backtest/telegram-text${query}`);
+}

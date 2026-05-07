@@ -12,6 +12,7 @@
         <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行自主治理</button>
         <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
+        <button type="button" :disabled="loading" @click="runStrategyBacktest">运行策略回测</button>
         <button type="button" :disabled="loading" @click="runGAGeneration">运行 GA 一代</button>
       </div>
     </header>
@@ -86,6 +87,11 @@
         <span>下一阶段任务</span>
         <strong>{{ statusZh(nextPhaseTodos.status, '等待下一阶段') }}</strong>
         <p>Strategy JSON 与 GA Trace 已接入；独立 Telegram Gateway 仍等待下一阶段，当前不假装完成。</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Strategy JSON 回测</span>
+        <strong>{{ strategyBacktestMetrics.netR ?? 0 }}R</strong>
+        <p>交易 {{ strategyBacktestMetrics.tradeCount ?? 0 }} / PF {{ strategyBacktestMetrics.profitFactor ?? 0 }} / 最大回撤 {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R</p>
       </article>
     </div>
 
@@ -372,6 +378,39 @@
       <p class="qg-usdjpy-evolution__note">GA 不能直接实盘、不能 MICRO_LIVE、不能修改 live preset、不能提高 maxLot、不能绕过 news / spread / runtime / fastlane。</p>
     </section>
 
+    <section v-if="strategyBacktestReport" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--strategy-backtest">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>Strategy JSON 高保真回测</h3>
+          <p>统一 Strategy JSON 契约读取 USDJPY SQLite K线，输出交易、权益曲线和 GA 可读 fitness evidence。</p>
+        </div>
+        <strong>{{ strategyBacktestReport.evidenceQuality || 'LOW' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>回测策略</span>
+          <strong>{{ strategyBacktestReport.strategyFamily || 'RSI_Reversal' }} / {{ directionZh(strategyBacktestReport.direction || 'LONG') }}</strong>
+          <p>{{ strategyBacktestReport.strategyId || 'Strategy JSON seed' }}</p>
+        </article>
+        <article>
+          <span>净收益</span>
+          <strong>{{ strategyBacktestMetrics.netR ?? 0 }}R</strong>
+          <p>{{ strategyBacktestMetrics.netPips ?? 0 }} pips / {{ strategyBacktestMetrics.tradeCount ?? 0 }} 笔</p>
+        </article>
+        <article>
+          <span>稳定性</span>
+          <strong>{{ strategyBacktestMetrics.profitFactor ?? 0 }} PF</strong>
+          <p>胜率 {{ strategyBacktestMetrics.winRate ?? 0 }}% / 最大回撤 {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R</p>
+        </article>
+        <article>
+          <span>风险捕获</span>
+          <strong>{{ strategyBacktestMetrics.profitCaptureRatio ?? 0 }}</strong>
+          <p>Sharpe {{ strategyBacktestMetrics.sharpe ?? 0 }} / Sortino {{ strategyBacktestMetrics.sortino ?? 0 }}</p>
+        </article>
+      </div>
+      <p class="qg-usdjpy-evolution__note">本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；不会下单、不会平仓、不会撤单、不会修改 live preset。</p>
+    </section>
+
     <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
       <h3>回放候选对比</h3>
       <div class="qg-usdjpy-evolution__scenario-grid">
@@ -432,6 +471,7 @@ import {
   fetchUSDJPYGAStatus,
   fetchUSDJPYMt5ShadowLane,
   fetchUSDJPYPolymarketShadowLane,
+  fetchUSDJPYStrategyBacktestStatus,
   fetchUSDJPYWalkForwardStatus,
   runUSDJPYAutonomousAgent,
   runUSDJPYBarReplayBuild,
@@ -443,6 +483,7 @@ import {
   runUSDJPYConfigProposal,
   runUSDJPYParamTuning,
   runUSDJPYReplayReport,
+  runUSDJPYStrategyBacktest,
   runUSDJPYWalkForwardBuild,
 } from '../services/usdjpyStrategyLabApi.js';
 
@@ -462,6 +503,7 @@ const gaPayload = ref(null);
 const gaCandidatesPayload = ref(null);
 const gaPathPayload = ref(null);
 const gaBlockersPayload = ref(null);
+const strategyBacktestPayload = ref(null);
 const selectedGASeed = ref(null);
 const loading = ref(false);
 const error = ref('');
@@ -511,6 +553,8 @@ const gaBlockerItems = computed(() => {
   return Array.isArray(rows) ? rows : [];
 });
 const topGABlocker = computed(() => gaBlockerItems.value.find((item) => item?.blockerCode !== 'PASSED') || null);
+const strategyBacktestReport = computed(() => strategyBacktestPayload.value?.latestReport || strategyBacktestPayload.value || null);
+const strategyBacktestMetrics = computed(() => strategyBacktestReport.value?.metrics || {});
 const eaRepro = computed(() => eaReproPayload.value || autonomousAgent.value?.eaReproducibility || autonomousLifecycle.value?.eaReproducibility || {});
 const rollbackBlockers = computed(() => {
   const rollback = agentPatch.value?.rollback || {};
@@ -681,6 +725,11 @@ function gaSummary() {
   return `GA 已运行：第 ${status.currentGeneration || 0} 代；种群 ${status.populationSize || 0}；Elite ${status.eliteCount || 0}；阻断 ${status.blockedCandidates || 0}。`;
 }
 
+function strategyBacktestSummary() {
+  const metrics = strategyBacktestMetrics.value;
+  return `策略回测已完成：交易 ${metrics.tradeCount || 0} 笔；净 R ${metrics.netR ?? 0}；PF ${metrics.profitFactor ?? 0}。`;
+}
+
 function evolutionSummary() {
   const samples = datasetSummary.value?.sampleCount ?? datasetSummary.value?.totalSamples ?? 0;
   const candidates = candidateItems.value.length;
@@ -705,6 +754,7 @@ function assignLoaded(results) {
   gaCandidatesPayload.value = results.gaCandidates;
   gaPathPayload.value = results.gaPath;
   gaBlockersPayload.value = results.gaBlockers;
+  strategyBacktestPayload.value = results.strategyBacktestState;
   selectedGASeed.value = results.gaCandidates?.candidates?.[0] || selectedGASeed.value;
 }
 
@@ -726,6 +776,7 @@ async function loadAll() {
     gaCandidates,
     gaPath,
     gaBlockers,
+    strategyBacktestState,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
     fetchUSDJPYBarReplayStatus(),
@@ -743,6 +794,7 @@ async function loadAll() {
     fetchUSDJPYGACandidates(),
     fetchUSDJPYGAEvolutionPath(),
     fetchUSDJPYGABlockers(),
+    fetchUSDJPYStrategyBacktestStatus(),
   ]);
   assignLoaded({
     evolutionPayload,
@@ -761,6 +813,7 @@ async function loadAll() {
     gaCandidates,
     gaPath,
     gaBlockers,
+    strategyBacktestState,
   });
 }
 
@@ -830,6 +883,22 @@ async function runGAGeneration() {
   }
 }
 
+async function runStrategyBacktest() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning('正在运行策略回测', '正在用 Strategy JSON 读取 USDJPY SQLite K线，并生成交易、权益曲线和 GA evidence。');
+  try {
+    strategyBacktestPayload.value = await runUSDJPYStrategyBacktest();
+    await loadAll();
+    setActionSuccess('策略回测已完成', strategyBacktestSummary());
+  } catch (err) {
+    error.value = err?.message || 'USDJPY Strategy JSON 回测失败';
+    setActionError('策略回测失败', err, 'USDJPY Strategy JSON 回测失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function runCausalReplay() {
   loading.value = true;
   error.value = '';
@@ -854,6 +923,7 @@ async function runFullEvolution() {
     await runUSDJPYEvolutionBuild();
     await runUSDJPYReplayReport();
     await runUSDJPYBarReplayBuild();
+    await runUSDJPYStrategyBacktest();
     await runUSDJPYWalkForwardBuild();
     await runUSDJPYParamTuning();
     await runUSDJPYConfigProposal();
