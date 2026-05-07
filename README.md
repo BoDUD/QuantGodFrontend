@@ -1,92 +1,155 @@
 # QuantGodFrontend
 
-QuantGod 的 Vue 3 operator workbench。这个仓库只负责前端源码和前端构建，不拥有 MT5、Python tools、Cloudflare 部署脚本或完整文档。
+QuantGodFrontend is the Vue 3 operator workbench for the QuantGod local trading research and governance system.
 
-## 仓库职责
+It is not a retail trading terminal. It does not place orders, store credentials, mutate MT5 presets, or read local runtime files directly. Its job is to make the backend evidence plane understandable: why the EA can or cannot act, what the autonomous Agent changed, what was rolled back, and which shadow strategies are still research-only.
 
-- Vue 3 app shell 和所有工作台页面。
-- Ant Design Vue 组件层与深色 QuantGod 视觉风格。
-- KlineCharts 图表工作区。
-- Monaco Editor 策略工坊界面。
-- 调用后端 `/api/*` 的 service modules。
+## Product Position
 
-相关仓库：
+The current UI is centered on QuantGod v2.5:
 
-- Backend：<https://github.com/Boowenn/QuantGodBackend>
-- Infra：<https://github.com/Boowenn/QuantGodInfra>
-- Docs：<https://github.com/Boowenn/QuantGodDocs>
-
-## 本地开发
-
-先启动后端：
-
-```powershell
-cd ..\QuantGodBackend
-Dashboard\start_dashboard.bat
+```text
+Live Lane: USDJPYc / RSI_Reversal / LONG / cent account
+MT5 Shadow Lane: USDJPY multi-strategy simulation and ranking
+Polymarket Shadow Lane: simulated ledger and macro/event context
+Agent: autonomous daily todo, daily review, promotion, demotion, rollback
 ```
 
-再启动前端：
+The interface is an operator workbench: dense, Chinese-first, evidence-first, and read-only.
 
-```powershell
-cd ..\QuantGodFrontend
+## Repository Role
+
+| Area | Path | Responsibility |
+|---|---|---|
+| App shell | `src/app/` | Workspace registry, navigation, command surface |
+| Workspaces | `src/workspaces/` | Dashboard, MT5, Polymarket, Research, ParamLab, AI/Kline views |
+| Components | `src/components/` | Shared panels, KPI cards, automation and USDJPY Agent panels |
+| Services | `src/services/` | `/api/*` client modules |
+| Styling | `src/styles*.css`, `src/styles/` | Theme tokens, responsive hardening, workbench layout |
+| Guards and tests | `scripts/`, `tests/` | Contract, boundary, responsive, and workspace checks |
+
+Related repositories:
+
+- Backend: `../QuantGodBackend`
+- Infra: `../QuantGodInfra`
+- Docs: `../QuantGodDocs`
+
+## Local Development
+
+Start the backend first:
+
+```bash
+cd /Users/bowen/Desktop/Quard/QuantGodBackend
+node Dashboard/dashboard_server.js
+```
+
+Start the frontend:
+
+```bash
+cd /Users/bowen/Desktop/Quard/QuantGodFrontend
 npm install
 npm run dev
 ```
 
-浏览器入口：
+Open:
 
 ```text
-http://127.0.0.1:5173/vue/
+http://127.0.0.1:5173/vue/?workspace=mt5
 ```
 
-Vite 会把 `/api/*` 和 `/QuantGod_*` 请求代理到 `QG_BACKEND_URL`，默认是 `http://127.0.0.1:8080`。
+Vite proxies `/api/*` to `QG_BACKEND_URL`, defaulting to `http://127.0.0.1:8080`.
 
-## 构建与同步
+## Main Workspaces
 
-```powershell
+| Workspace | Purpose |
+|---|---|
+| Dashboard | System summary, USDJPY live-loop truth, Agent status, automation chain details |
+| MT5 | EA recovery state, RSI entry diagnostics, positions, orders, trades, runtime blockers |
+| USDJPY Evolution | Dataset, causal replay, walk-forward, autonomous lifecycle, daily todo/review |
+| Polymarket | Shadow ledger, copy strategy quarantine, simulated capital view, event context |
+| ParamLab / Research | Tester-only reports, strategy evidence, research surfaces |
+
+The MT5 page should answer the most important operational question first: why the EA is or is not acting now.
+
+## Build and Sync
+
+```bash
+cd /Users/bowen/Desktop/Quard/QuantGodFrontend
 npm run build
-cd ..\QuantGodInfra
-python scripts\qg-workspace.py --workspace workspace\quantgod.workspace.json sync-frontend-dist
+
+cd /Users/bowen/Desktop/Quard/QuantGodInfra
+python3 scripts/qg-workspace.py --workspace workspace/quantgod.workspace.json sync-frontend-dist
 ```
 
-同步后，后端仓库会通过 `Dashboard/vue-dist` 提供 `/vue/` 页面。
+The synced runtime output is served by `QuantGodBackend/Dashboard/vue-dist/` and is not committed to backend.
 
-## 前端约束
+## Validation
 
-前端不能直接读取本地 JSON/CSV 文件，也不能保存凭据。所有数据必须通过后端 `/api/*` facade 获取。除非后端暴露了明确受保护的操作 API，否则前端只做只读展示、研究分析和人工复核入口。
+Core checks:
 
-USDJPY 自学习面板现在展示因果回放、walk-forward 稳定性筛选和自主治理 Agent。这里的“自主”只代表机器硬风控通过后可写受控 patch；前端仍不下单、不修改 live preset、不接 Telegram 交易命令。
-
-## 样式要求
-
-QuantGod 工作台以深色、高密度、可扫描为主。新页面必须适配 Mac、桌面、平板和窄屏，不允许文字溢出、卡片嵌套卡片、白底默认组件或无意义大空白。
-
-响应式巡检脚本属于前端仓库：
-
-```powershell
-npm run responsive:check
-```
-
-默认会检查 `http://127.0.0.1:4173/vue/`，请先运行 `npm run preview`；也可以用 `QUANTGOD_RESPONSIVE_URL` 指向其他已启动的前端地址。
-
-## UX Foundation
-
-第一层前端设计书升级记录在 `FRONTEND_UX_FOUNDATION.md`。它新增 design tokens、暗色/亮色/高对比主题、轻量中文/英文命令面板、金融数字格式化、共享状态组件和 Dashboard 运营扫描面板，同时继续保持所有运行数据只走后端 `/api/*`。
-
-## P0 工具链
-
-`FRONTEND_P0_TOOLCHAIN.md` 记录当前增量工具链边界。仓库已经接入 ESLint、Prettier、Stylelint、Vitest 和 Vue Test Utils；为了避免一次性格式化历史大文件，CI 先强制检查 UX Foundation、新增共享组件和关键 guard，后续再逐步扩大覆盖面。
-
-验证：
-
-```powershell
-npm run ux-foundation
-npm run p0-toolchain
+```bash
+cd /Users/bowen/Desktop/Quard/QuantGodFrontend
 npm test
 npm run build
 ```
 
-## 响应式加固
+Focused guard set:
 
-- P3-13 前端响应式加固：见 `FRONTEND_RESPONSIVE_HARDENING.md`。
-- P3-14 USDJPY 单品种策略实验室：Dashboard 展示 USDJPY-only 多策略政策和 EA 干跑状态。
+```bash
+npm run contract
+npm run api-client
+npm run workspace-boundary
+npm run code-splitting
+npm run automation-chain
+npm run usdjpy-strategy-lab
+npm run usdjpy-evolution
+npm run responsive-hardening
+```
+
+Full UI toolchain:
+
+```bash
+npm run p0-toolchain
+```
+
+Responsive QA:
+
+```bash
+npm run preview
+npm run responsive:check
+```
+
+## UI Standards
+
+- Chinese-first operating language.
+- Natural-language labels instead of backend endpoint names.
+- No Quick Trade, no wallet connection, no Telegram command UI.
+- No direct `QuantGod_*.json` or CSV reads from the browser.
+- No text overflow, collapsed tables, or card-in-card layout.
+- Financial numbers should use consistent units and explain whether they are R, pips, USC, or simulated USDC.
+- Strategy JSON, GA Evolution, and Telegram Gateway must be shown as next-phase tasks unless implemented.
+
+## Safety Contract
+
+Frontend may display:
+
+- Live Lane status.
+- MT5 Shadow Lane rankings.
+- Polymarket Shadow Lane status.
+- Agent patch evidence.
+- Autonomous rollback and daily review results.
+
+Frontend must not:
+
+- Place orders.
+- Close or cancel positions.
+- Modify MT5 live presets.
+- Store or reveal credentials.
+- Connect Polymarket real wallets.
+- Let DeepSeek override hard gates.
+
+## Design Notes
+
+- `FRONTEND_UX_FOUNDATION.md` documents tokens, themes, command panel, and shared UX primitives.
+- `FRONTEND_P0_TOOLCHAIN.md` documents lint, format, style, and unit-test boundaries.
+- `FRONTEND_RESPONSIVE_HARDENING.md` documents responsive hardening strategy.
