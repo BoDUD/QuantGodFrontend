@@ -144,10 +144,30 @@ describe('mt5Model ledgers', () => {
       shadowSignals: {
         data: {
           rows: [
-            { LabelTimeLocal: '2026.05.05 10:00', Symbol: 'USDJPYc', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
-            { LabelTimeLocal: '2026.05.05 10:15', Symbol: 'USDJPYc', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
-            { LabelTimeLocal: '2026.05.05 10:30', Symbol: 'USDJPYc', Strategy: 'RSI_Reversal', Blocker: 'SESSION' },
-            { LabelTimeLocal: '2026.05.05 10:45', Symbol: 'EURUSDc', Strategy: 'MA_Cross', Blocker: 'SPREAD' },
+            {
+              LabelTimeLocal: '2026.05.05 10:00',
+              Symbol: 'USDJPYc',
+              Strategy: 'MA_Cross',
+              Blocker: 'RANGE_REGIME',
+            },
+            {
+              LabelTimeLocal: '2026.05.05 10:15',
+              Symbol: 'USDJPYc',
+              Strategy: 'MA_Cross',
+              Blocker: 'RANGE_REGIME',
+            },
+            {
+              LabelTimeLocal: '2026.05.05 10:30',
+              Symbol: 'USDJPYc',
+              Strategy: 'RSI_Reversal',
+              Blocker: 'SESSION',
+            },
+            {
+              LabelTimeLocal: '2026.05.05 10:45',
+              Symbol: 'EURUSDc',
+              Strategy: 'MA_Cross',
+              Blocker: 'SPREAD',
+            },
           ],
         },
       },

@@ -134,7 +134,9 @@ function usdJpyOnlyUniverseLabel() {
 }
 
 function normalizeSymbol(value) {
-  return String(value || '').trim().toUpperCase();
+  return String(value || '')
+    .trim()
+    .toUpperCase();
 }
 
 function rowSymbol(row) {
