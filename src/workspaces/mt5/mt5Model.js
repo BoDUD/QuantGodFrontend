@@ -1,5 +1,7 @@
 import { formatCurrencyDisplay, formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 
+const FOCUS_SYMBOL = 'USDJPYc';
+
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -128,7 +130,27 @@ function entryModeZh(value) {
 }
 
 function usdJpyOnlyUniverseLabel() {
-  return 'USDJPYc';
+  return FOCUS_SYMBOL;
+}
+
+function normalizeSymbol(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function rowSymbol(row) {
+  return pick(
+    row,
+    ['Symbol', 'symbol', 'BrokerSymbol', 'brokerSymbol', 'CanonicalSymbol', 'canonicalSymbol'],
+    '',
+  );
+}
+
+function isFocusSymbolRow(row) {
+  return normalizeSymbol(rowSymbol(row)) === normalizeSymbol(FOCUS_SYMBOL);
+}
+
+function focusSymbolRows(rows) {
+  return (Array.isArray(rows) ? rows : []).filter(isFocusSymbolRow);
 }
 
 function liveLoopStatusTone(value) {
@@ -167,10 +189,10 @@ export function normalizeMt5Snapshot(raw = {}) {
     : rowsFromPayload(snapshot.symbols);
   const closeHistory = rowsFromPayload(raw.closeHistory);
   const tradeJournal = rowsFromPayload(raw.tradeJournal);
-  const shadowSignals = rowsFromPayload(raw.shadowSignals);
-  const shadowOutcomes = rowsFromPayload(raw.shadowOutcomes);
-  const shadowCandidates = rowsFromPayload(raw.shadowCandidates);
-  const shadowCandidateOutcomes = rowsFromPayload(raw.shadowCandidateOutcomes);
+  const shadowSignals = focusSymbolRows(rowsFromPayload(raw.shadowSignals));
+  const shadowOutcomes = focusSymbolRows(rowsFromPayload(raw.shadowOutcomes));
+  const shadowCandidates = focusSymbolRows(rowsFromPayload(raw.shadowCandidates));
+  const shadowCandidateOutcomes = focusSymbolRows(rowsFromPayload(raw.shadowCandidateOutcomes));
   const safety = safetyEnvelope(raw);
   const researchSummary = asSummary(raw.researchStats);
   const governanceSummary = asSummary(raw.governanceAdvisor);

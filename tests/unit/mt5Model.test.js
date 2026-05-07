@@ -144,9 +144,10 @@ describe('mt5Model ledgers', () => {
       shadowSignals: {
         data: {
           rows: [
-            { LabelTimeLocal: '2026.05.05 10:00', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
-            { LabelTimeLocal: '2026.05.05 10:15', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
-            { LabelTimeLocal: '2026.05.05 10:30', Strategy: 'RSI_Reversal', Blocker: 'SESSION' },
+            { LabelTimeLocal: '2026.05.05 10:00', Symbol: 'USDJPYc', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
+            { LabelTimeLocal: '2026.05.05 10:15', Symbol: 'USDJPYc', Strategy: 'MA_Cross', Blocker: 'RANGE_REGIME' },
+            { LabelTimeLocal: '2026.05.05 10:30', Symbol: 'USDJPYc', Strategy: 'RSI_Reversal', Blocker: 'SESSION' },
+            { LabelTimeLocal: '2026.05.05 10:45', Symbol: 'EURUSDc', Strategy: 'MA_Cross', Blocker: 'SPREAD' },
           ],
         },
       },
@@ -186,11 +187,12 @@ describe('mt5Model ledgers', () => {
     const trades = buildMt5ShadowTradeRows(snapshot);
     const equity = buildMt5ShadowEquityRows(snapshot);
 
-    expect(summary.metrics.find((item) => item.label === '模拟候选样本')?.value).toBe('2 笔');
-    expect(summary.metrics.find((item) => item.label === '模拟点数净值')?.value).toBe('+4.5 pips');
-    expect(summary.metrics.find((item) => item.label === '模拟胜率')?.value).toBe('50.0%');
+    expect(summary.metrics.find((item) => item.label === '模拟候选样本')?.value).toBe('1 笔');
+    expect(summary.metrics.find((item) => item.label === '模拟点数净值')?.value).toBe('+8.5 pips');
+    expect(summary.metrics.find((item) => item.label === '模拟胜率')?.value).toBe('100.0%');
     expect(summary.metrics.find((item) => item.label === '主要阻断')?.value).toContain('震荡');
-    expect(trades[0]).toMatchObject({ 品种: 'EURUSDc', 方向: '做空', 点数盈亏: '-4.0' });
-    expect(equity[0]).toMatchObject({ 模拟净值: '+4.5' });
+    expect(trades).toHaveLength(1);
+    expect(trades[0]).toMatchObject({ 品种: 'USDJPYc', 方向: '做多', 点数盈亏: '+8.5' });
+    expect(equity[0]).toMatchObject({ 品种: 'USDJPYc', 模拟净值: '+8.5' });
   });
 });

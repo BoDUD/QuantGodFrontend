@@ -27,6 +27,9 @@ const model = [
   'export function buildEndpointHealth() {}',
   'export function rowsFromPayload() {}',
   'const fields = ["orderSendAllowed", "closeAllowed", "cancelAllowed", "credentialStorageAllowed", "livePresetMutationAllowed"];',
+  "const FOCUS_SYMBOL = 'USDJPYc';",
+  'function isFocusSymbolRow() { return true; }',
+  'function focusSymbolRows() { return []; }',
 ].join('\n');
 
 const workspace = [
@@ -41,6 +44,14 @@ const validFiles = {
   'package.json': JSON.stringify({ scripts: { 'mt5-workspace': 'node scripts/frontend_mt5_workspace_guard.mjs' } }),
   'src/workspaces/mt5/mt5Model.js': model,
   'src/workspaces/mt5/Mt5Workspace.vue': workspace,
+  'src/services/domainApi.js': `
+export async function loadMt5Workspace() {
+  const focusSymbol = 'USDJPYc';
+  fetchJson(\`/api/shadow/signals\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
+  fetchJson(\`/api/shadow/outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
+  fetchJson(\`/api/shadow/candidates\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
+  fetchJson(\`/api/shadow/candidate-outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
+}`,
 };
 
 test('accepts structured MT5 workspace', () => {

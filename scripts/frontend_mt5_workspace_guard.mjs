@@ -100,8 +100,38 @@ function checkMt5Model(root) {
     if (!text.includes(requiredSafety)) errors.push(`${rel(root, model)}: missing safety field ${requiredSafety}`);
   }
 
+  for (const requiredScope of ['FOCUS_SYMBOL', 'focusSymbolRows', 'isFocusSymbolRow']) {
+    if (!text.includes(requiredScope)) {
+      errors.push(`${rel(root, model)}: missing USDJPY-only shadow ledger scope ${requiredScope}`);
+    }
+  }
+
   if (/['"]\/QuantGod_[^'"]+\.(json|csv)['"]/i.test(text)) {
     errors.push(`${rel(root, model)}: must not reference runtime JSON/CSV paths`);
+  }
+  return errors;
+}
+
+function checkDomainApi(root) {
+  const errors = [];
+  const api = path.join(root, 'src', 'services', 'domainApi.js');
+  if (!exists(api)) return [`${rel(root, api)}: missing domain API`];
+  const text = read(api);
+  for (const endpoint of [
+    '/api/shadow/signals',
+    '/api/shadow/outcomes',
+    '/api/shadow/candidates',
+    '/api/shadow/candidate-outcomes',
+  ]) {
+    const index = text.indexOf(endpoint);
+    if (index < 0) {
+      errors.push(`${rel(root, api)}: missing ${endpoint}`);
+      continue;
+    }
+    const snippet = text.slice(index, index + 160);
+    if (!snippet.includes('symbol: focusSymbol')) {
+      errors.push(`${rel(root, api)}: ${endpoint} must request symbol-scoped USDJPY shadow rows`);
+    }
   }
   return errors;
 }
@@ -122,6 +152,7 @@ export function checkProject(root = process.cwd()) {
   return [
     ...checkMt5Workspace(resolved),
     ...checkMt5Model(resolved),
+    ...checkDomainApi(resolved),
     ...checkPackageScript(resolved),
   ];
 }

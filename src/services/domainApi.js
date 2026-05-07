@@ -16,6 +16,7 @@ export async function loadDashboardWorkspace() {
 }
 
 export async function loadMt5Workspace() {
+  const focusSymbol = 'USDJPYc';
   const [
     status,
     account,
@@ -49,10 +50,10 @@ export async function loadMt5Workspace() {
     fetchJson('/api/daily-autopilot'),
     fetchJson('/api/research/stats'),
     fetchJson('/api/governance/advisor'),
-    fetchJson('/api/shadow/signals?limit=500&days=30'),
-    fetchJson('/api/shadow/outcomes?limit=500&days=30'),
-    fetchJson('/api/shadow/candidates?limit=500&days=30'),
-    fetchJson('/api/shadow/candidate-outcomes?limit=500&days=30'),
+    fetchJson(`/api/shadow/signals${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
+    fetchJson(`/api/shadow/outcomes${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
+    fetchJson(`/api/shadow/candidates${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
+    fetchJson(`/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
     fetchJson('/api/usdjpy-strategy-lab/live-loop'),
   ]);
   return {
