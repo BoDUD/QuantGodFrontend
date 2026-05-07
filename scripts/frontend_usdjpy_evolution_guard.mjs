@@ -61,6 +61,14 @@ for (const marker of [
   '/daily-review/run',
   '/daily-review/telegram-text',
   '/autonomous-agent/telegram-text',
+  '/ga/status',
+  '/ga/run-generation',
+  '/ga/generations',
+  '/ga/candidates',
+  '/ga/candidate/',
+  '/ga/evolution-path',
+  '/ga/blockers',
+  '/ga/telegram-text',
 ]) {
   if (!service.includes(marker)) errors.push(`service missing ${marker}`);
 }
@@ -69,7 +77,7 @@ if (!service.includes('fetchJson') || !service.includes('postJson')) {
 }
 
 const panel = read('src/components/USDJPYEvolutionPanel.vue');
-for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '自主治理 Agent', '不会改源码或 live preset', '回放候选对比', '预期影响', '风险变化', '因果 bar/tick 回放', '未来后验只评分，不触发', 'Walk-forward 稳定性筛选', '无需人工审批', '机器硬风控', '自动回滚', '三车道自主生命周期', '美分账户', 'MT5 模拟车道', 'Polymarket 模拟车道', 'Daily Autopilot 2.0', 'Agent 今日待办', 'Agent 每日复盘', '下一阶段任务', 'Strategy JSON', 'GA Evolution', 'Telegram Gateway', 'EA 对账', 'actionStatus', '因果回放已完成', '自主治理已完成', '自动日报已完成', '复盘闭环已完成']) {
+for (const marker of ['USDJPY 自学习闭环', '数据集', '回放', '参数候选', '自主治理 Agent', '不会改源码或 live preset', '回放候选对比', '预期影响', '风险变化', '因果 bar/tick 回放', '未来后验只评分，不触发', 'Walk-forward 稳定性筛选', '无需人工审批', '机器硬风控', '自动回滚', '三车道自主生命周期', '美分账户', 'MT5 模拟车道', 'Polymarket 模拟车道', 'Daily Autopilot 2.0', 'Agent 今日待办', 'Agent 每日复盘', '下一阶段任务', 'Strategy JSON', 'GA Evolution', 'Telegram Gateway', 'EA 对账', 'actionStatus', '因果回放已完成', '自主治理已完成', '自动日报已完成', '复盘闭环已完成', 'GA 全过程审计', '运行 GA 一代', '第 {{ item.generation }} 代', '种子', '阻断原因', 'Seed Detail', 'fitnessBreakdown', 'blockerCode', 'selectedGASeed']) {
   if (!panel.includes(marker)) errors.push(`panel missing Chinese marker: ${marker}`);
 }
 if (panel.includes('patchAllowed') || panel.includes('待人工确认') || panel.includes('人工回灌。')) {
@@ -77,6 +85,9 @@ if (panel.includes('patchAllowed') || panel.includes('待人工确认') || panel
 }
 if (!panel.includes('fetchUSDJPYEvolutionStatus') || !panel.includes('runUSDJPYEvolutionBuild') || !panel.includes('fetchUSDJPYBarReplayStatus') || !panel.includes('runUSDJPYBarReplayBuild') || !panel.includes('fetchUSDJPYAutonomousAgent') || !panel.includes('runUSDJPYAutonomousAgent')) {
   errors.push('panel must load and build through USDJPY evolution service helpers');
+}
+if (!panel.includes('fetchUSDJPYGAStatus') || !panel.includes('runUSDJPYGAGeneration') || !panel.includes('fetchUSDJPYGACandidates') || !panel.includes('fetchUSDJPYGAEvolutionPath')) {
+  errors.push('panel must load and run Strategy JSON GA through service helpers');
 }
 
 const dashboard = read('src/workspaces/dashboard/DashboardWorkspace.vue');

@@ -12,6 +12,7 @@
         <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行自主治理</button>
         <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
+        <button type="button" :disabled="loading" @click="runGAGeneration">运行 GA 一代</button>
       </div>
     </header>
 
@@ -84,7 +85,7 @@
       <article class="qg-usdjpy-evolution__card">
         <span>下一阶段任务</span>
         <strong>{{ statusZh(nextPhaseTodos.status, '等待下一阶段') }}</strong>
-        <p>策略契约、进化引擎、Telegram 网关等待下一阶段；当前不假装完成。</p>
+        <p>Strategy JSON 与 GA Trace 已接入；独立 Telegram Gateway 仍等待下一阶段，当前不假装完成。</p>
       </article>
     </div>
 
@@ -214,7 +215,7 @@
         <article>
           <span>下一阶段任务</span>
           <strong>{{ nextPhaseItems.length || 3 }} 项等待</strong>
-          <p>Strategy JSON / GA Evolution / Telegram Gateway 会由后续阶段实现；当前只生成 Agent 任务，不接实盘。</p>
+          <p>Strategy JSON / GA Evolution 已进入全过程审计；独立 Telegram Gateway 仍是后续阶段，不接实盘。</p>
         </article>
       </div>
       <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
@@ -283,6 +284,94 @@
       </div>
     </section>
 
+    <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>GA 全过程审计</h3>
+          <p>Strategy JSON 种子、generation、fitness、阻断、elite 和下一代路径全部可追踪；只进入 MT5 Shadow / Tester / Paper-live-sim。</p>
+        </div>
+        <strong>{{ gaStatus.status || '等待第一代' }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>当前代数</span>
+          <strong>第 {{ gaStatus.currentGeneration || 0 }} 代</strong>
+          <p>种群 {{ gaStatus.populationSize || 0 }} / Elite {{ gaStatus.eliteCount || 0 }}</p>
+        </article>
+        <article>
+          <span>最佳 fitness</span>
+          <strong>{{ gaStatus.bestFitness ?? 0 }}</strong>
+          <p>{{ gaStatus.bestSeedId || '等待种子评分' }}</p>
+        </article>
+        <article>
+          <span>阻断候选</span>
+          <strong>{{ gaStatus.blockedCandidates || 0 }}</strong>
+          <p>{{ topGABlocker?.reasonZh || '暂无阻断摘要' }}</p>
+        </article>
+        <article>
+          <span>下一步</span>
+          <strong>{{ gaStatus.nextAction ? '已规划' : '等待运行' }}</strong>
+          <p>{{ gaStatus.nextAction || '点击“运行 GA 一代”生成全过程 trace。' }}</p>
+        </article>
+      </div>
+      <div v-if="gaPathItems.length" class="qg-usdjpy-evolution__ga-timeline">
+        <article v-for="item in gaPathItems.slice(-8)" :key="item.generationId || item.generation">
+          <span>第 {{ item.generation }} 代</span>
+          <strong>{{ item.bestFitness }}</strong>
+          <p>avg {{ item.avgFitness }} / elite {{ item.eliteCount }} / 阻断 {{ item.blockedCount }}</p>
+        </article>
+      </div>
+      <div v-if="gaCandidateItems.length" class="qg-usdjpy-evolution__table-wrap">
+        <table class="qg-usdjpy-evolution__table">
+          <thead>
+            <tr>
+              <th>种子</th>
+              <th>策略族</th>
+              <th>来源</th>
+              <th>Fitness</th>
+              <th>Rank</th>
+              <th>阶段</th>
+              <th>阻断原因</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="item in gaCandidateItems.slice(0, 12)"
+              :key="item.seedId"
+              :class="`qg-usdjpy-evolution__candidate--${String(item.status || '').toLowerCase()}`"
+              @click="selectedGASeed = item"
+            >
+              <td>{{ item.seedId }}</td>
+              <td>{{ item.strategyFamily }} / {{ directionZh(item.direction) }}</td>
+              <td>{{ item.source }}</td>
+              <td>{{ item.fitness }}</td>
+              <td>{{ item.rank }}</td>
+              <td>{{ statusZh(item.status) }}</td>
+              <td>{{ item.blockerZh || '通过' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-if="selectedGASeed" class="qg-usdjpy-evolution__seed-detail">
+        <div>
+          <span>Seed Detail</span>
+          <strong>{{ selectedGASeed.seedId }} / {{ selectedGASeed.strategyId }}</strong>
+          <p>父代/来源：{{ selectedGASeed.parentSeedId || selectedGASeed.source || 'seed pool' }}</p>
+        </div>
+        <div>
+          <span>Fitness 分解</span>
+          <p>
+            netR {{ selectedGASeed.fitnessBreakdown?.netR ?? 0 }}；
+            max adverse {{ selectedGASeed.fitnessBreakdown?.maxAdverseR ?? 0 }}；
+            样本 {{ selectedGASeed.fitnessBreakdown?.sampleCount ?? 0 }}；
+            过拟合惩罚 {{ selectedGASeed.fitnessBreakdown?.overfitPenalty ?? 0 }}
+          </p>
+        </div>
+        <pre>{{ strategyJsonPreview(selectedGASeed.strategyJson) }}</pre>
+      </div>
+      <p class="qg-usdjpy-evolution__note">GA 不能直接实盘、不能 MICRO_LIVE、不能修改 live preset、不能提高 maxLot、不能绕过 news / spread / runtime / fastlane。</p>
+    </section>
+
     <section v-if="scenarioItems.length" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--scenarios">
       <h3>回放候选对比</h3>
       <div class="qg-usdjpy-evolution__scenario-grid">
@@ -337,6 +426,10 @@ import {
   fetchUSDJPYDailyAutopilotV2,
   fetchUSDJPYEaReproducibility,
   fetchUSDJPYEvolutionStatus,
+  fetchUSDJPYGABlockers,
+  fetchUSDJPYGACandidates,
+  fetchUSDJPYGAEvolutionPath,
+  fetchUSDJPYGAStatus,
   fetchUSDJPYMt5ShadowLane,
   fetchUSDJPYPolymarketShadowLane,
   fetchUSDJPYWalkForwardStatus,
@@ -346,6 +439,7 @@ import {
   runUSDJPYAgentDailyTodo,
   runUSDJPYDailyAutopilotV2,
   runUSDJPYEvolutionBuild,
+  runUSDJPYGAGeneration,
   runUSDJPYConfigProposal,
   runUSDJPYParamTuning,
   runUSDJPYReplayReport,
@@ -364,6 +458,11 @@ const eaReproPayload = ref(null);
 const dailyAutopilot = ref(null);
 const agentDailyTodo = ref(null);
 const agentDailyReview = ref(null);
+const gaPayload = ref(null);
+const gaCandidatesPayload = ref(null);
+const gaPathPayload = ref(null);
+const gaBlockersPayload = ref(null);
+const selectedGASeed = ref(null);
 const loading = ref(false);
 const error = ref('');
 const actionStatus = ref(null);
@@ -398,6 +497,20 @@ const newsGateVariants = computed(() => {
   const variants = newsGateReplay.value?.variants || [];
   return Array.isArray(variants) ? variants : [];
 });
+const gaStatus = computed(() => gaPayload.value?.status || {});
+const gaCandidateItems = computed(() => {
+  const rows = gaCandidatesPayload.value?.candidates || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const gaPathItems = computed(() => {
+  const rows = gaPathPayload.value?.generations || gaPayload.value?.evolutionPath?.generations || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const gaBlockerItems = computed(() => {
+  const rows = gaBlockersPayload.value?.summary || gaPayload.value?.blockers?.summary || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const topGABlocker = computed(() => gaBlockerItems.value.find((item) => item?.blockerCode !== 'PASSED') || null);
 const eaRepro = computed(() => eaReproPayload.value || autonomousAgent.value?.eaReproducibility || autonomousLifecycle.value?.eaReproducibility || {});
 const rollbackBlockers = computed(() => {
   const rollback = agentPatch.value?.rollback || {};
@@ -477,6 +590,10 @@ function statusZh(value, fallback = '等待 Agent 处理') {
     ROLLBACK: '已回滚',
     PAUSED: '已暂停',
     REJECTED: '已淘汰',
+    ELITE_SELECTED: 'Elite 保留',
+    PROMOTED_TO_SHADOW: '进入影子',
+    NEEDS_MORE_DATA: '需要样本',
+    SAFETY_REJECTED: '安全拒绝',
   };
   const key = String(value || '').toUpperCase();
   return map[key] || value || fallback;
@@ -506,6 +623,15 @@ function directionZh(value) {
   if (text === 'LONG' || text === 'BUY') return '买入';
   if (text === 'SHORT' || text === 'SELL') return '卖出';
   return value || '—';
+}
+
+function strategyJsonPreview(value) {
+  if (!value) return '{}';
+  try {
+    return JSON.stringify(value, null, 2).slice(0, 1800);
+  } catch (_err) {
+    return '{}';
+  }
 }
 
 function actionTime() {
@@ -550,6 +676,11 @@ function dailySummary() {
   return `自动日报已生成：今日待办 ${todoCount} 条；下一阶段任务 ${nextCount} 条；每日复盘 ${reviewState}。`;
 }
 
+function gaSummary() {
+  const status = gaStatus.value;
+  return `GA 已运行：第 ${status.currentGeneration || 0} 代；种群 ${status.populationSize || 0}；Elite ${status.eliteCount || 0}；阻断 ${status.blockedCandidates || 0}。`;
+}
+
 function evolutionSummary() {
   const samples = datasetSummary.value?.sampleCount ?? datasetSummary.value?.totalSamples ?? 0;
   const candidates = candidateItems.value.length;
@@ -570,6 +701,11 @@ function assignLoaded(results) {
   dailyAutopilot.value = results.dailyState;
   agentDailyTodo.value = results.dailyTodoState || results.dailyState?.dailyTodo || null;
   agentDailyReview.value = results.dailyReviewState || results.dailyState?.dailyReview || null;
+  gaPayload.value = results.gaState;
+  gaCandidatesPayload.value = results.gaCandidates;
+  gaPathPayload.value = results.gaPath;
+  gaBlockersPayload.value = results.gaBlockers;
+  selectedGASeed.value = results.gaCandidates?.candidates?.[0] || selectedGASeed.value;
 }
 
 async function loadAll() {
@@ -586,6 +722,10 @@ async function loadAll() {
     dailyState,
     dailyTodoState,
     dailyReviewState,
+    gaState,
+    gaCandidates,
+    gaPath,
+    gaBlockers,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
     fetchUSDJPYBarReplayStatus(),
@@ -599,8 +739,29 @@ async function loadAll() {
     fetchUSDJPYDailyAutopilotV2(),
     fetchUSDJPYAgentDailyTodo(),
     fetchUSDJPYAgentDailyReview(),
+    fetchUSDJPYGAStatus(),
+    fetchUSDJPYGACandidates(),
+    fetchUSDJPYGAEvolutionPath(),
+    fetchUSDJPYGABlockers(),
   ]);
-  assignLoaded({ evolutionPayload, causalPayload, walkForwardPayload, autonomousPayload, lifecycle, lanesState, mt5ShadowState, polymarketShadowState, eaReproState, dailyState, dailyTodoState, dailyReviewState });
+  assignLoaded({
+    evolutionPayload,
+    causalPayload,
+    walkForwardPayload,
+    autonomousPayload,
+    lifecycle,
+    lanesState,
+    mt5ShadowState,
+    polymarketShadowState,
+    eaReproState,
+    dailyState,
+    dailyTodoState,
+    dailyReviewState,
+    gaState,
+    gaCandidates,
+    gaPath,
+    gaBlockers,
+  });
 }
 
 async function load({ silent = false } = {}) {
@@ -648,6 +809,22 @@ async function runDailyAutopilotV2() {
   } catch (err) {
     error.value = err?.message || 'USDJPY 自动日报生成失败';
     setActionError('自动日报失败', err, 'USDJPY 自动日报生成失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runGAGeneration() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning('正在运行 GA 一代', '正在生成 Strategy JSON 种子、评分 fitness、选择 elite 并写入全过程 trace。');
+  try {
+    gaPayload.value = await runUSDJPYGAGeneration();
+    await loadAll();
+    setActionSuccess('GA 一代已完成', gaSummary());
+  } catch (err) {
+    error.value = err?.message || 'USDJPY GA 一代运行失败';
+    setActionError('GA 运行失败', err, 'USDJPY GA 一代运行失败');
   } finally {
     loading.value = false;
   }
@@ -867,6 +1044,75 @@ onMounted(() => load({ silent: true }));
 .qg-usdjpy-evolution__mini-list strong,
 .qg-usdjpy-evolution__list article strong {
   overflow-wrap: anywhere;
+}
+
+.qg-usdjpy-evolution__ga-timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__ga-timeline article {
+  padding: 12px;
+}
+
+.qg-usdjpy-evolution__table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(145, 170, 210, 0.22);
+  border-radius: 14px;
+}
+
+.qg-usdjpy-evolution__table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.qg-usdjpy-evolution__table th,
+.qg-usdjpy-evolution__table td {
+  border-bottom: 1px solid rgba(145, 170, 210, 0.16);
+  padding: 10px 12px;
+  text-align: left;
+  color: #dce8f8;
+  white-space: nowrap;
+}
+
+.qg-usdjpy-evolution__table th {
+  color: #9fb3cc;
+  font-weight: 800;
+}
+
+.qg-usdjpy-evolution__table tbody tr {
+  cursor: pointer;
+}
+
+.qg-usdjpy-evolution__candidate--elite_selected td {
+  color: #86efac;
+}
+
+.qg-usdjpy-evolution__candidate--rejected td,
+.qg-usdjpy-evolution__candidate--safety_rejected td {
+  color: #fca5a5;
+}
+
+.qg-usdjpy-evolution__seed-detail {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(126, 203, 255, 0.3);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(2, 11, 24, 0.55);
+}
+
+.qg-usdjpy-evolution__seed-detail pre {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.32);
+  color: #bfe7ff;
+  font-size: 12px;
 }
 
 .qg-usdjpy-evolution__note {

@@ -251,3 +251,37 @@ export function fetchUSDJPYAutonomousTelegramText({ refresh = false } = {}) {
   const query = refresh ? '?refresh=1' : '';
   return fetchJson(`${BASE}/autonomous-agent/telegram-text${query}`);
 }
+
+export function fetchUSDJPYGAStatus({ write = false } = {}) {
+  const query = write ? '?write=1' : '';
+  return fetchJson(`${BASE}/ga/status${query}`);
+}
+
+export function runUSDJPYGAGeneration() {
+  return postJson(`${BASE}/ga/run-generation`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYGAGenerations() {
+  return fetchJson(`${BASE}/ga/generations`);
+}
+
+export function fetchUSDJPYGACandidates() {
+  return fetchJson(`${BASE}/ga/candidates`);
+}
+
+export function fetchUSDJPYGACandidate(seedId) {
+  return fetchJson(`${BASE}/ga/candidate/${encodeURIComponent(seedId)}`);
+}
+
+export function fetchUSDJPYGAEvolutionPath() {
+  return fetchJson(`${BASE}/ga/evolution-path`);
+}
+
+export function fetchUSDJPYGABlockers() {
+  return fetchJson(`${BASE}/ga/blockers`);
+}
+
+export function fetchUSDJPYGATelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/ga/telegram-text${query}`);
+}
