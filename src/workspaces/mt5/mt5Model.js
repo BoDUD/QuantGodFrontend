@@ -314,12 +314,15 @@ function translateOutcome(value) {
 
 function routeEnabled(snapshot, key) {
   const route = snapshot.strategies?.[key] || {};
-  return Boolean(route.enabled && route.active);
+  if (!route.enabled) return false;
+  const status = String(route.status || route.runtimeLabel || route.state || '').toUpperCase();
+  if (/DISABLED|PAUSED|AUTO_PAUSED|ROUTE_DISABLED/.test(status)) return false;
+  return true;
 }
 
 function routeMode(snapshot, key) {
   const route = snapshot.strategies?.[key] || {};
-  if (!route.enabled || !route.active) return '未运行';
+  if (!routeEnabled(snapshot, key)) return '未运行';
   if (Number(route.riskMultiplier || 0) > 0) return '实盘观察';
   if (
     route.candidate ||
@@ -332,7 +335,7 @@ function routeMode(snapshot, key) {
 }
 
 export function buildMt5Metrics(snapshot) {
-  const rsiEnabled = Boolean(snapshot.rsiRoute?.enabled && snapshot.rsiRoute?.active);
+  const rsiEnabled = routeEnabled(snapshot, 'RSI_Reversal');
   return [
     {
       label: 'EA交易状态',
@@ -360,7 +363,7 @@ export function buildMt5Metrics(snapshot) {
 }
 
 export function buildSafetyItems(snapshot) {
-  const rsiEnabled = Boolean(snapshot.rsiRoute?.enabled && snapshot.rsiRoute?.active);
+  const rsiEnabled = routeEnabled(snapshot, 'RSI_Reversal');
   return [
     {
       label: '前端数据桥',

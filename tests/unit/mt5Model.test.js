@@ -103,6 +103,42 @@ describe('mt5Model ledgers', () => {
     expect(items.find((item) => item.label === '缠论/MACD-TD')?.value).toContain('尚未进入');
   });
 
+  it('treats an enabled RSI route waiting for signal as live observation', () => {
+    const snapshot = normalizeMt5Snapshot({
+      latest: {
+        strategies: {
+          RSI_Reversal: {
+            enabled: true,
+            active: false,
+            runtimeLabel: 'ON',
+            status: 'WAIT_SIGNAL',
+            riskMultiplier: 1,
+            reason: 'Waiting for first H1 RSI evaluation',
+          },
+        },
+      },
+      snapshot: {
+        runtime: {
+          tradeAllowed: true,
+          executionEnabled: true,
+          pilotKillSwitch: false,
+          pilotStartupEntryGuardActive: false,
+        },
+      },
+      researchStats: {
+        summary: {
+          liveUniverseLabel: 'USDJPYc',
+          shadowResearchUniverseLabel: 'USDJPYc',
+        },
+      },
+    });
+
+    const items = buildMt5SimulationItems(snapshot);
+
+    expect(items.find((item) => item.label === '当前实盘策略')?.value).toBe('RSI 买入侧观察');
+    expect(items.find((item) => item.label === '当前实盘策略')?.status).toBe('ok');
+  });
+
   it('builds a readable MT5 shadow ledger with pips equity and trade rows', () => {
     const snapshot = normalizeMt5Snapshot({
       shadowSignals: {
