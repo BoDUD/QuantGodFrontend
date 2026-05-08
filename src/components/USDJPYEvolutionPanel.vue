@@ -1033,6 +1033,7 @@ const telegramGatewayPayload = ref(null);
 const selectedGASeed = ref(null);
 const selectedGASeedLoading = ref(false);
 const selectedGASeedError = ref('');
+const gaSeedSelectionPinned = ref(false);
 const lineageTreeExpanded = ref(false);
 const loading = ref(false);
 const error = ref('');
@@ -1461,6 +1462,10 @@ function gaLineagePathNodes(item) {
   return Array.isArray(nodes) ? nodes : [];
 }
 
+function gaCandidateHasLineagePath(item) {
+  return gaLineagePathNodes(item).length > 0;
+}
+
 function gaLineagePathSummary(item) {
   const path = gaLineagePath(item);
   if (!path.nodeCount) return '等待主血统';
@@ -1709,8 +1714,58 @@ function evolutionSummary() {
   return `复盘闭环已生成：运行样本 ${samples}；参数候选 ${candidates} 个；Agent 阶段 ${agentStage}。`;
 }
 
-async function selectGASeed(item) {
+function gaCandidateSelectionGeneration(item) {
+  return Number(item?.latestGeneration ?? item?.generation ?? item?.audit?.generation ?? 0) || 0;
+}
+
+function gaCandidateSelectionRank(item) {
+  const rank = Number(item?.rank);
+  return Number.isFinite(rank) ? rank : 9999;
+}
+
+function gaCandidateSelectionFitness(item) {
+  const fitness = Number(item?.fitness ?? item?.fitnessBreakdown?.fitness);
+  return Number.isFinite(fitness) ? fitness : -9999;
+}
+
+function gaCandidateStatusPriority(item) {
+  const status = String(item?.status || '').toUpperCase();
+  if (status === 'ELITE_SELECTED') return 5;
+  if (status === 'PROMOTED_TO_SHADOW') return 4;
+  if (status === 'TESTER_ONLY' || status === 'PAPER_LIVE_SIM') return 3;
+  if (status === 'NEEDS_MORE_DATA') return 2;
+  if (status === 'REJECTED') return 0;
+  return 1;
+}
+
+function gaCandidateLineageSourcePriority(item) {
+  const source = String(item?.source || '').toUpperCase();
+  if (source === 'CROSSOVER') return 4;
+  if (source === 'MUTATION') return 3;
+  if (source === 'CASE_MEMORY') return 2;
+  if (source === 'LLM_SEED' || source === 'MANUAL_ARCHIVE_IMPORT') return 1;
+  return 0;
+}
+
+function comparePreferredGASeedCandidate(a, b) {
+  return (
+    gaCandidateSelectionGeneration(b) - gaCandidateSelectionGeneration(a) ||
+    gaCandidateStatusPriority(b) - gaCandidateStatusPriority(a) ||
+    gaCandidateLineageSourcePriority(b) - gaCandidateLineageSourcePriority(a) ||
+    gaCandidateSelectionRank(a) - gaCandidateSelectionRank(b) ||
+    gaCandidateSelectionFitness(b) - gaCandidateSelectionFitness(a) ||
+    String(a?.seedId || '').localeCompare(String(b?.seedId || ''))
+  );
+}
+
+function preferredGASeedCandidateQueue(candidates) {
+  const rows = Array.isArray(candidates) ? candidates.filter((item) => item?.seedId) : [];
+  return [...rows].sort(comparePreferredGASeedCandidate);
+}
+
+async function selectGASeed(item, { auto = false } = {}) {
   if (!item?.seedId) return;
+  if (!auto) gaSeedSelectionPinned.value = true;
   lineageTreeExpanded.value = false;
   selectedGASeed.value = item;
   selectedGASeedLoading.value = true;
@@ -1720,6 +1775,39 @@ async function selectGASeed(item) {
     selectedGASeed.value = payload?.candidate || item;
   } catch (err) {
     selectedGASeedError.value = err?.message || 'GA 候选完整审计读取失败';
+  } finally {
+    selectedGASeedLoading.value = false;
+  }
+}
+
+async function selectPreferredGASeedWithLineage(candidates) {
+  if (gaSeedSelectionPinned.value && selectedGASeed.value?.seedId) return;
+
+  const queue = preferredGASeedCandidateQueue(candidates);
+  if (!queue.length) {
+    selectedGASeed.value = null;
+    return;
+  }
+
+  selectedGASeedLoading.value = true;
+  selectedGASeedError.value = '';
+  lineageTreeExpanded.value = false;
+  let fallback = null;
+
+  try {
+    for (const item of queue.slice(0, 8)) {
+      const payload = await fetchUSDJPYGACandidate(item.seedId);
+      const candidate = payload?.candidate || item;
+      if (!fallback) fallback = candidate;
+      if (gaCandidateHasLineagePath(candidate)) {
+        selectedGASeed.value = candidate;
+        return;
+      }
+    }
+    selectedGASeed.value = fallback || queue[0];
+  } catch (err) {
+    selectedGASeedError.value = err?.message || 'GA 候选完整审计读取失败';
+    selectedGASeed.value = fallback || queue[0];
   } finally {
     selectedGASeedLoading.value = false;
   }
@@ -1745,9 +1833,6 @@ function assignLoaded(results) {
   strategyBacktestPayload.value = results.strategyBacktestState;
   evidenceOSPayload.value = results.evidenceOSState;
   telegramGatewayPayload.value = results.telegramGatewayState;
-  if (!selectedGASeed.value) {
-    selectedGASeed.value = results.gaCandidates?.candidates?.[0] || null;
-  }
 }
 
 async function loadAll() {
@@ -1813,6 +1898,7 @@ async function loadAll() {
     evidenceOSState,
     telegramGatewayState,
   });
+  await selectPreferredGASeedWithLineage(gaCandidates?.candidates);
 }
 
 async function load({ silent = false } = {}) {
