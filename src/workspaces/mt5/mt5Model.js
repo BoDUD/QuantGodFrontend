@@ -1000,7 +1000,9 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
     ? `硬差异：${parityMismatches.slice(0, 2).join('；')}`
     : parityMissing.length
       ? `缺字段：${parityMissing.slice(0, 2).join('；')}；缺字段只做审计提醒。`
-      : deepParity.reasonZh || parity.reasonZh || 'Strategy JSON / Python Replay / MQL5 EA 三方证据一致或等待同步。';
+      : deepParity.reasonZh ||
+        parity.reasonZh ||
+        'Strategy JSON / Python Replay / MQL5 EA 三方证据一致或等待同步。';
   const parityHint = `${parityHintBase}；${evidenceSyncSummary.detail}`;
 
   return [
