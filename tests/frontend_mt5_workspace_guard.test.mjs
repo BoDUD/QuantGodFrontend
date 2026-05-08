@@ -31,7 +31,8 @@ const model = [
   "const FOCUS_SYMBOL = 'USDJPYc';",
   'function isFocusSymbolRow() { return true; }',
   'function focusSymbolRows() { return []; }',
-  'const evidenceOS = { executionFeedback: { promotionGate: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
+  'const evidenceOS = { executionFeedback: { promotionGate: {}, fieldCompleteness: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
+  "const fieldCompleteness = evidenceOS.executionFeedback.fieldCompleteness; const label = 'EA 字段契约';",
 ].join('\n');
 
 const workspace = [
@@ -56,6 +57,7 @@ export async function loadMt5Workspace() {
   fetchJson(\`/api/shadow/candidates\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/candidate-outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson('/api/usdjpy-strategy-lab/evidence-os/status');
+  fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback');
 }`,
 };
 

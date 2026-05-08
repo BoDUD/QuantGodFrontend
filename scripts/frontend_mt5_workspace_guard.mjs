@@ -104,7 +104,14 @@ function checkMt5Model(root) {
       errors.push(`${rel(root, model)}: missing safety field ${requiredSafety}`);
   }
 
-  for (const requiredEvidenceOS of ['evidenceOS', 'promotionGate', 'gaSeedHints', 'Case Memory']) {
+  for (const requiredEvidenceOS of [
+    'evidenceOS',
+    'promotionGate',
+    'fieldCompleteness',
+    'EA 字段契约',
+    'gaSeedHints',
+    'Case Memory',
+  ]) {
     if (!text.includes(requiredEvidenceOS)) {
       errors.push(
         `${rel(root, model)}: missing MT5 Evidence OS lightweight summary marker ${requiredEvidenceOS}`,
@@ -131,6 +138,11 @@ function checkDomainApi(root) {
   const text = read(api);
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/status')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS status through API facade`);
+  }
+  if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/execution-feedback')) {
+    errors.push(
+      `${rel(root, api)}: MT5 workspace must load live execution feedback field completeness through API facade`,
+    );
   }
   for (const endpoint of [
     '/api/shadow/signals',

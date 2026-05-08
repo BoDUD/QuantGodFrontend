@@ -942,6 +942,7 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
   const executionFeedback = evidenceOS.executionFeedback || {};
   const executionMetrics = executionFeedback.metrics || {};
   const promotionGate = executionFeedback.promotionGate || evidenceOS.promotionGate || {};
+  const fieldCompleteness = executionFeedback.fieldCompleteness || {};
   const caseMemory = evidenceOS.caseMemory || {};
   const caseMemoryToGA = caseMemory.caseMemoryToGA || evidenceOS.caseMemoryToGA || {};
   const gaSeedHints = rowsFromPayload(
@@ -997,11 +998,21 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
       hint: gateReason,
     },
     {
+      label: 'EA 字段契约',
+      value: fieldContractZh(fieldCompleteness.status),
+      status: evidenceGateTone(fieldCompleteness.status || 'WAITING_FEEDBACK'),
+      hint:
+        fieldCompleteness.reasonZh ||
+        `覆盖率 ${formatDiagnosticNumber(fieldCompleteness.fieldCoveragePct, 0)}%，审计样本 ${
+          fieldCompleteness.auditedRows ?? 0
+        } 条；等待 EA 同步 policyId / intentId / fill / slippage / latency / R 倍数字段。`,
+    },
+    {
       label: '执行阻断 / 警告',
       value: blockerText,
       status: blockers.length ? 'error' : warnings.length ? 'warn' : 'ok',
       hint: `拒单 ${executionMetrics.rejectCount ?? 0}；滑点 ${formatDiagnosticNumber(
-        executionMetrics.avgSlippagePips,
+        executionMetrics.avgAbsSlippagePips,
       )} pips；延迟 ${formatDiagnosticNumber(executionMetrics.avgLatencyMs, 0)} ms。`,
     },
     {
@@ -1017,6 +1028,14 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
       hint: `Case → GA seed hint ${hintCount || 0} 条；这里只显示看盘摘要，完整过程在 Evolution 面板。`,
     },
   ];
+}
+
+function fieldContractZh(status) {
+  const normalized = String(status || 'WAITING_FEEDBACK').toUpperCase();
+  if (normalized === 'PASS') return '字段稳定';
+  if (normalized === 'BLOCKED') return '字段缺失阻断';
+  if (normalized === 'WATCH') return '继续观察';
+  return '等待 EA 同步';
 }
 
 export function buildRsiEntryDiagnosticRows(snapshot) {

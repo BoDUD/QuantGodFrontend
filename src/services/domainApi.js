@@ -37,6 +37,7 @@ export async function loadMt5Workspace() {
     shadowCandidateOutcomes,
     usdJpyLiveLoop,
     evidenceOS,
+    evidenceExecutionFeedback,
   ] = await Promise.all([
     fetchJson('/api/mt5-readonly/status'),
     fetchJson('/api/mt5-readonly/account'),
@@ -57,7 +58,12 @@ export async function loadMt5Workspace() {
     fetchJson(`/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
     fetchJson('/api/usdjpy-strategy-lab/live-loop'),
     fetchJson('/api/usdjpy-strategy-lab/evidence-os/status'),
+    fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback'),
   ]);
+  const mergedEvidenceOS = {
+    ...(evidenceOS || {}),
+    executionFeedback: evidenceExecutionFeedback || evidenceOS?.executionFeedback,
+  };
   return {
     status,
     account,
@@ -77,7 +83,7 @@ export async function loadMt5Workspace() {
     shadowCandidates,
     shadowCandidateOutcomes,
     usdJpyLiveLoop,
-    evidenceOS,
+    evidenceOS: mergedEvidenceOS,
   };
 }
 
