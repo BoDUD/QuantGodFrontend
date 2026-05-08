@@ -142,16 +142,19 @@
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>执行反馈</span>
-        <strong>{{ executionMetrics.feedbackRows || 0 }} 条</strong>
+        <strong>{{ executionGateStatusZh }}</strong>
         <p>
-          拒单 {{ executionMetrics.rejectCount || 0 }} / 滑点
-          {{ executionMetrics.avgAbsSlippagePips || 0 }} pips / 净 R {{ executionMetrics.netR || 0 }}
+          样本 {{ executionMetrics.feedbackRows || 0 }} / 阻断
+          {{ executionBlockers.length }} / 警告 {{ executionWarnings.length }}
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Case Memory</span>
         <strong>{{ caseMemory.caseCount || 0 }}</strong>
-        <p>{{ caseMemory.queuedForGA || 0 }} 个经验进入 GA 线索；记录错失、早出、执行偏差。</p>
+        <p>
+          {{ caseMemory.queuedForGA || 0 }} 个经验进入 GA；标准 seed hint
+          {{ gaSeedHints.length }} 条。
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Telegram Gateway</span>
@@ -427,6 +430,82 @@
           </p>
         </article>
       </div>
+    </section>
+
+    <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--evidence-os">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>执行反馈、Case Memory 与下一代 GA</h3>
+          <p>
+            真实成交、拒单、滑点、延迟和 policy 偏离会先进入执行反馈晋级门；异常再转成 Case Memory，
+            最后喂给下一代 Strategy JSON GA。
+          </p>
+        </div>
+        <strong>{{ executionGateStatusZh }}</strong>
+      </div>
+      <div class="qg-usdjpy-evolution__scenario-grid">
+        <article>
+          <span>执行晋级门</span>
+          <strong>{{ executionPromotionAllowed ? '允许作为晋级证据' : '不允许扩大阶段' }}</strong>
+          <p>{{ executionGate.reasonZh || '等待 EA 输出标准化 LiveExecutionFeedback。' }}</p>
+        </article>
+        <article>
+          <span>Agent 动作</span>
+          <strong>{{ executionAgentActionZh }}</strong>
+          <p>{{ executionFeedback.nextActionZh || '等待真实执行反馈后再评估。' }}</p>
+        </article>
+        <article>
+          <span>执行质量</span>
+          <strong>{{ executionMetrics.feedbackQuality || 'MISSING' }}</strong>
+          <p>
+            拒单 {{ executionMetrics.rejectCount || 0 }} / 滑点
+            {{ executionMetrics.avgAbsSlippagePips || 0 }} pips / 延迟
+            {{ executionMetrics.avgLatencyMs || 0 }} ms
+          </p>
+        </article>
+        <article>
+          <span>Case → GA</span>
+          <strong>{{ caseMemoryToGA.queuedHintCount || gaSeedHints.length || 0 }} 条 seed hint</strong>
+          <p>{{ caseMemoryToGA.nextActionZh || '等待 Case Memory 生成下一代 Strategy JSON 线索。' }}</p>
+        </article>
+      </div>
+      <div v-if="executionBlockers.length || executionWarnings.length" class="qg-usdjpy-evolution__mini-list">
+        <article v-for="item in executionBlockers.slice(0, 4)" :key="`block-${item.code}`">
+          <span>执行阻断</span>
+          <strong>{{ item.code }}</strong>
+          <p>{{ item.reasonZh }}</p>
+        </article>
+        <article v-for="item in executionWarnings.slice(0, 4)" :key="`warn-${item.code}`">
+          <span>执行警告</span>
+          <strong>{{ item.code }}</strong>
+          <p>{{ item.reasonZh }}</p>
+        </article>
+      </div>
+      <div v-if="gaSeedHints.length" class="qg-usdjpy-evolution__table-wrap">
+        <table class="qg-usdjpy-evolution__table qg-usdjpy-evolution__table--compact">
+          <thead>
+            <tr>
+              <th>Case</th>
+              <th>类型</th>
+              <th>优先级</th>
+              <th>下一代 GA 变异提示</th>
+              <th>原因</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in gaSeedHints.slice(0, 10)" :key="item.caseId || item.mutationHint">
+              <td>{{ item.caseId || 'CASE_MEMORY' }}</td>
+              <td>{{ item.caseType || 'UNKNOWN' }}</td>
+              <td>{{ item.priority || 'MEDIUM' }}</td>
+              <td>{{ mutationHintZh(item.mutationHint) }}</td>
+              <td>{{ item.reasonZh || '进入下一代 GA shadow 候选。' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="qg-usdjpy-evolution__note">
+        这里不下单、不改 live preset；它只决定执行证据是否能支持晋级，以及下一代 GA 该优先修哪类执行或策略问题。
+      </p>
     </section>
 
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
@@ -783,8 +862,29 @@ const klineCounts = computed(() => strategyBacktestPayload.value?.barCounts || {
 const h1BarCount = computed(() => klineCounts.value.H1 || strategyBacktestReport.value?.barCount || 0);
 const evidenceOS = computed(() => evidenceOSPayload.value || {});
 const parityStatus = computed(() => evidenceOS.value?.parity?.status || '等待校验');
+const executionFeedback = computed(() => evidenceOS.value?.executionFeedback || {});
 const executionMetrics = computed(() => evidenceOS.value?.executionFeedback?.metrics || {});
+const executionGate = computed(() => executionFeedback.value?.promotionGate || {});
+const executionGateStatus = computed(() => executionGate.value?.status || 'WAITING_FEEDBACK');
+const executionBlockers = computed(() => {
+  const rows = executionGate.value?.blockers || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const executionWarnings = computed(() => {
+  const rows = executionGate.value?.warnings || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const executionPromotionAllowed = computed(() => Boolean(executionGate.value?.promotionAllowed));
+const executionGateStatusZh = computed(() => executionGateZh(executionGateStatus.value));
+const executionAgentActionZh = computed(() =>
+  agentActionZh(executionFeedback.value?.agentAction?.action),
+);
 const caseMemory = computed(() => evidenceOS.value?.caseMemory || {});
+const caseMemoryToGA = computed(() => caseMemory.value?.caseMemoryToGA || {});
+const gaSeedHints = computed(() => {
+  const rows = caseMemory.value?.gaSeedHints || [];
+  return Array.isArray(rows) ? rows : [];
+});
 const telegramGateway = computed(() => telegramGatewayPayload.value || evidenceOS.value?.telegramGateway || {});
 const eaRepro = computed(
   () =>
@@ -884,6 +984,48 @@ function statusZh(value, fallback = '等待 Agent 处理') {
   return map[key] || value || fallback;
 }
 
+function executionGateZh(value) {
+  const map = {
+    PASS: '执行反馈通过',
+    WATCH: '执行风险观察',
+    BLOCKED: '执行反馈阻断',
+    WAITING_FEEDBACK: '等待执行反馈',
+    MISSING: '等待执行反馈',
+    UNKNOWN: '等待执行反馈',
+  };
+  const key = String(value || '').toUpperCase();
+  return map[key] || value || '等待执行反馈';
+}
+
+function agentActionZh(value) {
+  const map = {
+    BLOCK_PROMOTION_AND_QUEUE_CASE_MEMORY: '阻断晋级并写入 Case',
+    KEEP_SHADOW_AND_MONITOR_EXECUTION: '继续影子观察',
+    ALLOW_EXECUTION_FEEDBACK_TO_SUPPORT_PROMOTION: '允许支持晋级',
+    WAIT_FOR_LIVE_EXECUTION_FEEDBACK: '等待执行反馈',
+  };
+  const key = String(value || '').toUpperCase();
+  return map[key] || value || '等待执行反馈';
+}
+
+function mutationHintZh(value) {
+  const map = {
+    relax_rsi_crossback: '放宽 RSI crossback',
+    let_profit_run: '延后保本 / 多拿盈利',
+    tighten_entry_filter: '收紧入场过滤',
+    tighten_execution_filter: '收紧执行窗口 / 降仓',
+    inspect_execution_quality: '检查拒单和执行质量',
+    reduce_execution_latency: '降低执行延迟',
+    verify_execution_ack_fill_sync: '核对 accepted/fill 回执同步',
+    verify_ea_policy_sync: '核对 EA 与 policy 同步',
+    verify_live_lane_strategy_lock: '核对实盘策略锁',
+    keep_soft_news_gate: '保持软新闻门禁',
+    reject_unstable_seed: '淘汰不稳定 seed',
+    reduce_mutation_rate: '降低 GA mutation 幅度',
+  };
+  return map[value] || value || '观察型 seed';
+}
+
 function conclusionZh(value) {
   const map = {
     REJECTED: '拒绝',
@@ -980,7 +1122,7 @@ function strategyBacktestSummary() {
 }
 
 function evidenceOSSummary() {
-  return `证据 OS 已生成：Parity ${parityStatus.value}；执行反馈 ${executionMetrics.value.feedbackRows || 0} 条；Case ${caseMemory.value.caseCount || 0} 个。`;
+  return `证据 OS 已生成：Parity ${parityStatus.value}；${executionGateStatusZh.value}；Case ${caseMemory.value.caseCount || 0} 个，GA seed hint ${gaSeedHints.value.length} 条。`;
 }
 
 function evolutionSummary() {
