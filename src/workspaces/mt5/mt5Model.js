@@ -670,7 +670,10 @@ function routeKey(row) {
 }
 
 export function buildMt5ShadowSummary(snapshot) {
-  const candidateRows = bestOutcomeRows(focusSymbolRows(snapshot.shadowCandidateOutcomes), 'CandidateDirection');
+  const candidateRows = bestOutcomeRows(
+    focusSymbolRows(snapshot.shadowCandidateOutcomes),
+    'CandidateDirection',
+  );
   const pips = candidateRows
     .map((row) => outcomePips(row, 'CandidateDirection'))
     .filter((value) => value !== null);
@@ -744,7 +747,10 @@ export function buildMt5ShadowSummary(snapshot) {
 }
 
 export function buildMt5ShadowEquityRows(snapshot) {
-  const rows = bestOutcomeRows(focusSymbolRows(snapshot.shadowCandidateOutcomes), 'CandidateDirection').reverse();
+  const rows = bestOutcomeRows(
+    focusSymbolRows(snapshot.shadowCandidateOutcomes),
+    'CandidateDirection',
+  ).reverse();
   let equity = 0;
   return rows
     .map((row) => {
@@ -1110,17 +1116,19 @@ export function buildOrderRows(snapshot) {
 }
 
 export function buildSymbolRows(snapshot) {
-  return focusSymbolRows(snapshot.symbols).slice(0, 40).map((row) =>
-    compactRow(row, {
-      品种: ['symbol', 'name'],
-      可见: ['enabled', 'visible', 'selected'],
-      点位: ['digits'],
-      点差: ['spread', 'spread_float'],
-      交易模式: ['trade_mode', 'tradeMode'],
-      最小手数: ['volumeMin', 'volume_min', 'min_lot'],
-      最大手数: ['volumeMax', 'volume_max', 'max_lot'],
-    }),
-  );
+  return focusSymbolRows(snapshot.symbols)
+    .slice(0, 40)
+    .map((row) =>
+      compactRow(row, {
+        品种: ['symbol', 'name'],
+        可见: ['enabled', 'visible', 'selected'],
+        点位: ['digits'],
+        点差: ['spread', 'spread_float'],
+        交易模式: ['trade_mode', 'tradeMode'],
+        最小手数: ['volumeMin', 'volume_min', 'min_lot'],
+        最大手数: ['volumeMax', 'volume_max', 'max_lot'],
+      }),
+    );
 }
 
 export function buildCloseHistoryRows(snapshot) {

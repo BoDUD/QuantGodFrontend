@@ -222,7 +222,12 @@ describe('mt5Model ledgers', () => {
     const rawSnapshot = {
       shadowSignals: [
         { LabelTimeLocal: '2026.05.05 10:00', Symbol: 'EURUSDc', Strategy: 'MA_Cross', Blocker: 'SPREAD' },
-        { LabelTimeLocal: '2026.05.05 10:30', Symbol: 'USDJPYc', Strategy: 'RSI_Reversal', Blocker: 'SESSION' },
+        {
+          LabelTimeLocal: '2026.05.05 10:30',
+          Symbol: 'USDJPYc',
+          Strategy: 'RSI_Reversal',
+          Blocker: 'SESSION',
+        },
       ],
       shadowCandidateOutcomes: [
         {
