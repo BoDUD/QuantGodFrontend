@@ -939,6 +939,8 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
 
 export function buildMt5EvidenceOsLiteItems(snapshot) {
   const evidenceOS = snapshot.evidenceOS || {};
+  const parity = evidenceOS.parity || {};
+  const deepParity = parity.deepParity || {};
   const executionFeedback = evidenceOS.executionFeedback || {};
   const executionMetrics = executionFeedback.metrics || {};
   const promotionGate = executionFeedback.promotionGate || evidenceOS.promotionGate || {};
@@ -989,8 +991,22 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
     '等待 Case Memory 把执行异常转成下一代 GA seed hint。';
   const hintCount = caseMemoryToGA.queuedHintCount ?? caseMemoryToGA.queuedForGA ?? gaSeedHints.length;
   const nextFix = mutationHintZh(topHint);
+  const parityStatus = deepParity.status || parity.status || 'MISSING';
+  const parityMismatches = rowsFromPayload(deepParity.hardMismatches);
+  const parityMissing = rowsFromPayload(deepParity.missingOptionalFields);
+  const parityHint = parityMismatches.length
+    ? `硬差异：${parityMismatches.slice(0, 2).join('；')}`
+    : parityMissing.length
+      ? `缺字段：${parityMissing.slice(0, 2).join('；')}；缺字段只做审计提醒。`
+      : deepParity.reasonZh || parity.reasonZh || 'Strategy JSON / Python Replay / MQL5 EA 三方证据一致或等待同步。';
 
   return [
+    {
+      label: '三方 Parity',
+      value: parityGateZh(parityStatus),
+      status: evidenceGateTone(parityStatus),
+      hint: parityHint,
+    },
     {
       label: '执行反馈晋级门',
       value: executionGateZh(gateStatus),
@@ -1036,6 +1052,14 @@ function fieldContractZh(status) {
   if (normalized === 'BLOCKED') return '字段缺失阻断';
   if (normalized === 'WATCH') return '继续观察';
   return '等待 EA 同步';
+}
+
+function parityGateZh(status) {
+  const normalized = String(status || 'MISSING').toUpperCase();
+  if (normalized.includes('PASS')) return '三方口径一致';
+  if (normalized.includes('FAIL')) return '三方口径不一致';
+  if (normalized.includes('WARN')) return '三方口径待补证据';
+  return '等待三方证据';
 }
 
 export function buildRsiEntryDiagnosticRows(snapshot) {

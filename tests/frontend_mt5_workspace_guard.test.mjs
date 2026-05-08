@@ -31,8 +31,9 @@ const model = [
   "const FOCUS_SYMBOL = 'USDJPYc';",
   'function isFocusSymbolRow() { return true; }',
   'function focusSymbolRows() { return []; }',
-  'const evidenceOS = { executionFeedback: { promotionGate: {}, fieldCompleteness: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
+  'const evidenceOS = { parity: { deepParity: { status: "PASS" } }, executionFeedback: { promotionGate: {}, fieldCompleteness: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
   "const fieldCompleteness = evidenceOS.executionFeedback.fieldCompleteness; const label = 'EA 字段契约';",
+  "const parityLabel = '三方 Parity'; const deepParity = evidenceOS.parity.deepParity;",
 ].join('\n');
 
 const workspace = [

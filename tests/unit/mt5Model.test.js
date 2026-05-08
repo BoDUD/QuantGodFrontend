@@ -265,6 +265,15 @@ describe('mt5Model ledgers', () => {
   it('summarizes Evidence OS execution feedback and Case Memory for the MT5 first screen', () => {
     const snapshot = normalizeMt5Snapshot({
       evidenceOS: {
+        parity: {
+          status: 'PARITY_PASS',
+          deepParity: {
+            status: 'PASS',
+            reasonZh: 'Strategy JSON / Python Replay / MQL5 EA 深度门禁矩阵一致',
+            hardMismatches: [],
+            missingOptionalFields: ['mql5.rsi.crossbackThreshold'],
+          },
+        },
         executionFeedback: {
           promotionGate: {
             status: 'BLOCKED',
@@ -288,6 +297,8 @@ describe('mt5Model ledgers', () => {
 
     const items = buildMt5EvidenceOsLiteItems(snapshot);
 
+    expect(items.find((item) => item.label === '三方 Parity')?.value).toBe('三方口径一致');
+    expect(items.find((item) => item.label === '三方 Parity')?.hint).toContain('crossbackThreshold');
     expect(items.find((item) => item.label === '执行反馈晋级门')?.value).toBe('执行反馈阻断晋级');
     expect(items.find((item) => item.label === '执行阻断 / 警告')?.value).toContain('滑点损伤');
     expect(items.find((item) => item.label === '当前最大 Case')?.value).toBe('USDJPY-SLIPPAGE-001');

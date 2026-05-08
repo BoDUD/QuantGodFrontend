@@ -445,6 +445,32 @@
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
+          <span>三方 Parity</span>
+          <strong>{{ deepParityStatusZh }}</strong>
+          <p>
+            {{
+              deepParity.reasonZh ||
+              parityReport.reasonZh ||
+              '等待 Strategy JSON / Python Replay / MQL5 EA 三方证据。'
+            }}
+          </p>
+        </article>
+        <article>
+          <span>Strategy JSON</span>
+          <strong>{{ deepStrategySummary }}</strong>
+          <p>{{ deepStrategyGateSummary }}</p>
+        </article>
+        <article>
+          <span>Python Replay</span>
+          <strong>{{ deepReplaySummary }}</strong>
+          <p>{{ deepReplayGateSummary }}</p>
+        </article>
+        <article>
+          <span>MQL5 EA</span>
+          <strong>{{ deepEaSummary }}</strong>
+          <p>{{ deepEaGateSummary }}</p>
+        </article>
+        <article>
           <span>执行晋级门</span>
           <strong>{{ executionPromotionAllowed ? '允许作为晋级证据' : '不允许扩大阶段' }}</strong>
           <p>{{ executionGate.reasonZh || '等待 EA 输出标准化 LiveExecutionFeedback。' }}</p>
@@ -467,6 +493,21 @@
           <span>Case → GA</span>
           <strong>{{ caseMemoryToGA.queuedHintCount || gaSeedHints.length || 0 }} 条 seed hint</strong>
           <p>{{ caseMemoryToGA.nextActionZh || '等待 Case Memory 生成下一代 Strategy JSON 线索。' }}</p>
+        </article>
+      </div>
+      <div
+        v-if="deepParityHardMismatches.length || deepParityMissingOptional.length"
+        class="qg-usdjpy-evolution__mini-list"
+      >
+        <article v-for="item in deepParityHardMismatches.slice(0, 6)" :key="`parity-hard-${item}`">
+          <span>Parity 硬差异</span>
+          <strong>{{ item }}</strong>
+          <p>该差异会阻断策略晋级，直到 Strategy JSON / Python Replay / MQL5 EA 口径重新一致。</p>
+        </article>
+        <article v-for="item in deepParityMissingOptional.slice(0, 6)" :key="`parity-missing-${item}`">
+          <span>Parity 缺字段</span>
+          <strong>{{ item }}</strong>
+          <p>这是审计提醒，不会单独阻断；建议后续让 EA 或 replay 输出补齐。</p>
         </article>
       </div>
       <div v-if="executionBlockers.length || executionWarnings.length" class="qg-usdjpy-evolution__mini-list">
@@ -861,7 +902,53 @@ const backtestCoverageZh = computed(() =>
 const klineCounts = computed(() => strategyBacktestPayload.value?.barCounts || {});
 const h1BarCount = computed(() => klineCounts.value.H1 || strategyBacktestReport.value?.barCount || 0);
 const evidenceOS = computed(() => evidenceOSPayload.value || {});
-const parityStatus = computed(() => evidenceOS.value?.parity?.status || '等待校验');
+const parityReport = computed(() => evidenceOS.value?.parity || {});
+const deepParity = computed(() => parityReport.value?.deepParity || {});
+const parityStatus = computed(() => parityReport.value?.status || '等待校验');
+const deepParityStatus = computed(() => deepParity.value?.status || parityStatus.value);
+const deepParityStatusZh = computed(() => parityStatusZh(deepParityStatus.value));
+const deepParityHardMismatches = computed(() => {
+  const rows = deepParity.value?.hardMismatches || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const deepParityMissingOptional = computed(() => {
+  const rows = deepParity.value?.missingOptionalFields || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const deepStrategyJson = computed(() => deepParity.value?.strategyJson || {});
+const deepPythonReplay = computed(() => deepParity.value?.pythonReplay || {});
+const deepMql5Ea = computed(() => deepParity.value?.mql5Ea || {});
+const deepStrategySummary = computed(() => {
+  const rsi = deepStrategyJson.value?.rsi || {};
+  const family = deepStrategyJson.value?.strategyFamily || '等待策略';
+  const direction = directionZh(deepStrategyJson.value?.direction || 'LONG');
+  return `${family} / ${direction} / RSI ${metricText(rsi.period)}`;
+});
+const deepStrategyGateSummary = computed(() => {
+  const gates = deepStrategyJson.value?.entryGateExpectations || {};
+  const active = Object.entries(gates)
+    .filter(([, enabled]) => enabled)
+    .map(([key]) => key)
+    .join(' / ');
+  return active ? `入场契约包含：${active}` : '等待 Strategy JSON entry gate 契约。';
+});
+const deepReplaySummary = computed(() =>
+  deepPythonReplay.value?.posteriorMayAffectTrigger === false ? '因果回放通过' : '等待因果回放',
+);
+const deepReplayGateSummary = computed(() => {
+  const gates = deepPythonReplay.value?.hardGatesNeverRelaxed || [];
+  const gateText = Array.isArray(gates) && gates.length ? gates.join(' / ') : '等待 hard gate 列表';
+  return `未来后验不参与触发；硬门禁：${gateText}`;
+});
+const deepEaSummary = computed(() => {
+  const route = deepMql5Ea.value?.route || {};
+  const rsi = deepMql5Ea.value?.rsi || {};
+  return `${deepMql5Ea.value?.state || '等待 EA'} / ${route.timeframe || 'H1'} / RSI ${metricText(rsi.period)}`;
+});
+const deepEaGateSummary = computed(() => {
+  const guards = deepMql5Ea.value?.guards || {};
+  return `session ${boolZh(guards.sessionOpen)} / spread ${boolZh(guards.spreadAllowed)} / newsBlocked ${boolZh(guards.newsBlocked)}`;
+});
 const executionFeedback = computed(() => evidenceOS.value?.executionFeedback || {});
 const executionMetrics = computed(() => evidenceOS.value?.executionFeedback?.metrics || {});
 const executionGate = computed(() => executionFeedback.value?.promotionGate || {});
@@ -982,6 +1069,21 @@ function statusZh(value, fallback = '等待 Agent 处理') {
   };
   const key = String(value || '').toUpperCase();
   return map[key] || value || fallback;
+}
+
+function parityStatusZh(value) {
+  const key = String(value || '').toUpperCase();
+  if (key.includes('PASS')) return '三方口径一致';
+  if (key.includes('FAIL')) return '三方口径不一致';
+  if (key.includes('WARN')) return '三方口径待补证据';
+  if (key.includes('MISSING')) return '等待三方证据';
+  return value || '等待三方证据';
+}
+
+function boolZh(value) {
+  if (value === true) return '通过';
+  if (value === false) return '未通过';
+  return '待同步';
 }
 
 function executionGateZh(value) {

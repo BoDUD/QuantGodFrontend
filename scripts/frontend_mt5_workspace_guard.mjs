@@ -109,6 +109,8 @@ function checkMt5Model(root) {
     'promotionGate',
     'fieldCompleteness',
     'EA 字段契约',
+    '三方 Parity',
+    'deepParity',
     'gaSeedHints',
     'Case Memory',
   ]) {
