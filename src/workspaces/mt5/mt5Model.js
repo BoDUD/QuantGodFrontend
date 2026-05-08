@@ -253,6 +253,37 @@ function liveLoopStatusTone(value) {
   return 'warn';
 }
 
+function evidenceGateTone(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('PASS') || text.includes('ALLOW') || text.includes('READY')) return 'ok';
+  if (text.includes('BLOCK') || text.includes('FAIL') || text.includes('STOP')) return 'error';
+  if (text.includes('WARN') || text.includes('WATCH') || text.includes('WAIT')) return 'warn';
+  return 'warn';
+}
+
+function executionGateZh(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('PASS') || text.includes('ALLOW') || text.includes('READY')) return '允许晋级观察';
+  if (text.includes('BLOCK')) return '执行反馈阻断晋级';
+  if (text.includes('FAIL')) return '执行反馈未通过';
+  if (text.includes('WATCH')) return '执行反馈观察中';
+  if (text.includes('WAIT')) return '等待执行反馈';
+  return humanizeStatus(value || '等待执行反馈');
+}
+
+function mutationHintZh(value) {
+  const text = String(value || '').toUpperCase();
+  if (!text) return '等待 Case Memory 生成 GA 修复方向';
+  if (text.includes('SLIPPAGE')) return '降低滑点损伤';
+  if (text.includes('SPREAD')) return '收紧点差风险';
+  if (text.includes('EARLY_EXIT') || text.includes('LET_PROFIT')) return '改善过早出场';
+  if (text.includes('MISSED') || text.includes('ENTRY')) return '减少错失入场';
+  if (text.includes('RSI')) return '微调 RSI 买入触发';
+  if (text.includes('NEWS')) return '复核新闻软门禁';
+  if (text.includes('LATENCY')) return '降低执行延迟';
+  return humanizeStatus(value);
+}
+
 function safetyEnvelope(raw = {}) {
   const candidates = [
     raw.status?.safety,
@@ -273,6 +304,7 @@ export function normalizeMt5Snapshot(raw = {}) {
   const snapshot = unwrap(raw.snapshot) || {};
   const latest = unwrap(raw.latest) || {};
   const usdJpyLiveLoop = unwrap(raw.usdJpyLiveLoop) || {};
+  const evidenceOS = unwrap(raw.evidenceOS) || {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
   const orders = rowsFromPayload(raw.orders);
@@ -340,6 +372,7 @@ export function normalizeMt5Snapshot(raw = {}) {
     researchStats: raw.researchStats || {},
     governanceAdvisor: raw.governanceAdvisor || {},
     usdJpyLiveLoop,
+    evidenceOS,
     researchSummary,
     governanceSummary,
     safety,
@@ -900,6 +933,88 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
         ? `${topShadow.strategy}｜${directionZh(topShadow.direction)}｜${entryModeZh(topShadow.entryMode)}`
         : '暂无影子第一名',
       hint: '影子第一名只做研究，不会抢 RSI_Reversal 买入实盘路线。',
+    },
+  ];
+}
+
+export function buildMt5EvidenceOsLiteItems(snapshot) {
+  const evidenceOS = snapshot.evidenceOS || {};
+  const executionFeedback = evidenceOS.executionFeedback || {};
+  const executionMetrics = executionFeedback.metrics || {};
+  const promotionGate = executionFeedback.promotionGate || evidenceOS.promotionGate || {};
+  const caseMemory = evidenceOS.caseMemory || {};
+  const caseMemoryToGA = caseMemory.caseMemoryToGA || evidenceOS.caseMemoryToGA || {};
+  const gaSeedHints = rowsFromPayload(
+    caseMemory.gaSeedHints || caseMemoryToGA.gaSeedHints || evidenceOS.gaSeedHints,
+  );
+  const blockers = rowsFromPayload(
+    promotionGate.blockers || executionFeedback.blockers || evidenceOS.executionBlockers,
+  );
+  const warnings = rowsFromPayload(
+    promotionGate.warnings || executionFeedback.warnings || evidenceOS.executionWarnings,
+  );
+  const cases = rowsFromPayload(caseMemory.cases || caseMemory.items || caseMemory.ledger);
+  const topCase = gaSeedHints[0] || caseMemory.topCase || cases[0] || {};
+  const topHint = topCase.mutationHint || topCase.nextMutationHint || caseMemoryToGA.topMutationHint;
+  const gateStatus =
+    promotionGate.status || promotionGate.decision || executionFeedback.status || 'WAITING_FEEDBACK';
+  const gateReason =
+    promotionGate.reasonZh ||
+    promotionGate.reason ||
+    executionFeedback.reasonZh ||
+    '等待 EA 输出标准化 LiveExecutionFeedback，或等待 Evidence OS 刷新。';
+  const blockerText = blockers.length
+    ? blockers
+        .slice(0, 2)
+        .map((row) => row.reasonZh || row.reason || row.code || row.label || humanizeStatus(row))
+        .join('；')
+    : warnings.length
+      ? warnings
+          .slice(0, 2)
+          .map((row) => row.reasonZh || row.reason || row.code || row.label || humanizeStatus(row))
+          .join('；')
+      : '未发现执行反馈阻断晋级。';
+  const caseLabel =
+    topCase.caseId ||
+    topCase.id ||
+    topCase.typeZh ||
+    humanizeStatus(topCase.type || caseMemory.topCaseType || '等待 Case');
+  const caseReason =
+    topCase.reasonZh ||
+    topCase.rootCauseZh ||
+    topCase.rootCause ||
+    topCase.reason ||
+    caseMemoryToGA.nextActionZh ||
+    '等待 Case Memory 把执行异常转成下一代 GA seed hint。';
+  const hintCount = caseMemoryToGA.queuedHintCount ?? caseMemoryToGA.queuedForGA ?? gaSeedHints.length;
+  const nextFix = mutationHintZh(topHint);
+
+  return [
+    {
+      label: '执行反馈晋级门',
+      value: executionGateZh(gateStatus),
+      status: evidenceGateTone(gateStatus),
+      hint: gateReason,
+    },
+    {
+      label: '执行阻断 / 警告',
+      value: blockerText,
+      status: blockers.length ? 'error' : warnings.length ? 'warn' : 'ok',
+      hint: `拒单 ${executionMetrics.rejectCount ?? 0}；滑点 ${formatDiagnosticNumber(
+        executionMetrics.avgSlippagePips,
+      )} pips；延迟 ${formatDiagnosticNumber(executionMetrics.avgLatencyMs, 0)} ms。`,
+    },
+    {
+      label: '当前最大 Case',
+      value: caseLabel,
+      status: present(topCase) ? 'warn' : 'unknown',
+      hint: caseReason,
+    },
+    {
+      label: '下一代 GA 修复方向',
+      value: nextFix,
+      status: hintCount ? 'warn' : 'unknown',
+      hint: `Case → GA seed hint ${hintCount || 0} 条；这里只显示看盘摘要，完整过程在 Evolution 面板。`,
     },
   ];
 }

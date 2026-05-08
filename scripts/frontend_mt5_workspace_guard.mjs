@@ -41,6 +41,7 @@ function checkMt5Workspace(root) {
     'KeyValueList',
     'LedgerTable',
     'RSI 入场诊断',
+    '执行反馈与下一代修复',
     'StatusPill',
     'Safety Envelope',
     'Raw MT5 evidence',
@@ -63,7 +64,8 @@ function checkMt5Workspace(root) {
     /\btrade\s*:\s*true/i,
   ];
   for (const pattern of forbiddenAffordances) {
-    if (pattern.test(text)) errors.push(`${rel(root, workspace)}: forbidden MT5 execution affordance ${pattern}`);
+    if (pattern.test(text))
+      errors.push(`${rel(root, workspace)}: forbidden MT5 execution affordance ${pattern}`);
   }
   return errors;
 }
@@ -82,6 +84,7 @@ function checkMt5Model(root) {
     'buildOrderRows',
     'buildSymbolRows',
     'buildRsiEntryDiagnosticRows',
+    'buildMt5EvidenceOsLiteItems',
     'buildEndpointHealth',
     'rowsFromPayload',
   ]) {
@@ -97,7 +100,16 @@ function checkMt5Model(root) {
     'credentialStorageAllowed',
     'livePresetMutationAllowed',
   ]) {
-    if (!text.includes(requiredSafety)) errors.push(`${rel(root, model)}: missing safety field ${requiredSafety}`);
+    if (!text.includes(requiredSafety))
+      errors.push(`${rel(root, model)}: missing safety field ${requiredSafety}`);
+  }
+
+  for (const requiredEvidenceOS of ['evidenceOS', 'promotionGate', 'gaSeedHints', 'Case Memory']) {
+    if (!text.includes(requiredEvidenceOS)) {
+      errors.push(
+        `${rel(root, model)}: missing MT5 Evidence OS lightweight summary marker ${requiredEvidenceOS}`,
+      );
+    }
   }
 
   for (const requiredScope of ['FOCUS_SYMBOL', 'focusSymbolRows', 'isFocusSymbolRow']) {
@@ -117,6 +129,9 @@ function checkDomainApi(root) {
   const api = path.join(root, 'src', 'services', 'domainApi.js');
   if (!exists(api)) return [`${rel(root, api)}: missing domain API`];
   const text = read(api);
+  if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/status')) {
+    errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS status through API facade`);
+  }
   for (const endpoint of [
     '/api/shadow/signals',
     '/api/shadow/outcomes',

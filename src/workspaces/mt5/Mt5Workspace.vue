@@ -28,6 +28,14 @@
       <KeyValueList :items="usdJpyLiveLoopItems" />
     </section>
 
+    <section class="qg-section-card qg-section-card--operator">
+      <header>
+        <p class="qg-eyebrow">Evidence OS</p>
+        <h2>执行反馈与下一代修复</h2>
+      </header>
+      <KeyValueList :items="evidenceOsLiteItems" />
+    </section>
+
     <LedgerTable
       title="RSI 入场诊断"
       :rows="rsiEntryDiagnosticRows"
@@ -187,6 +195,7 @@ import {
   buildMt5ReviewRows,
   buildMt5RouteModeRows,
   buildMt5SimulationItems,
+  buildMt5EvidenceOsLiteItems,
   buildRsiEntryDiagnosticRows,
   buildSafetyItems,
   buildSymbolRows,
@@ -215,6 +224,7 @@ const state = reactive({
   shadowCandidates: null,
   shadowCandidateOutcomes: null,
   usdJpyLiveLoop: null,
+  evidenceOS: null,
 });
 
 const snapshot = computed(() => normalizeMt5Snapshot(state));
@@ -238,6 +248,7 @@ const reviewRows = computed(() => buildMt5ReviewRows(snapshot.value));
 const routeModeRows = computed(() => buildMt5RouteModeRows(snapshot.value));
 const rsiEntryDiagnosticRows = computed(() => buildRsiEntryDiagnosticRows(snapshot.value));
 const usdJpyLiveLoopItems = computed(() => buildUsdJpyLiveLoopItems(snapshot.value));
+const evidenceOsLiteItems = computed(() => buildMt5EvidenceOsLiteItems(snapshot.value));
 let refreshTimer = null;
 
 async function load(options = {}) {

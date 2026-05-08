@@ -24,16 +24,18 @@ const model = [
   'export function buildOrderRows() {}',
   'export function buildSymbolRows() {}',
   'export function buildRsiEntryDiagnosticRows() {}',
+  'export function buildMt5EvidenceOsLiteItems() {}',
   'export function buildEndpointHealth() {}',
   'export function rowsFromPayload() {}',
   'const fields = ["orderSendAllowed", "closeAllowed", "cancelAllowed", "credentialStorageAllowed", "livePresetMutationAllowed"];',
   "const FOCUS_SYMBOL = 'USDJPYc';",
   'function isFocusSymbolRow() { return true; }',
   'function focusSymbolRows() { return []; }',
+  'const evidenceOS = { executionFeedback: { promotionGate: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
 ].join('\n');
 
 const workspace = [
-  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="RSI 入场诊断" /><StatusPill />Safety Envelope Raw MT5 evidence</template>',
+  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="RSI 入场诊断" /><StatusPill />执行反馈与下一代修复 Safety Envelope Raw MT5 evidence</template>',
   '<script setup>',
   "import { loadMt5Workspace } from '../../services/domainApi.js';",
   "import { normalizeMt5Snapshot } from './mt5Model.js';",
@@ -41,7 +43,9 @@ const workspace = [
 ].join('\n');
 
 const validFiles = {
-  'package.json': JSON.stringify({ scripts: { 'mt5-workspace': 'node scripts/frontend_mt5_workspace_guard.mjs' } }),
+  'package.json': JSON.stringify({
+    scripts: { 'mt5-workspace': 'node scripts/frontend_mt5_workspace_guard.mjs' },
+  }),
   'src/workspaces/mt5/mt5Model.js': model,
   'src/workspaces/mt5/Mt5Workspace.vue': workspace,
   'src/services/domainApi.js': `
@@ -51,6 +55,7 @@ export async function loadMt5Workspace() {
   fetchJson(\`/api/shadow/outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/candidates\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/candidate-outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
+  fetchJson('/api/usdjpy-strategy-lab/evidence-os/status');
 }`,
 };
 

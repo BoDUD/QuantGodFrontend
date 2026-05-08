@@ -6,6 +6,7 @@ import {
   buildMt5ShadowEquityRows,
   buildMt5ShadowSummary,
   buildMt5ShadowTradeRows,
+  buildMt5EvidenceOsLiteItems,
   buildMt5TodoRows,
   buildMt5ReviewRows,
   buildTradeJournalRows,
@@ -259,6 +260,38 @@ describe('mt5Model ledgers', () => {
     expect(trades).toHaveLength(1);
     expect(trades[0].品种).toBe('USDJPYc');
     expect(equity[0].品种).toBe('USDJPYc');
+  });
+
+  it('summarizes Evidence OS execution feedback and Case Memory for the MT5 first screen', () => {
+    const snapshot = normalizeMt5Snapshot({
+      evidenceOS: {
+        executionFeedback: {
+          promotionGate: {
+            status: 'BLOCKED',
+            reasonZh: '执行反馈阻断晋级：最近两笔滑点过大',
+            blockers: [{ code: 'SLIPPAGE_DAMAGE', reasonZh: '滑点损伤过大' }],
+          },
+          metrics: { rejectCount: 1, avgSlippagePips: 2.35, avgLatencyMs: 318 },
+        },
+        caseMemory: {
+          caseMemoryToGA: { queuedHintCount: 1 },
+          gaSeedHints: [
+            {
+              caseId: 'USDJPY-SLIPPAGE-001',
+              mutationHint: 'reduce_slippage_damage',
+              reasonZh: '下一代需要降低滑点损伤',
+            },
+          ],
+        },
+      },
+    });
+
+    const items = buildMt5EvidenceOsLiteItems(snapshot);
+
+    expect(items.find((item) => item.label === '执行反馈晋级门')?.value).toBe('执行反馈阻断晋级');
+    expect(items.find((item) => item.label === '执行阻断 / 警告')?.value).toContain('滑点损伤');
+    expect(items.find((item) => item.label === '当前最大 Case')?.value).toBe('USDJPY-SLIPPAGE-001');
+    expect(items.find((item) => item.label === '下一代 GA 修复方向')?.value).toBe('降低滑点损伤');
   });
 
   it('hides stale daily review rows instead of showing old EURUSD tasks', () => {
