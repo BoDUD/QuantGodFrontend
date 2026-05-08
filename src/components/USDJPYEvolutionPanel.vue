@@ -692,9 +692,22 @@
           class="qg-usdjpy-evolution__lineage-tree"
         >
           <div class="qg-usdjpy-evolution__lineage-tree-head">
-            <span>Lineage Tree / 进化树</span>
-            <strong>{{ gaLineageTreeSummary(selectedGASeed) }}</strong>
-            <p>{{ gaLineageTree(selectedGASeed).reasonZh || '展示父代、当前 seed 和子代的 mutation / crossover 路径。' }}</p>
+            <div>
+              <span>Lineage Tree / 进化树</span>
+              <strong>{{ gaLineageTreeSummary(selectedGASeed) }}</strong>
+              <p>
+                Elite path 高亮；默认折叠远端旁支。
+                {{ gaLineageTree(selectedGASeed).reasonZh || '展示父代、当前 seed 和子代的 mutation / crossover 路径。' }}
+              </p>
+            </div>
+            <button
+              v-if="gaLineageTreeHiddenCount(selectedGASeed)"
+              type="button"
+              class="qg-usdjpy-evolution__lineage-toggle"
+              @click="lineageTreeExpanded = !lineageTreeExpanded"
+            >
+              {{ lineageTreeExpanded ? '折叠旁支' : `展开全部 lineage（隐藏 ${gaLineageTreeHiddenCount(selectedGASeed)}）` }}
+            </button>
           </div>
           <div class="qg-usdjpy-evolution__lineage-levels">
             <article
@@ -710,6 +723,8 @@
                 :class="{
                   'qg-usdjpy-evolution__lineage-node--selected': node.selected,
                   'qg-usdjpy-evolution__lineage-node--external': node.external,
+                  'qg-usdjpy-evolution__lineage-node--elite-path': node.onElitePath,
+                  'qg-usdjpy-evolution__lineage-node--elite': node.eliteSelected,
                 }"
               >
                 <strong>{{ node.seedId }}</strong>
@@ -720,7 +735,11 @@
           </div>
           <div v-if="gaLineageTreeEdges(selectedGASeed).length" class="qg-usdjpy-evolution__lineage-edges">
             <span>Mutation / Crossover 路径</span>
-            <article v-for="edge in gaLineageTreeEdges(selectedGASeed)" :key="`${edge.from}-${edge.to}-${edge.type}`">
+            <article
+              v-for="edge in gaLineageTreeEdges(selectedGASeed)"
+              :key="`${edge.from}-${edge.to}-${edge.type}`"
+              :class="{ 'qg-usdjpy-evolution__lineage-edge--elite-path': edge.onElitePath }"
+            >
               <strong>{{ edge.from }} → {{ edge.to }}</strong>
               <p>{{ lineageEdgeTypeZh(edge.type) }}；{{ edge.reasonZh || 'GA lineage 关联。' }}</p>
             </article>
@@ -984,6 +1003,7 @@ const telegramGatewayPayload = ref(null);
 const selectedGASeed = ref(null);
 const selectedGASeedLoading = ref(false);
 const selectedGASeedError = ref('');
+const lineageTreeExpanded = ref(false);
 const loading = ref(false);
 const error = ref('');
 const actionStatus = ref(null);
@@ -1402,14 +1422,26 @@ function gaLineageTreeNodes(item) {
   return Array.isArray(nodes) ? nodes : [];
 }
 
+function gaVisibleLineageTreeNodes(item) {
+  const nodes = gaLineageTreeNodes(item);
+  if (lineageTreeExpanded.value) return nodes;
+  return nodes.filter((node) => !node.foldedByDefault || node.selected || node.onElitePath || node.eliteSelected);
+}
+
 function gaLineageTreeEdges(item) {
   const edges = gaLineageTree(item).edges;
-  return Array.isArray(edges) ? edges : [];
+  if (!Array.isArray(edges)) return [];
+  const visibleIds = new Set(gaVisibleLineageTreeNodes(item).map((node) => String(node.seedId || '')));
+  return edges.filter((edge) => {
+    const from = String(edge.from || '');
+    const to = String(edge.to || '');
+    return visibleIds.has(from) && visibleIds.has(to);
+  });
 }
 
 function gaLineageTreeLevels(item) {
   const grouped = new Map();
-  for (const node of gaLineageTreeNodes(item)) {
+  for (const node of gaVisibleLineageTreeNodes(item)) {
     const depth = Number(node.relativeDepth || 0);
     if (!grouped.has(depth)) grouped.set(depth, []);
     grouped.get(depth).push(node);
@@ -1425,7 +1457,15 @@ function gaLineageTreeLevels(item) {
 function gaLineageTreeSummary(item) {
   const tree = gaLineageTree(item);
   if (!tree.nodeCount) return '等待 lineage tree';
-  return `${tree.nodeCount} 节点 / ${tree.edgeCount || 0} 边`;
+  const hidden = gaLineageTreeHiddenCount(item);
+  const elitePath = tree.elitePathCount ? ` / elite path ${tree.elitePathCount}` : '';
+  const hiddenText = hidden && !lineageTreeExpanded.value ? ` / 折叠 ${hidden}` : '';
+  return `${tree.nodeCount} 节点 / ${tree.edgeCount || 0} 边${elitePath}${hiddenText}`;
+}
+
+function gaLineageTreeHiddenCount(item) {
+  const nodes = gaLineageTreeNodes(item);
+  return nodes.filter((node) => node.foldedByDefault && !node.selected && !node.onElitePath && !node.eliteSelected).length;
 }
 
 function gaLineageLevelTitle(depth) {
@@ -1611,6 +1651,7 @@ function evolutionSummary() {
 
 async function selectGASeed(item) {
   if (!item?.seedId) return;
+  lineageTreeExpanded.value = false;
   selectedGASeed.value = item;
   selectedGASeedLoading.value = true;
   selectedGASeedError.value = '';
@@ -2156,11 +2197,30 @@ onMounted(() => load({ silent: true }));
   text-transform: uppercase;
 }
 
+.qg-usdjpy-evolution__lineage-tree-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
 .qg-usdjpy-evolution__lineage-tree-head strong {
   display: block;
   margin-top: 4px;
   color: #f4f8ff;
   font-size: 1.05rem;
+}
+
+.qg-usdjpy-evolution__lineage-toggle {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(83, 180, 255, 0.7);
+  border-radius: 999px;
+  background: rgba(18, 61, 97, 0.42);
+  color: #e8f3ff;
+  font-size: 0.74rem;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .qg-usdjpy-evolution__lineage-levels {
@@ -2200,6 +2260,15 @@ onMounted(() => load({ silent: true }));
   box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2);
 }
 
+.qg-usdjpy-evolution__lineage-node--elite-path {
+  border-color: rgba(250, 204, 21, 0.92);
+  background: linear-gradient(135deg, rgba(67, 51, 13, 0.58), rgba(16, 28, 51, 0.82));
+}
+
+.qg-usdjpy-evolution__lineage-node--elite {
+  box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.3);
+}
+
 .qg-usdjpy-evolution__lineage-node--external {
   border-style: dashed;
   opacity: 0.82;
@@ -2231,6 +2300,11 @@ onMounted(() => load({ silent: true }));
   border: 1px solid rgba(55, 84, 126, 0.6);
   border-radius: 9px;
   background: rgba(8, 16, 32, 0.58);
+}
+
+.qg-usdjpy-evolution__lineage-edge--elite-path {
+  border-color: rgba(250, 204, 21, 0.8) !important;
+  background: rgba(70, 54, 16, 0.46) !important;
 }
 
 .qg-usdjpy-evolution__lineage-edges strong {
