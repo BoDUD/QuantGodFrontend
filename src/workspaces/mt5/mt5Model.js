@@ -941,6 +941,7 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
   const evidenceOS = snapshot.evidenceOS || {};
   const parity = evidenceOS.parity || {};
   const deepParity = parity.deepParity || {};
+  const evidenceSync = parity.evidenceSync || deepParity.evidenceSync || evidenceOS.evidenceSync || {};
   const executionFeedback = evidenceOS.executionFeedback || {};
   const executionMetrics = executionFeedback.metrics || {};
   const promotionGate = executionFeedback.promotionGate || evidenceOS.promotionGate || {};
@@ -994,17 +995,19 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
   const parityStatus = deepParity.status || parity.status || 'MISSING';
   const parityMismatches = rowsFromPayload(deepParity.hardMismatches);
   const parityMissing = rowsFromPayload(deepParity.missingOptionalFields);
-  const parityHint = parityMismatches.length
+  const evidenceSyncSummary = evidenceSyncZh(evidenceSync);
+  const parityHintBase = parityMismatches.length
     ? `硬差异：${parityMismatches.slice(0, 2).join('；')}`
     : parityMissing.length
       ? `缺字段：${parityMissing.slice(0, 2).join('；')}；缺字段只做审计提醒。`
       : deepParity.reasonZh || parity.reasonZh || 'Strategy JSON / Python Replay / MQL5 EA 三方证据一致或等待同步。';
+  const parityHint = `${parityHintBase}；${evidenceSyncSummary.detail}`;
 
   return [
     {
-      label: '三方 Parity',
-      value: parityGateZh(parityStatus),
-      status: evidenceGateTone(parityStatus),
+      label: '三方一致性',
+      value: `${parityGateZh(parityStatus)} / ${evidenceSyncSummary.label}`,
+      status: evidenceSyncSummary.status === 'error' ? 'error' : evidenceGateTone(parityStatus),
       hint: parityHint,
     },
     {
@@ -1060,6 +1063,35 @@ function parityGateZh(status) {
   if (normalized.includes('FAIL')) return '三方口径不一致';
   if (normalized.includes('WARN')) return '三方口径待补证据';
   return '等待三方证据';
+}
+
+function syncStateZh(status) {
+  const normalized = String(status || 'WAITING').toUpperCase();
+  if (normalized === 'WRITTEN') return '已同步';
+  if (normalized === 'WRITTEN_WITHOUT_VECTOR') return '已写入待向量';
+  if (normalized === 'SKIPPED') return '未触发';
+  if (normalized.startsWith('FAILED')) return '同步失败';
+  return '等待同步';
+}
+
+function evidenceSyncZh(sync = {}) {
+  const strategyState = sync.strategyJsonBacktest || sync.strategyJson || sync.strategyBacktest;
+  const replayState = sync.pythonReplay || sync.replay;
+  const strategyOk = String(strategyState || '').toUpperCase() === 'WRITTEN';
+  const replayOk = String(replayState || '').toUpperCase() === 'WRITTEN';
+  const hasFailure = [strategyState, replayState].some((value) =>
+    String(value || '')
+      .toUpperCase()
+      .startsWith('FAILED'),
+  );
+  const label = strategyOk && replayOk ? '证据已同步' : hasFailure ? '证据同步失败' : '等待证据同步';
+  return {
+    label,
+    status: hasFailure ? 'error' : strategyOk && replayOk ? 'ok' : 'warn',
+    detail: `Evidence Sync：Strategy JSON ${syncStateZh(strategyState)} / Python Replay ${syncStateZh(
+      replayState,
+    )}`,
+  };
 }
 
 export function buildRsiEntryDiagnosticRows(snapshot) {

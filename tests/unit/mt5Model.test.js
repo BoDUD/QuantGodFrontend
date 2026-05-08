@@ -267,6 +267,10 @@ describe('mt5Model ledgers', () => {
       evidenceOS: {
         parity: {
           status: 'PARITY_PASS',
+          evidenceSync: {
+            strategyJsonBacktest: 'WRITTEN',
+            pythonReplay: 'WRITTEN',
+          },
           deepParity: {
             status: 'PASS',
             reasonZh: 'Strategy JSON / Python Replay / MQL5 EA 深度门禁矩阵一致',
@@ -297,8 +301,11 @@ describe('mt5Model ledgers', () => {
 
     const items = buildMt5EvidenceOsLiteItems(snapshot);
 
-    expect(items.find((item) => item.label === '三方 Parity')?.value).toBe('三方口径一致');
-    expect(items.find((item) => item.label === '三方 Parity')?.hint).toContain('crossbackThreshold');
+    expect(items.find((item) => item.label === '三方一致性')?.value).toBe('三方口径一致 / 证据已同步');
+    expect(items.find((item) => item.label === '三方一致性')?.hint).toContain('crossbackThreshold');
+    expect(items.find((item) => item.label === '三方一致性')?.hint).toContain(
+      'Strategy JSON 已同步 / Python Replay 已同步',
+    );
     expect(items.find((item) => item.label === '执行反馈晋级门')?.value).toBe('执行反馈阻断晋级');
     expect(items.find((item) => item.label === '执行阻断 / 警告')?.value).toContain('滑点损伤');
     expect(items.find((item) => item.label === '当前最大 Case')?.value).toBe('USDJPY-SLIPPAGE-001');

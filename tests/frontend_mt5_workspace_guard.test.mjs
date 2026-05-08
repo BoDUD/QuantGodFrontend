@@ -31,9 +31,9 @@ const model = [
   "const FOCUS_SYMBOL = 'USDJPYc';",
   'function isFocusSymbolRow() { return true; }',
   'function focusSymbolRows() { return []; }',
-  'const evidenceOS = { parity: { deepParity: { status: "PASS" } }, executionFeedback: { promotionGate: {}, fieldCompleteness: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
+  'const evidenceOS = { parity: { evidenceSync: { strategyJsonBacktest: "WRITTEN", pythonReplay: "WRITTEN" }, deepParity: { status: "PASS", reasonZh: "Strategy JSON / Python Replay / MQL5 EA" } }, executionFeedback: { promotionGate: {}, fieldCompleteness: {} }, caseMemory: { gaSeedHints: [], label: "Case Memory" } };',
   "const fieldCompleteness = evidenceOS.executionFeedback.fieldCompleteness; const label = 'EA 字段契约';",
-  "const parityLabel = '三方 Parity'; const deepParity = evidenceOS.parity.deepParity;",
+  "const parityLabel = '三方一致性'; const deepParity = evidenceOS.parity.deepParity; const evidenceSync = evidenceOS.parity.evidenceSync; const syncLabel = 'Evidence Sync';",
 ].join('\n');
 
 const workspace = [
@@ -58,6 +58,7 @@ export async function loadMt5Workspace() {
   fetchJson(\`/api/shadow/candidates\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/candidate-outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson('/api/usdjpy-strategy-lab/evidence-os/status');
+  fetchJson('/api/usdjpy-strategy-lab/evidence-os/parity');
   fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback');
 }`,
 };

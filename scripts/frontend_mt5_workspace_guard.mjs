@@ -109,8 +109,11 @@ function checkMt5Model(root) {
     'promotionGate',
     'fieldCompleteness',
     'EA 字段契约',
-    '三方 Parity',
+    '三方一致性',
     'deepParity',
+    'evidenceSync',
+    'Evidence Sync',
+    'Strategy JSON / Python Replay / MQL5 EA',
     'gaSeedHints',
     'Case Memory',
   ]) {
@@ -140,6 +143,9 @@ function checkDomainApi(root) {
   const text = read(api);
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/status')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS status through API facade`);
+  }
+  if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/parity')) {
+    errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS deep parity through API facade`);
   }
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/execution-feedback')) {
     errors.push(
