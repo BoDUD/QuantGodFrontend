@@ -688,6 +688,36 @@
           </article>
         </div>
         <div
+          v-if="gaLineagePathNodes(selectedGASeed).length"
+          class="qg-usdjpy-evolution__lineage-path"
+        >
+          <div class="qg-usdjpy-evolution__lineage-path-head">
+            <div>
+              <span>Elite Lineage Path / 主血统时间线</span>
+              <strong>{{ gaLineagePathSummary(selectedGASeed) }}</strong>
+              <p>
+                {{ gaLineagePath(selectedGASeed).reasonZh || '按 generation 展示当前 elite 主血统。' }}
+                黄色点为 elite path 命中，蓝色点为当前选中 seed。
+              </p>
+            </div>
+          </div>
+          <div class="qg-usdjpy-evolution__lineage-path-track">
+            <article
+              v-for="node in gaLineagePathNodes(selectedGASeed)"
+              :key="`${node.order}-${node.seedId}`"
+              class="qg-usdjpy-evolution__lineage-path-node"
+              :class="{
+                'qg-usdjpy-evolution__lineage-path-node--elite': node.onElitePath,
+                'qg-usdjpy-evolution__lineage-path-node--selected': node.selected,
+              }"
+            >
+              <span>{{ gaLineagePathNodeTitle(node) }}</span>
+              <strong>{{ node.seedId }}</strong>
+              <p>{{ gaLineagePathNodeMeta(node) }}</p>
+            </article>
+          </div>
+        </div>
+        <div
           v-if="gaLineageTreeNodes(selectedGASeed).length"
           class="qg-usdjpy-evolution__lineage-tree"
         >
@@ -1420,6 +1450,36 @@ function gaLineageTree(item) {
 function gaLineageTreeNodes(item) {
   const nodes = gaLineageTree(item).nodes;
   return Array.isArray(nodes) ? nodes : [];
+}
+
+function gaLineagePath(item) {
+  return item?.audit?.lineagePath || {};
+}
+
+function gaLineagePathNodes(item) {
+  const nodes = gaLineagePath(item).nodes;
+  return Array.isArray(nodes) ? nodes : [];
+}
+
+function gaLineagePathSummary(item) {
+  const path = gaLineagePath(item);
+  if (!path.nodeCount) return '等待主血统';
+  const generationText = path.generationCount ? `${path.generationCount} 代` : '未标记代数';
+  const delta = path.fitnessDelta == null ? '—' : path.fitnessDelta;
+  return `${path.nodeCount} 节点 / ${generationText} / fitness Δ ${delta}`;
+}
+
+function gaLineagePathNodeTitle(node) {
+  const generation = node.generation == null ? '外部线索' : `第 ${node.generation} 代`;
+  const latest = node.latestGeneration && node.latestGeneration !== node.generation ? ` / 最新复用第 ${node.latestGeneration} 代` : '';
+  const edge = node.lineageEdgeType ? ` / ${lineageEdgeTypeZh(node.lineageEdgeType)}` : '';
+  return `${generation}${latest}${edge}`;
+}
+
+function gaLineagePathNodeMeta(node) {
+  const fitness = node.fitness == null ? '—' : node.fitness;
+  const delta = node.fitnessDeltaFromPrevious == null ? '—' : node.fitnessDeltaFromPrevious;
+  return `${node.strategyFamily || 'Strategy'} / ${node.source || 'UNKNOWN'} / fitness ${fitness} / Δ ${delta}`;
 }
 
 function gaVisibleLineageTreeNodes(item) {
@@ -2177,6 +2237,90 @@ onMounted(() => load({ silent: true }));
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.6;
+}
+
+.qg-usdjpy-evolution__lineage-path {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(250, 204, 21, 0.48);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(44, 33, 9, 0.5), rgba(8, 18, 35, 0.62));
+}
+
+.qg-usdjpy-evolution__lineage-path-head span {
+  display: block;
+  color: #ffe58a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.qg-usdjpy-evolution__lineage-path-head strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fbff;
+  font-size: 1.05rem;
+}
+
+.qg-usdjpy-evolution__lineage-path-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__lineage-path-node {
+  position: relative;
+  min-width: 0;
+  padding: 11px 12px 11px 18px;
+  border: 1px solid rgba(88, 116, 158, 0.72);
+  border-radius: 10px;
+  background: rgba(9, 19, 37, 0.76);
+}
+
+.qg-usdjpy-evolution__lineage-path-node::before {
+  position: absolute;
+  top: 15px;
+  left: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #9fb0c8;
+  content: '';
+}
+
+.qg-usdjpy-evolution__lineage-path-node--elite {
+  border-color: rgba(250, 204, 21, 0.9);
+}
+
+.qg-usdjpy-evolution__lineage-path-node--elite::before {
+  background: #ffe58a;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.16);
+}
+
+.qg-usdjpy-evolution__lineage-path-node--selected {
+  border-color: rgba(94, 234, 212, 0.95);
+  background: rgba(14, 46, 65, 0.62);
+}
+
+.qg-usdjpy-evolution__lineage-path-node--selected::before {
+  background: #5eead4;
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.16);
+}
+
+.qg-usdjpy-evolution__lineage-path-node span {
+  display: block;
+  color: #9fb0c8;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.qg-usdjpy-evolution__lineage-path-node strong {
+  display: block;
+  margin-top: 4px;
+  color: #eef5ff;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
 }
 
 .qg-usdjpy-evolution__lineage-tree {
