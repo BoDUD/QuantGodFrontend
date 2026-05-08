@@ -687,6 +687,45 @@
             </p>
           </article>
         </div>
+        <div
+          v-if="gaLineageTreeNodes(selectedGASeed).length"
+          class="qg-usdjpy-evolution__lineage-tree"
+        >
+          <div class="qg-usdjpy-evolution__lineage-tree-head">
+            <span>Lineage Tree / 进化树</span>
+            <strong>{{ gaLineageTreeSummary(selectedGASeed) }}</strong>
+            <p>{{ gaLineageTree(selectedGASeed).reasonZh || '展示父代、当前 seed 和子代的 mutation / crossover 路径。' }}</p>
+          </div>
+          <div class="qg-usdjpy-evolution__lineage-levels">
+            <article
+              v-for="level in gaLineageTreeLevels(selectedGASeed)"
+              :key="level.depth"
+              class="qg-usdjpy-evolution__lineage-level"
+            >
+              <span>{{ gaLineageLevelTitle(level.depth) }}</span>
+              <div
+                v-for="node in level.nodes"
+                :key="node.seedId"
+                class="qg-usdjpy-evolution__lineage-node"
+                :class="{
+                  'qg-usdjpy-evolution__lineage-node--selected': node.selected,
+                  'qg-usdjpy-evolution__lineage-node--external': node.external,
+                }"
+              >
+                <strong>{{ node.seedId }}</strong>
+                <p>{{ gaLineageNodeMeta(node) }}</p>
+                <em>{{ statusZh(node.status, node.external ? '外部线索' : '等待评分') }}</em>
+              </div>
+            </article>
+          </div>
+          <div v-if="gaLineageTreeEdges(selectedGASeed).length" class="qg-usdjpy-evolution__lineage-edges">
+            <span>Mutation / Crossover 路径</span>
+            <article v-for="edge in gaLineageTreeEdges(selectedGASeed)" :key="`${edge.from}-${edge.to}-${edge.type}`">
+              <strong>{{ edge.from }} → {{ edge.to }}</strong>
+              <p>{{ lineageEdgeTypeZh(edge.type) }}；{{ edge.reasonZh || 'GA lineage 关联。' }}</p>
+            </article>
+          </div>
+        </div>
         <div class="qg-usdjpy-evolution__seed-metrics">
           <article>
             <span>Strategy JSON 回测证据</span>
@@ -1352,6 +1391,67 @@ function gaEquityPolyline(item) {
 
 function gaLineageAudit(item) {
   return item?.audit?.lineage || {};
+}
+
+function gaLineageTree(item) {
+  return item?.audit?.lineageTree || gaLineageAudit(item).tree || {};
+}
+
+function gaLineageTreeNodes(item) {
+  const nodes = gaLineageTree(item).nodes;
+  return Array.isArray(nodes) ? nodes : [];
+}
+
+function gaLineageTreeEdges(item) {
+  const edges = gaLineageTree(item).edges;
+  return Array.isArray(edges) ? edges : [];
+}
+
+function gaLineageTreeLevels(item) {
+  const grouped = new Map();
+  for (const node of gaLineageTreeNodes(item)) {
+    const depth = Number(node.relativeDepth || 0);
+    if (!grouped.has(depth)) grouped.set(depth, []);
+    grouped.get(depth).push(node);
+  }
+  return [...grouped.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([depth, nodes]) => ({
+      depth,
+      nodes: nodes.sort((left, right) => String(left.seedId || '').localeCompare(String(right.seedId || ''))),
+    }));
+}
+
+function gaLineageTreeSummary(item) {
+  const tree = gaLineageTree(item);
+  if (!tree.nodeCount) return '等待 lineage tree';
+  return `${tree.nodeCount} 节点 / ${tree.edgeCount || 0} 边`;
+}
+
+function gaLineageLevelTitle(depth) {
+  const numeric = Number(depth || 0);
+  if (numeric < 0) return `祖先 ${Math.abs(numeric)} 层`;
+  if (numeric > 0) return `子代 +${numeric}`;
+  return '当前 Seed';
+}
+
+function gaLineageNodeMeta(node) {
+  const generation = node.generation == null ? '外部' : `第 ${node.generation} 代`;
+  const source = node.source || 'UNKNOWN';
+  const family = node.strategyFamily || 'Strategy';
+  const fitness = node.fitness == null ? '—' : node.fitness;
+  return `${generation} / ${family} / ${source} / fitness ${fitness}`;
+}
+
+function lineageEdgeTypeZh(value) {
+  const map = {
+    MUTATION: '参数变异',
+    CROSSOVER: '同族交叉',
+    CASE_MEMORY: 'Case Memory 线索',
+    LINK: '关联',
+  };
+  const key = String(value || 'LINK').toUpperCase();
+  return map[key] || value || '关联';
 }
 
 function gaSourceTrace(item) {
@@ -2036,6 +2136,107 @@ onMounted(() => load({ silent: true }));
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.6;
+}
+
+.qg-usdjpy-evolution__lineage-tree {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(72, 101, 145, 0.65);
+  border-radius: 12px;
+  background: rgba(8, 16, 32, 0.42);
+}
+
+.qg-usdjpy-evolution__lineage-tree-head span,
+.qg-usdjpy-evolution__lineage-edges > span {
+  display: block;
+  color: #8fbdf0;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.qg-usdjpy-evolution__lineage-tree-head strong {
+  display: block;
+  margin-top: 4px;
+  color: #f4f8ff;
+  font-size: 1.05rem;
+}
+
+.qg-usdjpy-evolution__lineage-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.qg-usdjpy-evolution__lineage-level {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(55, 84, 126, 0.7);
+  border-radius: 10px;
+  background: rgba(10, 20, 39, 0.72);
+}
+
+.qg-usdjpy-evolution__lineage-level > span {
+  color: #9fb0c8;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.qg-usdjpy-evolution__lineage-node {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(69, 100, 145, 0.8);
+  border-radius: 9px;
+  background: rgba(16, 28, 51, 0.82);
+}
+
+.qg-usdjpy-evolution__lineage-node--selected {
+  border-color: rgba(94, 234, 212, 0.95);
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2);
+}
+
+.qg-usdjpy-evolution__lineage-node--external {
+  border-style: dashed;
+  opacity: 0.82;
+}
+
+.qg-usdjpy-evolution__lineage-node strong {
+  display: block;
+  color: #eef5ff;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.qg-usdjpy-evolution__lineage-node em {
+  display: inline-block;
+  margin-top: 5px;
+  color: #ffe58a;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.qg-usdjpy-evolution__lineage-edges {
+  display: grid;
+  gap: 8px;
+}
+
+.qg-usdjpy-evolution__lineage-edges article {
+  padding: 9px 10px;
+  border: 1px solid rgba(55, 84, 126, 0.6);
+  border-radius: 9px;
+  background: rgba(8, 16, 32, 0.58);
+}
+
+.qg-usdjpy-evolution__lineage-edges strong {
+  display: block;
+  color: #e8f2ff;
+  overflow-wrap: anywhere;
 }
 
 .qg-usdjpy-evolution__evidence-chain {
