@@ -29,7 +29,7 @@ import BacktestResultCard from './BacktestResultCard.vue'
 import AiAnalysisCard from './AiAnalysisCard.vue'
 
 const description = ref('RSI 超卖后价格从布林下轨反弹时做多，并加入 H1 趋势过滤')
-const symbol = ref('EURUSDc')
+const symbol = ref('USDJPYc')
 const timeframe = ref('H1')
 const code = ref('')
 const validation = ref(null)

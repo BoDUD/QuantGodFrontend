@@ -1,5 +1,8 @@
 import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 
+const FOCUS_SYMBOL = 'USDJPYc';
+const NON_FOCUS_SYMBOL_RE = /\b(EURUSD|EURUSDc|XAUUSD|XAUUSDc)\b/i;
+
 const PATH_SETS = {
   runtimeState: [
     'latest.runtime_state',
@@ -111,12 +114,109 @@ function rowsFromObjectList(value) {
   return toArray(value).filter((row) => row && typeof row === 'object');
 }
 
+function jstTodayKey() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function dateKey(value) {
+  if (!value) return '';
+  const text = String(value).trim();
+  const match = text.match(/(\d{4})[./-](\d{2})[./-](\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  const parsed = Date.parse(text);
+  if (!Number.isFinite(parsed)) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(parsed));
+}
+
+function dailyReviewDateKeys(payload = {}) {
+  return [
+    payload.generatedAtIso,
+    payload.generatedAt,
+    payload.timestamp,
+    payload.summary?.dailyReviewGeneratedAtIso,
+    payload.summary?.generatedAtIso,
+    payload.dailyPnl?.date,
+    payload.summary?.dailyReviewDateJst,
+  ]
+    .map(dateKey)
+    .filter(Boolean);
+}
+
+function dailyReviewIsFresh(payload = {}) {
+  if (!present(payload)) return true;
+  const keys = dailyReviewDateKeys(payload);
+  if (!keys.length) return true;
+  return keys.includes(jstTodayKey());
+}
+
+function rowSymbol(row = {}) {
+  return (
+    row.Symbol ||
+    row.symbol ||
+    row.BrokerSymbol ||
+    row.brokerSymbol ||
+    row.CanonicalSymbol ||
+    row.canonicalSymbol ||
+    ''
+  );
+}
+
+function normalizeSymbol(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function focusSymbolRoot() {
+  return normalizeSymbol(FOCUS_SYMBOL).replace(/C$/, '');
+}
+
+function rowMentionsNonFocusSymbol(row = {}) {
+  const text = [
+    row.candidateId,
+    row.candidateVersionId,
+    row.presetName,
+    row.reportPath,
+    row.existingReportPath,
+    row.reportPathHint,
+    row.testerOnlyCommand,
+    row.configOnlyCommand,
+    row.task,
+    row.title,
+    row.summary,
+    row.detail,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return NON_FOCUS_SYMBOL_RE.test(text);
+}
+
+function isFocusOrUnscopedRow(row) {
+  if (!isObject(row)) return false;
+  const symbol = rowSymbol(row);
+  if (symbol) return normalizeSymbol(symbol).startsWith(focusSymbolRoot());
+  return !rowMentionsNonFocusSymbol(row);
+}
+
+function focusScopedRows(rows) {
+  return rowsFromObjectList(rows).filter(isFocusOrUnscopedRow);
+}
+
 function dailySummary(raw) {
-  return raw?.dailyReview?.summary || raw?.dailyAutopilot?.dailyReviewSummary || {};
+  if (dailyReviewIsFresh(raw?.dailyReview)) return raw?.dailyReview?.summary || raw?.dailyAutopilot?.dailyReviewSummary || {};
+  return raw?.dailyAutopilot?.dailyReviewSummary || {};
 }
 
 function dailyPnl(raw) {
-  return raw?.dailyReview?.dailyPnl || {};
+  return dailyReviewIsFresh(raw?.dailyReview) ? raw?.dailyReview?.dailyPnl || {} : {};
 }
 
 function latestAccount(raw) {
@@ -154,6 +254,7 @@ function chooseRoutes(raw) {
 }
 
 export function normalizeDashboardSnapshot(raw = {}) {
+  const reviewFresh = dailyReviewIsFresh(raw.dailyReview);
   const runtimeState = firstValue(
     raw,
     PATH_SETS.runtimeState,
@@ -172,7 +273,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
     activeRoute,
     dailyPnl: firstValue(raw, PATH_SETS.dailyPnl, '—'),
     backtestAvailable: present(raw.backtest),
-    dailyReviewAvailable: present(raw.dailyReview),
+    dailyReviewAvailable: present(raw.dailyReview) && reviewFresh,
     dailyAutopilotAvailable: present(raw.dailyAutopilot),
     routes: chooseRoutes(raw),
     account: latestAccount(raw),
@@ -278,10 +379,20 @@ export function buildRouteRows(snapshot) {
 }
 
 export function buildDailyTodoRows(raw = {}) {
+  if (!dailyReviewIsFresh(raw.dailyReview)) {
+    return [
+      {
+        领域: 'Agent',
+        任务: '今日待办',
+        状态: '等待今日刷新',
+        结论: 'DailyReview 不是今天生成，旧日期和非 USDJPY 队列已隐藏',
+      },
+    ];
+  }
   const summary = dailySummary(raw);
-  const queue = rowsFromObjectList(raw?.dailyReview?.actionQueue);
-  const completed = rowsFromObjectList(raw?.dailyReview?.completedActionQueue);
-  const researchBacklog = rowsFromObjectList(raw?.dailyReview?.researchBacklogQueue);
+  const queue = focusScopedRows(raw?.dailyReview?.actionQueue);
+  const completed = focusScopedRows(raw?.dailyReview?.completedActionQueue);
+  const researchBacklog = focusScopedRows(raw?.dailyReview?.researchBacklogQueue);
   const polyRows = polymarketRows(raw);
   const rows = [];
 
@@ -343,12 +454,22 @@ export function buildDailyTodoRows(raw = {}) {
 }
 
 export function buildDailyReviewRows(raw = {}) {
+  if (!dailyReviewIsFresh(raw.dailyReview)) {
+    return [
+      {
+        领域: 'Agent',
+        复盘: '等待今日刷新',
+        结果: '旧复盘已隐藏',
+        建议: '本地 DailyReview 不是今天生成；刷新 API 会重新生成今日版本',
+      },
+    ];
+  }
   const summary = dailySummary(raw);
   const pnl = dailyPnl(raw);
   const iteration = raw?.dailyReview?.dailyIteration || {};
   const findings = rowsFromObjectList(iteration.findings);
-  const strategyQueue = rowsFromObjectList(iteration.strategyIterationQueue);
-  const evidenceQueue = rowsFromObjectList(iteration.evidenceIterationQueue);
+  const strategyQueue = focusScopedRows(iteration.strategyIterationQueue);
+  const evidenceQueue = focusScopedRows(iteration.evidenceIterationQueue);
   const noTradeFinding = findings.find((item) => item.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
   const polyFinding = findings.find((item) => item.code === 'POLYMARKET_LOSS_QUARANTINE_ACTIVE');
   const steps = rowsFromObjectList(raw?.dailyAutopilot?.steps);

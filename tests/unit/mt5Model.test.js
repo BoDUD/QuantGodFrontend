@@ -6,6 +6,8 @@ import {
   buildMt5ShadowEquityRows,
   buildMt5ShadowSummary,
   buildMt5ShadowTradeRows,
+  buildMt5TodoRows,
+  buildMt5ReviewRows,
   buildTradeJournalRows,
   normalizeMt5Snapshot,
 } from '../../src/workspaces/mt5/mt5Model.js';
@@ -214,5 +216,60 @@ describe('mt5Model ledgers', () => {
     expect(trades).toHaveLength(1);
     expect(trades[0]).toMatchObject({ 品种: 'USDJPYc', 方向: '做多', 点数盈亏: '+8.5' });
     expect(equity[0]).toMatchObject({ 品种: 'USDJPYc', 模拟净值: '+8.5' });
+  });
+
+  it('keeps shadow builders USDJPY-only even when given raw unnormalized rows', () => {
+    const rawSnapshot = {
+      shadowSignals: [
+        { LabelTimeLocal: '2026.05.05 10:00', Symbol: 'EURUSDc', Strategy: 'MA_Cross', Blocker: 'SPREAD' },
+        { LabelTimeLocal: '2026.05.05 10:30', Symbol: 'USDJPYc', Strategy: 'RSI_Reversal', Blocker: 'SESSION' },
+      ],
+      shadowCandidateOutcomes: [
+        {
+          EventId: 'A',
+          OutcomeLabelTimeLocal: '2026.05.05 11:00',
+          Symbol: 'EURUSDc',
+          CandidateRoute: 'MA_Cross',
+          CandidateDirection: 'SELL',
+          HorizonMinutes: '60',
+          ShortClosePips: '12.0',
+        },
+        {
+          EventId: 'B',
+          OutcomeLabelTimeLocal: '2026.05.05 12:00',
+          Symbol: 'USDJPYc',
+          CandidateRoute: 'RSI_Reversal',
+          CandidateDirection: 'BUY',
+          HorizonMinutes: '60',
+          LongClosePips: '4.0',
+        },
+      ],
+    };
+
+    const summary = buildMt5ShadowSummary(rawSnapshot);
+    const trades = buildMt5ShadowTradeRows(rawSnapshot);
+    const equity = buildMt5ShadowEquityRows(rawSnapshot);
+
+    expect(summary.metrics.find((item) => item.label === '模拟候选样本')?.value).toBe('1 笔');
+    expect(trades).toHaveLength(1);
+    expect(trades[0].品种).toBe('USDJPYc');
+    expect(equity[0].品种).toBe('USDJPYc');
+  });
+
+  it('hides stale daily review rows instead of showing old EURUSD tasks', () => {
+    const staleDailyReview = {
+      generatedAtIso: '2026-05-06T12:00:00+09:00',
+      actionQueue: [{ candidateId: 'MA_Cross_EURUSDc_old', symbol: 'EURUSDc', state: 'DONE' }],
+      dailyPnl: { date: '2026-05-06', closedTrades: 4, netUSC: 2.78 },
+      summary: { dailyReviewDateJst: '2026-05-06' },
+    };
+
+    const todoRows = buildMt5TodoRows({ dailyReview: staleDailyReview });
+    const reviewRows = buildMt5ReviewRows({ dailyReview: staleDailyReview });
+
+    expect(todoRows[0].状态).toContain('等待今日刷新');
+    expect(JSON.stringify(todoRows)).not.toContain('EURUSDc');
+    expect(reviewRows[0].结果).toContain('等待今日刷新');
+    expect(JSON.stringify(reviewRows)).not.toContain('2026-05-06');
   });
 });

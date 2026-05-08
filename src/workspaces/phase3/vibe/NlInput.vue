@@ -3,7 +3,7 @@
     <label>自然语言策略想法</label>
     <textarea v-model="localDescription" rows="5" placeholder="例如：RSI 低位反弹且价格触及布林下轨时买入，并加入 H1 趋势过滤。" />
     <div class="row">
-      <input v-model="localSymbol" placeholder="EURUSDc" />
+      <input v-model="localSymbol" placeholder="USDJPYc" />
       <select v-model="localTimeframe">
         <option>M15</option><option>H1</option><option>H4</option><option>D1</option>
       </select>
@@ -14,7 +14,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-const props = defineProps({ description: { type: String, default: '' }, symbol: { type: String, default: 'EURUSDc' }, timeframe: { type: String, default: 'H1' }, loading: Boolean })
+const props = defineProps({ description: { type: String, default: '' }, symbol: { type: String, default: 'USDJPYc' }, timeframe: { type: String, default: 'H1' }, loading: Boolean })
 const emit = defineEmits(['update:description', 'update:symbol', 'update:timeframe', 'generate'])
 const localDescription = ref(props.description)
 const localSymbol = ref(props.symbol)

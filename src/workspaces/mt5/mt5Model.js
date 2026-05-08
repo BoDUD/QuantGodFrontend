@@ -1,6 +1,7 @@
 import { formatCurrencyDisplay, formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 
 const FOCUS_SYMBOL = 'USDJPYc';
+const NON_FOCUS_SYMBOL_RE = /\b(EURUSD|EURUSDc|XAUUSD|XAUUSDc)\b/i;
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
@@ -142,17 +143,106 @@ function normalizeSymbol(value) {
 function rowSymbol(row) {
   return pick(
     row,
-    ['Symbol', 'symbol', 'BrokerSymbol', 'brokerSymbol', 'CanonicalSymbol', 'canonicalSymbol'],
+    [
+      'Symbol',
+      'symbol',
+      'BrokerSymbol',
+      'brokerSymbol',
+      'CanonicalSymbol',
+      'canonicalSymbol',
+      'UnderlyingSymbol',
+      'underlyingSymbol',
+      'MarketSymbol',
+      'marketSymbol',
+      'Pair',
+      'pair',
+    ],
     '',
   );
 }
 
 function isFocusSymbolRow(row) {
-  return normalizeSymbol(rowSymbol(row)) === normalizeSymbol(FOCUS_SYMBOL);
+  return normalizeSymbol(rowSymbol(row)).startsWith('USDJPY');
 }
 
 function focusSymbolRows(rows) {
   return (Array.isArray(rows) ? rows : []).filter(isFocusSymbolRow);
+}
+
+function rowMentionsNonFocusSymbol(row) {
+  const text = [
+    row?.candidateId,
+    row?.candidateVersionId,
+    row?.presetName,
+    row?.reportPath,
+    row?.existingReportPath,
+    row?.reportPathHint,
+    row?.testerOnlyCommand,
+    row?.configOnlyCommand,
+    row?.task,
+    row?.title,
+    row?.summary,
+    row?.detail,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return NON_FOCUS_SYMBOL_RE.test(text);
+}
+
+function isFocusOrUnscopedRow(row) {
+  if (!isObject(row)) return false;
+  const symbol = rowSymbol(row);
+  if (symbol) return isFocusSymbolRow(row);
+  return !rowMentionsNonFocusSymbol(row);
+}
+
+function focusScopedRows(rows) {
+  return (Array.isArray(rows) ? rows : []).filter(isFocusOrUnscopedRow);
+}
+
+function jstTodayKey() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function dateKey(value) {
+  if (!value) return '';
+  const text = String(value).trim();
+  const match = text.match(/(\d{4})[./-](\d{2})[./-](\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  const parsed = Date.parse(text);
+  if (!Number.isFinite(parsed)) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(parsed));
+}
+
+function dailyReviewDateKeys(payload = {}) {
+  return [
+    payload.generatedAtIso,
+    payload.generatedAt,
+    payload.timestamp,
+    payload.summary?.dailyReviewGeneratedAtIso,
+    payload.summary?.generatedAtIso,
+    payload.dailyPnl?.date,
+    payload.summary?.dailyReviewDateJst,
+  ]
+    .map(dateKey)
+    .filter(Boolean);
+}
+
+function dailyReviewIsFresh(payload = {}) {
+  if (!present(payload)) return true;
+  const keys = dailyReviewDateKeys(payload);
+  if (!keys.length) return true;
+  return keys.includes(jstTodayKey());
 }
 
 function liveLoopStatusTone(value) {
@@ -186,11 +276,12 @@ export function normalizeMt5Snapshot(raw = {}) {
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
   const orders = rowsFromPayload(raw.orders);
-  const symbols = rowsFromPayload(raw.symbols).length
+  const rawSymbols = rowsFromPayload(raw.symbols).length
     ? rowsFromPayload(raw.symbols)
     : rowsFromPayload(snapshot.symbols);
-  const closeHistory = rowsFromPayload(raw.closeHistory);
-  const tradeJournal = rowsFromPayload(raw.tradeJournal);
+  const symbols = focusSymbolRows(rawSymbols);
+  const closeHistory = focusScopedRows(rowsFromPayload(raw.closeHistory));
+  const tradeJournal = focusScopedRows(rowsFromPayload(raw.tradeJournal));
   const shadowSignals = focusSymbolRows(rowsFromPayload(raw.shadowSignals));
   const shadowOutcomes = focusSymbolRows(rowsFromPayload(raw.shadowOutcomes));
   const shadowCandidates = focusSymbolRows(rowsFromPayload(raw.shadowCandidates));
@@ -579,7 +670,7 @@ function routeKey(row) {
 }
 
 export function buildMt5ShadowSummary(snapshot) {
-  const candidateRows = bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection');
+  const candidateRows = bestOutcomeRows(focusSymbolRows(snapshot.shadowCandidateOutcomes), 'CandidateDirection');
   const pips = candidateRows
     .map((row) => outcomePips(row, 'CandidateDirection'))
     .filter((value) => value !== null);
@@ -601,7 +692,7 @@ export function buildMt5ShadowSummary(snapshot) {
     byRoute.set(key, bucket);
   });
   const blockers = new Map();
-  (snapshot.shadowSignals || []).forEach((row) => {
+  focusSymbolRows(snapshot.shadowSignals).forEach((row) => {
     const blocker = humanizeStatus(
       pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'),
     );
@@ -653,7 +744,7 @@ export function buildMt5ShadowSummary(snapshot) {
 }
 
 export function buildMt5ShadowEquityRows(snapshot) {
-  const rows = bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection').reverse();
+  const rows = bestOutcomeRows(focusSymbolRows(snapshot.shadowCandidateOutcomes), 'CandidateDirection').reverse();
   let equity = 0;
   return rows
     .map((row) => {
@@ -672,7 +763,7 @@ export function buildMt5ShadowEquityRows(snapshot) {
 }
 
 export function buildMt5ShadowTradeRows(snapshot) {
-  return bestOutcomeRows(snapshot.shadowCandidateOutcomes, 'CandidateDirection')
+  return bestOutcomeRows(focusSymbolRows(snapshot.shadowCandidateOutcomes), 'CandidateDirection')
     .slice(0, 60)
     .map((row) => {
       const pips = outcomePips(row, 'CandidateDirection');
@@ -690,7 +781,7 @@ export function buildMt5ShadowTradeRows(snapshot) {
 
 export function buildMt5ShadowBlockerRows(snapshot) {
   const counts = new Map();
-  (snapshot.shadowSignals || []).forEach((row) => {
+  focusSymbolRows(snapshot.shadowSignals).forEach((row) => {
     const blocker = humanizeStatus(
       pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'),
     );
@@ -1019,7 +1110,7 @@ export function buildOrderRows(snapshot) {
 }
 
 export function buildSymbolRows(snapshot) {
-  return snapshot.symbols.slice(0, 40).map((row) =>
+  return focusSymbolRows(snapshot.symbols).slice(0, 40).map((row) =>
     compactRow(row, {
       品种: ['symbol', 'name'],
       可见: ['enabled', 'visible', 'selected'],
@@ -1063,9 +1154,20 @@ export function buildTradeJournalRows(snapshot) {
 }
 
 export function buildMt5TodoRows(snapshot) {
-  const queue = rowsFromPayload(snapshot.dailyReview?.actionQueue);
-  const completed = rowsFromPayload(snapshot.dailyReview?.completedActionQueue);
-  const researchBacklog = rowsFromPayload(snapshot.dailyReview?.researchBacklogQueue);
+  if (!dailyReviewIsFresh(snapshot.dailyReview)) {
+    return [
+      {
+        任务: '今日待办',
+        路线: 'USDJPY',
+        状态: '等待今日刷新',
+        结论: '本地 DailyReview 不是今天生成，已隐藏旧日期和非 USDJPY 队列',
+        测试窗口: '刷新后更新',
+      },
+    ];
+  }
+  const queue = focusScopedRows(rowsFromPayload(snapshot.dailyReview?.actionQueue));
+  const completed = focusScopedRows(rowsFromPayload(snapshot.dailyReview?.completedActionQueue));
+  const researchBacklog = focusScopedRows(rowsFromPayload(snapshot.dailyReview?.researchBacklogQueue));
   const sourceRows = queue.length ? queue : completed;
   if (!sourceRows.length) {
     if (researchBacklog.length) {
@@ -1091,12 +1193,21 @@ export function buildMt5TodoRows(snapshot) {
 }
 
 export function buildMt5ReviewRows(snapshot) {
+  if (!dailyReviewIsFresh(snapshot.dailyReview)) {
+    return [
+      {
+        项目: '每日复盘',
+        结果: '等待今日刷新',
+        建议: '本地 DailyReview 不是今天生成，旧复盘不会作为当前状态展示',
+      },
+    ];
+  }
   const pnl = snapshot.dailyReview?.dailyPnl || {};
   const summary = snapshot.dailyReview?.summary || {};
   const iteration = snapshot.dailyReview?.dailyIteration || {};
   const findings = rowsFromPayload(iteration.findings);
-  const strategyQueue = rowsFromPayload(iteration.strategyIterationQueue);
-  const evidenceQueue = rowsFromPayload(iteration.evidenceIterationQueue);
+  const strategyQueue = focusScopedRows(rowsFromPayload(iteration.strategyIterationQueue));
+  const evidenceQueue = focusScopedRows(rowsFromPayload(iteration.evidenceIterationQueue));
   const noTradeFinding = findings.find((row) => row.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
   return [
     {

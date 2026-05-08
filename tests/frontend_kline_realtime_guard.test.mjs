@@ -26,6 +26,10 @@ test('Kline workspace is scoped to USDJPY only', () => {
   const apiSource = readRepoFile('src/services/phase1Api.js');
   const workspaceSource = readRepoFile('src/workspaces/phase1/kline/KlineWorkspace.vue');
   const aiWorkspaceSource = readRepoFile('src/workspaces/phase1/AiAnalysisWorkspace.vue');
+  const phase3KlineSource = readRepoFile('src/workspaces/phase3/kline/KlineEnhancementPanel.vue');
+  const phase3AiSource = readRepoFile('src/workspaces/phase3/ai/AiV2DebateWorkspace.vue');
+  const phase3VibeSource = readRepoFile('src/workspaces/phase3/vibe/VibeCodingWorkspace.vue');
+  const phase3NlInputSource = readRepoFile('src/workspaces/phase3/vibe/NlInput.vue');
 
   assert.match(apiSource, /USDJPY_FOCUS_SYMBOL\s*=\s*'USDJPYc'/);
   assert.match(apiSource, /startsWith\('USDJPY'\)/);
@@ -33,6 +37,7 @@ test('Kline workspace is scoped to USDJPY only', () => {
   assert.match(workspaceSource, /USDJPY_FOCUS_SYMBOL/);
   assert.match(aiWorkspaceSource, /USDJPY_FOCUS_SYMBOL/);
   assert.doesNotMatch(workspaceSource, /ref\('EURUSDc'\)/);
+  assert.doesNotMatch(phase3KlineSource + phase3AiSource + phase3VibeSource + phase3NlInputSource, /EURUSDc/);
   assert.doesNotMatch(apiSource, /symbol:\s*'EURUSDc'/);
   assert.doesNotMatch(apiSource, /symbol:\s*'XAUUSDc'/);
 });

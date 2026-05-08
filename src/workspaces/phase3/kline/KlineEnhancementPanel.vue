@@ -1,7 +1,7 @@
 <template>
   <div class="kline-panel">
     <div class="controls">
-      <input v-model="symbol" placeholder="EURUSDc" />
+      <input v-model="symbol" placeholder="USDJPYc" />
       <button @click="loadAll">加载叠加</button>
     </div>
     <AiSignalOverlayPanel :overlays="overlays" @refresh="loadOverlays" />
@@ -22,7 +22,7 @@
 import { onMounted, ref } from 'vue'
 import phase3Api from '../../../services/phase3Api.js'
 import AiSignalOverlayPanel from './AiSignalOverlayPanel.vue'
-const symbol = ref('EURUSDc')
+const symbol = ref('USDJPYc')
 const overlays = ref([])
 const indicators = ref([])
 const realtime = ref({})

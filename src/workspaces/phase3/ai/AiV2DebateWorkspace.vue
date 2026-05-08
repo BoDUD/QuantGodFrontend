@@ -1,7 +1,7 @@
 <template>
   <div class="ai-v2">
     <div class="controls">
-      <input v-model="symbol" placeholder="EURUSDc" />
+      <input v-model="symbol" placeholder="USDJPYc" />
       <input v-model="timeframes" placeholder="M15,H1,H4,D1" />
       <button :disabled="loading" @click="run">{{ loading ? '运行中...' : '运行 AI 辩论' }}</button>
       <button @click="loadLatest">读取最新</button>
@@ -22,7 +22,7 @@
 <script setup>
 import { ref } from 'vue'
 import phase3Api from '../../../services/phase3Api.js'
-const symbol = ref('EURUSDc')
+const symbol = ref('USDJPYc')
 const timeframes = ref('M15,H1,H4,D1')
 const loading = ref(false)
 const report = ref(null)
