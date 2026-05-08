@@ -597,6 +597,12 @@
               <th>策略族</th>
               <th>来源</th>
               <th>Fitness</th>
+              <th>PF</th>
+              <th>胜率</th>
+              <th>最大回撤</th>
+              <th>Sharpe / Sortino</th>
+              <th>交易数</th>
+              <th>Parity / 执行</th>
               <th>Rank</th>
               <th>阶段</th>
               <th>阻断原因</th>
@@ -613,6 +619,12 @@
               <td>{{ item.strategyFamily }} / {{ directionZh(item.direction) }}</td>
               <td>{{ item.source }}</td>
               <td>{{ item.fitness }}</td>
+              <td>{{ gaBacktestMetric(item, 'profitFactor') }}</td>
+              <td>{{ gaBacktestWinRate(item) }}</td>
+              <td>{{ gaBacktestDrawdown(item) }}</td>
+              <td>{{ gaBacktestSharpeSortino(item) }}</td>
+              <td>{{ gaBacktestMetric(item, 'tradeCount', 0) }}</td>
+              <td>{{ gaEvidenceGateSummary(item) }}</td>
               <td>{{ item.rank }}</td>
               <td>{{ statusZh(item.status) }}</td>
               <td>{{ item.blockerZh || '通过' }}</td>
@@ -634,6 +646,42 @@
             {{ selectedGASeed.fitnessBreakdown?.sampleCount ?? 0 }}； 过拟合惩罚
             {{ selectedGASeed.fitnessBreakdown?.overfitPenalty ?? 0 }}
           </p>
+        </div>
+        <div class="qg-usdjpy-evolution__seed-metrics">
+          <article>
+            <span>Strategy JSON 回测证据</span>
+            <strong>{{ gaSeedBacktestStatus(selectedGASeed) }}</strong>
+            <p>
+              PF {{ gaBacktestMetric(selectedGASeed, 'profitFactor') }} / 胜率
+              {{ gaBacktestWinRate(selectedGASeed) }} / 交易
+              {{ gaBacktestMetric(selectedGASeed, 'tradeCount', 0) }}
+            </p>
+          </article>
+          <article>
+            <span>收益与回撤</span>
+            <strong>{{ gaBacktestMetric(selectedGASeed, 'netR') }}R</strong>
+            <p>
+              最大回撤 {{ gaBacktestDrawdown(selectedGASeed) }}；最大不利
+              {{ metricText(selectedGASeed.fitnessBreakdown?.maxAdverseR, 'R') }}
+            </p>
+          </article>
+          <article>
+            <span>稳定性</span>
+            <strong>{{ gaBacktestSharpeSortino(selectedGASeed) }}</strong>
+            <p>
+              PF 奖励 {{ metricText(selectedGASeed.fitnessBreakdown?.profitFactorBonus) }}；胜率奖励
+              {{ metricText(selectedGASeed.fitnessBreakdown?.winRateBonus) }}
+            </p>
+          </article>
+          <article>
+            <span>晋级证据</span>
+            <strong>{{ gaEvidenceGateSummary(selectedGASeed) }}</strong>
+            <p>
+              Parity {{ gaSeedParityStatus(selectedGASeed) }}；执行反馈
+              {{ gaSeedExecutionStatus(selectedGASeed) }}；Case 惩罚
+              {{ metricText(selectedGASeed.fitnessBreakdown?.caseMemory?.penalty) }}
+            </p>
+          </article>
         </div>
         <pre>{{ strategyJsonPreview(selectedGASeed.strategyJson) }}</pre>
       </div>
@@ -1126,6 +1174,67 @@ function mutationHintZh(value) {
     reduce_mutation_rate: '降低 GA mutation 幅度',
   };
   return map[value] || value || '观察型 seed';
+}
+
+function gaBacktest(item) {
+  return item?.fitnessBreakdown?.strategyBacktest || {};
+}
+
+function gaBacktestMetric(item, key, digits = 2) {
+  const value = gaBacktest(item)[key];
+  if (value == null || value === '') return '—';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  if (Number.isInteger(numeric)) return String(numeric);
+  return String(Number(numeric.toFixed(digits)));
+}
+
+function gaBacktestWinRate(item) {
+  const value = gaBacktest(item).winRate;
+  if (value == null || value === '') return '—';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  return `${Number(numeric.toFixed(1))}%`;
+}
+
+function gaBacktestDrawdown(item) {
+  const value = gaBacktest(item).maxDrawdownR;
+  if (value == null || value === '') return '—';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  return `${Number(numeric.toFixed(3))}R`;
+}
+
+function gaBacktestSharpeSortino(item) {
+  const backtest = gaBacktest(item);
+  return `${gaBacktestMetric({ fitnessBreakdown: { strategyBacktest: backtest } }, 'sharpe')} / ${gaBacktestMetric(
+    { fitnessBreakdown: { strategyBacktest: backtest } },
+    'sortino',
+  )}`;
+}
+
+function gaSeedBacktestStatus(item) {
+  const backtest = gaBacktest(item);
+  if (!backtest.required) return '未要求';
+  if (!backtest.present) return '缺少回测';
+  if (!backtest.ok) return '回测失败';
+  return backtest.evidenceQuality || '已回测';
+}
+
+function gaSeedParityStatus(item) {
+  const parity = item?.fitnessBreakdown?.parity || {};
+  if (!parity.present) return '等待';
+  return parity.promotionGateStatus || parity.status || '已同步';
+}
+
+function gaSeedExecutionStatus(item) {
+  const execution = item?.fitnessBreakdown?.executionFeedback || {};
+  if (!execution.present) return '等待';
+  return execution.promotionGateStatus || execution.fieldCompletenessStatus || '已同步';
+}
+
+function gaEvidenceGateSummary(item) {
+  return `${gaSeedParityStatus(item)} / ${gaSeedExecutionStatus(item)}`;
 }
 
 function conclusionZh(value) {
@@ -1710,6 +1819,16 @@ onMounted(() => load({ silent: true }));
   border-radius: 14px;
   padding: 14px;
   background: rgba(2, 11, 24, 0.55);
+}
+
+.qg-usdjpy-evolution__seed-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__seed-metrics article {
+  padding: 12px;
 }
 
 .qg-usdjpy-evolution__seed-detail pre {
