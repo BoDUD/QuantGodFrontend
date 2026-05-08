@@ -613,7 +613,7 @@
               v-for="item in gaCandidateItems.slice(0, 12)"
               :key="item.seedId"
               :class="`qg-usdjpy-evolution__candidate--${String(item.status || '').toLowerCase()}`"
-              @click="selectedGASeed = item"
+              @click="selectGASeed(item)"
             >
               <td>{{ item.seedId }}</td>
               <td>{{ item.strategyFamily }} / {{ directionZh(item.direction) }}</td>
@@ -633,10 +633,17 @@
         </table>
       </div>
       <div v-if="selectedGASeed" class="qg-usdjpy-evolution__seed-detail">
+        <div
+          v-if="selectedGASeedLoading || selectedGASeedError"
+          class="qg-usdjpy-evolution__seed-detail-state"
+        >
+          <span>{{ selectedGASeedLoading ? '正在加载候选完整审计' : '候选审计加载失败' }}</span>
+          <p>{{ selectedGASeedError || '正在读取 equity curve、lineage、mutation/crossover 与完整证据链。' }}</p>
+        </div>
         <div>
-          <span>Seed Detail</span>
+          <span>Seed Detail / 完整审计</span>
           <strong>{{ selectedGASeed.seedId }} / {{ selectedGASeed.strategyId }}</strong>
-          <p>父代/来源：{{ selectedGASeed.parentSeedId || selectedGASeed.source || 'seed pool' }}</p>
+          <p>{{ gaSourceTrace(selectedGASeed).reasonZh || '等待来源审计。' }}</p>
         </div>
         <div>
           <span>Fitness 分解</span>
@@ -646,6 +653,39 @@
             {{ selectedGASeed.fitnessBreakdown?.sampleCount ?? 0 }}； 过拟合惩罚
             {{ selectedGASeed.fitnessBreakdown?.overfitPenalty ?? 0 }}
           </p>
+        </div>
+        <div class="qg-usdjpy-evolution__seed-audit-grid">
+          <article class="qg-usdjpy-evolution__equity-card">
+            <span>Equity Curve / 权益曲线</span>
+            <strong>{{ gaBacktestMetric(selectedGASeed, 'netR') }}R</strong>
+            <svg
+              v-if="gaEquityPolyline(selectedGASeed)"
+              viewBox="0 0 240 72"
+              role="img"
+              aria-label="GA seed equity curve"
+            >
+              <polyline :points="gaEquityPolyline(selectedGASeed)" />
+            </svg>
+            <p v-else>等待候选专属回测 equity curve。</p>
+            <p>
+              点数 {{ gaBacktestAudit(selectedGASeed).equityPointCount || gaEquityPoints(selectedGASeed).length || 0 }}；
+              交易 {{ gaBacktestAudit(selectedGASeed).tradeCount || gaBacktestMetric(selectedGASeed, 'tradeCount', 0) }}
+            </p>
+          </article>
+          <article>
+            <span>Lineage / 父代路径</span>
+            <strong>{{ gaLineageSummary(selectedGASeed) }}</strong>
+            <p>{{ gaLineageAudit(selectedGASeed).reasonZh || '等待 lineage。' }}</p>
+            <p>{{ gaLineageParentsText(selectedGASeed) }}</p>
+          </article>
+          <article>
+            <span>Mutation / Crossover 来源</span>
+            <strong>{{ gaSourceTrace(selectedGASeed).source || selectedGASeed.source || 'LLM_SEED' }}</strong>
+            <p>
+              {{ mutationHintZh(gaSourceTrace(selectedGASeed).mutationHint) }}；
+              Case {{ gaSourceTrace(selectedGASeed).caseId || '—' }}
+            </p>
+          </article>
         </div>
         <div class="qg-usdjpy-evolution__seed-metrics">
           <article>
@@ -682,6 +722,38 @@
               {{ metricText(selectedGASeed.fitnessBreakdown?.caseMemory?.penalty) }}
             </p>
           </article>
+        </div>
+        <div class="qg-usdjpy-evolution__evidence-chain">
+          <span>完整证据链</span>
+          <article v-for="item in gaEvidenceChain(selectedGASeed)" :key="item.step">
+            <strong>{{ item.step }}</strong>
+            <em>{{ item.status }}</em>
+            <p>{{ item.reasonZh }}</p>
+          </article>
+        </div>
+        <div v-if="gaAuditTrades(selectedGASeed).length" class="qg-usdjpy-evolution__table-wrap">
+          <table class="qg-usdjpy-evolution__table qg-usdjpy-evolution__table--compact">
+            <thead>
+              <tr>
+                <th>回测交易</th>
+                <th>方向</th>
+                <th>入场</th>
+                <th>出场</th>
+                <th>profitR</th>
+                <th>MFE / MAE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="trade in gaAuditTrades(selectedGASeed).slice(-8)" :key="trade.tradeId">
+                <td>{{ trade.tradeId }}</td>
+                <td>{{ directionZh(trade.direction) }}</td>
+                <td>{{ trade.entryTime }}</td>
+                <td>{{ trade.exitReason || trade.exitTime }}</td>
+                <td>{{ metricText(trade.profitR, 'R') }}</td>
+                <td>{{ metricText(trade.mfeR, 'R') }} / {{ metricText(trade.maeR, 'R') }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <pre>{{ strategyJsonPreview(selectedGASeed.strategyJson) }}</pre>
       </div>
@@ -826,6 +898,7 @@ import {
   fetchUSDJPYEvidenceOSStatus,
   fetchUSDJPYEvolutionStatus,
   fetchUSDJPYGABlockers,
+  fetchUSDJPYGACandidate,
   fetchUSDJPYGACandidates,
   fetchUSDJPYGAEvolutionPath,
   fetchUSDJPYGAStatus,
@@ -870,6 +943,8 @@ const strategyBacktestPayload = ref(null);
 const evidenceOSPayload = ref(null);
 const telegramGatewayPayload = ref(null);
 const selectedGASeed = ref(null);
+const selectedGASeedLoading = ref(false);
+const selectedGASeedError = ref('');
 const loading = ref(false);
 const error = ref('');
 const actionStatus = ref(null);
@@ -1177,7 +1252,20 @@ function mutationHintZh(value) {
 }
 
 function gaBacktest(item) {
-  return item?.fitnessBreakdown?.strategyBacktest || {};
+  const summary = item?.fitnessBreakdown?.strategyBacktest || {};
+  const audit = item?.audit?.backtest || {};
+  const metrics = audit.metrics || {};
+  if (!audit.present) return summary;
+  return {
+    ...summary,
+    ...metrics,
+    required: summary.required ?? true,
+    present: true,
+    ok: audit.ok ?? summary.ok,
+    tradeCount: audit.tradeCount ?? metrics.tradeCount ?? summary.tradeCount,
+    evidenceQuality: audit.evidenceQuality ?? summary.evidenceQuality,
+    reasonZh: audit.reasonZh ?? summary.reasonZh,
+  };
 }
 
 function gaBacktestMetric(item, key, digits = 2) {
@@ -1231,6 +1319,81 @@ function gaSeedExecutionStatus(item) {
   const execution = item?.fitnessBreakdown?.executionFeedback || {};
   if (!execution.present) return '等待';
   return execution.promotionGateStatus || execution.fieldCompletenessStatus || '已同步';
+}
+
+function gaBacktestAudit(item) {
+  return item?.audit?.backtest || {};
+}
+
+function gaEquityPoints(item) {
+  const points = gaBacktestAudit(item).equityCurve;
+  return Array.isArray(points) ? points : [];
+}
+
+function gaEquityPolyline(item) {
+  const points = gaEquityPoints(item);
+  if (points.length < 2) return '';
+  const xs = points.map((point) => Number(point.index));
+  const ys = points.map((point) => Number(point.equityR));
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(0.0001, maxY - minY);
+  return points
+    .map((point) => {
+      const x = ((Number(point.index) - minX) / spanX) * 232 + 4;
+      const y = 68 - ((Number(point.equityR) - minY) / spanY) * 60;
+      return `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`;
+    })
+    .join(' ');
+}
+
+function gaLineageAudit(item) {
+  return item?.audit?.lineage || {};
+}
+
+function gaSourceTrace(item) {
+  return item?.audit?.sourceTrace || {};
+}
+
+function gaLineageSummary(item) {
+  const audit = gaLineageAudit(item);
+  return `父代 ${audit.parentCount || 0} / 子代 ${audit.childCount || 0}`;
+}
+
+function gaLineageParentsText(item) {
+  const parents = gaLineageAudit(item).parents;
+  if (!Array.isArray(parents) || !parents.length) return '父代：—';
+  return `父代：${parents.map((parent) => `${parent.seedId || 'unknown'}(${parent.type || 'LINK'})`).join(' / ')}`;
+}
+
+function gaEvidenceChain(item) {
+  const chain = item?.audit?.evidenceChain;
+  if (Array.isArray(chain) && chain.length) return chain;
+  return [
+    {
+      step: 'Strategy JSON 校验',
+      status: item?.validation?.valid ? 'PASS' : 'WAITING',
+      reasonZh: item?.validation?.reasonZh || '等待点击候选加载完整审计。',
+    },
+    {
+      step: 'USDJPY SQLite 回测',
+      status: gaSeedBacktestStatus(item),
+      reasonZh: gaBacktest(item).reasonZh || '列表只展示摘要，点击后加载完整回测证据。',
+    },
+    {
+      step: 'Fitness / 晋级',
+      status: item?.status || 'WAITING',
+      reasonZh: item?.blockerZh || '等待完整候选审计。',
+    },
+  ];
+}
+
+function gaAuditTrades(item) {
+  const trades = gaBacktestAudit(item).trades;
+  return Array.isArray(trades) ? trades : [];
 }
 
 function gaEvidenceGateSummary(item) {
@@ -1346,6 +1509,21 @@ function evolutionSummary() {
   return `复盘闭环已生成：运行样本 ${samples}；参数候选 ${candidates} 个；Agent 阶段 ${agentStage}。`;
 }
 
+async function selectGASeed(item) {
+  if (!item?.seedId) return;
+  selectedGASeed.value = item;
+  selectedGASeedLoading.value = true;
+  selectedGASeedError.value = '';
+  try {
+    const payload = await fetchUSDJPYGACandidate(item.seedId);
+    selectedGASeed.value = payload?.candidate || item;
+  } catch (err) {
+    selectedGASeedError.value = err?.message || 'GA 候选完整审计读取失败';
+  } finally {
+    selectedGASeedLoading.value = false;
+  }
+}
+
 function assignLoaded(results) {
   payload.value = results.evolutionPayload;
   barReplay.value = results.causalPayload;
@@ -1366,7 +1544,9 @@ function assignLoaded(results) {
   strategyBacktestPayload.value = results.strategyBacktestState;
   evidenceOSPayload.value = results.evidenceOSState;
   telegramGatewayPayload.value = results.telegramGatewayState;
-  selectedGASeed.value = results.gaCandidates?.candidates?.[0] || selectedGASeed.value;
+  if (!selectedGASeed.value) {
+    selectedGASeed.value = results.gaCandidates?.candidates?.[0] || null;
+  }
 }
 
 async function loadAll() {
@@ -1821,6 +2001,66 @@ onMounted(() => load({ silent: true }));
   background: rgba(2, 11, 24, 0.55);
 }
 
+.qg-usdjpy-evolution__seed-detail-state {
+  padding: 10px 12px;
+  border: 1px solid rgba(126, 203, 255, 0.24);
+  border-radius: 12px;
+  background: rgba(14, 42, 72, 0.34);
+}
+
+.qg-usdjpy-evolution__seed-audit-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__seed-audit-grid article,
+.qg-usdjpy-evolution__evidence-chain article {
+  padding: 12px;
+  border: 1px solid rgba(145, 170, 210, 0.18);
+  border-radius: 12px;
+  background: rgba(10, 25, 48, 0.68);
+}
+
+.qg-usdjpy-evolution__equity-card svg {
+  width: 100%;
+  height: 72px;
+  margin: 8px 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(5, 15, 31, 0.96), rgba(9, 26, 48, 0.8));
+}
+
+.qg-usdjpy-evolution__equity-card polyline {
+  fill: none;
+  stroke: #67e8f9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.qg-usdjpy-evolution__evidence-chain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.qg-usdjpy-evolution__evidence-chain > span {
+  grid-column: 1 / -1;
+  color: #9fb3cc;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.qg-usdjpy-evolution__evidence-chain em {
+  display: inline-block;
+  margin: 4px 0;
+  color: #fde68a;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .qg-usdjpy-evolution__seed-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -1856,6 +2096,12 @@ onMounted(() => load({ silent: true }));
 
 .qg-usdjpy-evolution__state--error {
   color: #ffb3bd;
+}
+
+@media (max-width: 900px) {
+  .qg-usdjpy-evolution__seed-audit-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
