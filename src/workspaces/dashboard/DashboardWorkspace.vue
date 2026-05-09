@@ -92,6 +92,11 @@
         <JsonPreview title="回测摘要" source="/api/dashboard/backtest-summary" :payload="state.backtest" />
         <JsonPreview title="每日复盘" source="/api/daily-review" :payload="state.dailyReview" />
         <JsonPreview title="今日自动闭环" source="/api/daily-autopilot" :payload="state.dailyAutopilot" />
+        <JsonPreview
+          title="Agent 日报 v2"
+          source="/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2"
+          :payload="state.dailyAutopilotV2"
+        />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
         <JsonPreview title="Polymarket 雷达" source="/api/polymarket/radar" :payload="state.polyRadar" />
       </div>
@@ -132,6 +137,7 @@ const state = reactive({
   backtest: null,
   dailyReview: null,
   dailyAutopilot: null,
+  dailyAutopilotV2: null,
   mt5Snapshot: null,
   polyRadar: null,
   polyMarkets: null,

@@ -39,6 +39,8 @@ function checkDashboardWorkspace(root) {
     'KeyValueList',
     'StatusPill',
     'loadDashboardWorkspace',
+    'dailyAutopilotV2',
+    'Agent 日报 v2',
   ]) {
     if (!text.includes(required)) errors.push(`${rel(root, workspace)}: missing ${required}`);
   }
@@ -69,6 +71,9 @@ function checkDashboardModel(root) {
   }
   if (/['"]\/QuantGod_[^'"]+\.(json|csv)['"]/i.test(text)) {
     errors.push(`${rel(root, model)}: must not reference runtime JSON/CSV paths`);
+  }
+  for (const marker of ['historyProductionStatus', 'GA 历史样本', '晋级门']) {
+    if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }
   return errors;
 }

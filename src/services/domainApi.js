@@ -1,18 +1,39 @@
 import { fetchJson, fetchRows, postJson, queryString as params, rowsFromPayload } from './apiClient.js';
 
 export async function loadDashboardWorkspace() {
-  const [latest, state, backtest, dailyReview, dailyAutopilot, mt5Snapshot, polyRadar, polyMarkets] =
+  const [
+    latest,
+    state,
+    backtest,
+    dailyReview,
+    dailyAutopilot,
+    dailyAutopilotV2,
+    mt5Snapshot,
+    polyRadar,
+    polyMarkets,
+  ] =
     await Promise.all([
       fetchJson('/api/latest'),
       fetchJson('/api/dashboard/state'),
       fetchJson('/api/dashboard/backtest-summary'),
       fetchJson('/api/daily-review'),
       fetchJson('/api/daily-autopilot'),
+      fetchJson('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2'),
       fetchJson('/api/mt5-readonly/snapshot'),
       fetchJson('/api/polymarket/radar?limit=8'),
       fetchJson('/api/polymarket/markets?limit=8&sort=volume'),
     ]);
-  return { latest, state, backtest, dailyReview, dailyAutopilot, mt5Snapshot, polyRadar, polyMarkets };
+  return {
+    latest,
+    state,
+    backtest,
+    dailyReview,
+    dailyAutopilot,
+    dailyAutopilotV2,
+    mt5Snapshot,
+    polyRadar,
+    polyMarkets,
+  };
 }
 
 export async function loadMt5Workspace() {

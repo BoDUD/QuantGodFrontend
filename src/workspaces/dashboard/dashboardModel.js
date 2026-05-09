@@ -219,6 +219,22 @@ function dailyPnl(raw) {
   return dailyReviewIsFresh(raw?.dailyReview) ? raw?.dailyReview?.dailyPnl || {} : {};
 }
 
+function historyProductionStatus(raw = {}) {
+  const candidates = [
+    raw?.dailyAutopilotV2?.historyProductionStatus,
+    raw?.dailyAutopilotV2?.gaReview?.historyProductionStatus,
+    raw?.dailyAutopilotV2?.dailyTodo?.historyProductionStatus,
+    raw?.dailyAutopilotV2?.dailyReview?.historyProductionStatus,
+    raw?.dailyAutopilot?.historyProductionStatus,
+    raw?.dailyAutopilot?.gaReview?.historyProductionStatus,
+    raw?.backtest?.historyProductionStatus,
+    raw?.backtest?.qualityReport?.historyProductionStatus,
+    raw?.backtest?.data?.historyProductionStatus,
+    raw?.state?.historyProductionStatus,
+  ];
+  return candidates.find((candidate) => isObject(candidate)) || {};
+}
+
 function latestAccount(raw) {
   return raw?.latest?.account || raw?.mt5Snapshot?.account || {};
 }
@@ -280,6 +296,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
     positions: mt5Positions(raw),
     dailySummary: dailySummary(raw),
     dailyPnlEvidence: dailyPnl(raw),
+    historyProductionStatus: historyProductionStatus(raw),
     polymarketRows: polymarketRows(raw),
     autopilotStatus: raw?.dailyAutopilot?.status || '—',
   };
@@ -321,6 +338,12 @@ export function buildEndpointHealth(raw = {}) {
     ['MT5 实时快照', '/api/latest', raw.latest, '账户、行情、策略运行状态'],
     ['每日复盘', '/api/daily-review', raw.dailyReview, 'MT5 与 Polymarket 的日终结论'],
     ['今日自动闭环', '/api/daily-autopilot', raw.dailyAutopilot, '今日待办执行、报告回灌和复盘'],
+    [
+      'Agent 日报 v2',
+      '/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2',
+      raw.dailyAutopilotV2,
+      'GA 历史样本与三车道 Agent 日报',
+    ],
     ['MT5 只读桥', '/api/mt5-readonly/snapshot', raw.mt5Snapshot, '持仓、报价、账户只读快照'],
     ['预测市场雷达', '/api/polymarket/radar', raw.polyRadar, '公开市场雷达与流动性证据'],
     ['策略回测摘要', '/api/dashboard/backtest-summary', raw.backtest, '候选策略研究结果'],
@@ -349,6 +372,8 @@ export function buildRuntimeItems(snapshot) {
 }
 
 export function buildDailyItems(snapshot) {
+  const history = snapshot.historyProductionStatus || {};
+  const historyPass = history.promotionGateStatus === 'PASS' || history.status === 'PASS';
   return [
     {
       label: '每日复盘',
@@ -359,6 +384,14 @@ export function buildDailyItems(snapshot) {
       label: '今日自动闭环',
       value: snapshot.dailyAutopilotAvailable ? snapshot.autopilotStatus : '缺失',
       status: snapshot.dailyAutopilotAvailable ? 'ok' : 'warn',
+    },
+    {
+      label: 'GA 历史样本',
+      value: history.statusZh || history.status || '等待生产状态',
+      status: historyPass ? 'ok' : 'warn',
+      hint: `晋级门 ${history.promotionGateStatus || 'BLOCKED'} · ${
+        history.reasonZh || '未 PASS 时只允许 shadow/tester 观察'
+      }`,
     },
     {
       label: '策略回测摘要',
