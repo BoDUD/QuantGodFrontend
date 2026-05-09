@@ -304,6 +304,10 @@ export function fetchUSDJPYStrategyBacktestStatus() {
   return fetchJson(`${BASE}/strategy-backtest/status`);
 }
 
+export function fetchUSDJPYStrategyBacktestProductionStatus() {
+  return fetchJson(`${BASE}/strategy-backtest/production-status`);
+}
+
 export function seedUSDJPYStrategyBacktest({ overwrite = false } = {}) {
   const query = overwrite ? '?overwrite=1' : '';
   return postJson(`${BASE}/strategy-backtest/sample${query}`, { focusSymbol: 'USDJPYc' });

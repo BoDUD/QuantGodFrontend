@@ -144,6 +144,11 @@
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
+        <span>GA 生产历史样本</span>
+        <strong>{{ historyProductionStatusZh }}</strong>
+        <p>{{ historyProductionSummaryZh }}</p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
         <span>Parity 校验</span>
         <strong>{{ parityStatus }}</strong>
         <p>Strategy JSON / Python Replay / MQL5 EA 口径审计，不通过不能晋级。</p>
@@ -610,6 +615,7 @@
               <th>最大回撤</th>
               <th>Sharpe / Sortino</th>
               <th>交易数</th>
+              <th>历史样本</th>
               <th>Parity / 执行</th>
               <th>Rank</th>
               <th>阶段</th>
@@ -632,6 +638,7 @@
               <td>{{ gaBacktestDrawdown(item) }}</td>
               <td>{{ gaBacktestSharpeSortino(item) }}</td>
               <td>{{ gaBacktestMetric(item, 'tradeCount', 0) }}</td>
+              <td>{{ gaHistoryProductionStatus(item) }}</td>
               <td>{{ gaEvidenceGateSummary(item) }}</td>
               <td>{{ item.rank }}</td>
               <td>{{ statusZh(item.status) }}</td>
@@ -693,6 +700,11 @@
               {{ mutationHintZh(gaSourceTrace(selectedGASeed).mutationHint) }}；
               Case {{ gaSourceTrace(selectedGASeed).caseId || '—' }}
             </p>
+          </article>
+          <article>
+            <span>生产历史样本</span>
+            <strong>{{ gaHistoryProductionStatus(selectedGASeed) }}</strong>
+            <p>{{ gaHistoryProductionReason(selectedGASeed) }}</p>
           </article>
         </div>
         <div
@@ -920,6 +932,11 @@
             手续 {{ backtestCost.commissionPips ?? 0 }}
           </p>
         </article>
+        <article>
+          <span>生产历史样本</span>
+          <strong>{{ historyProductionStatusZh }}</strong>
+          <p>{{ historyProductionSummaryZh }}</p>
+        </article>
       </div>
       <p class="qg-usdjpy-evolution__note">
         本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；已覆盖 USDJPY shadow 策略族并向 GA 提供逐 seed
@@ -1035,6 +1052,7 @@ import {
   fetchUSDJPYGAStatus,
   fetchUSDJPYMt5ShadowLane,
   fetchUSDJPYPolymarketShadowLane,
+  fetchUSDJPYStrategyBacktestProductionStatus,
   fetchUSDJPYStrategyBacktestStatus,
   fetchUSDJPYStrategyContractStatus,
   fetchUSDJPYTelegramGatewayStatus,
@@ -1073,6 +1091,7 @@ const gaCandidatesPayload = ref(null);
 const gaPathPayload = ref(null);
 const gaBlockersPayload = ref(null);
 const strategyBacktestPayload = ref(null);
+const historyProductionPayload = ref(null);
 const evidenceOSPayload = ref(null);
 const telegramGatewayPayload = ref(null);
 const strategyContractPayload = ref(null);
@@ -1150,6 +1169,34 @@ const topGABlocker = computed(
 const strategyBacktestReport = computed(
   () => strategyBacktestPayload.value?.latestReport || strategyBacktestPayload.value || null,
 );
+const historyProduction = computed(
+  () =>
+    historyProductionPayload.value ||
+    strategyBacktestPayload.value?.historyProductionStatus ||
+    strategyBacktestPayload.value?.qualityReport?.historyProductionStatus ||
+    {},
+);
+const historyProductionStatusZh = computed(() => {
+  const status = String(historyProduction.value?.status || 'MISSING').toUpperCase();
+  if (status === 'PASS' && historyProduction.value?.historyTargetSatisfied) return '生产级 PASS';
+  if (status === 'PASS') return 'PASS 待确认';
+  if (status === 'WARN') return '生产告警';
+  return '等待生产状态';
+});
+const historyProductionSummaryZh = computed(() => {
+  const source = historyProduction.value?.source || {};
+  const timeframes = historyProduction.value?.timeframes || {};
+  const h1 = timeframes.H1 || {};
+  const m1 = timeframes.M1 || {};
+  const reason =
+    historyProduction.value?.reasonZh ||
+    (historyProduction.value?.historyTargetSatisfied
+      ? 'GA 正在使用生产级 USDJPY SQLite 历史样本评分。'
+      : 'GA 评分仍需等待 USDJPY 历史样本达到生产级 PASS。');
+  const sourceZh = source.mql5ExportDir ? 'MQL5 CopyRates' : source.mt5Python ? 'MT5 Python' : '';
+  const depth = h1.spanDays || m1.spanDays ? `；H1 ${h1.spanDays || 0} 天 / M1 ${m1.spanDays || 0} 天` : '';
+  return `${reason}${sourceZh ? ` 来源 ${sourceZh}` : ''}${depth}`;
+});
 const strategyBacktestMetrics = computed(() => strategyBacktestReport.value?.metrics || {});
 const strategyBacktestEngine = computed(() => strategyBacktestReport.value?.engine || {});
 const strategyContract = computed(() => strategyContractPayload.value?.contract || {});
@@ -1483,6 +1530,29 @@ function gaSeedBacktestStatus(item) {
   if (!backtest.present) return '缺少回测';
   if (!backtest.ok) return '回测失败';
   return backtest.evidenceQuality || '已回测';
+}
+
+function gaHistoryProduction(item) {
+  return item?.fitnessBreakdown?.historyProductionStatus || item?.historyProductionStatus || {};
+}
+
+function gaHistoryProductionStatus(item) {
+  const production = gaHistoryProduction(item);
+  const status = String(production.status || 'MISSING').toUpperCase();
+  if (status === 'PASS' && production.historyTargetSatisfied) return '生产级 PASS';
+  if (production.promotionGateStatus === 'BLOCKED') return '阻断晋级';
+  if (status === 'WARN') return '生产告警';
+  return '等待历史样本';
+}
+
+function gaHistoryProductionReason(item) {
+  const production = gaHistoryProduction(item);
+  return (
+    production.reasonZh ||
+    (production.historyTargetSatisfied
+      ? '该 seed 使用生产级 USDJPY SQLite 历史样本评分。'
+      : '该 seed 不能晋级：历史样本生产状态尚未 PASS。')
+  );
 }
 
 function gaSeedParityStatus(item) {
@@ -1921,6 +1991,7 @@ function assignLoaded(results) {
   gaPathPayload.value = results.gaPath;
   gaBlockersPayload.value = results.gaBlockers;
   strategyBacktestPayload.value = results.strategyBacktestState;
+  historyProductionPayload.value = results.historyProductionState;
   evidenceOSPayload.value = results.evidenceOSState;
   telegramGatewayPayload.value = results.telegramGatewayState;
   strategyContractPayload.value = results.strategyContractState;
@@ -1945,6 +2016,7 @@ async function loadAll() {
     gaPath,
     gaBlockers,
     strategyBacktestState,
+    historyProductionState,
     evidenceOSState,
     telegramGatewayState,
     strategyContractState,
@@ -1966,6 +2038,7 @@ async function loadAll() {
     fetchUSDJPYGAEvolutionPath(),
     fetchUSDJPYGABlockers(),
     fetchUSDJPYStrategyBacktestStatus(),
+    fetchUSDJPYStrategyBacktestProductionStatus(),
     fetchUSDJPYEvidenceOSStatus(),
     fetchUSDJPYTelegramGatewayStatus(),
     fetchUSDJPYStrategyContractStatus(),
@@ -1988,6 +2061,7 @@ async function loadAll() {
     gaPath,
     gaBlockers,
     strategyBacktestState,
+    historyProductionState,
     evidenceOSState,
     telegramGatewayState,
     strategyContractState,
