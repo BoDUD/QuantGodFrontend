@@ -172,6 +172,8 @@ for (const marker of [
   'Strategy JSON → EA 契约',
   '只读评估',
   'EA 回执',
+  'EA 影子评估',
+  'eaShadowEvaluationRecent',
   '收益与回撤',
   '稳定性',
   '晋级证据',

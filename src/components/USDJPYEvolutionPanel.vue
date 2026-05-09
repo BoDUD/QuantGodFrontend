@@ -989,6 +989,16 @@
             '等待 EA 加载只读契约。'
           }}
         </p>
+        <p>
+          EA 影子评估：{{ strategyContractShadowEvalStatusZh }}；{{
+            strategyContractPayload?.eaShadowEvaluation?.reasonZh ||
+            '等待 EA 写入 Strategy JSON shadow evaluation ledger。'
+          }}
+        </p>
+        <p>
+          Ledger：{{ strategyContractShadowEvalRows }} 条最近评估；would-enter
+          {{ strategyContractPayload?.eaShadowEvaluation?.wouldEnter ? '已出现' : '未出现' }}。
+        </p>
       </article>
     </section>
 
@@ -1159,6 +1169,22 @@ const strategyContractEAStatusZh = computed(() => {
   if (status === 'SAFETY_REJECTED') return 'EA 已拒绝';
   return statusZh(status, status);
 });
+const strategyContractShadowEvalStatusZh = computed(() => {
+  const status = strategyContractPayload.value?.eaShadowEvaluation?.status || 'WAITING_SHADOW_EVALUATION';
+  if (status === 'SHADOW_WOULD_ENTER') return 'EA 看到影子机会';
+  if (status === 'SHADOW_OBSERVE') return 'EA 正在影子观察';
+  if (status === 'SHADOW_GUARD_BLOCKED') return 'EA 影子守门阻断';
+  if (status === 'SHADOW_WAIT_INDICATORS') return '等待指标';
+  if (status === 'UNSUPPORTED_STRATEGY_FAMILY_SHADOW_OBSERVE') return '策略族待适配';
+  if (status === 'DIRECTION_SHADOW_ONLY_DEMOTED') return '方向仅影子';
+  if (status === 'WAITING_SHADOW_EVALUATION') return '等待影子评估';
+  return statusZh(status, status);
+});
+const strategyContractShadowEvalRows = computed(() =>
+  Array.isArray(strategyContractPayload.value?.eaShadowEvaluationRecent)
+    ? strategyContractPayload.value.eaShadowEvaluationRecent.length
+    : 0,
+);
 const strategyContractSeed = computed(
   () => strategyContract.value?.selectedSeedId || strategyContractStrategy.value?.seedId || '等待 Strategy JSON seed',
 );
@@ -1761,7 +1787,7 @@ function strategyBacktestSummary() {
 }
 
 function strategyContractSummary() {
-  return `EA 只读契约已生成：${strategyContractSeed.value}；${strategyContractEAStatusZh.value}；不会下单或修改 preset。`;
+  return `EA 只读契约已生成：${strategyContractSeed.value}；${strategyContractEAStatusZh.value}；${strategyContractShadowEvalStatusZh.value}；不会下单或修改 preset。`;
 }
 
 function evidenceOSSummary() {
