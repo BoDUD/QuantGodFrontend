@@ -286,6 +286,20 @@ export function fetchUSDJPYGATelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/ga/telegram-text${query}`);
 }
 
+export function fetchUSDJPYStrategyContractStatus({ write = false } = {}) {
+  const query = write ? '?write=1' : '';
+  return fetchJson(`${BASE}/strategy-contract/status${query}`);
+}
+
+export function buildUSDJPYStrategyContract() {
+  return postJson(`${BASE}/strategy-contract/build`, { focusSymbol: 'USDJPYc' });
+}
+
+export function fetchUSDJPYStrategyContractTelegramText({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/strategy-contract/telegram-text${query}`);
+}
+
 export function fetchUSDJPYStrategyBacktestStatus() {
   return fetchJson(`${BASE}/strategy-backtest/status`);
 }

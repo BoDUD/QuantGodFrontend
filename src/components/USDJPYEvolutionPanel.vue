@@ -18,6 +18,7 @@
         <button type="button" :disabled="loading" @click="runStrategyBacktest">运行策略回测</button>
         <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据 OS</button>
         <button type="button" :disabled="loading" @click="runGAGeneration">运行 GA 一代</button>
+        <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
       </div>
     </header>
 
@@ -125,6 +126,13 @@
           交易 {{ strategyBacktestMetrics.tradeCount ?? 0 }} / PF
           {{ strategyBacktestMetrics.profitFactor ?? 0 }} / 最大回撤
           {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R
+        </p>
+      </article>
+      <article class="qg-usdjpy-evolution__card">
+        <span>Strategy JSON → EA 契约</span>
+        <strong>{{ strategyContractStatusZh }}</strong>
+        <p>
+          {{ strategyContractSeed }}；EA 回执 {{ strategyContractEAStatusZh }}。只读评估，不影响实盘下单。
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
@@ -959,6 +967,31 @@
       </div>
     </section>
 
+    <section v-if="strategyContractPayload" class="qg-usdjpy-evolution__list">
+      <div class="qg-usdjpy-evolution__section-head">
+        <div>
+          <h3>Strategy JSON → MQL5 EA 契约</h3>
+          <p>EA 只读 Strategy JSON candidate，在 shadow/tester/paper lane 按同一契约评估。</p>
+        </div>
+        <strong>{{ strategyContractStatusZh }}</strong>
+      </div>
+      <article>
+        <strong>{{ strategyContractStrategy.strategyFamily || 'Strategy JSON' }}</strong>
+        <span>{{ strategyContractStrategy.direction || '—' }} / {{ strategyContractStrategy.entryMode || '—' }}</span>
+        <p>
+          Seed：{{ strategyContractSeed }}；Fingerprint：{{ strategyContractFingerprint }}；Contract：
+          {{ strategyContractPayload?.contract?.contractMode || '—' }}
+        </p>
+        <p>
+          EA 回执：{{ strategyContractEAStatusZh }}；{{
+            strategyContractPayload?.eaStatus?.reasonZh ||
+            strategyContractPayload?.contract?.ea?.reasonZh ||
+            '等待 EA 加载只读契约。'
+          }}
+        </p>
+      </article>
+    </section>
+
     <section v-if="candidateItems.length" class="qg-usdjpy-evolution__list">
       <h3>下一轮 tester-only 参数候选</h3>
       <article v-for="item in candidateItems.slice(0, 4)" :key="item.param">
@@ -993,7 +1026,9 @@ import {
   fetchUSDJPYMt5ShadowLane,
   fetchUSDJPYPolymarketShadowLane,
   fetchUSDJPYStrategyBacktestStatus,
+  fetchUSDJPYStrategyContractStatus,
   fetchUSDJPYTelegramGatewayStatus,
+  buildUSDJPYStrategyContract,
   fetchUSDJPYWalkForwardStatus,
   runUSDJPYAutonomousAgent,
   runUSDJPYBarReplayBuild,
@@ -1030,6 +1065,7 @@ const gaBlockersPayload = ref(null);
 const strategyBacktestPayload = ref(null);
 const evidenceOSPayload = ref(null);
 const telegramGatewayPayload = ref(null);
+const strategyContractPayload = ref(null);
 const selectedGASeed = ref(null);
 const selectedGASeedLoading = ref(false);
 const selectedGASeedError = ref('');
@@ -1106,6 +1142,30 @@ const strategyBacktestReport = computed(
 );
 const strategyBacktestMetrics = computed(() => strategyBacktestReport.value?.metrics || {});
 const strategyBacktestEngine = computed(() => strategyBacktestReport.value?.engine || {});
+const strategyContract = computed(() => strategyContractPayload.value?.contract || {});
+const strategyContractStrategy = computed(() => strategyContract.value?.strategy || {});
+const strategyContractStatusZh = computed(() => {
+  const status = strategyContractPayload.value?.status || 'WAITING_CONTRACT';
+  if (status === 'CONTRACT_WRITTEN') return '契约已生成';
+  if (status === 'CONTRACT_PREVIEW') return '契约预览';
+  if (status === 'WAITING_CONTRACT_BUILD') return '等待契约';
+  return statusZh(status, status);
+});
+const strategyContractEAStatusZh = computed(() => {
+  const status = strategyContractPayload.value?.eaStatus?.status || 'WAITING_EA_ACK';
+  if (status === 'SHADOW_CONTRACT_READY') return 'EA 已读取';
+  if (status === 'WAITING_CONTRACT') return '等待契约文件';
+  if (status === 'WAITING_EA_ACK') return '等待 EA 回执';
+  if (status === 'SAFETY_REJECTED') return 'EA 已拒绝';
+  return statusZh(status, status);
+});
+const strategyContractSeed = computed(
+  () => strategyContract.value?.selectedSeedId || strategyContractStrategy.value?.seedId || '等待 Strategy JSON seed',
+);
+const strategyContractFingerprint = computed(() => {
+  const value = strategyContract.value?.fingerprint || '—';
+  return value === '—' ? value : `${String(value).slice(0, 10)}…`;
+});
 const backtestCost = computed(() => strategyBacktestEngine.value?.costModel || {});
 const backtestCoverageZh = computed(() =>
   strategyBacktestEngine.value?.coverage === 'ALL_SUPPORTED_USDJPY_SHADOW_FAMILIES'
@@ -1700,6 +1760,10 @@ function strategyBacktestSummary() {
   return `策略回测已完成：交易 ${metrics.tradeCount || 0} 笔；净 R ${metrics.netR ?? 0}；PF ${metrics.profitFactor ?? 0}。`;
 }
 
+function strategyContractSummary() {
+  return `EA 只读契约已生成：${strategyContractSeed.value}；${strategyContractEAStatusZh.value}；不会下单或修改 preset。`;
+}
+
 function evidenceOSSummary() {
   return `证据 OS 已生成：Parity ${parityStatus.value}；${executionGateStatusZh.value}；Case ${caseMemory.value.caseCount || 0} 个，GA seed hint ${gaSeedHints.value.length} 条。`;
 }
@@ -1833,6 +1897,7 @@ function assignLoaded(results) {
   strategyBacktestPayload.value = results.strategyBacktestState;
   evidenceOSPayload.value = results.evidenceOSState;
   telegramGatewayPayload.value = results.telegramGatewayState;
+  strategyContractPayload.value = results.strategyContractState;
 }
 
 async function loadAll() {
@@ -1856,6 +1921,7 @@ async function loadAll() {
     strategyBacktestState,
     evidenceOSState,
     telegramGatewayState,
+    strategyContractState,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
     fetchUSDJPYBarReplayStatus(),
@@ -1876,6 +1942,7 @@ async function loadAll() {
     fetchUSDJPYStrategyBacktestStatus(),
     fetchUSDJPYEvidenceOSStatus(),
     fetchUSDJPYTelegramGatewayStatus(),
+    fetchUSDJPYStrategyContractStatus(),
   ]);
   assignLoaded({
     evolutionPayload,
@@ -1897,6 +1964,7 @@ async function loadAll() {
     strategyBacktestState,
     evidenceOSState,
     telegramGatewayState,
+    strategyContractState,
   });
   await selectPreferredGASeedWithLineage(gaCandidates?.candidates);
 }
@@ -1965,6 +2033,25 @@ async function runGAGeneration() {
   } catch (err) {
     error.value = err?.message || 'USDJPY GA 一代运行失败';
     setActionError('GA 运行失败', err, 'USDJPY GA 一代运行失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runStrategyContract() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning(
+    '正在生成 EA 只读契约',
+    '正在把最新 Strategy JSON candidate 写成 MQL5 EA 可读取的 shadow/tester/paper 评估契约。',
+  );
+  try {
+    strategyContractPayload.value = await buildUSDJPYStrategyContract();
+    await loadAll();
+    setActionSuccess('EA 契约已生成', strategyContractSummary());
+  } catch (err) {
+    error.value = err?.message || 'Strategy JSON → EA 契约生成失败';
+    setActionError('EA 契约失败', err, 'Strategy JSON → EA 契约生成失败');
   } finally {
     loading.value = false;
   }
