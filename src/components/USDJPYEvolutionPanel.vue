@@ -831,6 +831,32 @@
             </p>
           </article>
         </div>
+        <div
+          v-if="gaWalkForwardSegments(selectedGASeed).length"
+          class="qg-usdjpy-evolution__seed-metrics qg-usdjpy-evolution__seed-metrics--walk-forward"
+        >
+          <article>
+            <span>Per-seed Walk-forward</span>
+            <strong>{{ gaWalkForwardStatus(selectedGASeed) }}</strong>
+            <p>
+              稳定分 {{ metricText(gaWalkForwardSummary(selectedGASeed).stabilityScore) }}；
+              样本 {{ gaWalkForwardSummary(selectedGASeed).sampleCount || 0 }}；
+              惩罚 {{ metricText(selectedGASeed.fitnessBreakdown?.walkForwardPenalty) }}
+            </p>
+          </article>
+          <article v-for="segment in gaWalkForwardSegments(selectedGASeed)" :key="segment.segment">
+            <span>{{ gaWalkForwardSegmentTitle(segment) }}</span>
+            <strong>{{ metricText(segment.netR, 'R') }}</strong>
+            <p>
+              PF {{ metricText(segment.profitFactor) }} / 胜率 {{ percentText(segment.winRate) }} /
+              DD {{ metricText(segment.maxDrawdownR, 'R') }} / 交易 {{ segment.tradeCount || 0 }}
+            </p>
+            <p>
+              Parity {{ segment.parityStatus || '等待' }}；执行惩罚
+              {{ metricText(segment.executionFeedbackPenalty) }}
+            </p>
+          </article>
+        </div>
         <div class="qg-usdjpy-evolution__evidence-chain">
           <span>完整证据链</span>
           <article v-for="item in gaEvidenceChain(selectedGASeed)" :key="item.step">
@@ -1396,6 +1422,13 @@ function metricText(value, suffix = '') {
   return `${value}${suffix}`;
 }
 
+function percentText(value) {
+  if (value == null || value === '') return '—';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  return `${Number(numeric.toFixed(1))}%`;
+}
+
 function statusZh(value, fallback = '等待 Agent 处理') {
   const map = {
     COMPLETED_BY_AGENT: 'Agent 已完成',
@@ -1565,6 +1598,37 @@ function gaSeedExecutionStatus(item) {
   const execution = item?.fitnessBreakdown?.executionFeedback || {};
   if (!execution.present) return '等待';
   return execution.promotionGateStatus || execution.fieldCompletenessStatus || '已同步';
+}
+
+function gaWalkForwardAudit(item) {
+  return item?.audit?.walkForward || item?.fitnessBreakdown?.walkForward || {};
+}
+
+function gaWalkForwardSummary(item) {
+  return gaWalkForwardAudit(item).summary || {};
+}
+
+function gaWalkForwardSegments(item) {
+  const rows = gaWalkForwardAudit(item).segments;
+  return Array.isArray(rows) ? rows : [];
+}
+
+function gaWalkForwardStatus(item) {
+  const summary = gaWalkForwardSummary(item);
+  const status = String(summary.promotionGateStatus || 'WAITING').toUpperCase();
+  if (status === 'PASS') return '三段稳定 PASS';
+  if (status === 'BLOCKED') return summary.blockerCode || '三段阻断';
+  if (status === 'WARN') return '三段观察';
+  return '等待三段评分';
+}
+
+function gaWalkForwardSegmentTitle(segment) {
+  const map = {
+    train: '训练段',
+    validation: '验证段',
+    forward: '前推段',
+  };
+  return map[segment?.segment] || segment?.labelZh || segment?.segment || '分段';
 }
 
 function gaBacktestAudit(item) {
