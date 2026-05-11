@@ -108,12 +108,17 @@
 
     <div class="qg-domain-grid qg-domain-grid--wide-tables">
       <LedgerTable
-        title="历史交易记录"
+        title="历史交易记录（全部）"
         :rows="closeHistoryRows"
-        :limit="40"
+        :limit="closeHistoryRows.length || 1"
         class="qg-ledger-table--important"
       />
-      <LedgerTable title="交易流水" :rows="tradeJournalRows" :limit="40" class="qg-ledger-table--important" />
+      <LedgerTable
+        title="交易流水（全部）"
+        :rows="tradeJournalRows"
+        :limit="tradeJournalRows.length || 1"
+        class="qg-ledger-table--important"
+      />
     </div>
 
     <div class="qg-mt5-operations-grid">

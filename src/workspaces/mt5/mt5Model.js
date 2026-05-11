@@ -312,8 +312,8 @@ export function normalizeMt5Snapshot(raw = {}) {
     ? rowsFromPayload(raw.symbols)
     : rowsFromPayload(snapshot.symbols);
   const symbols = focusSymbolRows(rawSymbols);
-  const closeHistory = focusScopedRows(rowsFromPayload(raw.closeHistory));
-  const tradeJournal = focusScopedRows(rowsFromPayload(raw.tradeJournal));
+  const closeHistory = rowsFromPayload(raw.closeHistory);
+  const tradeJournal = rowsFromPayload(raw.tradeJournal);
   const shadowSignals = focusSymbolRows(rowsFromPayload(raw.shadowSignals));
   const shadowOutcomes = focusSymbolRows(rowsFromPayload(raw.shadowOutcomes));
   const shadowCandidates = focusSymbolRows(rowsFromPayload(raw.shadowCandidates));
@@ -1264,7 +1264,7 @@ function rowTimeMs(row, keys) {
   return null;
 }
 
-function latestRows(rows, keys, limit) {
+function latestRows(rows, keys, limit = Number.POSITIVE_INFINITY) {
   return [...(rows || [])]
     .map((row, index) => ({ row, index, timeMs: rowTimeMs(row, keys) }))
     .sort((left, right) => {
@@ -1324,7 +1324,7 @@ export function buildSymbolRows(snapshot) {
 }
 
 export function buildCloseHistoryRows(snapshot) {
-  return latestRows(snapshot.closeHistory, ['CloseTime', 'closeTime', 'OpenTime', 'openTime'], 40).map(
+  return latestRows(snapshot.closeHistory, ['CloseTime', 'closeTime', 'OpenTime', 'openTime']).map(
     (row) =>
       compactRow(row, {
         平仓时间: ['CloseTime', 'closeTime'],
@@ -1340,7 +1340,7 @@ export function buildCloseHistoryRows(snapshot) {
 }
 
 export function buildTradeJournalRows(snapshot) {
-  return latestRows(snapshot.tradeJournal, ['EventTime', 'eventTime', 'Time', 'time'], 40).map((row) =>
+  return latestRows(snapshot.tradeJournal, ['EventTime', 'eventTime', 'Time', 'time']).map((row) =>
     compactRow(row, {
       时间: ['EventTime', 'eventTime'],
       事件: ['EventType', 'eventType'],

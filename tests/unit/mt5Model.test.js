@@ -39,7 +39,7 @@ describe('mt5Model ledgers', () => {
 
     const rows = buildTradeJournalRows({ tradeJournal });
 
-    expect(rows).toHaveLength(40);
+    expect(rows).toHaveLength(44);
     expect(rows[0]).toMatchObject({ 时间: '2026.05.04 08:19', 事件: 'EXIT', 净盈亏: '0.06' });
     expect(rows[1]).toMatchObject({ 时间: '2026.05.04 08:00', 事件: 'ENTRY' });
   });
@@ -55,6 +55,23 @@ describe('mt5Model ledgers', () => {
 
     expect(rows[0]).toMatchObject({ 平仓时间: '2026.05.04 08:19', 净盈亏: '0.06' });
     expect(rows[1]).toMatchObject({ 平仓时间: '2026.05.01 12:30', 净盈亏: '0.52' });
+  });
+
+  it('keeps full broker trade history instead of hiding non-focus manual records', () => {
+    const snapshot = normalizeMt5Snapshot({
+      closeHistory: [
+        { CloseTime: '2026.05.11 08:52', Symbol: 'XAUUSDc', NetProfit: '13.19', Strategy: 'Manual/Other' },
+        { CloseTime: '2026.05.11 08:20', Symbol: 'EURUSDc', NetProfit: '-0.12', Strategy: 'Manual/Other' },
+        { CloseTime: '2026.05.11 08:10', Symbol: 'USDJPYc', NetProfit: '0.22', Strategy: 'RSI_Reversal' },
+      ],
+      tradeJournal: [
+        { EventTime: '2026.05.11 08:52', EventType: 'EXIT', Symbol: 'XAUUSDc', NetProfit: '13.19' },
+        { EventTime: '2026.05.11 08:10', EventType: 'ENTRY', Symbol: 'USDJPYc', NetProfit: '0.00' },
+      ],
+    });
+
+    expect(buildCloseHistoryRows(snapshot).map((row) => row.品种)).toEqual(['XAUUSDc', 'EURUSDc', 'USDJPYc']);
+    expect(buildTradeJournalRows(snapshot).map((row) => row.品种)).toEqual(['XAUUSDc', 'USDJPYc']);
   });
 
   it('explains live universe, shadow universe, tester window and Vibe-only strategy state', () => {

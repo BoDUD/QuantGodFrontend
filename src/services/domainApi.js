@@ -41,6 +41,7 @@ export async function loadDashboardWorkspace() {
 export async function loadMt5Workspace() {
   const focusSymbol = 'USDJPYc';
   const shadowLimit = 180;
+  const symbolQuery = params({ symbol: focusSymbol });
   const [
     status,
     account,
@@ -66,13 +67,13 @@ export async function loadMt5Workspace() {
   ] = await Promise.all([
     fetchJson('/api/mt5-readonly/status'),
     fetchJson('/api/mt5-readonly/account'),
-    fetchJson('/api/mt5-readonly/positions'),
-    fetchJson('/api/mt5-readonly/orders'),
+    fetchJson(`/api/mt5-readonly/positions${symbolQuery}`),
+    fetchJson(`/api/mt5-readonly/orders${symbolQuery}`),
     fetchJson('/api/mt5-symbol-registry/symbols'),
-    fetchJson('/api/mt5-readonly/snapshot'),
+    fetchJson(`/api/mt5-readonly/snapshot${symbolQuery}`),
     fetchJson('/api/latest'),
-    fetchRows('/api/trades/close-history?limit=80'),
-    fetchRows('/api/trades/journal?limit=120'),
+    fetchRows('/api/trades/close-history'),
+    fetchRows('/api/trades/journal'),
     fetchJson('/api/daily-review'),
     fetchJson('/api/daily-autopilot'),
     fetchJson('/api/research/stats'),
