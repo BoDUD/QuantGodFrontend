@@ -358,7 +358,9 @@ function copyPlanReady(copyPlan, copyQueue) {
 }
 
 function acceptanceCriteriaText(copyPlan = {}) {
-  const zh = Array.isArray(copyPlan.acceptanceCriteriaZh) ? copyPlan.acceptanceCriteriaZh.filter(Boolean) : [];
+  const zh = Array.isArray(copyPlan.acceptanceCriteriaZh)
+    ? copyPlan.acceptanceCriteriaZh.filter(Boolean)
+    : [];
   if (zh.length) return `自动治理门槛：${zh.join(' / ')}`;
 
   const raw = Array.isArray(copyPlan.acceptanceCriteria) ? copyPlan.acceptanceCriteria : [];
@@ -376,14 +378,26 @@ function acceptanceCriteriaText(copyPlan = {}) {
     : '必须先证明跟单模拟长期正收益；即使达标也只进入 shadow / paper-context，不恢复真钱。';
 }
 
-function agentCopyText(value, fallback = 'Agent 已生成 shadow-only 跟单重调方案；下一轮自动刷新样本和筛选来源，不连接真钱钱包。') {
+function agentCopyText(
+  value,
+  fallback = 'Agent 已生成 shadow-only 跟单重调方案；下一轮自动刷新样本和筛选来源，不连接真钱钱包。',
+) {
   const raw = String(value || '').trim();
   if (!raw) return fallback;
   return raw
     .replace('生成上述 shadow-only retune 批次；通过前禁止真钱下注、钱包写入或自动恢复执行。', fallback)
-    .replace('下一轮会扩展到全市场模块并重新筛选来源。', 'Agent 已生成下一轮全市场模块 shadow 重调方案，会自动扩展来源并重新筛选。')
-    .replace('若连续批次仍通过，再进入人工恢复复核。', '若连续批次仍通过，也只进入 shadow / paper-context 自动治理，不恢复真钱。')
-    .replace('仍需人工确认钱包、限额和隔离边界。', '仍只进入 shadow / paper-context 自动治理，不连接真钱钱包。')
+    .replace(
+      '下一轮会扩展到全市场模块并重新筛选来源。',
+      'Agent 已生成下一轮全市场模块 shadow 重调方案，会自动扩展来源并重新筛选。',
+    )
+    .replace(
+      '若连续批次仍通过，再进入人工恢复复核。',
+      '若连续批次仍通过，也只进入 shadow / paper-context 自动治理，不恢复真钱。',
+    )
+    .replace(
+      '仍需人工确认钱包、限额和隔离边界。',
+      '仍只进入 shadow / paper-context 自动治理，不连接真钱钱包。',
+    )
     .replace('人工加入观察名单', '本地观察名单');
 }
 
@@ -447,7 +461,8 @@ function buildSimulationItems(payload) {
         : '暂无样本',
       hint: copyAgentPlanReady
         ? agentCopyText(copyReview.summary)
-        : copyReview.summary || '未发现跟单样本；Agent 会先收集授权频道、公开强账户或本地观察名单的 shadow 证据。',
+        : copyReview.summary ||
+          '未发现跟单样本；Agent 会先收集授权频道、公开强账户或本地观察名单的 shadow 证据。',
       status: copyReview.active ? (copyAgentPlanReady ? 'ok' : 'warn') : 'unknown',
     },
     {
@@ -505,7 +520,12 @@ function buildSimulationItems(payload) {
       hint: polyRetune
         ? `${polyRetune.recommendation || '只在 shadow-only 重建筛选器'}；跟单策略不限制市场类别。`
         : copyQueue?.recommendation || agentCopyText(copyPlan.nextAction, '保持只读观察'),
-      status: polyRetuneDone || copyRetuneDone || copyAgentPlanReady ? 'ok' : polyRetune || copyQueue ? 'warn' : 'ok',
+      status:
+        polyRetuneDone || copyRetuneDone || copyAgentPlanReady
+          ? 'ok'
+          : polyRetune || copyQueue
+            ? 'warn'
+            : 'ok',
     },
     {
       label: '今日待办',
@@ -567,21 +587,27 @@ function buildReviewItems(payload) {
         ? 'Agent 已生成跟单重调'
         : copyAgentPlanReady
           ? 'Agent 已生成跟单重调'
-        : copyReview.active
-          ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
-          : '暂无跟单样本',
-      hint: copyRetuneDone || copyAgentPlanReady
-        ? `${agentCopyText(copyQueue?.recommendation || copyPlan.nextAction || copyReview.summary || '跟单 shadow-only 重调方案已生成')} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
-        : copyReview.active
-          ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
-          : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
+          : copyReview.active
+            ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
+            : '暂无跟单样本',
+      hint:
+        copyRetuneDone || copyAgentPlanReady
+          ? `${agentCopyText(copyQueue?.recommendation || copyPlan.nextAction || copyReview.summary || '跟单 shadow-only 重调方案已生成')} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
+          : copyReview.active
+            ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
+            : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
       status: copyRetuneDone || copyAgentPlanReady ? 'ok' : copyReview.active ? 'warn' : 'unknown',
     },
     {
       label: '跟单迭代方案',
       value: copyVariantCount ? `${copyVariantCount} 个 shadow-only 变体` : '等待重调证据',
       hint: acceptanceCriteriaText(copyPlan),
-      status: copyVariantCount || copyRetuneDone || copyAgentPlanReady ? 'ok' : copyPlan.retuneRequired ? 'warn' : 'ok',
+      status:
+        copyVariantCount || copyRetuneDone || copyAgentPlanReady
+          ? 'ok'
+          : copyPlan.retuneRequired
+            ? 'warn'
+            : 'ok',
     },
     {
       label: '今日重调',

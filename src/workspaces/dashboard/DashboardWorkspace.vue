@@ -201,16 +201,16 @@ onMounted(load);
   gap: 8px;
   min-width: 0;
   padding: 16px;
-  border: 1px solid rgba(91, 161, 255, 0.26);
+  border: 1px solid rgb(91 161 255 / 26%);
   border-radius: 14px;
   color: inherit;
   text-decoration: none;
-  background: rgba(9, 20, 38, 0.66);
+  background: rgb(9 20 38 / 66%);
 }
 
 .qg-dashboard-fast-lanes__card:hover {
-  border-color: rgba(86, 190, 255, 0.58);
-  background: rgba(12, 35, 62, 0.78);
+  border-color: rgb(86 190 255 / 58%);
+  background: rgb(12 35 62 / 78%);
 }
 
 .qg-dashboard-fast-lanes__card span,

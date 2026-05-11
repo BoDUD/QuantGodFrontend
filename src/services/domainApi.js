@@ -77,7 +77,9 @@ export async function loadMt5Workspace() {
     fetchJson(`/api/shadow/signals${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
     fetchJson(`/api/shadow/outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
     fetchJson(`/api/shadow/candidates${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
-    fetchJson(`/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
+    fetchJson(
+      `/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`,
+    ),
     fetchJson('/api/usdjpy-strategy-lab/live-loop'),
     fetchJson('/api/usdjpy-strategy-lab/evidence-os/status'),
     fetchJson('/api/usdjpy-strategy-lab/evidence-os/parity'),

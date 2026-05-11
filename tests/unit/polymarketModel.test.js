@@ -85,20 +85,26 @@ describe('polymarketModel simulation explanation', () => {
           },
         },
         dailyIteration: {
-          strategyIterationQueue: [{
-            type: 'POLYMARKET_COPY_TRADING_RETUNE',
-            status: 'RETUNE_SPEC_READY_STALE_REFRESH_QUEUED',
-            completedByAgent: true,
-            recommendation: 'Agent 已生成跟单 shadow-only 重调方案。',
-          }],
+          strategyIterationQueue: [
+            {
+              type: 'POLYMARKET_COPY_TRADING_RETUNE',
+              status: 'RETUNE_SPEC_READY_STALE_REFRESH_QUEUED',
+              completedByAgent: true,
+              recommendation: 'Agent 已生成跟单 shadow-only 重调方案。',
+            },
+          ],
         },
       },
     });
 
-    expect(model.simulationItems.find((item) => item.label === '跟单策略')?.value).toBe('Agent 已生成重调方案');
+    expect(model.simulationItems.find((item) => item.label === '跟单策略')?.value).toBe(
+      'Agent 已生成重调方案',
+    );
     expect(model.simulationItems.find((item) => item.label === '下一轮跟单重调')?.status).toBe('ok');
     expect(model.reviewItems.find((item) => item.label === '跟单复盘')?.value).toContain('Agent 已生成');
-    expect(model.reviewItems.find((item) => item.label === '跟单迭代方案')?.hint).toContain('结算样本不少于 200 笔');
+    expect(model.reviewItems.find((item) => item.label === '跟单迭代方案')?.hint).toContain(
+      '结算样本不少于 200 笔',
+    );
     expect(model.reviewItems.find((item) => item.label === '跟单迭代方案')?.hint).not.toContain('closed >=');
   });
 });
