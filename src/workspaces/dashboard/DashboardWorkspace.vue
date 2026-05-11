@@ -20,7 +20,7 @@
         </div>
         <StatusPill
           :status="agentOpsOverallStatus"
-          :label="state.agentOpsHealth?.overallStatusZh || '等待 Agent 健康检查'"
+          :label="state.agentOpsHealth?.systemStatusZh || state.agentOpsHealth?.overallStatusZh || '等待 Agent 健康检查'"
         />
       </div>
       <div class="qg-domain-grid qg-domain-grid--two">
@@ -221,7 +221,7 @@ const telegramGatewayItems = computed(() => buildTelegramGatewayItems(state));
 const telegramGatewayStatus = computed(() => resolveTelegramGatewayStatus(state));
 const telegramGatewayStatusLabel = computed(() => resolveTelegramGatewayStatusLabel(state));
 const agentOpsOverallStatus = computed(() => {
-  const status = String(state.agentOpsHealth?.overallStatus || '').toUpperCase();
+  const status = String(state.agentOpsHealth?.systemStatus || state.agentOpsHealth?.overallStatus || '').toUpperCase();
   if (status === 'PASS') return 'ok';
   if (status === 'BLOCKED') return 'blocked';
   return 'warn';

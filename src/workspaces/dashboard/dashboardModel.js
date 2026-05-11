@@ -438,13 +438,22 @@ export function buildAgentOpsItems(raw = {}) {
   const telegram = raw.telegramGateway || health.telegramGateway || {};
   return [
     {
-      label: '总状态',
-      value: health.overallStatusZh || health.overallStatus || '等待 Agent 健康检查',
-      status: statusToUi(health.overallStatus),
+      label: '系统自动化健康',
+      value: health.systemStatusZh || health.overallStatusZh || health.systemStatus || health.overallStatus || '等待 Agent 健康检查',
+      status: statusToUi(health.systemStatus || health.overallStatus),
       hint:
         health.blockers?.[0] ||
         health.warnings?.[0] ||
-        'Daily Autopilot、Polymarket retune、Telegram Gateway 合并检查',
+        'Agent 循环、Daily Autopilot 和 Telegram Gateway 单独计入系统健康。',
+    },
+    {
+      label: '策略观察健康',
+      value: health.strategyStatusZh || health.strategyStatus || '等待策略观察',
+      status: statusToUi(health.strategyStatus),
+      hint:
+        health.strategyBlockers?.[0] ||
+        health.strategyWarnings?.[0] ||
+        'Polymarket / MT5 shadow 的亏损或隔离只作为策略观察，不染黄系统自动化。',
     },
     {
       label: 'Daily Autopilot',
@@ -541,6 +550,7 @@ export function buildAgentOpsRows(raw = {}) {
   }
   return checks.map((check) => ({
     检查: check.label || check.key || '自动化检查',
+    类型: check.category === 'strategy' ? '策略观察' : '系统自动化',
     状态: check.statusZh || check.status || '需要观察',
     指标: formatCompact(check.metric),
     说明: check.detailZh || '—',

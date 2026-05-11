@@ -76,7 +76,16 @@ function checkDashboardModel(root) {
   if (/['"]\/QuantGod_[^'"]+\.(json|csv)['"]/i.test(text)) {
     errors.push(`${rel(root, model)}: must not reference runtime JSON/CSV paths`);
   }
-  for (const marker of ['historyProductionStatus', 'GA 历史样本', '晋级门', 'Polymarket 跟单重调', 'Telegram Gateway']) {
+  for (const marker of [
+    'historyProductionStatus',
+    'GA 历史样本',
+    '晋级门',
+    'systemStatus',
+    'strategyStatus',
+    '策略观察健康',
+    'Polymarket 跟单重调',
+    'Telegram Gateway',
+  ]) {
     if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }
   return errors;
