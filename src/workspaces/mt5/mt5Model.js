@@ -1324,18 +1324,17 @@ export function buildSymbolRows(snapshot) {
 }
 
 export function buildCloseHistoryRows(snapshot) {
-  return latestRows(snapshot.closeHistory, ['CloseTime', 'closeTime', 'OpenTime', 'openTime']).map(
-    (row) =>
-      compactRow(row, {
-        平仓时间: ['CloseTime', 'closeTime'],
-        品种: ['Symbol', 'symbol'],
-        方向: ['Type', 'type'],
-        手数: ['Lots', 'lots'],
-        净盈亏: ['NetProfit', 'netProfit', 'profit'],
-        策略: ['Strategy', 'strategy'],
-        来源: ['Source', 'source'],
-        备注: ['Comment', 'comment'],
-      }),
+  return latestRows(snapshot.closeHistory, ['CloseTime', 'closeTime', 'OpenTime', 'openTime']).map((row) =>
+    compactRow(row, {
+      平仓时间: ['CloseTime', 'closeTime'],
+      品种: ['Symbol', 'symbol'],
+      方向: ['Type', 'type'],
+      手数: ['Lots', 'lots'],
+      净盈亏: ['NetProfit', 'netProfit', 'profit'],
+      策略: ['Strategy', 'strategy'],
+      来源: ['Source', 'source'],
+      备注: ['Comment', 'comment'],
+    }),
   );
 }
 
