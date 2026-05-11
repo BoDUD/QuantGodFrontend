@@ -32,6 +32,17 @@
     <section class="qg-domain-panel qg-domain-panel--primary">
       <div class="qg-domain-panel__header">
         <div>
+          <p class="qg-eyebrow">Telegram Gateway</p>
+          <h2>后台自动推送健康</h2>
+        </div>
+        <StatusPill :status="telegramGatewayStatus" :label="telegramGatewayStatusLabel" />
+      </div>
+      <KeyValueList :items="telegramGatewayItems" />
+    </section>
+
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
           <p class="qg-eyebrow">每日闭环</p>
           <h2>今日待办与每日复盘</h2>
         </div>
@@ -143,6 +154,11 @@
           source="/api/usdjpy-strategy-lab/agent-ops-health/status"
           :payload="state.agentOpsHealth"
         />
+        <JsonPreview
+          title="Telegram Gateway"
+          source="/api/usdjpy-strategy-lab/telegram-gateway/status"
+          :payload="state.telegramGateway"
+        />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
         <JsonPreview title="Polymarket 雷达" source="/api/polymarket/radar" :payload="state.polyRadar" />
       </div>
@@ -170,6 +186,9 @@ import {
   buildDailyItems,
   buildAgentOpsItems,
   buildAgentOpsRows,
+  buildTelegramGatewayItems,
+  telegramGatewayStatus as resolveTelegramGatewayStatus,
+  telegramGatewayStatusLabel as resolveTelegramGatewayStatusLabel,
   buildRouteRows,
   buildDailyTodoRows,
   buildDailyReviewRows,
@@ -185,6 +204,7 @@ const state = reactive({
   dailyAutopilot: null,
   dailyAutopilotV2: null,
   agentOpsHealth: null,
+  telegramGateway: null,
   mt5Snapshot: null,
   polyRadar: null,
   polyMarkets: null,
@@ -197,6 +217,9 @@ const runtimeItems = computed(() => buildRuntimeItems(snapshot.value));
 const dailyItems = computed(() => buildDailyItems(snapshot.value));
 const agentOpsItems = computed(() => buildAgentOpsItems(state));
 const agentOpsRows = computed(() => buildAgentOpsRows(state));
+const telegramGatewayItems = computed(() => buildTelegramGatewayItems(state));
+const telegramGatewayStatus = computed(() => resolveTelegramGatewayStatus(state));
+const telegramGatewayStatusLabel = computed(() => resolveTelegramGatewayStatusLabel(state));
 const agentOpsOverallStatus = computed(() => {
   const status = String(state.agentOpsHealth?.overallStatus || '').toUpperCase();
   if (status === 'PASS') return 'ok';

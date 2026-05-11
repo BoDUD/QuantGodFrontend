@@ -353,6 +353,12 @@ export function buildEndpointHealth(raw = {}) {
       raw.agentOpsHealth,
       'Daily Autopilot、Polymarket retune 和 Telegram Gateway',
     ],
+    [
+      'Telegram Gateway',
+      '/api/usdjpy-strategy-lab/telegram-gateway/status',
+      raw.telegramGateway,
+      '日报、GA、回滚和 Polymarket retune 的 push-only 投递状态',
+    ],
     ['MT5 只读桥', '/api/mt5-readonly/snapshot', raw.mt5Snapshot, '持仓、报价、账户只读快照'],
     ['预测市场雷达', '/api/polymarket/radar', raw.polyRadar, '公开市场雷达与流动性证据'],
     ['策略回测摘要', '/api/dashboard/backtest-summary', raw.backtest, '候选策略研究结果'],
@@ -429,13 +435,16 @@ export function buildAgentOpsItems(raw = {}) {
   const health = raw.agentOpsHealth || {};
   const daily = health.dailyAutopilot || {};
   const poly = health.polymarketRetune || {};
-  const telegram = health.telegramGateway || {};
+  const telegram = raw.telegramGateway || health.telegramGateway || {};
   return [
     {
       label: '总状态',
       value: health.overallStatusZh || health.overallStatus || '等待 Agent 健康检查',
       status: statusToUi(health.overallStatus),
-      hint: health.blockers?.[0] || health.warnings?.[0] || 'Daily Autopilot、Polymarket retune、Telegram Gateway 合并检查',
+      hint:
+        health.blockers?.[0] ||
+        health.warnings?.[0] ||
+        'Daily Autopilot、Polymarket retune、Telegram Gateway 合并检查',
     },
     {
       label: 'Daily Autopilot',
@@ -454,6 +463,60 @@ export function buildAgentOpsItems(raw = {}) {
       value: telegram.pushAllowed ? 'push-only 已开启' : '只生成不发送',
       status: statusToUi(telegram.status),
       hint: `待投递 ${telegram.pendingCount || 0}；成功 ${telegram.deliveredCount || 0}；最近 ${telegram.lastTopic || '—'}`,
+    },
+  ];
+}
+
+export function telegramGatewayStatus(raw = {}) {
+  const gateway = raw.telegramGateway || raw.agentOpsHealth?.telegramGateway || {};
+  if (gateway.commandsAllowed) return 'blocked';
+  if (!gateway.pushAllowed) return 'warn';
+  if (Number(gateway.pendingCount || 0) > 0) return 'warn';
+  return 'ok';
+}
+
+export function telegramGatewayStatusLabel(raw = {}) {
+  const gateway = raw.telegramGateway || raw.agentOpsHealth?.telegramGateway || {};
+  if (gateway.commandsAllowed) return 'Telegram 命令未关闭';
+  if (!gateway.pushAllowed) return '只生成消息，未开启发送';
+  if (Number(gateway.pendingCount || 0) > 0) return '等待投递';
+  return '自动推送已运行';
+}
+
+export function buildTelegramGatewayItems(raw = {}) {
+  const gateway = raw.telegramGateway || raw.agentOpsHealth?.telegramGateway || {};
+  const lastDelivery = gateway.lastDelivery || {};
+  const lastDeliveryOk =
+    lastDelivery.ok === true ||
+    lastDelivery.reason === 'duplicate_suppressed' ||
+    lastDelivery.skipped === true;
+  return [
+    {
+      label: '推送通道',
+      value: gateway.pushAllowed ? 'push-only 已开启' : '未开启真实发送',
+      status: gateway.pushAllowed ? 'ok' : 'warn',
+      hint: gateway.reasonZh || 'Telegram Gateway 统一排队、去重、限频和投递。',
+    },
+    {
+      label: '命令入口',
+      value: gateway.commandsAllowed ? '命令未关闭' : '命令关闭',
+      status: gateway.commandsAllowed ? 'blocked' : 'ok',
+      hint: '只允许中文推送，不接收 Telegram 交易命令。',
+    },
+    {
+      label: '队列',
+      value: `待投递 ${gateway.pendingCount || 0} / 队列 ${gateway.queuedCount || 0}`,
+      status: Number(gateway.pendingCount || 0) > 0 ? 'warn' : 'ok',
+      hint: `账本 ${gateway.ledgerCount || 0}；成功 ${gateway.deliveredCount || 0}`,
+    },
+    {
+      label: '最近主题',
+      value: gateway.lastTopic || '等待投递',
+      status: lastDeliveryOk ? 'ok' : statusToUi(lastDelivery.ok === false ? 'WARN' : gateway.status),
+      hint:
+        lastDelivery.reason === 'duplicate_suppressed'
+          ? '最近一次被去重抑制，说明后台已运行且避免重复刷屏。'
+          : gateway.lastDeliveryAt || gateway.lastDispatchAt || '等待后台循环写入投递结果。',
     },
   ];
 }
