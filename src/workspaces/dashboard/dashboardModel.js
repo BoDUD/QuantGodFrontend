@@ -485,12 +485,19 @@ export function telegramGatewayStatusLabel(raw = {}) {
 
 export function buildTelegramGatewayItems(raw = {}) {
   const gateway = raw.telegramGateway || raw.agentOpsHealth?.telegramGateway || {};
+  const loop = raw.agentOpsHealth?.agentV25Loop || {};
   const lastDelivery = gateway.lastDelivery || {};
   const lastDeliveryOk =
     lastDelivery.ok === true ||
     lastDelivery.reason === 'duplicate_suppressed' ||
     lastDelivery.skipped === true;
   return [
+    {
+      label: '后台循环',
+      value: loop.statusZh || loop.status || '等待心跳',
+      status: statusToUi(loop.status),
+      hint: loop.detailZh || 'Agent v2.5 loop 负责定时收集日报、GA、回滚和 Polymarket retune。',
+    },
     {
       label: '推送通道',
       value: gateway.pushAllowed ? 'push-only 已开启' : '未开启真实发送',
