@@ -37,6 +37,10 @@ const validFiles = {
     "'策略观察健康';",
     "'Polymarket 跟单重调';",
     "'Telegram Gateway';",
+    'const deliveryObservability = true;',
+    "'最近真实发送';",
+    "'最近抑制';",
+    "'Topic 队列';",
   ].join('\n'),
   'src/workspaces/dashboard/DashboardWorkspace.vue': [
     '<template><EndpointHealthGrid /><KeyValueList /><StatusPill /></template>',

@@ -85,6 +85,10 @@ function checkDashboardModel(root) {
     '策略观察健康',
     'Polymarket 跟单重调',
     'Telegram Gateway',
+    'deliveryObservability',
+    '最近真实发送',
+    '最近抑制',
+    'Topic 队列',
   ]) {
     if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }

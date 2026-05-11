@@ -110,6 +110,53 @@ function formatMoney(value, currency = 'USC') {
   return `${numeric.toFixed(2)} ${currency || 'USC'}`;
 }
 
+function formatIsoMinute(value) {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Tokyo',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function formatTopicCounts(counts) {
+  if (!counts || typeof counts !== 'object') return '—';
+  const entries = Object.entries(counts)
+    .filter(([, count]) => Number(count || 0) > 0)
+    .sort(([left], [right]) => String(left).localeCompare(String(right)));
+  if (!entries.length) return '—';
+  return entries
+    .slice(0, 3)
+    .map(([topic, count]) => `${topicLabel(topic)} ${count}`)
+    .join(' / ');
+}
+
+function topicLabel(topic) {
+  const mapping = {
+    DAILY_AUTOPILOT_V2_REPORT: '日报',
+    GA_EVOLUTION_REPORT: 'GA',
+    USDJPY_AUTONOMOUS_AGENT_REPORT: 'Agent',
+    POLYMARKET_RETUNE_REPORT: 'Polymarket',
+  };
+  return mapping[topic] || String(topic || '未知');
+}
+
+function deliveryReasonLabel(reason) {
+  const mapping = {
+    duplicate_suppressed: '重复去重',
+    rate_limited: '限频抑制',
+    send_not_requested: '只生成未发送',
+    'QG_TELEGRAM_PUSH_ALLOWED is not 1': '推送未开启',
+    'Telegram token/chat_id missing': '缺少 Telegram 配置',
+  };
+  return mapping[reason] || reason || '—';
+}
+
 function rowsFromObjectList(value) {
   return toArray(value).filter((row) => row && typeof row === 'object');
 }
@@ -496,11 +543,19 @@ export function buildTelegramGatewayItems(raw = {}) {
   const gateway = raw.telegramGateway || raw.agentOpsHealth?.telegramGateway || {};
   const loop = raw.agentOpsHealth?.agentV25Loop || {};
   const lastDelivery = gateway.lastDelivery || {};
+  const observability = gateway.deliveryObservability || {};
+  const lastActualSentAt = gateway.lastActualSentAtIso || observability.lastActualSentAtIso;
+  const lastSuppressedAt = gateway.lastSuppressedAtIso || observability.lastSuppressedAtIso;
+  const lastSuppressedReason = gateway.lastSuppressedReason || observability.lastSuppressedReason;
+  const nextEligibleSendAt = gateway.nextEligibleSendAtIso || observability.nextEligibleSendAtIso;
+  const sentCountByTopic = gateway.sentCountByTopic || observability.sentCountByTopic || {};
+  const pendingByTopic = gateway.pendingByTopic || observability.pendingByTopic || {};
+  const topicQueueCount = Object.values(pendingByTopic).reduce((sum, value) => sum + numberValue(value), 0);
   const lastDeliveryOk =
     lastDelivery.ok === true ||
     lastDelivery.reason === 'duplicate_suppressed' ||
     lastDelivery.skipped === true;
-  return [
+  const items = [
     {
       label: '后台循环',
       value: loop.statusZh || loop.status || '等待心跳',
@@ -535,6 +590,35 @@ export function buildTelegramGatewayItems(raw = {}) {
           : gateway.lastDeliveryAt || gateway.lastDispatchAt || '等待后台循环写入投递结果。',
     },
   ];
+  items.push(
+    {
+      label: '最近真实发送',
+      value: formatIsoMinute(lastActualSentAt),
+      status: lastActualSentAt ? 'ok' : 'warn',
+      hint: `真实投递按 topic 统计：${formatTopicCounts(sentCountByTopic)}`,
+    },
+    {
+      label: '最近抑制',
+      value: lastSuppressedReason
+        ? `${deliveryReasonLabel(lastSuppressedReason)} · ${formatIsoMinute(lastSuppressedAt)}`
+        : '暂无抑制',
+      status: 'ok',
+      hint: '重复去重、限频和只生成未发送都会写入 ledger，用来解释为什么本轮没有刷屏。',
+    },
+    {
+      label: '下次可发送',
+      value: nextEligibleSendAt ? formatIsoMinute(nextEligibleSendAt) : '当前可发送',
+      status: nextEligibleSendAt ? 'warn' : 'ok',
+      hint: nextEligibleSendAt ? 'Gateway 正在限频窗口内，下一小时会恢复投递。' : '未处于限频窗口。',
+    },
+    {
+      label: 'Topic 队列',
+      value: formatTopicCounts(pendingByTopic),
+      status: topicQueueCount > 0 ? 'warn' : 'ok',
+      hint: topicQueueCount > 0 ? '仍有 topic 等待真实投递。' : '各 topic 暂无积压。',
+    },
+  );
+  return items;
 }
 
 export function buildAgentOpsRows(raw = {}) {
