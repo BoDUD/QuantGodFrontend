@@ -70,19 +70,21 @@ const visibleNavigation = navigation.split('export const HIDDEN_WORKSPACES')[0] 
 assertNotIncludes(visibleNavigation, "key: 'legacy'", 'src/app/navigation.js visible navigation');
 assertNotIncludes(visibleNavigation, '旧版归档', 'src/app/navigation.js visible navigation');
 
-for (const key of [
-  'dashboard',
-  'mt5',
+for (const key of ['dashboard', 'mt5', 'evolution', 'polymarket']) {
+  assertIncludes(navigation, `'${key}'`, 'src/app/navigation.js');
+}
+
+const retiredWorkspaceKeys = [
   'governance',
   'paramlab',
   'research',
-  'polymarket',
   'backtest-ai',
   'phase1',
   'phase2',
   'phase3',
-]) {
-  assertIncludes(navigation, `'${key}'`, 'src/app/navigation.js');
+];
+for (const key of retiredWorkspaceKeys) {
+  assertNotIncludes(visibleNavigation, `key: '${key}'`, 'src/app/navigation.js visible navigation');
 }
 
 if (/key\s*:\s*['"]legacy['"]/.test(navigation)) {

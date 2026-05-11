@@ -3,21 +3,21 @@
     <header class="qg-usdjpy-evolution__header">
       <div>
         <p class="qg-usdjpy-evolution__eyebrow">USDJPY 自学习闭环</p>
-        <h2>数据集、回放、Walk-forward 与自主治理</h2>
+        <h2>数据集、因果回放、前向验证与自主治理</h2>
         <p>
           每天把 EA
           守门、错失机会、过早出场和参数候选整理成证据；无需人工审批，但必须通过机器硬风控和自动回滚。
         </p>
       </div>
       <div class="qg-usdjpy-evolution__actions">
-        <button type="button" :disabled="loading" @click="load">刷新</button>
-        <button type="button" :disabled="loading" @click="runCausalReplay">生成因果回放</button>
-        <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行自主治理</button>
+        <button type="button" :disabled="loading" @click="load">刷新证据</button>
+        <button type="button" :disabled="loading" @click="runCausalReplay">生成回放证据</button>
+        <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行治理门</button>
         <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
-        <button type="button" :disabled="loading" @click="runStrategyBacktest">运行策略回测</button>
-        <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据 OS</button>
-        <button type="button" :disabled="loading" @click="runGAGeneration">运行 GA 一代</button>
+        <button type="button" :disabled="loading" @click="runStrategyBacktest">运行回测证据</button>
+        <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据系统</button>
+        <button type="button" :disabled="loading" @click="runGAGeneration">运行遗传进化</button>
         <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
       </div>
     </header>
@@ -62,7 +62,7 @@
         <p>{{ tuning?.statusZh || '等待回放数据生成候选' }}</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>自主治理 Agent</span>
+        <span>自主治理代理</span>
         <strong>{{
           autonomousAgent?.stageZh || autonomousAgent?.stage || proposal?.statusZh || '等待治理门'
         }}</strong>
@@ -102,7 +102,7 @@
         <p>源码 / ex5 / preset hash 只读校验；Watchlist 期望 USDJPY-only。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>Daily Autopilot 2.0</span>
+        <span>自动日报 2.0</span>
         <strong>{{
           statusZh(agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status, '等待生成日报')
         }}</strong>
@@ -110,17 +110,17 @@
           {{
             agentDailyTodo?.summaryZh ||
             dailyAutopilot?.dailyTodo?.summaryZh ||
-            'Agent 自动生成早盘计划、今日待办和夜盘复盘。'
+            '自主代理自动生成早盘计划、今日待办和夜盘复盘。'
           }}
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>下一阶段任务</span>
         <strong>{{ statusZh(nextPhaseTodos.status, '等待下一阶段') }}</strong>
-        <p>Strategy JSON、GA Trace 与独立 Telegram Gateway 已接入；下一步聚焦真实样本和 parity 深化。</p>
+        <p>策略契约、遗传进化审计与通知网关已接入；下一步聚焦真实样本和一致性深化。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>Strategy JSON 回测</span>
+        <span>策略契约回测</span>
         <strong>{{ strategyBacktestMetrics.netR ?? 0 }}R</strong>
         <p>
           交易 {{ strategyBacktestMetrics.tradeCount ?? 0 }} / PF
@@ -144,37 +144,34 @@
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>GA 生产历史样本</span>
+        <span>遗传进化历史样本</span>
         <strong>{{ historyProductionStatusZh }}</strong>
         <p>{{ historyProductionSummaryZh }}</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>Parity 校验</span>
         <strong>{{ parityStatus }}</strong>
-        <p>Strategy JSON / Python Replay / MQL5 EA 口径审计，不通过不能晋级。</p>
+        <p>策略契约 / Python 回放 / EA 三方口径审计，不通过不能晋级。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>执行反馈</span>
         <strong>{{ executionGateStatusZh }}</strong>
         <p>
-          样本 {{ executionMetrics.feedbackRows || 0 }} / 阻断
-          {{ executionBlockers.length }} / 警告 {{ executionWarnings.length }}
+          样本 {{ executionMetrics.feedbackRows || 0 }} / 阻断 {{ executionBlockers.length }} / 警告
+          {{ executionWarnings.length }}
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>Case Memory</span>
+        <span>经验记忆</span>
         <strong>{{ caseMemory.caseCount || 0 }}</strong>
-        <p>
-          {{ caseMemory.queuedForGA || 0 }} 个经验进入 GA；标准 seed hint
-          {{ gaSeedHints.length }} 条。
-        </p>
+        <p>{{ caseMemory.queuedForGA || 0 }} 个经验进入遗传进化；标准种子提示 {{ gaSeedHints.length }} 条。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>Telegram Gateway</span>
+        <span>通知网关</span>
         <strong>{{ telegramGateway.pendingCount || 0 }} 待投递</strong>
         <p>
-          已投递 {{ telegramGateway.deliveredCount || 0 }}；队列 {{ telegramGateway.queuedCount || 0 }}；去重、限频、
-          ledger 已接入。
+          已投递 {{ telegramGateway.deliveredCount || 0 }}；队列
+          {{ telegramGateway.queuedCount || 0 }}；去重、限频、 ledger 已接入。
         </p>
       </article>
     </div>
@@ -191,7 +188,7 @@
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
-          <span>Live Lane</span>
+          <span>实盘车道</span>
           <strong
             >{{ liveLane.strategy || 'RSI_Reversal' }} /
             {{ directionZh(liveLane.direction || 'LONG') }}</strong
@@ -199,12 +196,12 @@
           <p>只允许 USDJPYc 买入路线进入 MICRO_LIVE / LIVE_LIMITED。</p>
         </article>
         <article>
-          <span>MT5 Shadow Lane</span>
+          <span>MT5 模拟车道</span>
           <strong>{{ mt5ShadowSummary.topShadowStrategy || '多策略观察' }}</strong>
           <p>模拟池包含 RSI、MA、BB、MACD、S/R、东京突破、夜盘回归和 H4 回调。</p>
         </article>
         <article>
-          <span>Polymarket Shadow Lane</span>
+          <span>预测市场模拟车道</span>
           <strong>{{ polymarketShadow.stageZh || polymarketShadow.stage || '模拟观察' }}</strong>
           <p>{{ polymarketShadow.reasonZh || '只做模拟账本、跟单研究和事件风险上下文。' }}</p>
         </article>
@@ -226,8 +223,8 @@
     <section v-if="autonomousAgent" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--agent">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>自主治理 Agent</h3>
-          <p>取消人工审批不等于取消风控：Agent 只能写受控 patch，硬风控失败会自动回滚或暂停。</p>
+          <h3>自主治理代理</h3>
+          <p>取消人工审批不等于取消风控：代理只能写受控补丁，硬风控失败会自动回滚或暂停。</p>
         </div>
         <strong>{{ autonomousAgent.stageZh || autonomousAgent.stage || '等待状态' }}</strong>
       </div>
@@ -264,8 +261,8 @@
     <section v-if="dailyAutopilot" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--daily">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>Daily Autopilot 2.0</h3>
-          <p>自动中文早盘计划、Agent 今日待办和每日复盘；已完成事项由 Agent 自动闭环。</p>
+          <h3>自动日报 2.0</h3>
+          <p>自动中文早盘计划、今日待办和每日复盘；已完成事项由自主代理自动闭环。</p>
         </div>
         <strong>{{
           agentDailyTodo?.status ||
@@ -276,17 +273,17 @@
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
-          <span>Agent 今日待办</span>
+          <span>今日待办</span>
           <strong>{{
             agentDailyTodo?.completedByAgent || dailyAutopilot.dailyTodo?.completedByAgent
               ? '已自动完成'
-              : '等待 Agent'
+              : '等待自主代理'
           }}</strong>
           <p>
             {{ dailyTodoItems.length }} 项；
             {{
               agentDailyTodo?.autoAppliedByAgent || dailyAutopilot.dailyTodo?.autoAppliedByAgent
-                ? '已自动推动阶段/patch'
+                ? '已自动推动阶段/补丁'
                 : '无需自动推动'
             }}；
             {{
@@ -297,7 +294,7 @@
           </p>
         </article>
         <article>
-          <span>Agent 每日复盘</span>
+          <span>每日复盘</span>
           <strong>{{
             agentDailyReview?.completedByAgent || dailyAutopilot.dailyReview?.completedByAgent
               ? '已自动复盘'
@@ -361,8 +358,10 @@
         </article>
         <article>
           <span>下一阶段任务</span>
-          <strong>{{ statusZh(nextPhaseTodos.status, 'Agent 已接入') }}</strong>
-          <p>Strategy JSON / GA Evolution / Telegram Gateway 已接入；后续继续补真实样本、parity 和执行质量。</p>
+          <strong>{{ statusZh(nextPhaseTodos.status, '自主代理已接入') }}</strong>
+          <p>
+            策略契约、遗传进化与通知网关已接入；后续继续补真实样本、一致性和执行质量。
+          </p>
         </article>
       </div>
       <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
@@ -448,38 +447,38 @@
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--evidence-os">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>执行反馈、Case Memory 与下一代 GA</h3>
+          <h3>执行反馈、经验记忆与下一代遗传进化</h3>
           <p>
-            真实成交、拒单、滑点、延迟和 policy 偏离会先进入执行反馈晋级门；异常再转成 Case Memory，
-            最后喂给下一代 Strategy JSON GA。
+            真实成交、拒单、滑点、延迟和策略偏离会先进入执行反馈晋级门；异常再转成经验记忆，
+            最后喂给下一代策略契约遗传进化。
           </p>
         </div>
         <strong>{{ executionGateStatusZh }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
-          <span>三方 Parity</span>
+          <span>三方一致性</span>
           <strong>{{ deepParityStatusZh }}</strong>
           <p>
             {{
               deepParity.reasonZh ||
               parityReport.reasonZh ||
-              '等待 Strategy JSON / Python Replay / MQL5 EA 三方证据。'
+              '等待策略契约、Python 回放和 EA 输出三方证据。'
             }}
           </p>
         </article>
         <article>
-          <span>Strategy JSON</span>
+          <span>策略契约</span>
           <strong>{{ deepStrategySummary }}</strong>
           <p>{{ deepStrategyGateSummary }}</p>
         </article>
         <article>
-          <span>Python Replay</span>
+          <span>Python 回放</span>
           <strong>{{ deepReplaySummary }}</strong>
           <p>{{ deepReplayGateSummary }}</p>
         </article>
         <article>
-          <span>MQL5 EA</span>
+          <span>EA 输出</span>
           <strong>{{ deepEaSummary }}</strong>
           <p>{{ deepEaGateSummary }}</p>
         </article>
@@ -489,7 +488,7 @@
           <p>{{ executionGate.reasonZh || '等待 EA 输出标准化 LiveExecutionFeedback。' }}</p>
         </article>
         <article>
-          <span>Agent 动作</span>
+          <span>代理动作</span>
           <strong>{{ executionAgentActionZh }}</strong>
           <p>{{ executionFeedback.nextActionZh || '等待真实执行反馈后再评估。' }}</p>
         </article>
@@ -503,9 +502,9 @@
           </p>
         </article>
         <article>
-          <span>Case → GA</span>
-          <strong>{{ caseMemoryToGA.queuedHintCount || gaSeedHints.length || 0 }} 条 seed hint</strong>
-          <p>{{ caseMemoryToGA.nextActionZh || '等待 Case Memory 生成下一代 Strategy JSON 线索。' }}</p>
+          <span>经验 → 遗传进化</span>
+          <strong>{{ caseMemoryToGA.queuedHintCount || gaSeedHints.length || 0 }} 条种子线索</strong>
+          <p>{{ caseMemoryToGA.nextActionZh || '等待经验记忆生成下一代策略契约线索。' }}</p>
         </article>
       </div>
       <div
@@ -515,7 +514,7 @@
         <article v-for="item in deepParityHardMismatches.slice(0, 6)" :key="`parity-hard-${item}`">
           <span>Parity 硬差异</span>
           <strong>{{ item }}</strong>
-          <p>该差异会阻断策略晋级，直到 Strategy JSON / Python Replay / MQL5 EA 口径重新一致。</p>
+          <p>该差异会阻断策略晋级，直到策略契约、Python 回放和 EA 输出重新一致。</p>
         </article>
         <article v-for="item in deepParityMissingOptional.slice(0, 6)" :key="`parity-missing-${item}`">
           <span>Parity 缺字段</span>
@@ -539,10 +538,10 @@
         <table class="qg-usdjpy-evolution__table qg-usdjpy-evolution__table--compact">
           <thead>
             <tr>
-              <th>Case</th>
+              <th>经验</th>
               <th>类型</th>
               <th>优先级</th>
-              <th>下一代 GA 变异提示</th>
+              <th>下一代变异提示</th>
               <th>原因</th>
             </tr>
           </thead>
@@ -552,35 +551,36 @@
               <td>{{ item.caseType || 'UNKNOWN' }}</td>
               <td>{{ item.priority || 'MEDIUM' }}</td>
               <td>{{ mutationHintZh(item.mutationHint) }}</td>
-              <td>{{ item.reasonZh || '进入下一代 GA shadow 候选。' }}</td>
+              <td>{{ item.reasonZh || '进入下一代遗传进化模拟候选。' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       <p class="qg-usdjpy-evolution__note">
-        这里不下单、不改 live preset；它只决定执行证据是否能支持晋级，以及下一代 GA 该优先修哪类执行或策略问题。
+        这里不下单、不改 live preset；它只决定执行证据是否能支持晋级，以及下一代 GA
+        该优先修哪类执行或策略问题。
       </p>
     </section>
 
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>GA 全过程审计</h3>
+          <h3>遗传进化全过程审计</h3>
           <p>
-            Strategy JSON 种子、generation、fitness、阻断、elite 和下一代路径全部可追踪；只进入 MT5 Shadow /
-            Tester / Paper-live-sim。
+            策略契约种子、代际、适应度、阻断、精英和下一代路径全部可追踪；只进入 MT5 模拟、
+            测试器和实盘行情干跑。
           </p>
         </div>
-        <strong>{{ gaStatus.status || '等待第一代' }}</strong>
+        <strong>{{ statusZh(gaStatus.status, '等待第一代') }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
           <span>当前代数</span>
           <strong>第 {{ gaStatus.currentGeneration || 0 }} 代</strong>
-          <p>种群 {{ gaStatus.populationSize || 0 }} / Elite {{ gaStatus.eliteCount || 0 }}</p>
+          <p>种群 {{ gaStatus.populationSize || 0 }} / 精英 {{ gaStatus.eliteCount || 0 }}</p>
         </article>
         <article>
-          <span>最佳 fitness</span>
+          <span>最佳适应度</span>
           <strong>{{ gaStatus.bestFitness ?? 0 }}</strong>
           <p>{{ gaStatus.bestSeedId || '等待种子评分' }}</p>
         </article>
@@ -592,14 +592,14 @@
         <article>
           <span>下一步</span>
           <strong>{{ gaStatus.nextAction ? '已规划' : '等待运行' }}</strong>
-          <p>{{ gaStatus.nextAction || '点击“运行 GA 一代”生成全过程 trace。' }}</p>
+          <p>{{ gaStatus.nextAction || '点击“运行遗传进化”生成全过程审计。' }}</p>
         </article>
       </div>
       <div v-if="gaPathItems.length" class="qg-usdjpy-evolution__ga-timeline">
         <article v-for="item in gaPathItems.slice(-8)" :key="item.generationId || item.generation">
           <span>第 {{ item.generation }} 代</span>
           <strong>{{ item.bestFitness }}</strong>
-          <p>avg {{ item.avgFitness }} / elite {{ item.eliteCount }} / 阻断 {{ item.blockedCount }}</p>
+          <p>平均 {{ item.avgFitness }} / 精英 {{ item.eliteCount }} / 阻断 {{ item.blockedCount }}</p>
         </article>
       </div>
       <div v-if="gaCandidateItems.length" class="qg-usdjpy-evolution__table-wrap">
@@ -609,7 +609,7 @@
               <th>种子</th>
               <th>策略族</th>
               <th>来源</th>
-              <th>Fitness</th>
+              <th>适应度</th>
               <th>PF</th>
               <th>胜率</th>
               <th>最大回撤</th>
@@ -653,17 +653,19 @@
           class="qg-usdjpy-evolution__seed-detail-state"
         >
           <span>{{ selectedGASeedLoading ? '正在加载候选完整审计' : '候选审计加载失败' }}</span>
-          <p>{{ selectedGASeedError || '正在读取 equity curve、lineage、mutation/crossover 与完整证据链。' }}</p>
+          <p>
+            {{ selectedGASeedError || '正在读取权益曲线、血统、变异/交叉来源与完整证据链。' }}
+          </p>
         </div>
         <div>
-          <span>Seed Detail / 完整审计</span>
+          <span>候选完整审计</span>
           <strong>{{ selectedGASeed.seedId }} / {{ selectedGASeed.strategyId }}</strong>
           <p>{{ gaSourceTrace(selectedGASeed).reasonZh || '等待来源审计。' }}</p>
         </div>
         <div>
-          <span>Fitness 分解</span>
+          <span>适应度分解</span>
           <p>
-            netR {{ selectedGASeed.fitnessBreakdown?.netR ?? 0 }}； max adverse
+            净R {{ selectedGASeed.fitnessBreakdown?.netR ?? 0 }}； 最大不利R
             {{ selectedGASeed.fitnessBreakdown?.maxAdverseR ?? 0 }}； 样本
             {{ selectedGASeed.fitnessBreakdown?.sampleCount ?? 0 }}； 过拟合惩罚
             {{ selectedGASeed.fitnessBreakdown?.overfitPenalty ?? 0 }}
@@ -671,34 +673,42 @@
         </div>
         <div class="qg-usdjpy-evolution__seed-audit-grid">
           <article class="qg-usdjpy-evolution__equity-card">
-            <span>Equity Curve / 权益曲线</span>
+            <span>权益曲线</span>
             <strong>{{ gaBacktestMetric(selectedGASeed, 'netR') }}R</strong>
             <svg
               v-if="gaEquityPolyline(selectedGASeed)"
               viewBox="0 0 240 72"
               role="img"
-              aria-label="GA seed equity curve"
+              aria-label="候选权益曲线"
             >
               <polyline :points="gaEquityPolyline(selectedGASeed)" />
             </svg>
-            <p v-else>等待候选专属回测 equity curve。</p>
+            <p v-else>等待候选专属回测权益曲线。</p>
             <p>
-              点数 {{ gaBacktestAudit(selectedGASeed).equityPointCount || gaEquityPoints(selectedGASeed).length || 0 }}；
-              交易 {{ gaBacktestAudit(selectedGASeed).tradeCount || gaBacktestMetric(selectedGASeed, 'tradeCount', 0) }}
+              点数
+              {{
+                gaBacktestAudit(selectedGASeed).equityPointCount ||
+                gaEquityPoints(selectedGASeed).length ||
+                0
+              }}； 交易
+              {{
+                gaBacktestAudit(selectedGASeed).tradeCount ||
+                gaBacktestMetric(selectedGASeed, 'tradeCount', 0)
+              }}
             </p>
           </article>
           <article>
-            <span>Lineage / 父代路径</span>
+            <span>父代路径</span>
             <strong>{{ gaLineageSummary(selectedGASeed) }}</strong>
-            <p>{{ gaLineageAudit(selectedGASeed).reasonZh || '等待 lineage。' }}</p>
+            <p>{{ gaLineageAudit(selectedGASeed).reasonZh || '等待血统审计。' }}</p>
             <p>{{ gaLineageParentsText(selectedGASeed) }}</p>
           </article>
           <article>
-            <span>Mutation / Crossover 来源</span>
+            <span>变异 / 交叉来源</span>
             <strong>{{ gaSourceTrace(selectedGASeed).source || selectedGASeed.source || 'LLM_SEED' }}</strong>
             <p>
-              {{ mutationHintZh(gaSourceTrace(selectedGASeed).mutationHint) }}；
-              Case {{ gaSourceTrace(selectedGASeed).caseId || '—' }}
+              {{ mutationHintZh(gaSourceTrace(selectedGASeed).mutationHint) }}； 经验
+              {{ gaSourceTrace(selectedGASeed).caseId || '—' }}
             </p>
           </article>
           <article>
@@ -707,17 +717,14 @@
             <p>{{ gaHistoryProductionReason(selectedGASeed) }}</p>
           </article>
         </div>
-        <div
-          v-if="gaLineagePathNodes(selectedGASeed).length"
-          class="qg-usdjpy-evolution__lineage-path"
-        >
+        <div v-if="gaLineagePathNodes(selectedGASeed).length" class="qg-usdjpy-evolution__lineage-path">
           <div class="qg-usdjpy-evolution__lineage-path-head">
             <div>
-              <span>Elite Lineage Path / 主血统时间线</span>
+              <span>主血统时间线</span>
               <strong>{{ gaLineagePathSummary(selectedGASeed) }}</strong>
               <p>
-                {{ gaLineagePath(selectedGASeed).reasonZh || '按 generation 展示当前 elite 主血统。' }}
-                黄色点为 elite path 命中，蓝色点为当前选中 seed。
+                {{ gaLineagePath(selectedGASeed).reasonZh || '按代际展示当前精英主血统。' }}
+                黄色点为精英路径命中，蓝色点为当前选中候选。
               </p>
             </div>
           </div>
@@ -737,17 +744,17 @@
             </article>
           </div>
         </div>
-        <div
-          v-if="gaLineageTreeNodes(selectedGASeed).length"
-          class="qg-usdjpy-evolution__lineage-tree"
-        >
+        <div v-if="gaLineageTreeNodes(selectedGASeed).length" class="qg-usdjpy-evolution__lineage-tree">
           <div class="qg-usdjpy-evolution__lineage-tree-head">
             <div>
-              <span>Lineage Tree / 进化树</span>
+              <span>进化树</span>
               <strong>{{ gaLineageTreeSummary(selectedGASeed) }}</strong>
               <p>
-                Elite path 高亮；默认折叠远端旁支。
-                {{ gaLineageTree(selectedGASeed).reasonZh || '展示父代、当前 seed 和子代的 mutation / crossover 路径。' }}
+                精英路径高亮；默认折叠远端旁支。
+                {{
+                  gaLineageTree(selectedGASeed).reasonZh ||
+                  '展示父代、当前候选和子代的变异 / 交叉路径。'
+                }}
               </p>
             </div>
             <button
@@ -756,7 +763,11 @@
               class="qg-usdjpy-evolution__lineage-toggle"
               @click="lineageTreeExpanded = !lineageTreeExpanded"
             >
-              {{ lineageTreeExpanded ? '折叠旁支' : `展开全部 lineage（隐藏 ${gaLineageTreeHiddenCount(selectedGASeed)}）` }}
+              {{
+                lineageTreeExpanded
+                  ? '折叠旁支'
+                  : `展开全部血统（隐藏 ${gaLineageTreeHiddenCount(selectedGASeed)}）`
+              }}
             </button>
           </div>
           <div class="qg-usdjpy-evolution__lineage-levels">
@@ -784,20 +795,20 @@
             </article>
           </div>
           <div v-if="gaLineageTreeEdges(selectedGASeed).length" class="qg-usdjpy-evolution__lineage-edges">
-            <span>Mutation / Crossover 路径</span>
+            <span>变异 / 交叉路径</span>
             <article
               v-for="edge in gaLineageTreeEdges(selectedGASeed)"
               :key="`${edge.from}-${edge.to}-${edge.type}`"
               :class="{ 'qg-usdjpy-evolution__lineage-edge--elite-path': edge.onElitePath }"
             >
               <strong>{{ edge.from }} → {{ edge.to }}</strong>
-              <p>{{ lineageEdgeTypeZh(edge.type) }}；{{ edge.reasonZh || 'GA lineage 关联。' }}</p>
+              <p>{{ lineageEdgeTypeZh(edge.type) }}；{{ edge.reasonZh || '遗传进化血统关联。' }}</p>
             </article>
           </div>
         </div>
         <div class="qg-usdjpy-evolution__seed-metrics">
           <article>
-            <span>Strategy JSON 回测证据</span>
+            <span>策略契约回测证据</span>
             <strong>{{ gaSeedBacktestStatus(selectedGASeed) }}</strong>
             <p>
               PF {{ gaBacktestMetric(selectedGASeed, 'profitFactor') }} / 胜率
@@ -825,8 +836,8 @@
             <span>晋级证据</span>
             <strong>{{ gaEvidenceGateSummary(selectedGASeed) }}</strong>
             <p>
-              Parity {{ gaSeedParityStatus(selectedGASeed) }}；执行反馈
-              {{ gaSeedExecutionStatus(selectedGASeed) }}；Case 惩罚
+              一致性 {{ gaSeedParityStatus(selectedGASeed) }}；执行反馈
+              {{ gaSeedExecutionStatus(selectedGASeed) }}；经验惩罚
               {{ metricText(selectedGASeed.fitnessBreakdown?.caseMemory?.penalty) }}
             </p>
           </article>
@@ -836,20 +847,20 @@
           class="qg-usdjpy-evolution__seed-metrics qg-usdjpy-evolution__seed-metrics--walk-forward"
         >
           <article>
-            <span>Per-seed Walk-forward</span>
+            <span>单候选前向验证</span>
             <strong>{{ gaWalkForwardStatus(selectedGASeed) }}</strong>
             <p>
-              稳定分 {{ metricText(gaWalkForwardSummary(selectedGASeed).stabilityScore) }}；
-              样本 {{ gaWalkForwardSummary(selectedGASeed).sampleCount || 0 }}；
-              惩罚 {{ metricText(selectedGASeed.fitnessBreakdown?.walkForwardPenalty) }}
+              稳定分 {{ metricText(gaWalkForwardSummary(selectedGASeed).stabilityScore) }}； 样本
+              {{ gaWalkForwardSummary(selectedGASeed).sampleCount || 0 }}； 惩罚
+              {{ metricText(selectedGASeed.fitnessBreakdown?.walkForwardPenalty) }}
             </p>
           </article>
           <article v-for="segment in gaWalkForwardSegments(selectedGASeed)" :key="segment.segment">
             <span>{{ gaWalkForwardSegmentTitle(segment) }}</span>
             <strong>{{ metricText(segment.netR, 'R') }}</strong>
             <p>
-              PF {{ metricText(segment.profitFactor) }} / 胜率 {{ percentText(segment.winRate) }} /
-              DD {{ metricText(segment.maxDrawdownR, 'R') }} / 交易 {{ segment.tradeCount || 0 }}
+              PF {{ metricText(segment.profitFactor) }} / 胜率 {{ percentText(segment.winRate) }} / DD
+              {{ metricText(segment.maxDrawdownR, 'R') }} / 交易 {{ segment.tradeCount || 0 }}
             </p>
             <p>
               Parity {{ segment.parityStatus || '等待' }}；执行惩罚
@@ -892,8 +903,8 @@
         <pre>{{ strategyJsonPreview(selectedGASeed.strategyJson) }}</pre>
       </div>
       <p class="qg-usdjpy-evolution__note">
-        GA 不能直接实盘、不能 MICRO_LIVE、不能修改 live preset、不能提高 maxLot、不能绕过 news / spread /
-        runtime / fastlane。
+        遗传进化不能直接实盘、不能进入极小仓实盘、不能修改实盘配置、不能提高最大仓位、不能绕过新闻、点差、
+        运行新鲜度和快通道门禁。
       </p>
     </section>
 
@@ -903,12 +914,12 @@
     >
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>Strategy JSON 高保真回测</h3>
+          <h3>策略契约高保真回测</h3>
           <p>
-            统一 Strategy JSON 契约读取 USDJPY SQLite K线，输出交易、权益曲线和 GA 可读 fitness evidence。
+            统一策略契约读取 USDJPY SQLite K线，输出交易、权益曲线和遗传进化可读适应度证据。
           </p>
         </div>
-        <strong>{{ strategyBacktestReport.evidenceQuality || 'LOW' }}</strong>
+        <strong>{{ evidenceQualityZh(strategyBacktestReport.evidenceQuality) }}</strong>
       </div>
       <div class="qg-usdjpy-evolution__scenario-grid">
         <article>
@@ -917,7 +928,9 @@
             >{{ strategyBacktestReport.strategyFamily || 'RSI_Reversal' }} /
             {{ directionZh(strategyBacktestReport.direction || 'LONG') }}</strong
           >
-          <p>{{ strategyBacktestReport.strategyId || 'Strategy JSON seed' }}</p>
+          <p class="qg-usdjpy-evolution__strategy-id">
+            {{ strategyBacktestReport.strategyId || '策略契约种子' }}
+          </p>
         </article>
         <article>
           <span>净收益</span>
@@ -954,8 +967,8 @@
           <span>交易成本</span>
           <strong>{{ backtestCost.roundTurnPips ?? 0 }} pips</strong>
           <p>
-            点差 {{ backtestCost.spreadPips ?? 0 }} / 滑点 {{ backtestCost.slippagePips ?? 0 }} /
-            手续 {{ backtestCost.commissionPips ?? 0 }}
+            点差 {{ backtestCost.spreadPips ?? 0 }} / 滑点 {{ backtestCost.slippagePips ?? 0 }} / 手续
+            {{ backtestCost.commissionPips ?? 0 }}
           </p>
         </article>
         <article>
@@ -965,8 +978,8 @@
         </article>
       </div>
       <p class="qg-usdjpy-evolution__note">
-        本模块只写 runtime/backtest 的 SQLite、JSON 和 CSV；已覆盖 USDJPY shadow 策略族并向 GA 提供逐 seed
-        fitness evidence；不会下单、不会平仓、不会撤单、不会修改 live preset。
+        本模块只写本地回测库、JSON 和 CSV；已覆盖 USDJPY 模拟策略族并向遗传进化提供逐候选
+        适应度证据；不会下单、不会平仓、不会撤单、不会修改实盘配置。
       </p>
     </section>
 
@@ -993,7 +1006,7 @@
     <section v-if="walkForward" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--walk-forward">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>Walk-forward 稳定性筛选</h3>
+          <h3>前向验证稳定性筛选</h3>
           <p>按 train / validation / forward 三段筛掉不稳定候选；后验数据只评分，不能反推当时入场。</p>
         </div>
         <strong>{{ walkForward.statusZh || walkForward.status || '等待筛选' }}</strong>
@@ -1013,14 +1026,17 @@
     <section v-if="strategyContractPayload" class="qg-usdjpy-evolution__list">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>Strategy JSON → MQL5 EA 契约</h3>
-          <p>EA 只读 Strategy JSON candidate，在 shadow/tester/paper lane 按同一契约评估。</p>
+          <h3>策略契约 → EA 只读契约</h3>
+          <p>EA 只读策略契约候选，在模拟、测试器和实盘行情干跑车道按同一契约评估。</p>
         </div>
         <strong>{{ strategyContractStatusZh }}</strong>
       </div>
       <article>
-        <strong>{{ strategyContractStrategy.strategyFamily || 'Strategy JSON' }}</strong>
-        <span>{{ strategyContractStrategy.direction || '—' }} / {{ strategyContractStrategy.entryMode || '—' }}</span>
+        <strong>{{ strategyContractStrategy.strategyFamily || '策略契约' }}</strong>
+        <span
+          >{{ strategyContractStrategy.direction || '—' }} /
+          {{ strategyContractStrategy.entryMode || '—' }}</span
+        >
         <p>
           Seed：{{ strategyContractSeed }}；Fingerprint：{{ strategyContractFingerprint }}；Contract：
           {{ strategyContractPayload?.contract?.contractMode || '—' }}
@@ -1035,7 +1051,7 @@
         <p>
           EA 影子评估：{{ strategyContractShadowEvalStatusZh }}；{{
             strategyContractPayload?.eaShadowEvaluation?.reasonZh ||
-            '等待 EA 写入 Strategy JSON shadow evaluation ledger。'
+            '等待 EA 写入策略契约影子评估账本。'
           }}
         </p>
         <p>
@@ -1144,9 +1160,9 @@ const scenarioItems = computed(() =>
   Array.isArray(replay.value?.scenarioComparisons) ? replay.value.scenarioComparisons : [],
 );
 const unitPolicy = computed(() => replay.value?.unitPolicy || {});
-const replayStatus = computed(() => replay.value?.statusZh || replay.value?.status || '等待回放');
+const replayStatus = computed(() => replay.value?.statusZh || statusZh(replay.value?.status, '等待回放'));
 const barReplayStatus = computed(
-  () => barReplay.value?.statusZh || barReplay.value?.status || '等待因果回放',
+  () => barReplay.value?.statusZh || statusZh(barReplay.value?.status, '等待因果回放'),
 );
 const walkForwardCandidates = computed(() =>
   Array.isArray(walkForward.value?.candidates) ? walkForward.value.candidates : [],
@@ -1217,8 +1233,8 @@ const historyProductionSummaryZh = computed(() => {
   const reason =
     historyProduction.value?.reasonZh ||
     (historyProduction.value?.historyTargetSatisfied
-      ? 'GA 正在使用生产级 USDJPY SQLite 历史样本评分。'
-      : 'GA 评分仍需等待 USDJPY 历史样本达到生产级 PASS。');
+      ? '遗传进化正在使用生产级 USDJPY SQLite 历史样本评分。'
+      : '遗传进化评分仍需等待 USDJPY 历史样本达到生产级通过。');
   const sourceZh = source.mql5ExportDir ? 'MQL5 CopyRates' : source.mt5Python ? 'MT5 Python' : '';
   const depth = h1.spanDays || m1.spanDays ? `；H1 ${h1.spanDays || 0} 天 / M1 ${m1.spanDays || 0} 天` : '';
   return `${reason}${sourceZh ? ` 来源 ${sourceZh}` : ''}${depth}`;
@@ -1259,7 +1275,10 @@ const strategyContractShadowEvalRows = computed(() =>
     : 0,
 );
 const strategyContractSeed = computed(
-  () => strategyContract.value?.selectedSeedId || strategyContractStrategy.value?.seedId || '等待 Strategy JSON seed',
+  () =>
+    strategyContract.value?.selectedSeedId ||
+    strategyContractStrategy.value?.seedId ||
+    '等待策略契约种子',
 );
 const strategyContractFingerprint = computed(() => {
   const value = strategyContract.value?.fingerprint || '—';
@@ -1267,9 +1286,7 @@ const strategyContractFingerprint = computed(() => {
 });
 const backtestCost = computed(() => strategyBacktestEngine.value?.costModel || {});
 const backtestCoverageZh = computed(() =>
-  strategyBacktestEngine.value?.coverage === 'ALL_SUPPORTED_USDJPY_SHADOW_FAMILIES'
-    ? '全策略族'
-    : '等待覆盖',
+  strategyBacktestEngine.value?.coverage === 'ALL_SUPPORTED_USDJPY_SHADOW_FAMILIES' ? '全策略族' : '等待覆盖',
 );
 const klineCounts = computed(() => strategyBacktestPayload.value?.barCounts || {});
 const h1BarCount = computed(() => klineCounts.value.H1 || strategyBacktestReport.value?.barCount || 0);
@@ -1302,7 +1319,7 @@ const deepStrategyGateSummary = computed(() => {
     .filter(([, enabled]) => enabled)
     .map(([key]) => key)
     .join(' / ');
-  return active ? `入场契约包含：${active}` : '等待 Strategy JSON entry gate 契约。';
+  return active ? `入场契约包含：${active}` : '等待策略契约入场门。';
 });
 const deepReplaySummary = computed(() =>
   deepPythonReplay.value?.posteriorMayAffectTrigger === false ? '因果回放通过' : '等待因果回放',
@@ -1335,16 +1352,16 @@ const executionWarnings = computed(() => {
 });
 const executionPromotionAllowed = computed(() => Boolean(executionGate.value?.promotionAllowed));
 const executionGateStatusZh = computed(() => executionGateZh(executionGateStatus.value));
-const executionAgentActionZh = computed(() =>
-  agentActionZh(executionFeedback.value?.agentAction?.action),
-);
+const executionAgentActionZh = computed(() => agentActionZh(executionFeedback.value?.agentAction?.action));
 const caseMemory = computed(() => evidenceOS.value?.caseMemory || {});
 const caseMemoryToGA = computed(() => caseMemory.value?.caseMemoryToGA || {});
 const gaSeedHints = computed(() => {
   const rows = caseMemory.value?.gaSeedHints || [];
   return Array.isArray(rows) ? rows : [];
 });
-const telegramGateway = computed(() => telegramGatewayPayload.value || evidenceOS.value?.telegramGateway || {});
+const telegramGateway = computed(
+  () => telegramGatewayPayload.value || evidenceOS.value?.telegramGateway || {},
+);
 const eaRepro = computed(
   () =>
     eaReproPayload.value ||
@@ -1429,25 +1446,43 @@ function percentText(value) {
   return `${Number(numeric.toFixed(1))}%`;
 }
 
-function statusZh(value, fallback = '等待 Agent 处理') {
+function statusZh(value, fallback = '等待自主代理处理') {
   const map = {
-    COMPLETED_BY_AGENT: 'Agent 已完成',
-    AUTO_APPLIED_BY_AGENT: 'Agent 已推动',
+    COMPLETED_BY_AGENT: '自主代理已完成',
+    AUTO_APPLIED_BY_AGENT: '自主代理已推动',
     WAITING_NEXT_PHASE: '等待下一阶段',
-    PENDING: '等待 Agent',
+    PENDING: '等待自主代理',
     PROMOTED: '已晋级',
     MICRO_LIVE: '极小仓实盘',
     LIVE_LIMITED: '限制实盘',
     ROLLBACK: '已回滚',
     PAUSED: '已暂停',
     REJECTED: '已淘汰',
-    ELITE_SELECTED: 'Elite 保留',
+    ELITE_SELECTED: '精英保留',
     PROMOTED_TO_SHADOW: '进入影子',
     NEEDS_MORE_DATA: '需要样本',
     SAFETY_REJECTED: '安全拒绝',
+    PASS: '通过',
+    WARN: '告警',
+    FAIL: '失败',
+    MISSING: '等待证据',
+    READY: '就绪',
+    RUNNING: '运行中',
+    COMPLETED: '已完成',
   };
   const key = String(value || '').toUpperCase();
   return map[key] || value || fallback;
+}
+
+function evidenceQualityZh(value) {
+  const map = {
+    HIGH: '高质量',
+    MEDIUM: '中等质量',
+    LOW: '低质量',
+    MISSING: '等待证据',
+  };
+  const key = String(value || '').toUpperCase();
+  return map[key] || value || '等待证据';
 }
 
 function parityStatusZh(value) {
@@ -1480,7 +1515,7 @@ function executionGateZh(value) {
 
 function agentActionZh(value) {
   const map = {
-    BLOCK_PROMOTION_AND_QUEUE_CASE_MEMORY: '阻断晋级并写入 Case',
+    BLOCK_PROMOTION_AND_QUEUE_CASE_MEMORY: '阻断晋级并写入经验记忆',
     KEEP_SHADOW_AND_MONITOR_EXECUTION: '继续影子观察',
     ALLOW_EXECUTION_FEEDBACK_TO_SUPPORT_PROMOTION: '允许支持晋级',
     WAIT_FOR_LIVE_EXECUTION_FEEDBACK: '等待执行反馈',
@@ -1501,10 +1536,10 @@ function mutationHintZh(value) {
     verify_ea_policy_sync: '核对 EA 与 policy 同步',
     verify_live_lane_strategy_lock: '核对实盘策略锁',
     keep_soft_news_gate: '保持软新闻门禁',
-    reject_unstable_seed: '淘汰不稳定 seed',
-    reduce_mutation_rate: '降低 GA mutation 幅度',
+    reject_unstable_seed: '淘汰不稳定候选',
+    reduce_mutation_rate: '降低遗传进化变异幅度',
   };
-  return map[value] || value || '观察型 seed';
+  return map[value] || value || '观察型候选';
 }
 
 function gaBacktest(item) {
@@ -1691,12 +1726,15 @@ function gaLineagePathSummary(item) {
   if (!path.nodeCount) return '等待主血统';
   const generationText = path.generationCount ? `${path.generationCount} 代` : '未标记代数';
   const delta = path.fitnessDelta == null ? '—' : path.fitnessDelta;
-  return `${path.nodeCount} 节点 / ${generationText} / fitness Δ ${delta}`;
+  return `${path.nodeCount} 节点 / ${generationText} / 适应度变化 ${delta}`;
 }
 
 function gaLineagePathNodeTitle(node) {
   const generation = node.generation == null ? '外部线索' : `第 ${node.generation} 代`;
-  const latest = node.latestGeneration && node.latestGeneration !== node.generation ? ` / 最新复用第 ${node.latestGeneration} 代` : '';
+  const latest =
+    node.latestGeneration && node.latestGeneration !== node.generation
+      ? ` / 最新复用第 ${node.latestGeneration} 代`
+      : '';
   const edge = node.lineageEdgeType ? ` / ${lineageEdgeTypeZh(node.lineageEdgeType)}` : '';
   return `${generation}${latest}${edge}`;
 }
@@ -1704,13 +1742,15 @@ function gaLineagePathNodeTitle(node) {
 function gaLineagePathNodeMeta(node) {
   const fitness = node.fitness == null ? '—' : node.fitness;
   const delta = node.fitnessDeltaFromPrevious == null ? '—' : node.fitnessDeltaFromPrevious;
-  return `${node.strategyFamily || 'Strategy'} / ${node.source || 'UNKNOWN'} / fitness ${fitness} / Δ ${delta}`;
+  return `${node.strategyFamily || '策略族'} / ${node.source || '未知来源'} / 适应度 ${fitness} / 变化 ${delta}`;
 }
 
 function gaVisibleLineageTreeNodes(item) {
   const nodes = gaLineageTreeNodes(item);
   if (lineageTreeExpanded.value) return nodes;
-  return nodes.filter((node) => !node.foldedByDefault || node.selected || node.onElitePath || node.eliteSelected);
+  return nodes.filter(
+    (node) => !node.foldedByDefault || node.selected || node.onElitePath || node.eliteSelected,
+  );
 }
 
 function gaLineageTreeEdges(item) {
@@ -1741,16 +1781,18 @@ function gaLineageTreeLevels(item) {
 
 function gaLineageTreeSummary(item) {
   const tree = gaLineageTree(item);
-  if (!tree.nodeCount) return '等待 lineage tree';
+  if (!tree.nodeCount) return '等待进化树';
   const hidden = gaLineageTreeHiddenCount(item);
-  const elitePath = tree.elitePathCount ? ` / elite path ${tree.elitePathCount}` : '';
+  const elitePath = tree.elitePathCount ? ` / 精英路径 ${tree.elitePathCount}` : '';
   const hiddenText = hidden && !lineageTreeExpanded.value ? ` / 折叠 ${hidden}` : '';
   return `${tree.nodeCount} 节点 / ${tree.edgeCount || 0} 边${elitePath}${hiddenText}`;
 }
 
 function gaLineageTreeHiddenCount(item) {
   const nodes = gaLineageTreeNodes(item);
-  return nodes.filter((node) => node.foldedByDefault && !node.selected && !node.onElitePath && !node.eliteSelected).length;
+  return nodes.filter(
+    (node) => node.foldedByDefault && !node.selected && !node.onElitePath && !node.eliteSelected,
+  ).length;
 }
 
 function gaLineageLevelTitle(depth) {
@@ -1763,16 +1805,16 @@ function gaLineageLevelTitle(depth) {
 function gaLineageNodeMeta(node) {
   const generation = node.generation == null ? '外部' : `第 ${node.generation} 代`;
   const source = node.source || 'UNKNOWN';
-  const family = node.strategyFamily || 'Strategy';
+  const family = node.strategyFamily || '策略族';
   const fitness = node.fitness == null ? '—' : node.fitness;
-  return `${generation} / ${family} / ${source} / fitness ${fitness}`;
+  return `${generation} / ${family} / ${source} / 适应度 ${fitness}`;
 }
 
 function lineageEdgeTypeZh(value) {
   const map = {
     MUTATION: '参数变异',
     CROSSOVER: '同族交叉',
-    CASE_MEMORY: 'Case Memory 线索',
+    CASE_MEMORY: '经验记忆线索',
     LINK: '关联',
   };
   const key = String(value || 'LINK').toUpperCase();
@@ -1799,7 +1841,7 @@ function gaEvidenceChain(item) {
   if (Array.isArray(chain) && chain.length) return chain;
   return [
     {
-      step: 'Strategy JSON 校验',
+      step: '策略契约校验',
       status: item?.validation?.valid ? 'PASS' : 'WAITING',
       reasonZh: item?.validation?.reasonZh || '等待点击候选加载完整审计。',
     },
@@ -1809,7 +1851,7 @@ function gaEvidenceChain(item) {
       reasonZh: gaBacktest(item).reasonZh || '列表只展示摘要，点击后加载完整回测证据。',
     },
     {
-      step: 'Fitness / 晋级',
+      step: '适应度 / 晋级',
       status: item?.status || 'WAITING',
       reasonZh: item?.blockerZh || '等待完整候选审计。',
     },
@@ -1868,7 +1910,7 @@ function setActionStatus(kind, title, summary) {
   actionStatus.value = { kind, title, summary, time: actionTime() };
 }
 
-function setActionRunning(title, summary = '正在写入本地证据并刷新页面，请稍等。') {
+function setActionRunning(title, summary = '自主代理正在写入本地证据并刷新页面，请稍等。') {
   setActionStatus('running', title, summary);
 }
 
@@ -1897,7 +1939,7 @@ function governanceSummary() {
   );
   const liveStage = statusZh(liveLane.value?.executionStage || liveLane.value?.stage, '实盘车道等待');
   const mt5Count = mt5ShadowSummary.value?.totalRoutes ?? mt5ShadowSummary.value?.routeCount ?? 0;
-  return `自主治理已运行：Agent 阶段 ${stage}；实盘车道 ${liveStage}；MT5 模拟车道 ${mt5Count} 条路线。`;
+  return `自主治理已运行：代理阶段 ${stage}；实盘车道 ${liveStage}；MT5 模拟车道 ${mt5Count} 条路线。`;
 }
 
 function dailySummary() {
@@ -1912,7 +1954,7 @@ function dailySummary() {
 
 function gaSummary() {
   const status = gaStatus.value;
-  return `GA 已运行：第 ${status.currentGeneration || 0} 代；种群 ${status.populationSize || 0}；Elite ${status.eliteCount || 0}；阻断 ${status.blockedCandidates || 0}。`;
+  return `遗传进化已运行：第 ${status.currentGeneration || 0} 代；种群 ${status.populationSize || 0}；精英 ${status.eliteCount || 0}；阻断 ${status.blockedCandidates || 0}。`;
 }
 
 function strategyBacktestSummary() {
@@ -1925,7 +1967,7 @@ function strategyContractSummary() {
 }
 
 function evidenceOSSummary() {
-  return `证据 OS 已生成：Parity ${parityStatus.value}；${executionGateStatusZh.value}；Case ${caseMemory.value.caseCount || 0} 个，GA seed hint ${gaSeedHints.value.length} 条。`;
+  return `证据系统已生成：一致性 ${parityStatusZh(parityStatus.value)}；${executionGateStatusZh.value}；经验 ${caseMemory.value.caseCount || 0} 个，遗传进化种子线索 ${gaSeedHints.value.length} 条。`;
 }
 
 function evolutionSummary() {
@@ -1933,9 +1975,9 @@ function evolutionSummary() {
   const candidates = candidateItems.value.length;
   const agentStage = statusZh(
     autonomousAgent.value?.executionStage || autonomousAgent.value?.stage,
-    '等待 Agent',
+    '等待自主代理',
   );
-  return `复盘闭环已生成：运行样本 ${samples}；参数候选 ${candidates} 个；Agent 阶段 ${agentStage}。`;
+  return `复盘闭环已生成：运行样本 ${samples}；参数候选 ${candidates} 个；代理阶段 ${agentStage}。`;
 }
 
 function gaCandidateSelectionGeneration(item) {
@@ -2019,7 +2061,7 @@ async function selectPreferredGASeedWithLineage(candidates) {
   let fallback = null;
 
   try {
-    for (const item of queue.slice(0, 8)) {
+    for (const item of queue.slice(0, 3)) {
       const payload = await fetchUSDJPYGACandidate(item.seedId);
       const candidate = payload?.candidate || item;
       if (!fallback) fallback = candidate;
@@ -2130,19 +2172,27 @@ async function loadAll() {
     telegramGatewayState,
     strategyContractState,
   });
-  await selectPreferredGASeedWithLineage(gaCandidates?.candidates);
+  const schedule =
+    typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function'
+      ? window.requestIdleCallback
+      : typeof window !== 'undefined'
+        ? (callback) => window.setTimeout(callback, 80)
+        : (callback) => callback();
+  schedule(() => {
+    selectPreferredGASeedWithLineage(gaCandidates?.candidates);
+  });
 }
 
 async function load({ silent = false } = {}) {
   loading.value = true;
   error.value = '';
-  if (!silent) setActionRunning('正在刷新页面证据', '正在读取数据集、回放、治理、三车道和日报状态。');
+  if (!silent) setActionRunning('自主代理正在刷新页面证据', '正在读取数据集、回放、治理、三车道和日报状态。');
   try {
     await loadAll();
-    if (!silent) setActionSuccess('刷新完成', evolutionSummary());
+    if (!silent) setActionSuccess('自主代理证据已刷新', evolutionSummary());
   } catch (err) {
     error.value = err?.message || 'USDJPY 自学习闭环加载失败';
-    if (!silent) setActionError('刷新失败', err, 'USDJPY 自学习闭环加载失败');
+    if (!silent) setActionError('自主代理刷新失败', err, 'USDJPY 自学习闭环加载失败');
   } finally {
     loading.value = false;
   }
@@ -2151,7 +2201,7 @@ async function load({ silent = false } = {}) {
 async function runAutonomousGovernance() {
   loading.value = true;
   error.value = '';
-  setActionRunning('正在运行自主治理', '正在执行 Walk-forward、Agent 治理门和三车道刷新。');
+  setActionRunning('自主代理正在运行治理门', '正在执行前向验证、治理门和三车道刷新。');
   try {
     await runUSDJPYWalkForwardBuild();
     autonomousAgent.value = await runUSDJPYAutonomousAgent();
@@ -2168,7 +2218,7 @@ async function runAutonomousGovernance() {
 async function runDailyAutopilotV2() {
   loading.value = true;
   error.value = '';
-  setActionRunning('正在生成自动日报', 'Agent 正在生成今日待办、每日复盘和下一阶段任务。');
+  setActionRunning('自主代理正在生成自动日报', '正在生成今日待办、每日复盘和下一阶段任务。');
   try {
     dailyAutopilot.value = await runUSDJPYDailyAutopilotV2();
     agentDailyTodo.value = await runUSDJPYAgentDailyTodo();
@@ -2187,16 +2237,16 @@ async function runGAGeneration() {
   loading.value = true;
   error.value = '';
   setActionRunning(
-    '正在运行 GA 一代',
-    '正在生成 Strategy JSON 种子、评分 fitness、选择 elite 并写入全过程 trace。',
+    '自主代理正在运行遗传进化',
+    '正在生成策略契约种子、评分适应度、选择精英并写入全过程审计。',
   );
   try {
     gaPayload.value = await runUSDJPYGAGeneration();
     await loadAll();
-    setActionSuccess('GA 一代已完成', gaSummary());
+    setActionSuccess('遗传进化已完成', gaSummary());
   } catch (err) {
-    error.value = err?.message || 'USDJPY GA 一代运行失败';
-    setActionError('GA 运行失败', err, 'USDJPY GA 一代运行失败');
+    error.value = err?.message || 'USDJPY 遗传进化运行失败';
+    setActionError('遗传进化失败', err, 'USDJPY 遗传进化运行失败');
   } finally {
     loading.value = false;
   }
@@ -2206,16 +2256,16 @@ async function runStrategyContract() {
   loading.value = true;
   error.value = '';
   setActionRunning(
-    '正在生成 EA 只读契约',
-    '正在把最新 Strategy JSON candidate 写成 MQL5 EA 可读取的 shadow/tester/paper 评估契约。',
+    '自主代理正在生成 EA 只读契约',
+    '正在把最新策略契约候选写成 EA 可读取的模拟/测试器/实盘行情干跑评估契约。',
   );
   try {
     strategyContractPayload.value = await buildUSDJPYStrategyContract();
     await loadAll();
     setActionSuccess('EA 契约已生成', strategyContractSummary());
   } catch (err) {
-    error.value = err?.message || 'Strategy JSON → EA 契约生成失败';
-    setActionError('EA 契约失败', err, 'Strategy JSON → EA 契约生成失败');
+    error.value = err?.message || '策略契约 → EA 契约生成失败';
+    setActionError('EA 契约失败', err, '策略契约 → EA 契约生成失败');
   } finally {
     loading.value = false;
   }
@@ -2225,8 +2275,8 @@ async function runStrategyBacktest() {
   loading.value = true;
   error.value = '';
   setActionRunning(
-    '正在运行策略回测',
-    '正在用 Strategy JSON 读取 USDJPY SQLite K线，并生成交易、权益曲线和 GA evidence。',
+    '自主代理正在运行策略回测',
+    '正在用策略契约读取 USDJPY SQLite K线，并生成交易、权益曲线和遗传进化证据。',
   );
   try {
     await syncUSDJPYStrategyBacktestKlines();
@@ -2234,8 +2284,8 @@ async function runStrategyBacktest() {
     await loadAll();
     setActionSuccess('策略回测已完成', strategyBacktestSummary());
   } catch (err) {
-    error.value = err?.message || 'USDJPY Strategy JSON 回测失败';
-    setActionError('策略回测失败', err, 'USDJPY Strategy JSON 回测失败');
+    error.value = err?.message || 'USDJPY 策略契约回测失败';
+    setActionError('策略回测失败', err, 'USDJPY 策略契约回测失败');
   } finally {
     loading.value = false;
   }
@@ -2245,8 +2295,8 @@ async function runEvidenceOS() {
   loading.value = true;
   error.value = '';
   setActionRunning(
-    '正在生成证据 OS',
-    '正在同步真实 USDJPY K线、运行 Strategy JSON 回测、Parity、执行反馈和 Case Memory。',
+    '自主代理正在生成证据系统',
+    '正在同步真实 USDJPY K线、运行策略契约回测、三方一致性、执行反馈和经验记忆。',
   );
   try {
     await syncUSDJPYStrategyBacktestKlines();
@@ -2265,7 +2315,7 @@ async function runEvidenceOS() {
 async function runCausalReplay() {
   loading.value = true;
   error.value = '';
-  setActionRunning('正在生成因果回放', '正在运行 causal replay；未来后验只用于评分，不用于触发。');
+  setActionRunning('自主代理正在生成因果回放', '正在运行因果回放；未来后验只用于评分，不用于触发。');
   try {
     barReplay.value = await runUSDJPYBarReplayBuild();
     await loadAll();
@@ -2281,7 +2331,7 @@ async function runCausalReplay() {
 async function runFullEvolution() {
   loading.value = true;
   error.value = '';
-  setActionRunning('正在生成复盘闭环', '正在按顺序生成数据集、回放、参数候选、自主治理和日报。');
+  setActionRunning('自主代理正在生成复盘闭环', '正在按顺序生成数据集、回放、参数候选、自主治理和日报。');
   try {
     await runUSDJPYEvolutionBuild();
     await runUSDJPYReplayReport();
@@ -2311,17 +2361,21 @@ onMounted(() => load({ silent: true }));
 .qg-usdjpy-evolution {
   border: 1px solid rgba(80, 171, 255, 0.35);
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(8, 29, 53, 0.96), rgba(8, 18, 34, 0.98));
-  padding: 22px;
+  background:
+    linear-gradient(135deg, rgba(9, 30, 54, 0.94), rgba(6, 14, 28, 0.98)),
+    rgba(6, 14, 28, 0.98);
+  padding: 20px;
   color: #eaf2ff;
 }
 
 .qg-usdjpy-evolution__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 520px);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(145, 170, 210, 0.16);
+  padding-bottom: 16px;
 }
 
 .qg-usdjpy-evolution__eyebrow {
@@ -2343,18 +2397,22 @@ onMounted(() => load({ silent: true }));
 }
 
 .qg-usdjpy-evolution__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-self: start;
 }
 
 .qg-usdjpy-evolution button {
   border: 1px solid rgba(126, 203, 255, 0.45);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(12, 39, 66, 0.9);
   color: #dff2ff;
-  padding: 10px 14px;
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 13px;
   font-weight: 800;
+  line-height: 1.2;
 }
 
 .qg-usdjpy-evolution__action-result {
@@ -2401,28 +2459,30 @@ onMounted(() => load({ silent: true }));
 
 .qg-usdjpy-evolution__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .qg-usdjpy-evolution__card,
 .qg-usdjpy-evolution__list article {
   border: 1px solid rgba(145, 170, 210, 0.22);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(6, 18, 34, 0.7);
-  padding: 16px;
+  padding: 13px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .qg-usdjpy-evolution__card span {
   color: #aebbd0;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .qg-usdjpy-evolution__card strong {
   display: block;
-  margin-top: 8px;
-  font-size: clamp(22px, 2.4vw, 30px);
+  margin-top: 7px;
+  font-size: clamp(18px, 1.7vw, 24px);
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
@@ -2431,7 +2491,25 @@ onMounted(() => load({ silent: true }));
 .qg-usdjpy-evolution__list p,
 .qg-usdjpy-evolution__list span {
   color: #aebbd0;
-  margin-top: 8px;
+  margin-top: 7px;
+  line-height: 1.42;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.qg-usdjpy-evolution__list article span,
+.qg-usdjpy-evolution__list article strong {
+  display: block;
+  max-width: 100%;
+}
+
+.qg-usdjpy-evolution__list article strong {
+  margin-top: 6px;
+  font-size: clamp(18px, 1.4vw, 22px);
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .qg-usdjpy-evolution__list {
@@ -2464,6 +2542,13 @@ onMounted(() => load({ silent: true }));
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
+}
+
+.qg-usdjpy-evolution__strategy-id {
+  font-size: 13px;
+  color: #8fa3bd;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .qg-usdjpy-evolution__mini-list {
@@ -2855,6 +2940,10 @@ onMounted(() => load({ silent: true }));
 }
 
 @media (max-width: 900px) {
+  .qg-usdjpy-evolution__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .qg-usdjpy-evolution__seed-audit-grid {
     grid-template-columns: 1fr;
   }
@@ -2862,7 +2951,12 @@ onMounted(() => load({ silent: true }));
 
 @media (max-width: 720px) {
   .qg-usdjpy-evolution__header {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+  }
+
+  .qg-usdjpy-evolution__actions,
+  .qg-usdjpy-evolution__grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

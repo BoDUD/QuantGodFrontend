@@ -19,14 +19,14 @@ The interface is an operator workbench: dense, Chinese-first, evidence-first, an
 
 ## Repository Role
 
-| Area | Path | Responsibility |
-|---|---|---|
-| App shell | `src/app/` | Workspace registry, navigation, command surface |
-| Workspaces | `src/workspaces/` | Dashboard, MT5, Polymarket, Research, ParamLab, AI/Kline views |
-| Components | `src/components/` | Shared panels, KPI cards, automation and USDJPY Agent panels |
-| Services | `src/services/` | `/api/*` client modules |
-| Styling | `src/styles*.css`, `src/styles/` | Theme tokens, responsive hardening, workbench layout |
-| Guards and tests | `scripts/`, `tests/` | Contract, boundary, responsive, and workspace checks |
+| Area             | Path                             | Responsibility                                                                                    |
+| ---------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| App shell        | `src/app/`                       | Workspace registry, navigation, command surface                                                   |
+| Workspaces       | `src/workspaces/`                | Dashboard, MT5, Evolution, Polymarket; legacy workspaces are archived outside the main navigation |
+| Components       | `src/components/`                | Shared panels, KPI cards, automation and USDJPY Agent panels                                      |
+| Services         | `src/services/`                  | `/api/*` client modules                                                                           |
+| Styling          | `src/styles*.css`, `src/styles/` | Theme tokens, responsive hardening, workbench layout                                              |
+| Guards and tests | `scripts/`, `tests/`             | Contract, boundary, responsive, and workspace checks                                              |
 
 Related repositories:
 
@@ -61,13 +61,16 @@ Vite proxies `/api/*` to `QG_BACKEND_URL`, defaulting to `http://127.0.0.1:8080`
 
 ## Main Workspaces
 
-| Workspace | Purpose |
-|---|---|
-| Dashboard | System summary, USDJPY live-loop truth, Agent status, automation chain details |
-| MT5 | EA recovery state, RSI entry diagnostics, positions, orders, trades, runtime blockers |
-| USDJPY Evolution | Dataset, causal replay, walk-forward, autonomous lifecycle, daily todo/review |
-| Polymarket | Shadow ledger, copy strategy quarantine, simulated capital view, event context |
-| ParamLab / Research | Tester-only reports, strategy evidence, research surfaces |
+| Workspace  | Purpose                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| Dashboard  | System summary, USDJPY live-loop truth, Agent status, automation chain details                    |
+| MT5        | EA recovery state, RSI entry diagnostics, positions, orders, trades, runtime blockers             |
+| Evolution  | Dataset, causal replay, walk-forward, backtest, Strategy JSON, GA, Case Memory, daily todo/review |
+| Polymarket | Shadow ledger, copy strategy quarantine, simulated capital view, event context                    |
+
+The main navigation intentionally contains only these four workspaces. Older Phase,
+Governance, ParamLab, Research, and Backtest-AI surfaces remain as archived source
+modules for compatibility and tests, but they are not operator entry points.
 
 The MT5 page should answer the most important operational question first: why the EA is or is not acting now.
 

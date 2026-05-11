@@ -9,10 +9,10 @@
         </p>
       </div>
       <div class="qg-usdjpy-panel__actions">
-        <button type="button" :disabled="loading" @click="load">刷新</button>
-        <button type="button" :disabled="loading" @click="runChain">生成政策</button>
-        <button type="button" :disabled="loading" @click="runLiveLoop">刷新实盘闭环</button>
-        <button type="button" :disabled="loading" @click="runSignals">刷新信号</button>
+        <button type="button" :disabled="loading" @click="load">Agent 刷新证据</button>
+        <button type="button" :disabled="loading" @click="runChain">Agent 生成政策证据</button>
+        <button type="button" :disabled="loading" @click="runLiveLoop">Agent 刷新实盘闭环</button>
+        <button type="button" :disabled="loading" @click="runSignals">Agent 刷新信号证据</button>
       </div>
     </header>
 
@@ -394,7 +394,7 @@ function backtestSummary(item) {
     item.description ||
     item.acceptance ||
     item.reason ||
-    '用于 walk-forward、ParamLab 和治理复核，不直接恢复实盘'
+    '用于 walk-forward、Strategy JSON、GA 和 Agent 治理门，不直接恢复实盘'
   );
 }
 

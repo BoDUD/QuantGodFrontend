@@ -12,6 +12,7 @@ function lazyWorkspace(loader) {
 export const WORKSPACE_COMPONENTS = {
   dashboard: lazyWorkspace(() => import('../workspaces/dashboard/DashboardWorkspace.vue')),
   mt5: lazyWorkspace(() => import('../workspaces/mt5/Mt5Workspace.vue')),
+  evolution: lazyWorkspace(() => import('../workspaces/evolution/EvolutionWorkspace.vue')),
   governance: lazyWorkspace(() => import('../workspaces/governance/GovernanceWorkspace.vue')),
   paramlab: lazyWorkspace(() => import('../workspaces/paramlab/ParamLabWorkspace.vue')),
   research: lazyWorkspace(() => import('../workspaces/research/ResearchWorkspace.vue')),

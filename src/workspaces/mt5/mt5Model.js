@@ -614,7 +614,7 @@ export function buildMt5SimulationItems(snapshot) {
     {
       label: '模拟Universe',
       value: shadowUniverse,
-      hint: 'Shadow / candidate / ParamLab 只研究，不会自动进实盘',
+      hint: 'Shadow / candidate / GA 只研究，不会自动进实盘',
     },
     {
       label: '模拟规模',
@@ -651,7 +651,7 @@ export function buildMt5SimulationItems(snapshot) {
     {
       label: '缠论/MACD-TD',
       value: chanlunSeenInRuntime,
-      hint: '目前不属于 EA 实盘路线；需要先回测、ParamLab、治理和人工确认',
+      hint: '目前不属于 EA 实盘路线；需要先进入 Strategy JSON、回测、GA 和 Agent 治理门',
       status: chanlunInQueue ? 'warn' : 'locked',
     },
   ];
@@ -1413,7 +1413,7 @@ export function buildMt5ReviewRows(snapshot) {
     {
       项目: '昨日平仓',
       结果: `${pnl.closedTrades ?? summary.dailyClosedTrades ?? 0} 笔 / ${format(pnl.netUSC ?? summary.dailyNetUSC ?? 0)} USC`,
-      建议: pnl.requiresReview ? '需要人工复核亏损来源' : '无需新增代码迭代',
+      建议: pnl.requiresReview ? 'Agent 已标记亏损来源，等待 Evidence OS 归因' : '无需新增代码迭代',
     },
     {
       项目: '参数实验',
@@ -1421,7 +1421,7 @@ export function buildMt5ReviewRows(snapshot) {
       建议: noTradeFinding
         ? '全部无成交，需隔离 tester 调参重跑'
         : summary.promotionReviewCount
-          ? '有升实盘候选需人工确认'
+          ? '有升实盘候选需 Agent 治理门裁决'
           : '暂无可升实盘项',
     },
     {

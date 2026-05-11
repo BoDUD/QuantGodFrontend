@@ -11,18 +11,17 @@ export async function loadDashboardWorkspace() {
     mt5Snapshot,
     polyRadar,
     polyMarkets,
-  ] =
-    await Promise.all([
-      fetchJson('/api/latest'),
-      fetchJson('/api/dashboard/state'),
-      fetchJson('/api/dashboard/backtest-summary'),
-      fetchJson('/api/daily-review'),
-      fetchJson('/api/daily-autopilot'),
-      fetchJson('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2'),
-      fetchJson('/api/mt5-readonly/snapshot'),
-      fetchJson('/api/polymarket/radar?limit=8'),
-      fetchJson('/api/polymarket/markets?limit=8&sort=volume'),
-    ]);
+  ] = await Promise.all([
+    fetchJson('/api/latest'),
+    fetchJson('/api/dashboard/state'),
+    fetchJson('/api/dashboard/backtest-summary'),
+    fetchJson('/api/daily-review'),
+    fetchJson('/api/daily-autopilot'),
+    fetchJson('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2'),
+    fetchJson('/api/mt5-readonly/snapshot'),
+    fetchJson('/api/polymarket/radar?limit=8'),
+    fetchJson('/api/polymarket/markets?limit=8&sort=volume'),
+  ]);
   return {
     latest,
     state,
@@ -38,6 +37,7 @@ export async function loadDashboardWorkspace() {
 
 export async function loadMt5Workspace() {
   const focusSymbol = 'USDJPYc';
+  const shadowLimit = 180;
   const [
     status,
     account,
@@ -74,10 +74,10 @@ export async function loadMt5Workspace() {
     fetchJson('/api/daily-autopilot'),
     fetchJson('/api/research/stats'),
     fetchJson('/api/governance/advisor'),
-    fetchJson(`/api/shadow/signals${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
-    fetchJson(`/api/shadow/outcomes${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
-    fetchJson(`/api/shadow/candidates${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
-    fetchJson(`/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: 500, days: 30 })}`),
+    fetchJson(`/api/shadow/signals${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
+    fetchJson(`/api/shadow/outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
+    fetchJson(`/api/shadow/candidates${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
+    fetchJson(`/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
     fetchJson('/api/usdjpy-strategy-lab/live-loop'),
     fetchJson('/api/usdjpy-strategy-lab/evidence-os/status'),
     fetchJson('/api/usdjpy-strategy-lab/evidence-os/parity'),
@@ -239,6 +239,7 @@ export async function reloadWorkspace(key, query = {}) {
   const loaders = {
     dashboard: loadDashboardWorkspace,
     mt5: loadMt5Workspace,
+    evolution: async () => ({}),
     governance: loadGovernanceWorkspace,
     paramlab: loadParamLabWorkspace,
     research: loadResearchWorkspace,

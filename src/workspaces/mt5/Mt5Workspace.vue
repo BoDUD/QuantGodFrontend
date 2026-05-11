@@ -43,6 +43,14 @@
       class="qg-ledger-table--important qg-ledger-table--mt5-full"
     />
 
+    <section class="qg-section-card qg-section-card--operator qg-mt5-kline-panel">
+      <header>
+        <p class="qg-eyebrow">USDJPY 专业图表</p>
+        <h2>USDJPY K线与只读交易证据</h2>
+      </header>
+      <KlineWorkspace />
+    </section>
+
     <EndpointHealthGrid :items="endpointHealth" />
 
     <section class="qg-section-card qg-section-card--operator">
@@ -179,6 +187,7 @@ import KeyValueList from '../shared/KeyValueList.vue';
 import LedgerTable from '../shared/LedgerTable.vue';
 import EndpointHealthGrid from '../shared/EndpointHealthGrid.vue';
 import StatusPill from '../shared/StatusPill.vue';
+import KlineWorkspace from '../phase1/kline/KlineWorkspace.vue';
 import {
   buildAccountItems,
   buildEndpointHealth,
@@ -250,8 +259,11 @@ const rsiEntryDiagnosticRows = computed(() => buildRsiEntryDiagnosticRows(snapsh
 const usdJpyLiveLoopItems = computed(() => buildUsdJpyLiveLoopItems(snapshot.value));
 const evidenceOsLiteItems = computed(() => buildMt5EvidenceOsLiteItems(snapshot.value));
 let refreshTimer = null;
+let loadInFlight = false;
 
 async function load(options = {}) {
+  if (loadInFlight) return;
+  loadInFlight = true;
   if (!options.silent) loading.value = true;
   error.value = '';
   try {
@@ -259,6 +271,7 @@ async function load(options = {}) {
   } catch (exc) {
     error.value = exc?.message || 'MT5 实盘监控加载失败';
   } finally {
+    loadInFlight = false;
     if (!options.silent) loading.value = false;
   }
 }
@@ -266,8 +279,9 @@ async function load(options = {}) {
 onMounted(() => {
   load();
   refreshTimer = window.setInterval(() => {
-    if (!loading.value) load({ silent: true });
-  }, 15000);
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    load({ silent: true });
+  }, 30000);
 });
 
 onUnmounted(() => {

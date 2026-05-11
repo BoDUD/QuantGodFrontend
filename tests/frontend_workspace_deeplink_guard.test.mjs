@@ -29,7 +29,7 @@ function makeFixture() {
 
   write(
     'src/app/navigation.js',
-    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'governance'},{key:'paramlab'},{key:'research'},{key:'polymarket'},{key:'backtest-ai'},{key:'phase1'},{key:'phase2'},{key:'phase3'}]}]; export const HIDDEN_WORKSPACES = []; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
+    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'evolution'},{key:'polymarket'}]}]; export const HIDDEN_WORKSPACES = []; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
     root,
   );
   write(
@@ -115,7 +115,7 @@ test('deep-link guard rejects any legacy archive navigation', () => {
   const root = makeFixture();
   write(
     'src/app/navigation.js',
-    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'governance'},{key:'paramlab'},{key:'research'},{key:'polymarket'},{key:'backtest-ai'},{key:'phase1'},{key:'phase2'},{key:'phase3'},{key:'legacy', label:'旧版归档'}]}]; export const HIDDEN_WORKSPACES = []; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items);",
+    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'evolution'},{key:'polymarket'},{key:'legacy', label:'旧版归档'}]}]; export const HIDDEN_WORKSPACES = []; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items);",
     root,
   );
   const result = spawnSync(process.execPath, [guardPath], {

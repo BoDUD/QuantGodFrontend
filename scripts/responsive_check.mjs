@@ -8,22 +8,17 @@ const CHROME = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Conten
 const OUT_DIR = process.env.QUANTGOD_RESPONSIVE_OUT || 'runtime/responsive-check';
 const ROUTES = [
   { name: 'home', path: '' },
-  { name: 'phase1', path: '?workspace=phase1' },
-  { name: 'phase3', path: '?workspace=phase3' },
-  { name: 'phase2', path: '?workspace=phase2' },
+  { name: 'dashboard', path: '?workspace=dashboard' },
   { name: 'mt5', path: '?workspace=mt5' },
   { name: 'mt5-strategy', path: '?workspace=mt5#mt5-strategy' },
   { name: 'mt5-trades', path: '?workspace=mt5#mt5-trades' },
+  { name: 'evolution', path: '?workspace=evolution' },
   { name: 'polymarket', path: '?workspace=polymarket' },
   { name: 'polymarket-market-browser', path: '?workspace=polymarket#polymarket-market-browser' },
   { name: 'polymarket-radar', path: '?workspace=polymarket#polymarket-radar' },
   { name: 'polymarket-analysis', path: '?workspace=polymarket#polymarket-analysis' },
   { name: 'polymarket-execution', path: '?workspace=polymarket#polymarket-execution' },
   { name: 'polymarket-ledger', path: '?workspace=polymarket#polymarket-ledger' },
-  { name: 'backtest-ai', path: '?workspace=backtest-ai' },
-  { name: 'paramlab', path: '?workspace=paramlab' },
-  { name: 'research', path: '?workspace=research' },
-  { name: 'governance', path: '?workspace=governance' },
 ];
 const SCROLL_STEPS = [
   { name: 'top', ratio: 0 },

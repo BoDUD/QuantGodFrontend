@@ -259,7 +259,7 @@ const kpis = computed(() => {
     alerts,
     positionDetail: positions ? '来自 HFM MT5 实盘快照' : '当前无持仓',
     signalDetail: 'AI 与市场雷达只做建议',
-    alertDetail: alerts ? '需要人工复核' : '当前无未读异常',
+    alertDetail: alerts ? 'Agent 已标记异常，硬风控会自动暂停或回滚' : '当前无未读异常',
   };
 });
 

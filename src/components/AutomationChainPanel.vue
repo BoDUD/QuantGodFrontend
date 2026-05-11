@@ -4,11 +4,13 @@
       <div>
         <p class="qg-automation-chain-panel__eyebrow">USDJPY 实盘 EA 恢复状态</p>
         <h2>USDJPY 实盘 EA 恢复状态</h2>
-        <p class="qg-automation-chain-panel__subtitle">读取 USDJPY 策略政策、EA 干跑和实盘恢复闭环，告诉你现有 EA 能不能继续等 RSI 买入信号。</p>
+        <p class="qg-automation-chain-panel__subtitle">
+          读取 USDJPY 策略政策、EA 干跑和实盘恢复闭环，告诉你现有 EA 能不能继续等 RSI 买入信号。
+        </p>
       </div>
       <div class="qg-automation-chain-panel__actions">
-        <button type="button" @click="loadStatus" :disabled="loading">刷新</button>
-        <button type="button" class="primary" @click="runOnce" :disabled="running">运行一次</button>
+        <button type="button" @click="loadStatus" :disabled="loading">Agent 刷新证据</button>
+        <button type="button" class="primary" @click="runOnce" :disabled="running">Agent 生成恢复证据</button>
       </div>
     </header>
 
@@ -99,7 +101,9 @@
           <h3>机会入场</h3>
           <ul class="qg-automation-chain-panel__plain-list">
             <li v-for="item in opportunities" :key="`${item.symbol}-${item.direction}`">
-              {{ item.symbol }}｜{{ item.directionZh || item.direction }}｜{{ item.entryModeZh || item.entryMode }}｜建议仓位 {{ item.recommendedLot || 0 }}
+              {{ item.symbol }}｜{{ item.directionZh || item.direction }}｜{{
+                item.entryModeZh || item.entryMode
+              }}｜建议仓位 {{ item.recommendedLot || 0 }}
             </li>
             <li v-if="!opportunities.length">暂无机会入场</li>
           </ul>
@@ -123,8 +127,12 @@ const steps = computed(() => payload.value.steps || []);
 const missingEvidence = computed(() => payload.value.missingEvidence || []);
 const blockedReasons = computed(() => payload.value.blockedReasons || []);
 const opportunities = computed(() => payload.value.policySummary?.opportunities || []);
-const topLive = computed(() => payload.value.topLiveEligiblePolicy || payload.value.liveLoopStatus?.topLiveEligiblePolicy || {});
-const topShadow = computed(() => payload.value.topShadowPolicy || payload.value.liveLoopStatus?.topShadowPolicy || {});
+const topLive = computed(
+  () => payload.value.topLiveEligiblePolicy || payload.value.liveLoopStatus?.topLiveEligiblePolicy || {},
+);
+const topShadow = computed(
+  () => payload.value.topShadowPolicy || payload.value.liveLoopStatus?.topShadowPolicy || {},
+);
 const dryRun = computed(() => payload.value.dryRunDecision || payload.value.liveLoopStatus?.dryRun || {});
 const livePolicyLabel = computed(() => {
   const item = topLive.value || {};
@@ -159,20 +167,24 @@ function directionZh(value) {
 }
 
 function entryModeZh(value) {
-  return {
-    STANDARD_ENTRY: '标准入场',
-    OPPORTUNITY_ENTRY: '机会入场',
-    BLOCKED: '阻断',
-  }[String(value || '')] || '状态待确认';
+  return (
+    {
+      STANDARD_ENTRY: '标准入场',
+      OPPORTUNITY_ENTRY: '机会入场',
+      BLOCKED: '阻断',
+    }[String(value || '')] || '状态待确认'
+  );
 }
 
 function cleanStepLabel(value) {
   const text = String(value || '').trim();
-  return text
-    .replace(/^P3-\d+\s*/i, '')
-    .replace(/^P\d+\s*/i, '')
-    .replace(/^[-:：\s]+/, '')
-    .trim() || '链路检查';
+  return (
+    text
+      .replace(/^P3-\d+\s*/i, '')
+      .replace(/^P\d+\s*/i, '')
+      .replace(/^[-:：\s]+/, '')
+      .trim() || '链路检查'
+  );
 }
 
 function actionTime() {
@@ -194,13 +206,14 @@ function statusSummary() {
 async function loadStatus({ silent = false } = {}) {
   loading.value = true;
   error.value = '';
-  if (!silent) setActionStatus('running', '正在刷新实盘恢复状态', '正在读取 USDJPY Live Loop、EA 干跑和技术链路。');
+  if (!silent)
+    setActionStatus('running', 'Agent 正在刷新恢复证据', '正在读取 USDJPY Live Loop、EA 干跑和技术链路。');
   try {
     payload.value = unwrap(await fetchAutomationChainStatus());
-    if (!silent) setActionStatus('success', '刷新完成', statusSummary());
+    if (!silent) setActionStatus('success', 'Agent 证据已刷新', statusSummary());
   } catch (err) {
     error.value = err?.message || '读取自动化链路失败';
-    if (!silent) setActionStatus('error', '刷新失败', error.value);
+    if (!silent) setActionStatus('error', 'Agent 刷新失败', error.value);
   } finally {
     loading.value = false;
   }
@@ -209,13 +222,13 @@ async function loadStatus({ silent = false } = {}) {
 async function runOnce() {
   running.value = true;
   error.value = '';
-  setActionStatus('running', '正在运行一次实盘恢复链路', '正在生成 USDJPY policy、EA 干跑和 live-loop 状态。');
+  setActionStatus('running', 'Agent 正在生成恢复证据', '正在生成 USDJPY policy、EA 干跑和 live-loop 状态。');
   try {
     payload.value = unwrap(await runAutomationChain({ send: false }));
-    setActionStatus('success', '运行完成', statusSummary());
+    setActionStatus('success', 'Agent 恢复证据已生成', statusSummary());
   } catch (err) {
     error.value = err?.message || '运行自动化链路失败';
-    setActionStatus('error', '运行失败', error.value);
+    setActionStatus('error', 'Agent 生成失败', error.value);
   } finally {
     running.value = false;
   }

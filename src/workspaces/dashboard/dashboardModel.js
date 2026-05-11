@@ -172,7 +172,9 @@ function rowSymbol(row = {}) {
 }
 
 function normalizeSymbol(value) {
-  return String(value || '').trim().toUpperCase();
+  return String(value || '')
+    .trim()
+    .toUpperCase();
 }
 
 function focusSymbolRoot() {
@@ -211,7 +213,8 @@ function focusScopedRows(rows) {
 }
 
 function dailySummary(raw) {
-  if (dailyReviewIsFresh(raw?.dailyReview)) return raw?.dailyReview?.summary || raw?.dailyAutopilot?.dailyReviewSummary || {};
+  if (dailyReviewIsFresh(raw?.dailyReview))
+    return raw?.dailyReview?.summary || raw?.dailyAutopilot?.dailyReviewSummary || {};
   return raw?.dailyAutopilot?.dailyReviewSummary || {};
 }
 
@@ -516,7 +519,7 @@ export function buildDailyReviewRows(raw = {}) {
       领域: 'MT5',
       复盘: `${pnl.date || summary.dailyReviewDateJst || '今日'} 平仓 ${pnl.closedTrades ?? summary.dailyClosedTrades ?? 0} 笔`,
       结果: formatMoney(pnl.netUSC ?? summary.dailyNetUSC ?? 0, 'USC'),
-      建议: pnl.requiresReview ? '需要人工复核亏损来源' : '当前无新增亏损复核',
+      建议: pnl.requiresReview ? 'Agent 已标记亏损来源，等待证据闭环' : '当前无新增亏损复核',
     },
     {
       领域: '参数实验',
@@ -525,7 +528,7 @@ export function buildDailyReviewRows(raw = {}) {
       建议: noTradeFinding
         ? '需要只在隔离 tester 调宽窗口或阈值，重新生成可学习样本'
         : summary.promotionReviewCount
-          ? '存在升实盘复核候选'
+          ? '存在 Agent 治理门候选'
           : '暂无可自动升实盘项',
     },
     {
@@ -535,7 +538,11 @@ export function buildDailyReviewRows(raw = {}) {
         summary.polymarketExecutedPF || summary.polymarketShadowPF
           ? `实盘 PF ${formatCompact(summary.polymarketExecutedPF)} / 模拟 PF ${formatCompact(summary.polymarketShadowPF)}`
           : `雷达候选 ${polyRows.length} 条`,
-      建议: polyFinding ? '亏损来源仍未修复，必须继续 shadow-only 重调' : summary.polymarketLossQuarantine ? '保持亏损隔离，不自动下注' : '继续只读研究',
+      建议: polyFinding
+        ? '亏损来源仍未修复，必须继续 shadow-only 重调'
+        : summary.polymarketLossQuarantine
+          ? '保持亏损隔离，不自动下注'
+          : '继续只读研究',
     },
     {
       领域: '自动闭环',
