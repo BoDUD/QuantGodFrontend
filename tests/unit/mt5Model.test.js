@@ -10,6 +10,7 @@ import {
   buildMt5TodoRows,
   buildMt5ReviewRows,
   buildTradeJournalRows,
+  buildUnclosedEntryRows,
   normalizeMt5Snapshot,
 } from '../../src/workspaces/mt5/mt5Model.js';
 
@@ -72,6 +73,64 @@ describe('mt5Model ledgers', () => {
 
     expect(buildCloseHistoryRows(snapshot).map((row) => row.品种)).toEqual(['XAUUSDc', 'EURUSDc', 'USDJPYc']);
     expect(buildTradeJournalRows(snapshot).map((row) => row.品种)).toEqual(['XAUUSDc', 'USDJPYc']);
+  });
+
+  it('surfaces USDJPY entry records that are not yet matched by an exit or close history row', () => {
+    const snapshot = normalizeMt5Snapshot({
+      positions: [],
+      closeHistory: [],
+      tradeJournal: [
+        {
+          EventTime: '2026.05.11 11:00',
+          EventType: 'ENTRY',
+          Symbol: 'USDJPYc',
+          Side: 'BUY',
+          Lots: '0.01',
+          Price: '157.144',
+          Strategy: 'RSI_Reversal',
+          PositionId: '621204078',
+        },
+        {
+          EventTime: '2026.05.11 10:00',
+          EventType: 'ENTRY',
+          Symbol: 'EURUSDc',
+          Side: 'BUY',
+          PositionId: 'EUR-1',
+        },
+      ],
+    });
+
+    const rows = buildUnclosedEntryRows(snapshot);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      入场时间: '2026.05.11 11:00',
+      品种: 'USDJPYc',
+      状态: '待快照/平仓同步',
+      PositionId: '621204078',
+    });
+  });
+
+  it('hides matched entry records once an exit or close history row exists', () => {
+    const snapshot = normalizeMt5Snapshot({
+      closeHistory: [{ CloseTime: '2026.05.11 11:30', Symbol: 'USDJPYc', PositionId: '621204078' }],
+      tradeJournal: [
+        {
+          EventTime: '2026.05.11 11:00',
+          EventType: 'ENTRY',
+          Symbol: 'USDJPYc',
+          PositionId: '621204078',
+        },
+        {
+          EventTime: '2026.05.11 11:30',
+          EventType: 'EXIT',
+          Symbol: 'USDJPYc',
+          PositionId: '621204078',
+        },
+      ],
+    });
+
+    expect(buildUnclosedEntryRows(snapshot)).toEqual([]);
   });
 
   it('explains live universe, shadow universe, tester window and Vibe-only strategy state', () => {

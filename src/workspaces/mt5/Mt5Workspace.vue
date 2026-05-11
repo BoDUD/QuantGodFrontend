@@ -108,6 +108,12 @@
 
     <div class="qg-domain-grid qg-domain-grid--wide-tables">
       <LedgerTable
+        title="未闭合入场线索"
+        :rows="unclosedEntryRows"
+        :limit="unclosedEntryRows.length || 1"
+        class="qg-ledger-table--important"
+      />
+      <LedgerTable
         title="历史交易记录（全部）"
         :rows="closeHistoryRows"
         :limit="closeHistoryRows.length || 1"
@@ -204,6 +210,7 @@ import {
   buildOrderRows,
   buildPositionRows,
   buildCloseHistoryRows,
+  buildUnclosedEntryRows,
   buildTradeJournalRows,
   buildMt5TodoRows,
   buildMt5ReviewRows,
@@ -253,6 +260,7 @@ const positionRows = computed(() => buildPositionRows(snapshot.value));
 const orderRows = computed(() => buildOrderRows(snapshot.value));
 const symbolRows = computed(() => buildSymbolRows(snapshot.value));
 const closeHistoryRows = computed(() => buildCloseHistoryRows(snapshot.value));
+const unclosedEntryRows = computed(() => buildUnclosedEntryRows(snapshot.value));
 const tradeJournalRows = computed(() => buildTradeJournalRows(snapshot.value));
 const shadowEquityRows = computed(() => buildMt5ShadowEquityRows(snapshot.value));
 const shadowTradeRows = computed(() => buildMt5ShadowTradeRows(snapshot.value));

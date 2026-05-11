@@ -1338,6 +1338,72 @@ export function buildCloseHistoryRows(snapshot) {
   );
 }
 
+function tradePositionId(row) {
+  return String(
+    pick(
+      row,
+      [
+        'PositionId',
+        'positionId',
+        'position_id',
+        'Position',
+        'position',
+        'Ticket',
+        'ticket',
+        'OrderTicket',
+        'orderTicket',
+      ],
+      '',
+    ),
+  ).trim();
+}
+
+function tradeEventType(row) {
+  return String(pick(row, ['EventType', 'eventType', 'Type', 'type'], '') || '').toUpperCase();
+}
+
+function isEntryEvent(row) {
+  const event = tradeEventType(row);
+  return event.includes('ENTRY') || event.includes('OPEN');
+}
+
+function isExitEvent(row) {
+  const event = tradeEventType(row);
+  return event.includes('EXIT') || event.includes('CLOSE');
+}
+
+export function buildUnclosedEntryRows(snapshot) {
+  const closedIds = new Set(
+    [...snapshot.tradeJournal.filter(isExitEvent), ...snapshot.closeHistory]
+      .map(tradePositionId)
+      .filter(Boolean),
+  );
+  const openIds = new Set(snapshot.positions.map(tradePositionId).filter(Boolean));
+
+  return latestRows(
+    focusSymbolRows(snapshot.tradeJournal).filter(
+      (row) => isEntryEvent(row) && !closedIds.has(tradePositionId(row)),
+    ),
+    ['EventTime', 'eventTime', 'Time', 'time'],
+  ).map((row) => {
+    const positionId = tradePositionId(row);
+    const isOpen = positionId && openIds.has(positionId);
+    return {
+      入场时间: pick(row, ['EventTime', 'eventTime', 'Time', 'time'], ''),
+      品种: pick(row, ['Symbol', 'symbol'], ''),
+      方向: pick(row, ['Side', 'side', 'Type', 'type'], ''),
+      手数: pick(row, ['Lots', 'lots', 'Volume', 'volume'], ''),
+      入场价: pick(row, ['Price', 'price'], ''),
+      策略: pick(row, ['Strategy', 'strategy'], ''),
+      状态: isOpen ? '实时持仓中' : '待快照/平仓同步',
+      说明: isOpen
+        ? '交易流水已有 ENTRY，实时持仓快照仍显示该仓位；平仓后会进入历史交易记录。'
+        : '交易流水已有 ENTRY，但还没有 EXIT / CloseHistory；若 EA 快照陈旧，会先显示在这里。',
+      PositionId: positionId || '—',
+    };
+  });
+}
+
 export function buildTradeJournalRows(snapshot) {
   return latestRows(snapshot.tradeJournal, ['EventTime', 'eventTime', 'Time', 'time']).map((row) =>
     compactRow(row, {
