@@ -13,11 +13,15 @@ import { pathToFileURL } from 'node:url';
 export const DOMAIN_WORKSPACES = {
   dashboard: 'DashboardWorkspace.vue',
   mt5: 'Mt5Workspace.vue',
+  evolution: 'EvolutionWorkspace.vue',
   governance: 'GovernanceWorkspace.vue',
   paramlab: 'ParamLabWorkspace.vue',
   research: 'ResearchWorkspace.vue',
   polymarket: 'PolymarketWorkspace.vue',
 };
+
+const ACTIVE_NAVIGATION_WORKSPACES = ['dashboard', 'mt5', 'evolution', 'polymarket'];
+const ARCHIVED_TOOL_WORKSPACES = ['governance', 'paramlab', 'research'];
 
 function existsAsFile(filePath) {
   try {
@@ -89,9 +93,14 @@ function checkNavigation(root) {
   const navigationPath = path.join(root, 'src', 'app', 'navigation.js');
   if (!existsAsFile(navigationPath)) return [`${rel(root, navigationPath)}: missing navigation config`];
   const navigation = readText(navigationPath);
-  for (const key of Object.keys(DOMAIN_WORKSPACES)) {
+  for (const key of ACTIVE_NAVIGATION_WORKSPACES) {
     if (!navigation.includes(`key: '${key}'`) && !navigation.includes(`key: \"${key}\"`)) {
       errors.push(`${rel(root, navigationPath)}: navigation missing ${key}`);
+    }
+  }
+  for (const key of ARCHIVED_TOOL_WORKSPACES) {
+    if (navigation.includes(`key: '${key}'`) || navigation.includes(`key: \"${key}\"`)) {
+      errors.push(`${rel(root, navigationPath)}: archived tool workspace ${key} must not be in primary navigation`);
     }
   }
   if (!navigation.includes("DEFAULT_WORKSPACE = 'dashboard'") && !navigation.includes('DEFAULT_WORKSPACE = "dashboard"')) {

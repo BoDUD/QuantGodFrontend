@@ -18,16 +18,17 @@ function makeFixture() {
   write(path.join(root, 'src', 'app', 'workspaceRegistry.js'), `
 import DashboardWorkspace from '../workspaces/dashboard/DashboardWorkspace.vue';
 import Mt5Workspace from '../workspaces/mt5/Mt5Workspace.vue';
+import EvolutionWorkspace from '../workspaces/evolution/EvolutionWorkspace.vue';
 import GovernanceWorkspace from '../workspaces/governance/GovernanceWorkspace.vue';
 import ParamLabWorkspace from '../workspaces/paramlab/ParamLabWorkspace.vue';
 import ResearchWorkspace from '../workspaces/research/ResearchWorkspace.vue';
 import PolymarketWorkspace from '../workspaces/polymarket/PolymarketWorkspace.vue';
-export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, polymarket: PolymarketWorkspace };
+export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, evolution: EvolutionWorkspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, polymarket: PolymarketWorkspace };
 `);
   write(path.join(root, 'src', 'app', 'navigation.js'), `
 export const DEFAULT_WORKSPACE = 'dashboard';
 export const WORKSPACE_GROUPS = [{ items: [
-  { key: 'dashboard' }, { key: 'mt5' }, { key: 'governance' }, { key: 'paramlab' }, { key: 'research' }, { key: 'polymarket' }
+  { key: 'dashboard' }, { key: 'mt5' }, { key: 'evolution' }, { key: 'polymarket' }
 ] }];
 `);
   write(path.join(root, 'src', 'services', 'domainApi.js'), `
