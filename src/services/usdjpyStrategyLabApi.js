@@ -371,3 +371,8 @@ export function dispatchUSDJPYTelegramGateway({ send = false, limit = 8 } = {}) 
   const query = params.toString() ? `?${params.toString()}` : '';
   return postJson(`${BASE}/telegram-gateway/dispatch${query}`, { focusSymbol: 'USDJPYc' });
 }
+
+export function fetchUSDJPYAgentOpsHealth({ refresh = false } = {}) {
+  const query = refresh ? '?refresh=1' : '';
+  return fetchJson(`${BASE}/agent-ops-health/status${query}`);
+}

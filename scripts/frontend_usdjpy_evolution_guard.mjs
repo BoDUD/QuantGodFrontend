@@ -88,6 +88,7 @@ for (const marker of [
   '/telegram-gateway/status',
   '/telegram-gateway/test-event',
   '/telegram-gateway/dispatch',
+  '/agent-ops-health/status',
 ]) {
   if (!service.includes(marker)) errors.push(`service missing ${marker}`);
 }

@@ -41,6 +41,8 @@ function checkDashboardWorkspace(root) {
     'loadDashboardWorkspace',
     'dailyAutopilotV2',
     'Agent 日报 v2',
+    'agentOpsHealth',
+    'Agent 自动化健康',
   ]) {
     if (!text.includes(required)) errors.push(`${rel(root, workspace)}: missing ${required}`);
   }
@@ -63,6 +65,8 @@ function checkDashboardModel(root) {
     'buildEndpointHealth',
     'buildRuntimeItems',
     'buildDailyItems',
+    'buildAgentOpsItems',
+    'buildAgentOpsRows',
     'buildRouteRows',
   ]) {
     if (!text.includes(`export function ${exportedName}`)) {
@@ -72,7 +76,7 @@ function checkDashboardModel(root) {
   if (/['"]\/QuantGod_[^'"]+\.(json|csv)['"]/i.test(text)) {
     errors.push(`${rel(root, model)}: must not reference runtime JSON/CSV paths`);
   }
-  for (const marker of ['historyProductionStatus', 'GA 历史样本', '晋级门']) {
+  for (const marker of ['historyProductionStatus', 'GA 历史样本', '晋级门', 'Polymarket 跟单重调', 'Telegram Gateway']) {
     if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }
   return errors;

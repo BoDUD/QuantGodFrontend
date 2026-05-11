@@ -15,6 +15,23 @@
     <section class="qg-domain-panel qg-domain-panel--primary">
       <div class="qg-domain-panel__header">
         <div>
+          <p class="qg-eyebrow">Agent 自动化健康</p>
+          <h2>日报、跟单重调与 Telegram 投递</h2>
+        </div>
+        <StatusPill
+          :status="agentOpsOverallStatus"
+          :label="state.agentOpsHealth?.overallStatusZh || '等待 Agent 健康检查'"
+        />
+      </div>
+      <div class="qg-domain-grid qg-domain-grid--two">
+        <KeyValueList :items="agentOpsItems" />
+        <LedgerTable title="自动化检查" :rows="agentOpsRows" :limit="6" />
+      </div>
+    </section>
+
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
           <p class="qg-eyebrow">每日闭环</p>
           <h2>今日待办与每日复盘</h2>
         </div>
@@ -121,6 +138,11 @@
           source="/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2"
           :payload="state.dailyAutopilotV2"
         />
+        <JsonPreview
+          title="Agent 自动化健康"
+          source="/api/usdjpy-strategy-lab/agent-ops-health/status"
+          :payload="state.agentOpsHealth"
+        />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
         <JsonPreview title="Polymarket 雷达" source="/api/polymarket/radar" :payload="state.polyRadar" />
       </div>
@@ -146,6 +168,8 @@ import {
   buildEndpointHealth,
   buildRuntimeItems,
   buildDailyItems,
+  buildAgentOpsItems,
+  buildAgentOpsRows,
   buildRouteRows,
   buildDailyTodoRows,
   buildDailyReviewRows,
@@ -160,6 +184,7 @@ const state = reactive({
   dailyReview: null,
   dailyAutopilot: null,
   dailyAutopilotV2: null,
+  agentOpsHealth: null,
   mt5Snapshot: null,
   polyRadar: null,
   polyMarkets: null,
@@ -170,6 +195,14 @@ const metrics = computed(() => buildDashboardMetrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
 const runtimeItems = computed(() => buildRuntimeItems(snapshot.value));
 const dailyItems = computed(() => buildDailyItems(snapshot.value));
+const agentOpsItems = computed(() => buildAgentOpsItems(state));
+const agentOpsRows = computed(() => buildAgentOpsRows(state));
+const agentOpsOverallStatus = computed(() => {
+  const status = String(state.agentOpsHealth?.overallStatus || '').toUpperCase();
+  if (status === 'PASS') return 'ok';
+  if (status === 'BLOCKED') return 'blocked';
+  return 'warn';
+});
 const routeRows = computed(() => buildRouteRows(snapshot.value));
 const todoRows = computed(() => buildDailyTodoRows(state));
 const reviewRows = computed(() => buildDailyReviewRows(state));

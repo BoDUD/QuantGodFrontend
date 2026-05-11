@@ -347,6 +347,12 @@ export function buildEndpointHealth(raw = {}) {
       raw.dailyAutopilotV2,
       'GA 历史样本与三车道 Agent 日报',
     ],
+    [
+      'Agent 自动化健康',
+      '/api/usdjpy-strategy-lab/agent-ops-health/status',
+      raw.agentOpsHealth,
+      'Daily Autopilot、Polymarket retune 和 Telegram Gateway',
+    ],
     ['MT5 只读桥', '/api/mt5-readonly/snapshot', raw.mt5Snapshot, '持仓、报价、账户只读快照'],
     ['预测市场雷达', '/api/polymarket/radar', raw.polyRadar, '公开市场雷达与流动性证据'],
     ['策略回测摘要', '/api/dashboard/backtest-summary', raw.backtest, '候选策略研究结果'],
@@ -402,6 +408,73 @@ export function buildDailyItems(snapshot) {
       status: snapshot.backtestAvailable ? 'ok' : 'warn',
     },
   ];
+}
+
+function statusToUi(value) {
+  const text = String(value || '').toUpperCase();
+  if (text === 'PASS' || text === 'OK' || text === 'HEALTHY') return 'ok';
+  if (text === 'BLOCKED' || text === 'FAIL' || text === 'FAILED') return 'blocked';
+  return 'warn';
+}
+
+function formatAgeSeconds(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '等待同步';
+  if (numeric < 60) return `${Math.round(numeric)} 秒前`;
+  if (numeric < 3600) return `${Math.round(numeric / 60)} 分钟前`;
+  return `${(numeric / 3600).toFixed(1)} 小时前`;
+}
+
+export function buildAgentOpsItems(raw = {}) {
+  const health = raw.agentOpsHealth || {};
+  const daily = health.dailyAutopilot || {};
+  const poly = health.polymarketRetune || {};
+  const telegram = health.telegramGateway || {};
+  return [
+    {
+      label: '总状态',
+      value: health.overallStatusZh || health.overallStatus || '等待 Agent 健康检查',
+      status: statusToUi(health.overallStatus),
+      hint: health.blockers?.[0] || health.warnings?.[0] || 'Daily Autopilot、Polymarket retune、Telegram Gateway 合并检查',
+    },
+    {
+      label: 'Daily Autopilot',
+      value: daily.statusZh || daily.status || '等待运行',
+      status: statusToUi(daily.status),
+      hint: `最近运行 ${formatAgeSeconds(daily.lastRunAgeSeconds)}；失败步骤 ${daily.failedStepCount || 0}`,
+    },
+    {
+      label: 'Polymarket 跟单重调',
+      value: poly.retunePlanReady ? 'retune plan 已生成' : '等待 retune plan',
+      status: statusToUi(poly.status),
+      hint: `红 ${poly.retuneRed || 0} / 黄 ${poly.retuneYellow || 0} / 待办 ${poly.todoCount || 0}；真钱钱包仍隔离`,
+    },
+    {
+      label: 'Telegram Gateway',
+      value: telegram.pushAllowed ? 'push-only 已开启' : '只生成不发送',
+      status: statusToUi(telegram.status),
+      hint: `待投递 ${telegram.pendingCount || 0}；成功 ${telegram.deliveredCount || 0}；最近 ${telegram.lastTopic || '—'}`,
+    },
+  ];
+}
+
+export function buildAgentOpsRows(raw = {}) {
+  const checks = rowsFromObjectList(raw?.agentOpsHealth?.checks);
+  if (!checks.length) {
+    return [
+      {
+        检查: 'Agent Ops Health',
+        状态: '等待同步',
+        说明: '等待后端聚合 Daily Autopilot、Polymarket retune 和 Telegram Gateway。',
+      },
+    ];
+  }
+  return checks.map((check) => ({
+    检查: check.label || check.key || '自动化检查',
+    状态: check.statusZh || check.status || '需要观察',
+    指标: formatCompact(check.metric),
+    说明: check.detailZh || '—',
+  }));
 }
 
 export function buildRouteRows(snapshot) {
