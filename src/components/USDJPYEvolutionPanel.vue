@@ -1096,10 +1096,12 @@
       </article>
     </section>
   </section>
+  <ProductionEvidenceValidationPanel />
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import ProductionEvidenceValidationPanel from './ProductionEvidenceValidationPanel.vue';
 import TelegramGatewayOpsPanel from './TelegramGatewayOpsPanel.vue';
 import USDJPYCaseMemoryPanel from './USDJPYCaseMemoryPanel.vue';
 import USDJPYGAFactoryPanel from './USDJPYGAFactoryPanel.vue';

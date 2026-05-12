@@ -49,7 +49,9 @@
     "ga-factory": "node scripts/frontend_ga_factory_guard.mjs",
     "test:ga-factory": "node --test tests/frontend_ga_factory_guard.test.mjs",
     "telegram-gateway-ops": "node scripts/frontend_telegram_gateway_ops_guard.mjs",
-    "test:telegram-gateway-ops": "node --test tests/frontend_telegram_gateway_ops_guard.test.mjs"
+    "test:telegram-gateway-ops": "node --test tests/frontend_telegram_gateway_ops_guard.test.mjs",
+    "production-evidence": "node scripts/frontend_production_evidence_guard.mjs",
+    "test:production-evidence": "node --test tests/frontend_production_evidence_guard.test.mjs"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
