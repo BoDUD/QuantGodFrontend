@@ -17,6 +17,7 @@
         <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
         <button type="button" :disabled="loading" @click="runStrategyBacktest">运行回测证据</button>
         <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据系统</button>
+        <button type="button" :disabled="loading" @click="runCaseMemoryBuild">生成经验候选</button>
         <button type="button" :disabled="loading" @click="runGAGeneration">运行遗传进化</button>
         <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
       </div>
@@ -562,6 +563,13 @@
       </p>
     </section>
 
+    <USDJPYCaseMemoryPanel
+      :payload="caseMemoryCandidatePayload"
+      :fallback-case-memory="caseMemory"
+      :loading="loading"
+      @build="runCaseMemoryBuild"
+    />
+
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
@@ -1076,6 +1084,8 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import USDJPYCaseMemoryPanel from './USDJPYCaseMemoryPanel.vue';
+import { buildCaseMemoryCandidates, fetchCaseMemoryStatus } from '../services/caseMemoryApi.js';
 import {
   fetchUSDJPYAutonomousAgent,
   fetchUSDJPYAutonomousLanes,
@@ -1135,6 +1145,7 @@ const gaBlockersPayload = ref(null);
 const strategyBacktestPayload = ref(null);
 const historyProductionPayload = ref(null);
 const evidenceOSPayload = ref(null);
+const caseMemoryCandidatePayload = ref(null);
 const telegramGatewayPayload = ref(null);
 const strategyContractPayload = ref(null);
 const selectedGASeed = ref(null);
@@ -1970,6 +1981,14 @@ function evidenceOSSummary() {
   return `证据系统已生成：一致性 ${parityStatusZh(parityStatus.value)}；${executionGateStatusZh.value}；经验 ${caseMemory.value.caseCount || 0} 个，遗传进化种子线索 ${gaSeedHints.value.length} 条。`;
 }
 
+function caseMemoryCandidateSummary() {
+  const report = caseMemoryCandidatePayload.value?.report || caseMemoryCandidatePayload.value || {};
+  const parity = report?.parityGate?.status || report?.parityStatus || parityStatus.value;
+  const candidates = report?.candidateCount || report?.candidates?.length || 0;
+  const seeds = report?.gaSeedCount || report?.gaSeeds?.length || gaSeedHints.value.length;
+  return `经验候选已生成：Parity ${parity}；shadow Strategy JSON candidate ${candidates} 个；GA seed ${seeds} 条。`;
+}
+
 function evolutionSummary() {
   const samples = datasetSummary.value?.sampleCount ?? datasetSummary.value?.totalSamples ?? 0;
   const candidates = candidateItems.value.length;
@@ -2099,6 +2118,7 @@ function assignLoaded(results) {
   strategyBacktestPayload.value = results.strategyBacktestState;
   historyProductionPayload.value = results.historyProductionState;
   evidenceOSPayload.value = results.evidenceOSState;
+  caseMemoryCandidatePayload.value = results.caseMemoryCandidateState;
   telegramGatewayPayload.value = results.telegramGatewayState;
   strategyContractPayload.value = results.strategyContractState;
 }
@@ -2124,6 +2144,7 @@ async function loadAll() {
     strategyBacktestState,
     historyProductionState,
     evidenceOSState,
+    caseMemoryCandidateState,
     telegramGatewayState,
     strategyContractState,
   ] = await Promise.all([
@@ -2146,6 +2167,7 @@ async function loadAll() {
     fetchUSDJPYStrategyBacktestStatus(),
     fetchUSDJPYStrategyBacktestProductionStatus(),
     fetchUSDJPYEvidenceOSStatus(),
+    fetchCaseMemoryStatus(),
     fetchUSDJPYTelegramGatewayStatus(),
     fetchUSDJPYStrategyContractStatus(),
   ]);
@@ -2169,6 +2191,7 @@ async function loadAll() {
     strategyBacktestState,
     historyProductionState,
     evidenceOSState,
+    caseMemoryCandidateState,
     telegramGatewayState,
     strategyContractState,
   });
@@ -2312,6 +2335,25 @@ async function runEvidenceOS() {
   }
 }
 
+async function runCaseMemoryBuild() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning(
+    '自主代理正在生成经验候选',
+    '正在把错失机会、早出场、执行反馈和 GA blocker 转成 shadow Strategy JSON candidate。',
+  );
+  try {
+    caseMemoryCandidatePayload.value = await buildCaseMemoryCandidates();
+    await loadAll();
+    setActionSuccess('经验候选已完成', caseMemoryCandidateSummary());
+  } catch (err) {
+    error.value = err?.message || 'USDJPY Case Memory 候选生成失败';
+    setActionError('经验候选失败', err, 'USDJPY Case Memory 候选生成失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function runCausalReplay() {
   loading.value = true;
   error.value = '';
@@ -2339,6 +2381,7 @@ async function runFullEvolution() {
     await syncUSDJPYStrategyBacktestKlines();
     await runUSDJPYStrategyBacktest();
     await runUSDJPYEvidenceOS();
+    await buildCaseMemoryCandidates();
     await runUSDJPYWalkForwardBuild();
     await runUSDJPYParamTuning();
     await runUSDJPYConfigProposal();

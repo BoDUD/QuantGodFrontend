@@ -41,7 +41,9 @@
     "usdjpy-strategy-lab": "node scripts/frontend_usdjpy_strategy_lab_guard.mjs",
     "test:usdjpy-strategy-lab": "node --test tests/frontend_usdjpy_strategy_lab_guard.test.mjs",
     "usdjpy-evolution": "node scripts/frontend_usdjpy_evolution_guard.mjs",
-    "test:usdjpy-evolution": "node --test tests/frontend_usdjpy_evolution_guard.test.mjs"
+    "test:usdjpy-evolution": "node --test tests/frontend_usdjpy_evolution_guard.test.mjs",
+    "case-memory": "node scripts/frontend_case_memory_guard.mjs",
+    "test:case-memory": "node --test tests/frontend_case_memory_guard.test.mjs"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
