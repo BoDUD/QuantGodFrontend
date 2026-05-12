@@ -19,6 +19,7 @@
         <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据系统</button>
         <button type="button" :disabled="loading" @click="runCaseMemoryBuild">生成经验候选</button>
         <button type="button" :disabled="loading" @click="runGAGeneration">运行遗传进化</button>
+        <button type="button" :disabled="loading" @click="runGAFactoryBuild">生成 GA 工厂</button>
         <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
       </div>
     </header>
@@ -570,6 +571,13 @@
       @build="runCaseMemoryBuild"
     />
 
+    <USDJPYGAFactoryPanel
+      :payload="gaFactoryPayload"
+      :ga-status="gaStatus"
+      :loading="loading"
+      @build="runGAFactoryBuild"
+    />
+
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
@@ -1085,7 +1093,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import USDJPYCaseMemoryPanel from './USDJPYCaseMemoryPanel.vue';
+import USDJPYGAFactoryPanel from './USDJPYGAFactoryPanel.vue';
 import { buildCaseMemoryCandidates, fetchCaseMemoryStatus } from '../services/caseMemoryApi.js';
+import { buildStrategyGaFactory, fetchStrategyGaFactoryStatus } from '../services/strategyGaFactoryApi.js';
 import {
   fetchUSDJPYAutonomousAgent,
   fetchUSDJPYAutonomousLanes,
@@ -1142,6 +1152,7 @@ const gaPayload = ref(null);
 const gaCandidatesPayload = ref(null);
 const gaPathPayload = ref(null);
 const gaBlockersPayload = ref(null);
+const gaFactoryPayload = ref(null);
 const strategyBacktestPayload = ref(null);
 const historyProductionPayload = ref(null);
 const evidenceOSPayload = ref(null);
@@ -1968,6 +1979,11 @@ function gaSummary() {
   return `遗传进化已运行：第 ${status.currentGeneration || 0} 代；种群 ${status.populationSize || 0}；精英 ${status.eliteCount || 0}；阻断 ${status.blockedCandidates || 0}。`;
 }
 
+function gaFactorySummary() {
+  const state = gaFactoryPayload.value?.state || gaFactoryPayload.value || {};
+  return `GA 工厂已生成：候选 ${state.candidateCount || 0}；elite ${state.eliteCount || 0}；墓园 ${state.graveyardCount || 0}；lineage ${state.lineageNodeCount || 0}。`;
+}
+
 function strategyBacktestSummary() {
   const metrics = strategyBacktestMetrics.value;
   return `策略回测已完成：交易 ${metrics.tradeCount || 0} 笔；净 R ${metrics.netR ?? 0}；PF ${metrics.profitFactor ?? 0}。`;
@@ -2115,6 +2131,7 @@ function assignLoaded(results) {
   gaCandidatesPayload.value = results.gaCandidates;
   gaPathPayload.value = results.gaPath;
   gaBlockersPayload.value = results.gaBlockers;
+  gaFactoryPayload.value = results.gaFactoryState;
   strategyBacktestPayload.value = results.strategyBacktestState;
   historyProductionPayload.value = results.historyProductionState;
   evidenceOSPayload.value = results.evidenceOSState;
@@ -2141,6 +2158,7 @@ async function loadAll() {
     gaCandidates,
     gaPath,
     gaBlockers,
+    gaFactoryState,
     strategyBacktestState,
     historyProductionState,
     evidenceOSState,
@@ -2164,6 +2182,7 @@ async function loadAll() {
     fetchUSDJPYGACandidates(),
     fetchUSDJPYGAEvolutionPath(),
     fetchUSDJPYGABlockers(),
+    fetchStrategyGaFactoryStatus(),
     fetchUSDJPYStrategyBacktestStatus(),
     fetchUSDJPYStrategyBacktestProductionStatus(),
     fetchUSDJPYEvidenceOSStatus(),
@@ -2188,6 +2207,7 @@ async function loadAll() {
     gaCandidates,
     gaPath,
     gaBlockers,
+    gaFactoryState,
     strategyBacktestState,
     historyProductionState,
     evidenceOSState,
@@ -2270,6 +2290,25 @@ async function runGAGeneration() {
   } catch (err) {
     error.value = err?.message || 'USDJPY 遗传进化运行失败';
     setActionError('遗传进化失败', err, 'USDJPY 遗传进化运行失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runGAFactoryBuild() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning(
+    '自主代理正在生成 GA 工厂',
+    '正在归档 Strategy JSON 候选、elite archive、策略墓园和 lineage tree。',
+  );
+  try {
+    gaFactoryPayload.value = await buildStrategyGaFactory();
+    await loadAll();
+    setActionSuccess('GA 工厂已完成', gaFactorySummary());
+  } catch (err) {
+    error.value = err?.message || 'USDJPY GA Factory 生成失败';
+    setActionError('GA 工厂失败', err, 'USDJPY GA Factory 生成失败');
   } finally {
     loading.value = false;
   }

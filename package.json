@@ -43,7 +43,11 @@
     "usdjpy-evolution": "node scripts/frontend_usdjpy_evolution_guard.mjs",
     "test:usdjpy-evolution": "node --test tests/frontend_usdjpy_evolution_guard.test.mjs",
     "case-memory": "node scripts/frontend_case_memory_guard.mjs",
-    "test:case-memory": "node --test tests/frontend_case_memory_guard.test.mjs"
+    "test:case-memory": "node --test tests/frontend_case_memory_guard.test.mjs",
+    "strategy-ga-factory": "node scripts/frontend_strategy_ga_factory_guard.mjs",
+    "test:strategy-ga-factory": "node --test tests/frontend_strategy_ga_factory_guard.test.mjs",
+    "ga-factory": "node scripts/frontend_ga_factory_guard.mjs",
+    "test:ga-factory": "node --test tests/frontend_ga_factory_guard.test.mjs"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
