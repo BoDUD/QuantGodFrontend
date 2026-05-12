@@ -1051,6 +1051,55 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
   ];
 }
 
+export function buildMt5ExecutionFeedbackRows(snapshot) {
+  const evidenceOS = snapshot.evidenceOS || {};
+  const executionFeedback = evidenceOS.executionFeedback || {};
+  const rows = rowsFromPayload(
+    executionFeedback.recentFeedback ||
+      executionFeedback.rows ||
+      evidenceOS.recentFeedback ||
+      evidenceOS.executionFeedbackRows,
+  );
+  if (!rows.length) {
+    return [
+      {
+        时间: '等待 EA 同步',
+        策略: 'RSI_Reversal',
+        事件: '等待反馈',
+        预期价: '—',
+        成交价: '—',
+        滑点: '—',
+        延迟: '—',
+        点差: '—',
+        出场: '—',
+        profitR: '—',
+        mfeR: '—',
+        maeR: '—',
+        结论: executionFeedback?.promotionGate?.reasonZh || '等待标准化 LiveExecutionFeedback。',
+      },
+    ];
+  }
+  return rows.slice(0, 30).map((row) => ({
+    时间: row.fillTime || row.orderSendTime || row.entrySignalTime || row.createdAt || '—',
+    策略: row.strategyId || 'RSI_Reversal',
+    事件: humanizeStatus(row.eventType || row.source || 'OBSERVED'),
+    预期价: formatDiagnosticNumber(row.expectedPrice, 3),
+    成交价: formatDiagnosticNumber(row.fillPrice, 3),
+    滑点: `${formatDiagnosticNumber(row.slippagePips, 2)} pips`,
+    延迟: `${formatDiagnosticNumber(row.latencyMs, 0)} ms`,
+    点差: `${formatDiagnosticNumber(row.spreadAtEntry, 2)} pips`,
+    出场: humanizeStatus(row.exitReason || row.rejectReason || '观察中'),
+    profitR: formatDiagnosticNumber(row.profitR, 2),
+    mfeR: formatDiagnosticNumber(row.mfeR, 2),
+    maeR: formatDiagnosticNumber(row.maeR, 2),
+    结论: row.rejectReason
+      ? `拒单：${humanizeStatus(row.rejectReason)}`
+      : row.exitReason
+        ? `退出：${humanizeStatus(row.exitReason)}`
+        : '执行链路已记录',
+  }));
+}
+
 function fieldContractZh(status) {
   const normalized = String(status || 'WAITING_FEEDBACK').toUpperCase();
   if (normalized === 'PASS') return '字段稳定';

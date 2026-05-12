@@ -37,6 +37,13 @@
     </section>
 
     <LedgerTable
+      title="Live Execution Feedback"
+      :rows="executionFeedbackRows"
+      :limit="20"
+      class="qg-ledger-table--important qg-ledger-table--mt5-full"
+    />
+
+    <LedgerTable
       title="RSI 入场诊断"
       :rows="rsiEntryDiagnosticRows"
       :limit="14"
@@ -230,6 +237,7 @@ import {
   buildMt5RouteModeRows,
   buildMt5SimulationItems,
   buildMt5EvidenceOsLiteItems,
+  buildMt5ExecutionFeedbackRows,
   buildRsiEntryDiagnosticRows,
   buildSafetyItems,
   buildSymbolRows,
@@ -291,6 +299,7 @@ const routeModeRows = computed(() => buildMt5RouteModeRows(snapshot.value));
 const rsiEntryDiagnosticRows = computed(() => buildRsiEntryDiagnosticRows(snapshot.value));
 const usdJpyLiveLoopItems = computed(() => buildUsdJpyLiveLoopItems(snapshot.value));
 const evidenceOsLiteItems = computed(() => buildMt5EvidenceOsLiteItems(snapshot.value));
+const executionFeedbackRows = computed(() => buildMt5ExecutionFeedbackRows(snapshot.value));
 let refreshTimer = null;
 let loadInFlight = false;
 const MT5_REFRESH_MS = 60000;
