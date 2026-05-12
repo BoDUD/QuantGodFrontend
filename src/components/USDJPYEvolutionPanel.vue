@@ -20,6 +20,7 @@
         <button type="button" :disabled="loading" @click="runCaseMemoryBuild">生成经验候选</button>
         <button type="button" :disabled="loading" @click="runGAGeneration">运行遗传进化</button>
         <button type="button" :disabled="loading" @click="runGAFactoryBuild">生成 GA 工厂</button>
+        <button type="button" :disabled="loading" @click="runTelegramGatewayOpsCollect">收集通知报告</button>
         <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
       </div>
     </header>
@@ -578,6 +579,13 @@
       @build="runGAFactoryBuild"
     />
 
+    <TelegramGatewayOpsPanel
+      :payload="telegramGatewayOpsPayload"
+      :fallback="telegramGateway"
+      :loading="loading"
+      @collect="runTelegramGatewayOpsCollect"
+    />
+
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
@@ -1092,10 +1100,12 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import TelegramGatewayOpsPanel from './TelegramGatewayOpsPanel.vue';
 import USDJPYCaseMemoryPanel from './USDJPYCaseMemoryPanel.vue';
 import USDJPYGAFactoryPanel from './USDJPYGAFactoryPanel.vue';
 import { buildCaseMemoryCandidates, fetchCaseMemoryStatus } from '../services/caseMemoryApi.js';
 import { buildStrategyGaFactory, fetchStrategyGaFactoryStatus } from '../services/strategyGaFactoryApi.js';
+import { collectTelegramGatewayOps, fetchTelegramGatewayOpsStatus } from '../services/telegramGatewayOpsApi.js';
 import {
   fetchUSDJPYAutonomousAgent,
   fetchUSDJPYAutonomousLanes,
@@ -1158,6 +1168,7 @@ const historyProductionPayload = ref(null);
 const evidenceOSPayload = ref(null);
 const caseMemoryCandidatePayload = ref(null);
 const telegramGatewayPayload = ref(null);
+const telegramGatewayOpsPayload = ref(null);
 const strategyContractPayload = ref(null);
 const selectedGASeed = ref(null);
 const selectedGASeedLoading = ref(false);
@@ -1984,6 +1995,11 @@ function gaFactorySummary() {
   return `GA 工厂已生成：候选 ${state.candidateCount || 0}；elite ${state.eliteCount || 0}；墓园 ${state.graveyardCount || 0}；lineage ${state.lineageNodeCount || 0}。`;
 }
 
+function telegramGatewayOpsSummary() {
+  const state = telegramGatewayOpsPayload.value?.status || telegramGatewayOpsPayload.value || {};
+  return `Telegram Gateway 已收集：队列 ${state.queuedCount || 0}；待投递 ${state.pendingCount || 0}；真实发送 ${state.actualSentCount || 0}；抑制 ${state.suppressedCount || 0}。`;
+}
+
 function strategyBacktestSummary() {
   const metrics = strategyBacktestMetrics.value;
   return `策略回测已完成：交易 ${metrics.tradeCount || 0} 笔；净 R ${metrics.netR ?? 0}；PF ${metrics.profitFactor ?? 0}。`;
@@ -2137,6 +2153,7 @@ function assignLoaded(results) {
   evidenceOSPayload.value = results.evidenceOSState;
   caseMemoryCandidatePayload.value = results.caseMemoryCandidateState;
   telegramGatewayPayload.value = results.telegramGatewayState;
+  telegramGatewayOpsPayload.value = results.telegramGatewayOpsState;
   strategyContractPayload.value = results.strategyContractState;
 }
 
@@ -2164,6 +2181,7 @@ async function loadAll() {
     evidenceOSState,
     caseMemoryCandidateState,
     telegramGatewayState,
+    telegramGatewayOpsState,
     strategyContractState,
   ] = await Promise.all([
     fetchUSDJPYEvolutionStatus(),
@@ -2188,6 +2206,7 @@ async function loadAll() {
     fetchUSDJPYEvidenceOSStatus(),
     fetchCaseMemoryStatus(),
     fetchUSDJPYTelegramGatewayStatus(),
+    fetchTelegramGatewayOpsStatus(),
     fetchUSDJPYStrategyContractStatus(),
   ]);
   assignLoaded({
@@ -2213,6 +2232,7 @@ async function loadAll() {
     evidenceOSState,
     caseMemoryCandidateState,
     telegramGatewayState,
+    telegramGatewayOpsState,
     strategyContractState,
   });
   const schedule =
@@ -2309,6 +2329,22 @@ async function runGAFactoryBuild() {
   } catch (err) {
     error.value = err?.message || 'USDJPY GA Factory 生成失败';
     setActionError('GA 工厂失败', err, 'USDJPY GA Factory 生成失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runTelegramGatewayOpsCollect() {
+  loading.value = true;
+  error.value = '';
+  setActionRunning('自主代理正在收集通知报告', '正在把日报、GA、Agent 和 Polymarket 报告送入 push-only Gateway 队列。');
+  try {
+    telegramGatewayOpsPayload.value = await collectTelegramGatewayOps();
+    await loadAll();
+    setActionSuccess('通知报告已收集', telegramGatewayOpsSummary());
+  } catch (err) {
+    error.value = err?.message || 'Telegram Gateway 运维收集失败';
+    setActionError('通知收集失败', err, 'Telegram Gateway 运维收集失败');
   } finally {
     loading.value = false;
   }
