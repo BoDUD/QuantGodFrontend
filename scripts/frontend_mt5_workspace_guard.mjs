@@ -168,6 +168,12 @@ function checkDomainApi(root) {
       errors.push(`${rel(root, api)}: ${endpoint} must request symbol-scoped USDJPY shadow rows`);
     }
   }
+  for (const endpoint of ['/api/trades/close-history', '/api/trades/journal']) {
+    const exactUnlimited = new RegExp(`fetchRows\\(\\s*['"]${endpoint.replaceAll('/', '\\/')}['"]\\s*\\)`);
+    if (exactUnlimited.test(text)) {
+      errors.push(`${rel(root, api)}: ${endpoint} must be requested with a limit for small-memory startup`);
+    }
+  }
   return errors;
 }
 

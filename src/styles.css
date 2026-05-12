@@ -5623,6 +5623,22 @@ tbody tr:hover td {
   margin-bottom: 0.75rem;
 }
 
+.qg-mt5-kline-panel__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.qg-mt5-kline-panel__header > div {
+  min-width: 0;
+}
+
+.qg-mt5-kline-panel__header .qg-button {
+  flex: 0 0 auto;
+}
+
 .qg-section-card h2 {
   margin: 0;
   font-size: 1rem;
@@ -5643,6 +5659,10 @@ tbody tr:hover td {
 @media (max-width: 980px) {
   .qg-domain-grid--two {
     grid-template-columns: 1fr;
+  }
+
+  .qg-mt5-kline-panel__header {
+    display: grid;
   }
 }
 

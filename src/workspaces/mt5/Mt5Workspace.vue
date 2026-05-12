@@ -44,11 +44,24 @@
     />
 
     <section class="qg-section-card qg-section-card--operator qg-mt5-kline-panel">
-      <header>
-        <p class="qg-eyebrow">USDJPY 专业图表</p>
-        <h2>USDJPY K线与只读交易证据</h2>
+      <header class="qg-mt5-kline-panel__header">
+        <div>
+          <p class="qg-eyebrow">USDJPY 专业图表</p>
+          <h2>USDJPY K线与只读交易证据</h2>
+        </div>
+        <button v-if="!klineLoaded" type="button" class="qg-button" @click="enableKline">
+          加载图表
+        </button>
       </header>
-      <KlineWorkspace />
+      <Suspense v-if="klineLoaded">
+        <KlineWorkspace />
+        <template #fallback>
+          <LoadingState title="正在加载 K 线图" description="图表引擎和实时轮询正在按需启动。" />
+        </template>
+      </Suspense>
+      <p v-else class="qg-section-note">
+        K 线图按需加载，避免首屏占用图表引擎内存。
+      </p>
     </section>
 
     <EndpointHealthGrid :items="endpointHealth" />
@@ -110,19 +123,19 @@
       <LedgerTable
         title="未闭合入场线索"
         :rows="unclosedEntryRows"
-        :limit="unclosedEntryRows.length || 1"
+        :limit="80"
         class="qg-ledger-table--important"
       />
       <LedgerTable
-        title="历史交易记录（全部）"
+        title="历史交易记录（最近）"
         :rows="closeHistoryRows"
-        :limit="closeHistoryRows.length || 1"
+        :limit="80"
         class="qg-ledger-table--important"
       />
       <LedgerTable
-        title="交易流水（全部）"
+        title="交易流水（最近）"
         :rows="tradeJournalRows"
-        :limit="tradeJournalRows.length || 1"
+        :limit="80"
         class="qg-ledger-table--important"
       />
     </div>
@@ -189,8 +202,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { loadMt5Workspace } from '../../services/domainApi.js';
+import LoadingState from '../../components/LoadingState.vue';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
 import MetricGrid from '../shared/MetricGrid.vue';
 import JsonPreview from '../shared/JsonPreview.vue';
@@ -198,7 +212,6 @@ import KeyValueList from '../shared/KeyValueList.vue';
 import LedgerTable from '../shared/LedgerTable.vue';
 import EndpointHealthGrid from '../shared/EndpointHealthGrid.vue';
 import StatusPill from '../shared/StatusPill.vue';
-import KlineWorkspace from '../phase1/kline/KlineWorkspace.vue';
 import {
   buildAccountItems,
   buildEndpointHealth,
@@ -224,8 +237,15 @@ import {
   normalizeMt5Snapshot,
 } from './mt5Model.js';
 
+const KlineWorkspace = defineAsyncComponent({
+  loader: () => import('../phase1/kline/KlineWorkspace.vue'),
+  delay: 80,
+  timeout: 30000,
+});
+
 const loading = ref(false);
 const error = ref('');
+const klineLoaded = ref(false);
 const state = reactive({
   status: null,
   account: null,
@@ -273,6 +293,7 @@ const usdJpyLiveLoopItems = computed(() => buildUsdJpyLiveLoopItems(snapshot.val
 const evidenceOsLiteItems = computed(() => buildMt5EvidenceOsLiteItems(snapshot.value));
 let refreshTimer = null;
 let loadInFlight = false;
+const MT5_REFRESH_MS = 60000;
 
 async function load(options = {}) {
   if (loadInFlight) return;
@@ -289,12 +310,16 @@ async function load(options = {}) {
   }
 }
 
+function enableKline() {
+  klineLoaded.value = true;
+}
+
 onMounted(() => {
   load();
   refreshTimer = window.setInterval(() => {
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     load({ silent: true });
-  }, 30000);
+  }, MT5_REFRESH_MS);
 });
 
 onUnmounted(() => {

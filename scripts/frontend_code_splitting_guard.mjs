@@ -20,6 +20,8 @@ function failIf(errors, condition, message) {
 export function runCodeSplittingGuard(root = process.cwd()) {
   const errors = [];
   const registry = read(root, 'src/app/workspaceRegistry.js');
+  const main = read(root, 'src/main.js');
+  const mt5 = read(root, 'src/workspaces/mt5/Mt5Workspace.vue');
   const phase1 = read(root, 'src/workspaces/phase1/Phase1Workspace.vue');
   const phase3 = read(root, 'src/workspaces/phase3/Phase3Workspace.vue');
   const klineChart = read(root, 'src/workspaces/phase1/kline/KlineChart.vue');
@@ -51,6 +53,21 @@ export function runCodeSplittingGuard(root = process.cwd()) {
     errors,
     !registry.includes('../workspaces/backtest-ai/BacktestAiWorkspace.vue'),
     'Backtest AI workspace must be lazy-loaded from src/workspaces/backtest-ai',
+  );
+  failIf(
+    errors,
+    /from\s+['"]ant-design-vue['"]/.test(main) || /app\.use\s*\(\s*Antd\s*\)/.test(main),
+    'src/main.js must not globally load ant-design-vue',
+  );
+  failIf(
+    errors,
+    /import\s+KlineWorkspace\s+from\s+['"]\.\.\/phase1\/kline\/KlineWorkspace\.vue['"]/.test(mt5),
+    'MT5 workspace must not statically import the Kline workspace',
+  );
+  failIf(
+    errors,
+    !mt5.includes("import('../phase1/kline/KlineWorkspace.vue')"),
+    'MT5 Kline workspace must be lazy-loaded',
   );
   failIf(
     errors,

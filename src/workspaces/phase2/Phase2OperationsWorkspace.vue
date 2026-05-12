@@ -144,6 +144,14 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
+import AAlert from 'ant-design-vue/es/alert';
+import AButton from 'ant-design-vue/es/button';
+import ACard from 'ant-design-vue/es/card';
+import AInput from 'ant-design-vue/es/input';
+import ASelect from 'ant-design-vue/es/select';
+import ASpace from 'ant-design-vue/es/space';
+import ATag from 'ant-design-vue/es/tag';
+import 'ant-design-vue/dist/reset.css';
 import {
   PHASE2_ENDPOINTS,
   apiGet,
