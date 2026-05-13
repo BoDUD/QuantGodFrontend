@@ -857,7 +857,7 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
   const status = loop.status || loop.latest || loop;
   const topLive = status.topLiveEligiblePolicy || status.topPolicy || status.liveRecoveryCandidate || {};
   const topShadow = status.topShadowPolicy || {};
-  const dryRun = status.dryRunDecision || status.eaDryRunDecision || {};
+  const dryRun = status.dryRunDecision || status.eaDryRunDecision || status.dryRun || {};
   const blockers = rowsFromPayload(status.blockers || status.primaryBlockers || status.mainBlockers);
   const reasons = rowsFromPayload(topLive.reasons || status.reasons || status.nextActions);
   const state = status.state || status.status || status.overallState || '等待同步';
@@ -925,7 +925,12 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
       label: 'EA 干跑状态',
       value: dryRun.decisionZh || dryRun.decision || status.dryRunStateZh || '等待 EA 干跑同步',
       status: dryRun.decision || status.dryRunStateZh ? 'ok' : 'warn',
-      hint: dryRun.reason || dryRun.summary || '用于确认 EA 看到的政策，不由前端下单。',
+      hint:
+        dryRun.reason ||
+        dryRun.summary ||
+        (Array.isArray(dryRun.reasons) && dryRun.reasons.length
+          ? dryRun.reasons.slice(0, 2).join('；')
+          : '用于确认 EA 看到的政策，不由前端下单。'),
     },
     {
       label: '影子第一名',
