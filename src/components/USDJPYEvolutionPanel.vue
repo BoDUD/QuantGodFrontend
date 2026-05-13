@@ -586,6 +586,8 @@
       @collect="runTelegramGatewayOpsCollect"
     />
 
+    <ExecutionFeedbackCoverageCard />
+
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
       <div class="qg-usdjpy-evolution__section-head">
         <div>
@@ -1101,6 +1103,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import ExecutionFeedbackCoverageCard from './ExecutionFeedbackCoverageCard.vue';
 import ProductionEvidenceValidationPanel from './ProductionEvidenceValidationPanel.vue';
 import TelegramGatewayOpsPanel from './TelegramGatewayOpsPanel.vue';
 import USDJPYCaseMemoryPanel from './USDJPYCaseMemoryPanel.vue';

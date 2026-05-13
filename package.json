@@ -51,7 +51,9 @@
     "telegram-gateway-ops": "node scripts/frontend_telegram_gateway_ops_guard.mjs",
     "test:telegram-gateway-ops": "node --test tests/frontend_telegram_gateway_ops_guard.test.mjs",
     "production-evidence": "node scripts/frontend_production_evidence_guard.mjs",
-    "test:production-evidence": "node --test tests/frontend_production_evidence_guard.test.mjs"
+    "test:production-evidence": "node --test tests/frontend_production_evidence_guard.test.mjs",
+    "execution-feedback-coverage": "node scripts/frontend_execution_feedback_coverage_guard.mjs",
+    "test:execution-feedback-coverage": "node --test tests/frontend_execution_feedback_coverage_guard.test.mjs"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
