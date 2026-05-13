@@ -1099,9 +1099,11 @@
     </section>
   </section>
   <ProductionEvidenceValidationPanel />
+  <GAMultiGenerationStabilityCard />
 </template>
 
 <script setup>
+import GAMultiGenerationStabilityCard from './GAMultiGenerationStabilityCard.vue';
 import { computed, onMounted, ref } from 'vue';
 import ExecutionFeedbackCoverageCard from './ExecutionFeedbackCoverageCard.vue';
 import ProductionEvidenceValidationPanel from './ProductionEvidenceValidationPanel.vue';
