@@ -1,122 +1,157 @@
 import { fetchJson, fetchRows, postJson, queryString as params, rowsFromPayload } from './apiClient.js';
 
-export async function loadDashboardWorkspace() {
-  const [
-    latest,
-    state,
-    backtest,
-    dailyReview,
-    dailyAutopilot,
-    dailyAutopilotV2,
-    agentOpsHealth,
-    telegramGateway,
-    mt5Snapshot,
-    polyRadar,
-    polyMarkets,
-  ] = await Promise.all([
-    fetchJson('/api/latest'),
-    fetchJson('/api/dashboard/state'),
-    fetchJson('/api/dashboard/backtest-summary'),
-    fetchJson('/api/daily-review'),
-    fetchJson('/api/daily-autopilot'),
-    fetchJson('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2'),
-    fetchJson('/api/usdjpy-strategy-lab/agent-ops-health/status'),
-    fetchJson('/api/usdjpy-strategy-lab/telegram-gateway/status'),
-    fetchJson('/api/mt5-readonly/snapshot'),
-    fetchJson('/api/polymarket/radar?limit=8'),
-    fetchJson('/api/polymarket/markets?limit=8&sort=volume'),
-  ]);
-  return {
-    latest,
-    state,
-    backtest,
-    dailyReview,
-    dailyAutopilot,
-    dailyAutopilotV2,
-    agentOpsHealth,
-    telegramGateway,
-    mt5Snapshot,
-    polyRadar,
-    polyMarkets,
-  };
+async function loadNamedEntries(entries, options = {}, concurrency = 6) {
+  const results = {};
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < entries.length && !options.signal?.aborted) {
+      const [key, loadEntry] = entries[cursor];
+      cursor += 1;
+      results[key] = await loadEntry(options);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, entries.length);
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  return results;
 }
 
-export async function loadMt5Workspace() {
+export async function loadDashboardWorkspace(options = {}) {
+  return loadNamedEntries(
+    [
+      ['latest', (requestOptions) => fetchJson('/api/latest', null, requestOptions)],
+      ['state', (requestOptions) => fetchJson('/api/dashboard/state', null, requestOptions)],
+      ['backtest', (requestOptions) => fetchJson('/api/dashboard/backtest-summary', null, requestOptions)],
+      ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
+      ['dailyAutopilot', (requestOptions) => fetchJson('/api/daily-autopilot', null, requestOptions)],
+      [
+        'dailyAutopilotV2',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2', null, requestOptions),
+      ],
+      [
+        'agentOpsHealth',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/agent-ops-health/status', null, requestOptions),
+      ],
+      [
+        'telegramGateway',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/telegram-gateway/status', null, requestOptions),
+      ],
+      ['mt5Snapshot', (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions)],
+      ['polyRadar', (requestOptions) => fetchJson('/api/polymarket/radar?limit=8', null, requestOptions)],
+      [
+        'polyMarkets',
+        (requestOptions) => fetchJson('/api/polymarket/markets?limit=8&sort=volume', null, requestOptions),
+      ],
+    ],
+    options,
+    4,
+  );
+}
+
+export async function loadMt5Workspace(options = {}) {
   const focusSymbol = 'USDJPYc';
   const shadowLimit = 180;
   const tradeLimit = 200;
   const symbolQuery = params({ symbol: focusSymbol });
-  const [
-    status,
-    account,
-    positions,
-    orders,
-    symbols,
-    snapshot,
-    latest,
-    closeHistory,
-    tradeJournal,
-    dailyReview,
-    dailyAutopilot,
-    researchStats,
-    governanceAdvisor,
-    shadowSignals,
-    shadowOutcomes,
-    shadowCandidates,
-    shadowCandidateOutcomes,
-    usdJpyLiveLoop,
-    evidenceOS,
-    evidenceParity,
-    evidenceExecutionFeedback,
-  ] = await Promise.all([
-    fetchJson('/api/mt5-readonly/status'),
-    fetchJson('/api/mt5-readonly/account'),
-    fetchJson(`/api/mt5-readonly/positions${symbolQuery}`),
-    fetchJson(`/api/mt5-readonly/orders${symbolQuery}`),
-    fetchJson('/api/mt5-symbol-registry/symbols'),
-    fetchJson(`/api/mt5-readonly/snapshot${symbolQuery}`),
-    fetchJson('/api/latest'),
-    fetchRows(`/api/trades/close-history${params({ limit: tradeLimit })}`),
-    fetchRows(`/api/trades/journal${params({ limit: tradeLimit })}`),
-    fetchJson('/api/daily-review'),
-    fetchJson('/api/daily-autopilot'),
-    fetchJson('/api/research/stats'),
-    fetchJson('/api/governance/advisor'),
-    fetchJson(`/api/shadow/signals${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
-    fetchJson(`/api/shadow/outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
-    fetchJson(`/api/shadow/candidates${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`),
-    fetchJson(
-      `/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`,
-    ),
-    fetchJson('/api/usdjpy-strategy-lab/live-loop'),
-    fetchJson('/api/usdjpy-strategy-lab/evidence-os/status'),
-    fetchJson('/api/usdjpy-strategy-lab/evidence-os/parity'),
-    fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback'),
-  ]);
+  const result = await loadNamedEntries(
+    [
+      ['status', (requestOptions) => fetchJson('/api/mt5-readonly/status', null, requestOptions)],
+      ['account', (requestOptions) => fetchJson('/api/mt5-readonly/account', null, requestOptions)],
+      [
+        'positions',
+        (requestOptions) => fetchJson(`/api/mt5-readonly/positions${symbolQuery}`, null, requestOptions),
+      ],
+      [
+        'orders',
+        (requestOptions) => fetchJson(`/api/mt5-readonly/orders${symbolQuery}`, null, requestOptions),
+      ],
+      ['symbols', (requestOptions) => fetchJson('/api/mt5-symbol-registry/symbols', null, requestOptions)],
+      [
+        'snapshot',
+        (requestOptions) => fetchJson(`/api/mt5-readonly/snapshot${symbolQuery}`, null, requestOptions),
+      ],
+      ['latest', (requestOptions) => fetchJson('/api/latest', null, requestOptions)],
+      [
+        'closeHistory',
+        (requestOptions) =>
+          fetchRows(`/api/trades/close-history${params({ limit: tradeLimit })}`, requestOptions),
+      ],
+      [
+        'tradeJournal',
+        (requestOptions) => fetchRows(`/api/trades/journal${params({ limit: tradeLimit })}`, requestOptions),
+      ],
+      ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
+      ['dailyAutopilot', (requestOptions) => fetchJson('/api/daily-autopilot', null, requestOptions)],
+      ['researchStats', (requestOptions) => fetchJson('/api/research/stats', null, requestOptions)],
+      ['governanceAdvisor', (requestOptions) => fetchJson('/api/governance/advisor', null, requestOptions)],
+      [
+        'shadowSignals',
+        (requestOptions) =>
+          fetchJson(
+            `/api/shadow/signals${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`,
+            null,
+            requestOptions,
+          ),
+      ],
+      [
+        'shadowOutcomes',
+        (requestOptions) =>
+          fetchJson(
+            `/api/shadow/outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`,
+            null,
+            requestOptions,
+          ),
+      ],
+      [
+        'shadowCandidates',
+        (requestOptions) =>
+          fetchJson(
+            `/api/shadow/candidates${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`,
+            null,
+            requestOptions,
+          ),
+      ],
+      [
+        'shadowCandidateOutcomes',
+        (requestOptions) =>
+          fetchJson(
+            `/api/shadow/candidate-outcomes${params({ symbol: focusSymbol, limit: shadowLimit, days: 30 })}`,
+            null,
+            requestOptions,
+          ),
+      ],
+      [
+        'usdJpyLiveLoop',
+        (requestOptions) => fetchJson('/api/usdjpy-strategy-lab/live-loop', null, requestOptions),
+      ],
+      [
+        'evidenceOS',
+        (requestOptions) => fetchJson('/api/usdjpy-strategy-lab/evidence-os/status', null, requestOptions),
+      ],
+      [
+        'evidenceParity',
+        (requestOptions) => fetchJson('/api/usdjpy-strategy-lab/evidence-os/parity', null, requestOptions),
+      ],
+      [
+        'evidenceExecutionFeedback',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback', null, requestOptions),
+      ],
+    ],
+    options,
+    5,
+  );
   const mergedEvidenceOS = {
-    ...(evidenceOS || {}),
-    parity: evidenceParity || evidenceOS?.parity,
-    executionFeedback: evidenceExecutionFeedback || evidenceOS?.executionFeedback,
+    ...(result.evidenceOS || {}),
+    parity: result.evidenceParity || result.evidenceOS?.parity,
+    executionFeedback: result.evidenceExecutionFeedback || result.evidenceOS?.executionFeedback,
   };
   return {
-    status,
-    account,
-    positions,
-    orders,
-    symbols,
-    snapshot,
-    latest,
-    closeHistory,
-    tradeJournal,
-    dailyReview,
-    dailyAutopilot,
-    researchStats,
-    governanceAdvisor,
-    shadowSignals,
-    shadowOutcomes,
-    shadowCandidates,
-    shadowCandidateOutcomes,
-    usdJpyLiveLoop,
+    ...result,
     evidenceOS: mergedEvidenceOS,
   };
 }
@@ -187,62 +222,69 @@ export async function loadResearchWorkspace(query = {}) {
   };
 }
 
-export async function loadPolymarketWorkspace(query = {}) {
+export async function loadPolymarketWorkspace(query = {}, options = {}) {
   const q = query.q || '';
   const limit = Number(query.limit) || 12;
-  const [
-    search,
-    radar,
-    worker,
-    aiScore,
-    history,
-    autoGovernance,
-    canary,
-    canaryRun,
-    realTrades,
-    cross,
-    markets,
-    assets,
-    singleAnalysis,
-    dailyReview,
-    canaryLedger,
-    autoGovernanceLedger,
-  ] = await Promise.all([
-    fetchJson(`/api/polymarket/search${params({ q, limit })}`),
-    fetchJson(`/api/polymarket/radar${params({ limit })}`),
-    fetchJson('/api/polymarket/radar-worker'),
-    fetchJson('/api/polymarket/ai-score'),
-    fetchJson(`/api/polymarket/history${params({ table: 'all', limit })}`),
-    fetchJson('/api/polymarket/auto-governance'),
-    fetchJson('/api/polymarket/canary-executor-contract'),
-    fetchJson('/api/polymarket/canary-executor-run'),
-    fetchJson('/api/polymarket/real-trades'),
-    fetchJson('/api/polymarket/cross-linkage'),
-    fetchJson(`/api/polymarket/markets${params({ limit, sort: 'volume' })}`),
-    fetchJson(`/api/polymarket/asset-opportunities${params({ limit })}`),
-    fetchJson('/api/polymarket/single-market-analysis'),
-    fetchJson('/api/daily-review'),
-    fetchRows(`/api/polymarket/canary-executor-ledger${params({ limit: 80 })}`),
-    fetchRows(`/api/polymarket/auto-governance-ledger${params({ limit: 80 })}`),
-  ]);
-  return {
-    search,
-    radar,
-    worker,
-    aiScore,
-    history,
-    autoGovernance,
-    canary,
-    canaryRun,
-    realTrades,
-    cross,
-    markets,
-    assets,
-    singleAnalysis,
-    dailyReview,
-    canaryLedger,
-    autoGovernanceLedger,
-  };
+  return loadNamedEntries(
+    [
+      [
+        'search',
+        (requestOptions) => fetchJson(`/api/polymarket/search${params({ q, limit })}`, null, requestOptions),
+      ],
+      [
+        'radar',
+        (requestOptions) => fetchJson(`/api/polymarket/radar${params({ limit })}`, null, requestOptions),
+      ],
+      ['worker', (requestOptions) => fetchJson('/api/polymarket/radar-worker', null, requestOptions)],
+      ['aiScore', (requestOptions) => fetchJson('/api/polymarket/ai-score', null, requestOptions)],
+      [
+        'history',
+        (requestOptions) =>
+          fetchJson(`/api/polymarket/history${params({ table: 'all', limit })}`, null, requestOptions),
+      ],
+      [
+        'autoGovernance',
+        (requestOptions) => fetchJson('/api/polymarket/auto-governance', null, requestOptions),
+      ],
+      [
+        'canary',
+        (requestOptions) => fetchJson('/api/polymarket/canary-executor-contract', null, requestOptions),
+      ],
+      [
+        'canaryRun',
+        (requestOptions) => fetchJson('/api/polymarket/canary-executor-run', null, requestOptions),
+      ],
+      ['realTrades', (requestOptions) => fetchJson('/api/polymarket/real-trades', null, requestOptions)],
+      ['cross', (requestOptions) => fetchJson('/api/polymarket/cross-linkage', null, requestOptions)],
+      [
+        'markets',
+        (requestOptions) =>
+          fetchJson(`/api/polymarket/markets${params({ limit, sort: 'volume' })}`, null, requestOptions),
+      ],
+      [
+        'assets',
+        (requestOptions) =>
+          fetchJson(`/api/polymarket/asset-opportunities${params({ limit })}`, null, requestOptions),
+      ],
+      [
+        'singleAnalysis',
+        (requestOptions) => fetchJson('/api/polymarket/single-market-analysis', null, requestOptions),
+      ],
+      ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
+      [
+        'canaryLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/canary-executor-ledger${params({ limit: 80 })}`, requestOptions),
+      ],
+      [
+        'autoGovernanceLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/auto-governance-ledger${params({ limit: 80 })}`, requestOptions),
+      ],
+    ],
+    options,
+    5,
+  );
 }
 
 export async function reloadWorkspace(key, query = {}) {

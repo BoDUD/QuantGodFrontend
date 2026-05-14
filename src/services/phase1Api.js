@@ -82,29 +82,29 @@ export async function runDeepSeekTelegram({
   });
 }
 
-export function getKline({ symbol, tf = 'H1', bars = 200 }) {
+export function getKline({ symbol, tf = 'H1', bars = 200, signal } = {}) {
   const params = new URLSearchParams({ symbol, tf, bars: String(bars) });
-  return fetchJson(`/api/mt5-readonly/kline?${params.toString()}`);
+  return fetchJson(`/api/mt5-readonly/kline?${params.toString()}`, { signal });
 }
 
-export function getQuote({ symbol }) {
+export function getQuote({ symbol, signal } = {}) {
   const params = new URLSearchParams({ symbol });
-  return fetchJson(`/api/mt5-readonly/quote?${params.toString()}`);
+  return fetchJson(`/api/mt5-readonly/quote?${params.toString()}`, { signal });
 }
 
-export function getChartTrades({ symbol, days = 30 }) {
+export function getChartTrades({ symbol, days = 30, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return fetchJson(`/api/mt5-readonly/trades?${params.toString()}`);
+  return fetchJson(`/api/mt5-readonly/trades?${params.toString()}`, { signal });
 }
 
-export function getShadowSignals({ symbol, days = 7 }) {
+export function getShadowSignals({ symbol, days = 7, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return fetchJson(`/api/shadow-signals?${params.toString()}`);
+  return fetchJson(`/api/shadow-signals?${params.toString()}`, { signal });
 }
 
-export async function getSymbolRegistry() {
+export async function getSymbolRegistry({ signal } = {}) {
   try {
-    const payload = await fetchJson('/api/mt5-symbol-registry');
+    const payload = await fetchJson('/api/mt5-symbol-registry', { signal });
     const items = payload.items || payload.symbols || payload.registry || [];
     if (Array.isArray(items) && items.length) {
       const normalizedItems = items

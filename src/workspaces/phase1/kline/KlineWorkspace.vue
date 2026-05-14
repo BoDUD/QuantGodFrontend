@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {
   USDJPY_FOCUS_SYMBOL,
   getChartTrades,
@@ -125,22 +125,25 @@ import KlineChart from './KlineChart.vue';
 import KlineToolbar from './KlineToolbar.vue';
 import SignalOverlay from './SignalOverlay.vue';
 
-const symbols = ref([]);
+const symbols = shallowRef([]);
 const symbol = ref(USDJPY_FOCUS_SYMBOL);
 const tf = ref('H1');
 const barsCount = ref(240);
 const indicators = ref(['EMA', 'RSI', 'MACD', 'BOLL', 'VOL']);
 const showTrades = ref(true);
 const showShadow = ref(true);
-const bars = ref([]);
-const trades = ref([]);
-const shadowSignals = ref([]);
-const quotePayload = ref(null);
+const bars = shallowRef([]);
+const trades = shallowRef([]);
+const shadowSignals = shallowRef([]);
+const quotePayload = shallowRef(null);
 const quoteWarning = ref('');
 const error = ref('');
 const activeTool = ref('cursor');
 let quoteRefreshTimer = null;
 let chartRefreshTimer = null;
+let chartController = null;
+let quoteController = null;
+let loadRunId = 0;
 
 const drawingTools = [
   { key: 'cursor', label: '↖', title: '选择' },
@@ -246,13 +249,22 @@ function normalizeUsdJpySymbols(items) {
 }
 
 async function bootstrap() {
-  symbols.value = normalizeUsdJpySymbols(await getSymbolRegistry());
+  chartController?.abort();
+  chartController = new globalThis.AbortController();
+  const controller = chartController;
+  symbols.value = normalizeUsdJpySymbols(await getSymbolRegistry({ signal: controller.signal }));
+  if (controller.signal.aborted) return;
   symbol.value = symbols.value[0]?.symbol || USDJPY_FOCUS_SYMBOL;
   await loadChart();
   startRealtimeRefresh();
 }
 
 async function loadChart() {
+  chartController?.abort();
+  chartController = new globalThis.AbortController();
+  const controller = chartController;
+  const runId = loadRunId + 1;
+  loadRunId = runId;
   error.value = '';
   quotePayload.value = null;
   if (!isUsdJpySymbol(symbol.value)) {
@@ -261,23 +273,29 @@ async function loadChart() {
   }
   try {
     const [klinePayload, tradesPayload, shadowPayload] = await Promise.all([
-      getKline({ symbol: symbol.value, tf: tf.value, bars: barsCount.value }),
-      getChartTrades({ symbol: symbol.value, days: 30 }),
-      getShadowSignals({ symbol: symbol.value, days: 7 }),
+      getKline({ symbol: symbol.value, tf: tf.value, bars: barsCount.value, signal: controller.signal }),
+      getChartTrades({ symbol: symbol.value, days: 30, signal: controller.signal }),
+      getShadowSignals({ symbol: symbol.value, days: 7, signal: controller.signal }),
     ]);
+    if (controller.signal.aborted || runId !== loadRunId) return;
     bars.value = klinePayload.bars || [];
     trades.value = tradesPayload.items || [];
     shadowSignals.value = shadowPayload.items || [];
     await loadQuote();
   } catch (loadError) {
+    if (controller.signal.aborted || runId !== loadRunId) return;
     error.value = loadError.message || String(loadError);
   }
 }
 
 async function loadQuote() {
+  quoteController?.abort();
+  quoteController = new globalThis.AbortController();
+  const controller = quoteController;
   quoteWarning.value = '';
   try {
-    const payload = await getQuote({ symbol: symbol.value });
+    const payload = await getQuote({ symbol: symbol.value, signal: controller.signal });
+    if (controller.signal.aborted) return;
     const quote = payload?.quote;
     if (quote?.symbol && String(quote.symbol).toLowerCase() !== String(symbol.value).toLowerCase()) {
       quoteWarning.value = '实时报价品种与当前图表不一致，已暂时隐藏报价。';
@@ -287,6 +305,7 @@ async function loadQuote() {
     if (!quote?.ok)
       quoteWarning.value = payload?.error || quote?.error || '实时报价暂不可用，已回退到 K 线收盘价。';
   } catch (loadError) {
+    if (controller.signal.aborted) return;
     quoteWarning.value = loadError.message || String(loadError);
   }
 }
@@ -302,6 +321,10 @@ function stopRealtimeRefresh() {
   if (chartRefreshTimer) window.clearInterval(chartRefreshTimer);
   quoteRefreshTimer = null;
   chartRefreshTimer = null;
+  chartController?.abort();
+  chartController = null;
+  quoteController?.abort();
+  quoteController = null;
 }
 
 function handleToolClick(tool) {

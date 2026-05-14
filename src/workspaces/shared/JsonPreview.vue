@@ -15,6 +15,7 @@ const props = defineProps({
   title: { type: String, required: true },
   payload: { type: [Object, Array, String, Number, Boolean], default: null },
   source: { type: String, default: '' },
+  maxChars: { type: Number, default: 12000 },
 });
 
 const sourceLabel = computed(() => {
@@ -23,8 +24,19 @@ const sourceLabel = computed(() => {
 });
 
 const formatted = computed(() => {
-  if (props.payload === null || props.payload === undefined) return 'No data';
-  if (typeof props.payload === 'string') return props.payload;
-  return JSON.stringify(props.payload, null, 2);
+  let text;
+  if (props.payload === null || props.payload === undefined) {
+    text = 'No data';
+  } else if (typeof props.payload === 'string') {
+    text = props.payload;
+  } else {
+    text = JSON.stringify(props.payload, null, 2);
+  }
+
+  const maxChars = Number(props.maxChars);
+  if (Number.isFinite(maxChars) && maxChars > 0 && text.length > maxChars) {
+    return `${text.slice(0, maxChars)}\n\n... 已截断 ${text.length - maxChars} 个字符，避免浏览器为原始证据占用过多内存。`;
+  }
+  return text;
 });
 </script>

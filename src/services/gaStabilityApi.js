@@ -1,5 +1,5 @@
 import { fetchJson } from './domainApi.js';
 
-export async function fetchGAStability() {
-  return fetchJson('/api/production-evidence-validation/status');
+export async function fetchGAStability(options = {}) {
+  return fetchJson('/api/production-evidence-validation/status', null, options);
 }

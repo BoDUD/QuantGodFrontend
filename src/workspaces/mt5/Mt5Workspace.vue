@@ -56,9 +56,7 @@
           <p class="qg-eyebrow">USDJPY 专业图表</p>
           <h2>USDJPY K线与只读交易证据</h2>
         </div>
-        <button v-if="!klineLoaded" type="button" class="qg-button" @click="enableKline">
-          加载图表
-        </button>
+        <button v-if="!klineLoaded" type="button" class="qg-button" @click="enableKline">加载图表</button>
       </header>
       <Suspense v-if="klineLoaded">
         <KlineWorkspace />
@@ -66,9 +64,7 @@
           <LoadingState title="正在加载 K 线图" description="图表引擎和实时轮询正在按需启动。" />
         </template>
       </Suspense>
-      <p v-else class="qg-section-note">
-        K 线图按需加载，避免首屏占用图表引擎内存。
-      </p>
+      <p v-else class="qg-section-note">K 线图按需加载，避免首屏占用图表引擎内存。</p>
     </section>
 
     <EndpointHealthGrid :items="endpointHealth" />
@@ -192,10 +188,10 @@
       />
     </div>
 
-    <details class="qg-raw-evidence">
+    <details class="qg-raw-evidence" @toggle="revealTechnicalEvidence">
       <summary>技术证据</summary>
       <!-- Guard markers: Safety Envelope / Raw MT5 evidence. Visible copy stays Chinese and operator-facing. -->
-      <div class="qg-domain-grid">
+      <div v-if="technicalEvidenceVisible" class="qg-domain-grid">
         <JsonPreview title="连接状态" source="/api/mt5-readonly/status" :payload="state.status" />
         <JsonPreview title="账户信息" source="/api/mt5-readonly/account" :payload="state.account" />
         <JsonPreview title="实时持仓" source="/api/mt5-readonly/positions" :payload="state.positions" />
@@ -209,7 +205,7 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowReactive } from 'vue';
 import { loadMt5Workspace } from '../../services/domainApi.js';
 import LoadingState from '../../components/LoadingState.vue';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
@@ -254,7 +250,8 @@ const KlineWorkspace = defineAsyncComponent({
 const loading = ref(false);
 const error = ref('');
 const klineLoaded = ref(false);
-const state = reactive({
+const technicalEvidenceVisible = ref(false);
+const state = shallowReactive({
   status: null,
   account: null,
   positions: null,
@@ -302,25 +299,46 @@ const evidenceOsLiteItems = computed(() => buildMt5EvidenceOsLiteItems(snapshot.
 const executionFeedbackRows = computed(() => buildMt5ExecutionFeedbackRows(snapshot.value));
 let refreshTimer = null;
 let loadInFlight = false;
+let loadController = null;
+let loadRunId = 0;
 const MT5_REFRESH_MS = 60000;
+
+function abortLoad() {
+  loadController?.abort();
+  loadController = null;
+}
 
 async function load(options = {}) {
   if (loadInFlight) return;
+  const runId = loadRunId + 1;
+  loadRunId = runId;
+  const controller = new globalThis.AbortController();
+  loadController = controller;
   loadInFlight = true;
   if (!options.silent) loading.value = true;
   error.value = '';
   try {
-    Object.assign(state, await loadMt5Workspace());
+    const nextState = await loadMt5Workspace({ signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, nextState);
   } catch (exc) {
+    if (controller.signal.aborted || runId !== loadRunId) return;
     error.value = exc?.message || 'MT5 实盘监控加载失败';
   } finally {
-    loadInFlight = false;
-    if (!options.silent) loading.value = false;
+    if (runId === loadRunId) {
+      loadInFlight = false;
+      loadController = null;
+      if (!options.silent) loading.value = false;
+    }
   }
 }
 
 function enableKline() {
   klineLoaded.value = true;
+}
+
+function revealTechnicalEvidence(event) {
+  technicalEvidenceVisible.value = technicalEvidenceVisible.value || Boolean(event.target.open);
 }
 
 onMounted(() => {
@@ -334,5 +352,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (refreshTimer) window.clearInterval(refreshTimer);
   refreshTimer = null;
+  abortLoad();
 });
 </script>

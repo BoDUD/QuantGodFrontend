@@ -2,8 +2,8 @@ import { fetchJson, postJson } from './domainApi.js';
 
 const BASE = '/api/telegram-gateway';
 
-export function fetchTelegramGatewayOpsStatus() {
-  return fetchJson(`${BASE}/status`);
+export function fetchTelegramGatewayOpsStatus(options = {}) {
+  return fetchJson(`${BASE}/status`, null, options);
 }
 
 export function collectTelegramGatewayOps() {

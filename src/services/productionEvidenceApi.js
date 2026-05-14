@@ -1,7 +1,7 @@
 import { fetchJson, postJson } from './apiClient.js';
 
-export function fetchProductionEvidenceStatus() {
-  return fetchJson('/api/production-evidence-validation/status');
+export function fetchProductionEvidenceStatus(options = {}) {
+  return fetchJson('/api/production-evidence-validation/status', null, options);
 }
 
 export function runProductionEvidenceValidation() {

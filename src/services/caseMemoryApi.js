@@ -2,8 +2,8 @@ import { fetchJson, postJson } from './domainApi.js';
 
 const BASE = '/api/case-memory';
 
-export function fetchCaseMemoryStatus() {
-  return fetchJson(`${BASE}/status`);
+export function fetchCaseMemoryStatus(options = {}) {
+  return fetchJson(`${BASE}/status`, null, options);
 }
 
 export function buildCaseMemoryCandidates() {

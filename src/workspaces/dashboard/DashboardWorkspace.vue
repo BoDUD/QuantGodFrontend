@@ -20,7 +20,11 @@
         </div>
         <StatusPill
           :status="agentOpsOverallStatus"
-          :label="state.agentOpsHealth?.systemStatusZh || state.agentOpsHealth?.overallStatusZh || '等待 Agent 健康检查'"
+          :label="
+            state.agentOpsHealth?.systemStatusZh ||
+            state.agentOpsHealth?.overallStatusZh ||
+            '等待 Agent 健康检查'
+          "
         />
       </div>
       <div class="qg-domain-grid qg-domain-grid--two">
@@ -134,11 +138,19 @@
         </a>
       </div>
     </section>
-    <AutomationChainPanel class="qg-dashboard-automation-chain" />
+    <details class="qg-domain-panel qg-domain-panel--details" @toggle="revealAutomationPanel">
+      <summary>自动化链路状态</summary>
+      <Suspense v-if="automationPanelVisible">
+        <AutomationChainPanel class="qg-dashboard-automation-chain" />
+        <template #fallback>
+          <LoadingState title="正在加载自动化链路" description="正在按需打开恢复状态证据。" />
+        </template>
+      </Suspense>
+    </details>
 
-    <details class="qg-domain-panel qg-domain-panel--details">
+    <details class="qg-domain-panel qg-domain-panel--details" @toggle="revealTechnicalEvidence">
       <summary>技术证据</summary>
-      <div class="qg-domain-grid qg-domain-grid--compact">
+      <div v-if="technicalEvidenceVisible" class="qg-domain-grid qg-domain-grid--compact">
         <JsonPreview title="最新运行状态" source="/api/latest" :payload="state.latest" />
         <JsonPreview title="总览状态" source="/api/dashboard/state" :payload="state.state" />
         <JsonPreview title="回测摘要" source="/api/dashboard/backtest-summary" :payload="state.backtest" />
@@ -167,8 +179,7 @@
 </template>
 
 <script setup>
-import AutomationChainPanel from '../../components/AutomationChainPanel.vue';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowReactive } from 'vue';
 import { loadDashboardWorkspace } from '../../services/domainApi.js';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
 import MetricGrid from '../shared/MetricGrid.vue';
@@ -194,9 +205,13 @@ import {
   buildDailyReviewRows,
 } from './dashboardModel.js';
 
+const AutomationChainPanel = defineAsyncComponent(() => import('../../components/AutomationChainPanel.vue'));
+
 const loading = ref(false);
 const error = ref('');
-const state = reactive({
+const technicalEvidenceVisible = ref(false);
+const automationPanelVisible = ref(false);
+const state = shallowReactive({
   latest: null,
   state: null,
   backtest: null,
@@ -221,7 +236,9 @@ const telegramGatewayItems = computed(() => buildTelegramGatewayItems(state));
 const telegramGatewayStatus = computed(() => resolveTelegramGatewayStatus(state));
 const telegramGatewayStatusLabel = computed(() => resolveTelegramGatewayStatusLabel(state));
 const agentOpsOverallStatus = computed(() => {
-  const status = String(state.agentOpsHealth?.systemStatus || state.agentOpsHealth?.overallStatus || '').toUpperCase();
+  const status = String(
+    state.agentOpsHealth?.systemStatus || state.agentOpsHealth?.overallStatus || '',
+  ).toUpperCase();
   if (status === 'PASS') return 'ok';
   if (status === 'BLOCKED') return 'blocked';
   return 'warn';
@@ -229,20 +246,47 @@ const agentOpsOverallStatus = computed(() => {
 const routeRows = computed(() => buildRouteRows(snapshot.value));
 const todoRows = computed(() => buildDailyTodoRows(state));
 const reviewRows = computed(() => buildDailyReviewRows(state));
+let loadController = null;
+let loadRunId = 0;
+
+function abortLoad() {
+  loadController?.abort();
+  loadController = null;
+}
 
 async function load() {
+  abortLoad();
+  const runId = loadRunId + 1;
+  loadRunId = runId;
+  const controller = new globalThis.AbortController();
+  loadController = controller;
   loading.value = true;
   error.value = '';
   try {
-    Object.assign(state, await loadDashboardWorkspace());
+    const nextState = await loadDashboardWorkspace({ signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, nextState);
   } catch (exc) {
+    if (controller.signal.aborted || runId !== loadRunId) return;
     error.value = exc?.message || '全局总览加载失败';
   } finally {
-    loading.value = false;
+    if (runId === loadRunId) {
+      loading.value = false;
+      loadController = null;
+    }
   }
 }
 
+function revealTechnicalEvidence(event) {
+  technicalEvidenceVisible.value = technicalEvidenceVisible.value || Boolean(event.target.open);
+}
+
+function revealAutomationPanel(event) {
+  automationPanelVisible.value = automationPanelVisible.value || Boolean(event.target.open);
+}
+
 onMounted(load);
+onBeforeUnmount(abortLoad);
 </script>
 
 <style scoped>

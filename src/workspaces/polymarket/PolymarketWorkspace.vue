@@ -111,10 +111,10 @@
       <LedgerTable title="跨市场联动" :rows="model.tables.cross" :limit="12" />
     </div>
 
-    <details class="qg-details">
+    <details class="qg-details" @toggle="revealTechnicalEvidence">
       <!-- Raw Polymarket evidence / research-only markers retained for the safety guard; the visible label stays Chinese. -->
       <summary>技术证据</summary>
-      <div class="qg-domain-grid">
+      <div v-if="technicalEvidenceVisible" class="qg-domain-grid">
         <JsonPreview title="搜索结果" source="/api/polymarket/search" :payload="state.search" />
         <JsonPreview title="执行雷达" source="/api/polymarket/radar" :payload="state.radar" />
         <JsonPreview title="雷达后台" source="/api/polymarket/radar-worker" :payload="state.worker" />
@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowReactive } from 'vue';
 
 import { loadPolymarketWorkspace } from '../../services/domainApi.js';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
@@ -167,7 +167,8 @@ const loading = ref(false);
 const error = ref('');
 const query = ref('');
 const evidenceMode = ref('all');
-const state = reactive({
+const technicalEvidenceVisible = ref(false);
+const state = shallowReactive({
   search: null,
   radar: null,
   worker: null,
@@ -185,6 +186,8 @@ const state = reactive({
   canaryLedger: null,
   autoGovernanceLedger: null,
 });
+let loadController = null;
+let loadRunId = 0;
 
 const model = computed(() => buildPolymarketModel(state));
 const evidenceBuckets = computed(() => {
@@ -216,18 +219,34 @@ const evidenceTabs = computed(() => [
 ]);
 
 async function load() {
+  loadController?.abort();
+  const runId = loadRunId + 1;
+  loadRunId = runId;
+  const controller = new globalThis.AbortController();
+  loadController = controller;
   loading.value = true;
   error.value = '';
   try {
-    Object.assign(state, await loadPolymarketWorkspace({ q: query.value }));
+    const nextState = await loadPolymarketWorkspace({ q: query.value }, { signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, nextState);
   } catch (exc) {
+    if (controller.signal.aborted || runId !== loadRunId) return;
     error.value = exc?.message || 'Failed to load Polymarket workspace';
   } finally {
-    loading.value = false;
+    if (runId === loadRunId) {
+      loading.value = false;
+      loadController = null;
+    }
   }
 }
 
 onMounted(load);
+onBeforeUnmount(() => loadController?.abort());
+
+function revealTechnicalEvidence(event) {
+  technicalEvidenceVisible.value = technicalEvidenceVisible.value || Boolean(event.target.open);
+}
 
 function toEvidenceRows(rows, fallbackSource) {
   return rows

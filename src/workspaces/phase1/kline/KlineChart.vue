@@ -39,6 +39,7 @@ let chart = null;
 let klineApi = null;
 let resizeObserver = null;
 let resizeFrame = 0;
+let disposed = false;
 
 const currentTool = computed(() => props.activeTool || 'cursor');
 const toolOverlay = computed(() => {
@@ -55,6 +56,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  disposed = true;
   if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
   if (resizeObserver) {
     resizeObserver.disconnect();
@@ -68,13 +70,17 @@ onBeforeUnmount(() => {
     }
     chart = null;
   }
+  chartReady.value = false;
 });
 
-watch(() => [props.bars, props.indicators, props.trades, props.shadowSignals], renderAll, { deep: true });
+watch([() => props.bars, () => props.indicators, () => props.trades, () => props.shadowSignals], renderAll, {
+  flush: 'post',
+});
 
 async function createChart() {
   if (chart || !chartEl.value) return;
   klineApi = await import('klinecharts');
+  if (disposed || !chartEl.value) return;
   chart = klineApi.init(chartEl.value);
   applyChartStyle();
   observeSize();

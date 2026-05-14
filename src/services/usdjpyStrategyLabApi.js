@@ -2,6 +2,10 @@ import { fetchJson, postJson } from './domainApi.js';
 
 const BASE = '/api/usdjpy-strategy-lab';
 
+function getJson(path, options = {}) {
+  return fetchJson(path, null, options);
+}
+
 export function fetchUSDJPYStrategyLabStatus() {
   return fetchJson(`${BASE}/status`);
 }
@@ -73,8 +77,8 @@ export function fetchUSDJPYLiveLoopTelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/live-loop/telegram-text${query}`);
 }
 
-export function fetchUSDJPYEvolutionStatus() {
-  return fetchJson(`${BASE}/evolution/status`);
+export function fetchUSDJPYEvolutionStatus(options = {}) {
+  return getJson(`${BASE}/evolution/status`, options);
 }
 
 export function runUSDJPYEvolutionBuild() {
@@ -113,9 +117,9 @@ export function fetchUSDJPYEvolutionTelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/evolution/telegram-text${query}`);
 }
 
-export function fetchUSDJPYBarReplayStatus({ refresh = false } = {}) {
+export function fetchUSDJPYBarReplayStatus({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/bar-replay/status${query}`);
+  return getJson(`${BASE}/bar-replay/status${query}`, options);
 }
 
 export function runUSDJPYBarReplayBuild() {
@@ -137,9 +141,9 @@ export function fetchUSDJPYBarReplayTelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/bar-replay/telegram-text${query}`);
 }
 
-export function fetchUSDJPYWalkForwardStatus({ refresh = false } = {}) {
+export function fetchUSDJPYWalkForwardStatus({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/walk-forward/status${query}`);
+  return getJson(`${BASE}/walk-forward/status${query}`, options);
 }
 
 export function runUSDJPYWalkForwardBuild() {
@@ -161,9 +165,9 @@ export function fetchUSDJPYWalkForwardTelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/walk-forward/telegram-text${query}`);
 }
 
-export function fetchUSDJPYAutonomousAgent({ refresh = false } = {}) {
+export function fetchUSDJPYAutonomousAgent({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/state${query}`);
+  return getJson(`${BASE}/autonomous-agent/state${query}`, options);
 }
 
 export function runUSDJPYAutonomousAgent() {
@@ -180,34 +184,34 @@ export function fetchUSDJPYAutonomousPatch({ refresh = false } = {}) {
   return fetchJson(`${BASE}/autonomous-agent/patch${query}`);
 }
 
-export function fetchUSDJPYAutonomousLifecycle({ refresh = false } = {}) {
+export function fetchUSDJPYAutonomousLifecycle({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/lifecycle${query}`);
+  return getJson(`${BASE}/autonomous-agent/lifecycle${query}`, options);
 }
 
-export function fetchUSDJPYAutonomousLanes({ refresh = false } = {}) {
+export function fetchUSDJPYAutonomousLanes({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/lanes${query}`);
+  return getJson(`${BASE}/autonomous-agent/lanes${query}`, options);
 }
 
-export function fetchUSDJPYMt5ShadowLane({ refresh = false } = {}) {
+export function fetchUSDJPYMt5ShadowLane({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/mt5-shadow${query}`);
+  return getJson(`${BASE}/autonomous-agent/mt5-shadow${query}`, options);
 }
 
-export function fetchUSDJPYPolymarketShadowLane({ refresh = false } = {}) {
+export function fetchUSDJPYPolymarketShadowLane({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/polymarket-shadow${query}`);
+  return getJson(`${BASE}/autonomous-agent/polymarket-shadow${query}`, options);
 }
 
-export function fetchUSDJPYEaReproducibility({ refresh = false } = {}) {
+export function fetchUSDJPYEaReproducibility({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/ea-repro${query}`);
+  return getJson(`${BASE}/autonomous-agent/ea-repro${query}`, options);
 }
 
-export function fetchUSDJPYDailyAutopilotV2({ refresh = false } = {}) {
+export function fetchUSDJPYDailyAutopilotV2({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/autonomous-agent/daily-autopilot-v2${query}`);
+  return getJson(`${BASE}/autonomous-agent/daily-autopilot-v2${query}`, options);
 }
 
 export function runUSDJPYDailyAutopilotV2() {
@@ -219,9 +223,9 @@ export function fetchUSDJPYDailyAutopilotV2TelegramText({ refresh = false } = {}
   return fetchJson(`${BASE}/autonomous-agent/daily-autopilot-v2/telegram-text${query}`);
 }
 
-export function fetchUSDJPYAgentDailyTodo({ refresh = false } = {}) {
+export function fetchUSDJPYAgentDailyTodo({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/daily-todo${query}`);
+  return getJson(`${BASE}/daily-todo${query}`, options);
 }
 
 export function runUSDJPYAgentDailyTodo() {
@@ -233,9 +237,9 @@ export function fetchUSDJPYAgentDailyTodoTelegramText({ refresh = false } = {}) 
   return fetchJson(`${BASE}/daily-todo/telegram-text${query}`);
 }
 
-export function fetchUSDJPYAgentDailyReview({ refresh = false } = {}) {
+export function fetchUSDJPYAgentDailyReview({ refresh = false } = {}, options = {}) {
   const query = refresh ? '?refresh=1' : '';
-  return fetchJson(`${BASE}/daily-review${query}`);
+  return getJson(`${BASE}/daily-review${query}`, options);
 }
 
 export function runUSDJPYAgentDailyReview() {
@@ -252,9 +256,9 @@ export function fetchUSDJPYAutonomousTelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/autonomous-agent/telegram-text${query}`);
 }
 
-export function fetchUSDJPYGAStatus({ write = false } = {}) {
+export function fetchUSDJPYGAStatus({ write = false } = {}, options = {}) {
   const query = write ? '?write=1' : '';
-  return fetchJson(`${BASE}/ga/status${query}`);
+  return getJson(`${BASE}/ga/status${query}`, options);
 }
 
 export function runUSDJPYGAGeneration() {
@@ -265,20 +269,20 @@ export function fetchUSDJPYGAGenerations() {
   return fetchJson(`${BASE}/ga/generations`);
 }
 
-export function fetchUSDJPYGACandidates() {
-  return fetchJson(`${BASE}/ga/candidates`);
+export function fetchUSDJPYGACandidates(options = {}) {
+  return getJson(`${BASE}/ga/candidates`, options);
 }
 
-export function fetchUSDJPYGACandidate(seedId) {
-  return fetchJson(`${BASE}/ga/candidate/${encodeURIComponent(seedId)}`);
+export function fetchUSDJPYGACandidate(seedId, options = {}) {
+  return getJson(`${BASE}/ga/candidate/${encodeURIComponent(seedId)}`, options);
 }
 
-export function fetchUSDJPYGAEvolutionPath() {
-  return fetchJson(`${BASE}/ga/evolution-path`);
+export function fetchUSDJPYGAEvolutionPath(options = {}) {
+  return getJson(`${BASE}/ga/evolution-path`, options);
 }
 
-export function fetchUSDJPYGABlockers() {
-  return fetchJson(`${BASE}/ga/blockers`);
+export function fetchUSDJPYGABlockers(options = {}) {
+  return getJson(`${BASE}/ga/blockers`, options);
 }
 
 export function fetchUSDJPYGATelegramText({ refresh = false } = {}) {
@@ -286,9 +290,9 @@ export function fetchUSDJPYGATelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/ga/telegram-text${query}`);
 }
 
-export function fetchUSDJPYStrategyContractStatus({ write = false } = {}) {
+export function fetchUSDJPYStrategyContractStatus({ write = false } = {}, options = {}) {
   const query = write ? '?write=1' : '';
-  return fetchJson(`${BASE}/strategy-contract/status${query}`);
+  return getJson(`${BASE}/strategy-contract/status${query}`, options);
 }
 
 export function buildUSDJPYStrategyContract() {
@@ -300,12 +304,12 @@ export function fetchUSDJPYStrategyContractTelegramText({ refresh = false } = {}
   return fetchJson(`${BASE}/strategy-contract/telegram-text${query}`);
 }
 
-export function fetchUSDJPYStrategyBacktestStatus() {
-  return fetchJson(`${BASE}/strategy-backtest/status`);
+export function fetchUSDJPYStrategyBacktestStatus(options = {}) {
+  return getJson(`${BASE}/strategy-backtest/status`, options);
 }
 
-export function fetchUSDJPYStrategyBacktestProductionStatus() {
-  return fetchJson(`${BASE}/strategy-backtest/production-status`);
+export function fetchUSDJPYStrategyBacktestProductionStatus(options = {}) {
+  return getJson(`${BASE}/strategy-backtest/production-status`, options);
 }
 
 export function seedUSDJPYStrategyBacktest({ overwrite = false } = {}) {
@@ -326,8 +330,8 @@ export function syncUSDJPYStrategyBacktestKlines() {
   return postJson(`${BASE}/strategy-backtest/sync-klines`, { focusSymbol: 'USDJPYc' });
 }
 
-export function fetchUSDJPYEvidenceOSStatus() {
-  return fetchJson(`${BASE}/evidence-os/status`);
+export function fetchUSDJPYEvidenceOSStatus(options = {}) {
+  return getJson(`${BASE}/evidence-os/status`, options);
 }
 
 export function runUSDJPYEvidenceOS() {
@@ -351,8 +355,8 @@ export function fetchUSDJPYEvidenceOSTelegramText({ refresh = false } = {}) {
   return fetchJson(`${BASE}/evidence-os/telegram-text${query}`);
 }
 
-export function fetchUSDJPYTelegramGatewayStatus() {
-  return fetchJson(`${BASE}/telegram-gateway/status`);
+export function fetchUSDJPYTelegramGatewayStatus(options = {}) {
+  return getJson(`${BASE}/telegram-gateway/status`, options);
 }
 
 export function enqueueUSDJPYTelegramGatewayTest({ text = '' } = {}) {

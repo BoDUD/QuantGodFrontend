@@ -167,7 +167,9 @@
       <article class="qg-usdjpy-evolution__card">
         <span>经验记忆</span>
         <strong>{{ caseMemory.caseCount || 0 }}</strong>
-        <p>{{ caseMemory.queuedForGA || 0 }} 个经验进入遗传进化；标准种子提示 {{ gaSeedHints.length }} 条。</p>
+        <p>
+          {{ caseMemory.queuedForGA || 0 }} 个经验进入遗传进化；标准种子提示 {{ gaSeedHints.length }} 条。
+        </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
         <span>通知网关</span>
@@ -362,9 +364,7 @@
         <article>
           <span>下一阶段任务</span>
           <strong>{{ statusZh(nextPhaseTodos.status, '自主代理已接入') }}</strong>
-          <p>
-            策略契约、遗传进化与通知网关已接入；后续继续补真实样本、一致性和执行质量。
-          </p>
+          <p>策略契约、遗传进化与通知网关已接入；后续继续补真实样本、一致性和执行质量。</p>
         </article>
       </div>
       <div v-if="dailyTodoItems.length" class="qg-usdjpy-evolution__mini-list">
@@ -464,9 +464,7 @@
           <strong>{{ deepParityStatusZh }}</strong>
           <p>
             {{
-              deepParity.reasonZh ||
-              parityReport.reasonZh ||
-              '等待策略契约、Python 回放和 EA 输出三方证据。'
+              deepParity.reasonZh || parityReport.reasonZh || '等待策略契约、Python 回放和 EA 输出三方证据。'
             }}
           </p>
         </article>
@@ -565,28 +563,33 @@
       </p>
     </section>
 
-    <USDJPYCaseMemoryPanel
-      :payload="caseMemoryCandidatePayload"
-      :fallback-case-memory="caseMemory"
-      :loading="loading"
-      @build="runCaseMemoryBuild"
-    />
+    <details class="qg-usdjpy-evolution__list" @toggle="revealDeepEvidencePanels">
+      <summary>深度证据面板</summary>
+      <template v-if="deepEvidencePanelsVisible">
+        <USDJPYCaseMemoryPanel
+          :payload="caseMemoryCandidatePayload"
+          :fallback-case-memory="caseMemory"
+          :loading="loading"
+          @build="runCaseMemoryBuild"
+        />
 
-    <USDJPYGAFactoryPanel
-      :payload="gaFactoryPayload"
-      :ga-status="gaStatus"
-      :loading="loading"
-      @build="runGAFactoryBuild"
-    />
+        <USDJPYGAFactoryPanel
+          :payload="gaFactoryPayload"
+          :ga-status="gaStatus"
+          :loading="loading"
+          @build="runGAFactoryBuild"
+        />
 
-    <TelegramGatewayOpsPanel
-      :payload="telegramGatewayOpsPayload"
-      :fallback="telegramGateway"
-      :loading="loading"
-      @collect="runTelegramGatewayOpsCollect"
-    />
+        <TelegramGatewayOpsPanel
+          :payload="telegramGatewayOpsPayload"
+          :fallback="telegramGateway"
+          :loading="loading"
+          @collect="runTelegramGatewayOpsCollect"
+        />
 
-    <ExecutionFeedbackCoverageCard />
+        <ExecutionFeedbackCoverageCard />
+      </template>
+    </details>
 
     <section class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--ga">
       <div class="qg-usdjpy-evolution__section-head">
@@ -777,10 +780,7 @@
               <strong>{{ gaLineageTreeSummary(selectedGASeed) }}</strong>
               <p>
                 精英路径高亮；默认折叠远端旁支。
-                {{
-                  gaLineageTree(selectedGASeed).reasonZh ||
-                  '展示父代、当前候选和子代的变异 / 交叉路径。'
-                }}
+                {{ gaLineageTree(selectedGASeed).reasonZh || '展示父代、当前候选和子代的变异 / 交叉路径。' }}
               </p>
             </div>
             <button
@@ -941,9 +941,7 @@
       <div class="qg-usdjpy-evolution__section-head">
         <div>
           <h3>策略契约高保真回测</h3>
-          <p>
-            统一策略契约读取 USDJPY SQLite K线，输出交易、权益曲线和遗传进化可读适应度证据。
-          </p>
+          <p>统一策略契约读取 USDJPY SQLite K线，输出交易、权益曲线和遗传进化可读适应度证据。</p>
         </div>
         <strong>{{ evidenceQualityZh(strategyBacktestReport.evidenceQuality) }}</strong>
       </div>
@@ -1076,8 +1074,7 @@
         </p>
         <p>
           EA 影子评估：{{ strategyContractShadowEvalStatusZh }}；{{
-            strategyContractPayload?.eaShadowEvaluation?.reasonZh ||
-            '等待 EA 写入策略契约影子评估账本。'
+            strategyContractPayload?.eaShadowEvaluation?.reasonZh || '等待 EA 写入策略契约影子评估账本。'
           }}
         </p>
         <p>
@@ -1098,21 +1095,26 @@
       </article>
     </section>
   </section>
-  <ProductionEvidenceValidationPanel />
-  <GAMultiGenerationStabilityCard />
+  <details
+    class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--production"
+    @toggle="revealProductionPanels"
+  >
+    <summary>生产证据验证</summary>
+    <template v-if="productionPanelsVisible">
+      <ProductionEvidenceValidationPanel />
+      <GAMultiGenerationStabilityCard />
+    </template>
+  </details>
 </template>
 
 <script setup>
-import GAMultiGenerationStabilityCard from './GAMultiGenerationStabilityCard.vue';
-import { computed, onMounted, ref } from 'vue';
-import ExecutionFeedbackCoverageCard from './ExecutionFeedbackCoverageCard.vue';
-import ProductionEvidenceValidationPanel from './ProductionEvidenceValidationPanel.vue';
-import TelegramGatewayOpsPanel from './TelegramGatewayOpsPanel.vue';
-import USDJPYCaseMemoryPanel from './USDJPYCaseMemoryPanel.vue';
-import USDJPYGAFactoryPanel from './USDJPYGAFactoryPanel.vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { buildCaseMemoryCandidates, fetchCaseMemoryStatus } from '../services/caseMemoryApi.js';
 import { buildStrategyGaFactory, fetchStrategyGaFactoryStatus } from '../services/strategyGaFactoryApi.js';
-import { collectTelegramGatewayOps, fetchTelegramGatewayOpsStatus } from '../services/telegramGatewayOpsApi.js';
+import {
+  collectTelegramGatewayOps,
+  fetchTelegramGatewayOpsStatus,
+} from '../services/telegramGatewayOpsApi.js';
 import {
   fetchUSDJPYAutonomousAgent,
   fetchUSDJPYAutonomousLanes,
@@ -1153,31 +1155,44 @@ import {
   syncUSDJPYStrategyBacktestKlines,
 } from '../services/usdjpyStrategyLabApi.js';
 
-const payload = ref(null);
-const barReplay = ref(null);
-const walkForward = ref(null);
-const autonomousAgent = ref(null);
-const lifecyclePayload = ref(null);
-const lanesPayload = ref(null);
-const mt5ShadowPayload = ref(null);
-const polymarketShadowPayload = ref(null);
-const eaReproPayload = ref(null);
-const dailyAutopilot = ref(null);
-const agentDailyTodo = ref(null);
-const agentDailyReview = ref(null);
-const gaPayload = ref(null);
-const gaCandidatesPayload = ref(null);
-const gaPathPayload = ref(null);
-const gaBlockersPayload = ref(null);
-const gaFactoryPayload = ref(null);
-const strategyBacktestPayload = ref(null);
-const historyProductionPayload = ref(null);
-const evidenceOSPayload = ref(null);
-const caseMemoryCandidatePayload = ref(null);
-const telegramGatewayPayload = ref(null);
-const telegramGatewayOpsPayload = ref(null);
-const strategyContractPayload = ref(null);
-const selectedGASeed = ref(null);
+const ExecutionFeedbackCoverageCard = defineAsyncComponent(
+  () => import('./ExecutionFeedbackCoverageCard.vue'),
+);
+const ProductionEvidenceValidationPanel = defineAsyncComponent(
+  () => import('./ProductionEvidenceValidationPanel.vue'),
+);
+const TelegramGatewayOpsPanel = defineAsyncComponent(() => import('./TelegramGatewayOpsPanel.vue'));
+const USDJPYCaseMemoryPanel = defineAsyncComponent(() => import('./USDJPYCaseMemoryPanel.vue'));
+const USDJPYGAFactoryPanel = defineAsyncComponent(() => import('./USDJPYGAFactoryPanel.vue'));
+const GAMultiGenerationStabilityCard = defineAsyncComponent(
+  () => import('./GAMultiGenerationStabilityCard.vue'),
+);
+
+const payload = shallowRef(null);
+const barReplay = shallowRef(null);
+const walkForward = shallowRef(null);
+const autonomousAgent = shallowRef(null);
+const lifecyclePayload = shallowRef(null);
+const lanesPayload = shallowRef(null);
+const mt5ShadowPayload = shallowRef(null);
+const polymarketShadowPayload = shallowRef(null);
+const eaReproPayload = shallowRef(null);
+const dailyAutopilot = shallowRef(null);
+const agentDailyTodo = shallowRef(null);
+const agentDailyReview = shallowRef(null);
+const gaPayload = shallowRef(null);
+const gaCandidatesPayload = shallowRef(null);
+const gaPathPayload = shallowRef(null);
+const gaBlockersPayload = shallowRef(null);
+const gaFactoryPayload = shallowRef(null);
+const strategyBacktestPayload = shallowRef(null);
+const historyProductionPayload = shallowRef(null);
+const evidenceOSPayload = shallowRef(null);
+const caseMemoryCandidatePayload = shallowRef(null);
+const telegramGatewayPayload = shallowRef(null);
+const telegramGatewayOpsPayload = shallowRef(null);
+const strategyContractPayload = shallowRef(null);
+const selectedGASeed = shallowRef(null);
 const selectedGASeedLoading = ref(false);
 const selectedGASeedError = ref('');
 const gaSeedSelectionPinned = ref(false);
@@ -1185,6 +1200,10 @@ const lineageTreeExpanded = ref(false);
 const loading = ref(false);
 const error = ref('');
 const actionStatus = ref(null);
+const deepEvidencePanelsVisible = ref(false);
+const productionPanelsVisible = ref(false);
+let loadController = null;
+let loadRunId = 0;
 
 const dataset = computed(() => payload.value?.dataset || {});
 const replay = computed(() => payload.value?.replay || {});
@@ -1316,9 +1335,7 @@ const strategyContractShadowEvalRows = computed(() =>
 );
 const strategyContractSeed = computed(
   () =>
-    strategyContract.value?.selectedSeedId ||
-    strategyContractStrategy.value?.seedId ||
-    '等待策略契约种子',
+    strategyContract.value?.selectedSeedId || strategyContractStrategy.value?.seedId || '等待策略契约种子',
 );
 const strategyContractFingerprint = computed(() => {
   const value = strategyContract.value?.fingerprint || '—';
@@ -2104,7 +2121,7 @@ async function selectGASeed(item, { auto = false } = {}) {
   }
 }
 
-async function selectPreferredGASeedWithLineage(candidates) {
+function selectPreferredGASeedWithLineage(candidates) {
   if (gaSeedSelectionPinned.value && selectedGASeed.value?.seedId) return;
 
   const queue = preferredGASeedCandidateQueue(candidates);
@@ -2113,28 +2130,10 @@ async function selectPreferredGASeedWithLineage(candidates) {
     return;
   }
 
-  selectedGASeedLoading.value = true;
+  selectedGASeed.value = queue.find(gaCandidateHasLineagePath) || queue[0];
+  selectedGASeedLoading.value = false;
   selectedGASeedError.value = '';
   lineageTreeExpanded.value = false;
-  let fallback = null;
-
-  try {
-    for (const item of queue.slice(0, 3)) {
-      const payload = await fetchUSDJPYGACandidate(item.seedId);
-      const candidate = payload?.candidate || item;
-      if (!fallback) fallback = candidate;
-      if (gaCandidateHasLineagePath(candidate)) {
-        selectedGASeed.value = candidate;
-        return;
-      }
-    }
-    selectedGASeed.value = fallback || queue[0];
-  } catch (err) {
-    selectedGASeedError.value = err?.message || 'GA 候选完整审计读取失败';
-    selectedGASeed.value = fallback || queue[0];
-  } finally {
-    selectedGASeedLoading.value = false;
-  }
 }
 
 function assignLoaded(results) {
@@ -2164,84 +2163,56 @@ function assignLoaded(results) {
   strategyContractPayload.value = results.strategyContractState;
 }
 
-async function loadAll() {
-  const [
-    evolutionPayload,
-    causalPayload,
-    walkForwardPayload,
-    autonomousPayload,
-    lifecycle,
-    lanesState,
-    mt5ShadowState,
-    polymarketShadowState,
-    eaReproState,
-    dailyState,
-    dailyTodoState,
-    dailyReviewState,
-    gaState,
-    gaCandidates,
-    gaPath,
-    gaBlockers,
-    gaFactoryState,
-    strategyBacktestState,
-    historyProductionState,
-    evidenceOSState,
-    caseMemoryCandidateState,
-    telegramGatewayState,
-    telegramGatewayOpsState,
-    strategyContractState,
-  ] = await Promise.all([
-    fetchUSDJPYEvolutionStatus(),
-    fetchUSDJPYBarReplayStatus(),
-    fetchUSDJPYWalkForwardStatus(),
-    fetchUSDJPYAutonomousAgent(),
-    fetchUSDJPYAutonomousLifecycle(),
-    fetchUSDJPYAutonomousLanes(),
-    fetchUSDJPYMt5ShadowLane(),
-    fetchUSDJPYPolymarketShadowLane(),
-    fetchUSDJPYEaReproducibility(),
-    fetchUSDJPYDailyAutopilotV2(),
-    fetchUSDJPYAgentDailyTodo(),
-    fetchUSDJPYAgentDailyReview(),
-    fetchUSDJPYGAStatus(),
-    fetchUSDJPYGACandidates(),
-    fetchUSDJPYGAEvolutionPath(),
-    fetchUSDJPYGABlockers(),
-    fetchStrategyGaFactoryStatus(),
-    fetchUSDJPYStrategyBacktestStatus(),
-    fetchUSDJPYStrategyBacktestProductionStatus(),
-    fetchUSDJPYEvidenceOSStatus(),
-    fetchCaseMemoryStatus(),
-    fetchUSDJPYTelegramGatewayStatus(),
-    fetchTelegramGatewayOpsStatus(),
-    fetchUSDJPYStrategyContractStatus(),
-  ]);
-  assignLoaded({
-    evolutionPayload,
-    causalPayload,
-    walkForwardPayload,
-    autonomousPayload,
-    lifecycle,
-    lanesState,
-    mt5ShadowState,
-    polymarketShadowState,
-    eaReproState,
-    dailyState,
-    dailyTodoState,
-    dailyReviewState,
-    gaState,
-    gaCandidates,
-    gaPath,
-    gaBlockers,
-    gaFactoryState,
-    strategyBacktestState,
-    historyProductionState,
-    evidenceOSState,
-    caseMemoryCandidateState,
-    telegramGatewayState,
-    telegramGatewayOpsState,
-    strategyContractState,
-  });
+async function loadEvolutionEntries(entries, options = {}, concurrency = 6) {
+  const results = {};
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < entries.length && !options.signal?.aborted) {
+      const [key, loadEntry] = entries[cursor];
+      cursor += 1;
+      results[key] = await loadEntry();
+    }
+  }
+
+  const workerCount = Math.min(concurrency, entries.length);
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  return results;
+}
+
+async function loadAll(options = {}) {
+  const results = await loadEvolutionEntries(
+    [
+      ['evolutionPayload', () => fetchUSDJPYEvolutionStatus(options)],
+      ['causalPayload', () => fetchUSDJPYBarReplayStatus({}, options)],
+      ['walkForwardPayload', () => fetchUSDJPYWalkForwardStatus({}, options)],
+      ['autonomousPayload', () => fetchUSDJPYAutonomousAgent({}, options)],
+      ['lifecycle', () => fetchUSDJPYAutonomousLifecycle({}, options)],
+      ['lanesState', () => fetchUSDJPYAutonomousLanes({}, options)],
+      ['mt5ShadowState', () => fetchUSDJPYMt5ShadowLane({}, options)],
+      ['polymarketShadowState', () => fetchUSDJPYPolymarketShadowLane({}, options)],
+      ['eaReproState', () => fetchUSDJPYEaReproducibility({}, options)],
+      ['dailyState', () => fetchUSDJPYDailyAutopilotV2({}, options)],
+      ['dailyTodoState', () => fetchUSDJPYAgentDailyTodo({}, options)],
+      ['dailyReviewState', () => fetchUSDJPYAgentDailyReview({}, options)],
+      ['gaState', () => fetchUSDJPYGAStatus({}, options)],
+      ['gaCandidates', () => fetchUSDJPYGACandidates(options)],
+      ['gaPath', () => fetchUSDJPYGAEvolutionPath(options)],
+      ['gaBlockers', () => fetchUSDJPYGABlockers(options)],
+      ['gaFactoryState', () => fetchStrategyGaFactoryStatus(options)],
+      ['strategyBacktestState', () => fetchUSDJPYStrategyBacktestStatus(options)],
+      ['historyProductionState', () => fetchUSDJPYStrategyBacktestProductionStatus(options)],
+      ['evidenceOSState', () => fetchUSDJPYEvidenceOSStatus(options)],
+      ['caseMemoryCandidateState', () => fetchCaseMemoryStatus(options)],
+      ['telegramGatewayState', () => fetchUSDJPYTelegramGatewayStatus(options)],
+      ['telegramGatewayOpsState', () => fetchTelegramGatewayOpsStatus(options)],
+      ['strategyContractState', () => fetchUSDJPYStrategyContractStatus({}, options)],
+    ],
+    options,
+    6,
+  );
+  if (options.signal?.aborted) return false;
+  assignLoaded(results);
   const schedule =
     typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function'
       ? window.requestIdleCallback
@@ -2249,22 +2220,34 @@ async function loadAll() {
         ? (callback) => window.setTimeout(callback, 80)
         : (callback) => callback();
   schedule(() => {
-    selectPreferredGASeedWithLineage(gaCandidates?.candidates);
+    if (options.signal?.aborted) return;
+    selectPreferredGASeedWithLineage(results.gaCandidates?.candidates);
   });
+  return true;
 }
 
 async function load({ silent = false } = {}) {
+  loadController?.abort();
+  const runId = loadRunId + 1;
+  loadRunId = runId;
+  const controller = new globalThis.AbortController();
+  loadController = controller;
   loading.value = true;
   error.value = '';
   if (!silent) setActionRunning('自主代理正在刷新页面证据', '正在读取数据集、回放、治理、三车道和日报状态。');
   try {
-    await loadAll();
+    const loaded = await loadAll({ signal: controller.signal });
+    if (!loaded || controller.signal.aborted || runId !== loadRunId) return;
     if (!silent) setActionSuccess('自主代理证据已刷新', evolutionSummary());
   } catch (err) {
+    if (controller.signal.aborted || runId !== loadRunId) return;
     error.value = err?.message || 'USDJPY 自学习闭环加载失败';
     if (!silent) setActionError('自主代理刷新失败', err, 'USDJPY 自学习闭环加载失败');
   } finally {
-    loading.value = false;
+    if (runId === loadRunId) {
+      loading.value = false;
+      loadController = null;
+    }
   }
 }
 
@@ -2344,7 +2327,10 @@ async function runGAFactoryBuild() {
 async function runTelegramGatewayOpsCollect() {
   loading.value = true;
   error.value = '';
-  setActionRunning('自主代理正在收集通知报告', '正在把日报、GA、Agent 和 Polymarket 报告送入 push-only Gateway 队列。');
+  setActionRunning(
+    '自主代理正在收集通知报告',
+    '正在把日报、GA、Agent 和 Polymarket 报告送入 push-only Gateway 队列。',
+  );
   try {
     telegramGatewayOpsPayload.value = await collectTelegramGatewayOps();
     await loadAll();
@@ -2479,16 +2465,26 @@ async function runFullEvolution() {
   }
 }
 
+function revealDeepEvidencePanels(event) {
+  deepEvidencePanelsVisible.value = deepEvidencePanelsVisible.value || Boolean(event.target.open);
+}
+
+function revealProductionPanels(event) {
+  productionPanelsVisible.value = productionPanelsVisible.value || Boolean(event.target.open);
+}
+
 onMounted(() => load({ silent: true }));
+onBeforeUnmount(() => {
+  loadController?.abort();
+  loadController = null;
+});
 </script>
 
 <style scoped>
 .qg-usdjpy-evolution {
   border: 1px solid rgba(80, 171, 255, 0.35);
   border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(9, 30, 54, 0.94), rgba(6, 14, 28, 0.98)),
-    rgba(6, 14, 28, 0.98);
+  background: linear-gradient(135deg, rgba(9, 30, 54, 0.94), rgba(6, 14, 28, 0.98)), rgba(6, 14, 28, 0.98);
   padding: 20px;
   color: #eaf2ff;
 }
@@ -2673,7 +2669,7 @@ onMounted(() => load({ silent: true }));
   font-size: 13px;
   color: #8fa3bd;
   font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 .qg-usdjpy-evolution__mini-list {

@@ -2,8 +2,8 @@ import { fetchJson, postJson } from './domainApi.js';
 
 const BASE = '/api/strategy-ga-factory';
 
-export function fetchStrategyGaFactoryStatus() {
-  return fetchJson(`${BASE}/status`);
+export function fetchStrategyGaFactoryStatus(options = {}) {
+  return fetchJson(`${BASE}/status`, null, options);
 }
 
 export function buildStrategyGaFactory() {
