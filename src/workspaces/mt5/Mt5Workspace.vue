@@ -189,13 +189,13 @@
         class="qg-ledger-table--important"
       />
       <LedgerTable
-        title="历史交易记录（最近）"
+        title="双账号历史交易记录（最近）"
         :rows="closeHistoryRows"
         :limit="80"
         class="qg-ledger-table--important"
       />
       <LedgerTable
-        title="交易流水（最近）"
+        title="双账号交易流水（最近）"
         :rows="tradeJournalRows"
         :limit="80"
         class="qg-ledger-table--important"
@@ -341,7 +341,9 @@ const state = shallowReactive({
   secondarySnapshot: null,
   latest: null,
   closeHistory: [],
+  secondaryCloseHistory: [],
   tradeJournal: [],
+  secondaryTradeJournal: [],
   dailyReview: null,
   dailyAutopilot: null,
   researchStats: null,

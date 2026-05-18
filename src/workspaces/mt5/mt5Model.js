@@ -571,6 +571,25 @@ function accountCard(account = {}, fallback = {}) {
   };
 }
 
+function accountLedgerDisplay(account = {}, fallbackLabel = 'MT5 账号') {
+  const login = normalizeAccountId(account.login);
+  return login ? `${fallbackLabel} ${login}` : fallbackLabel;
+}
+
+function annotateLedgerRows(rows, account = {}, fallback = {}) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const role = fallback.role || account.role || 'primary';
+  const label = fallback.label || account.label || (role === 'secondary' ? '第二账号' : '主账号');
+  const accountText = accountLedgerDisplay(account, label);
+  return sourceRows.map((row) => ({
+    ...row,
+    Account: row.Account || row.account || accountText,
+    AccountRole: row.AccountRole || row.accountRole || role,
+    AccountLogin: row.AccountLogin || row.accountLogin || account.login || '',
+    AccountServer: row.AccountServer || row.accountServer || account.server || '',
+  }));
+}
+
 function secondaryConnectionHint(connection, profile) {
   if (!profile) return '等待添加 secondary profile';
   if (connection?.connected || String(connection?.terminal?.status || '').toUpperCase() === 'AUTHORIZED') {
@@ -615,8 +634,10 @@ export function normalizeMt5Snapshot(raw = {}) {
     ? rowsFromPayload(raw.symbols)
     : rowsFromPayload(snapshot.symbols);
   const symbols = focusSymbolRows(rawSymbols);
-  const closeHistory = rowsFromPayload(raw.closeHistory);
-  const tradeJournal = rowsFromPayload(raw.tradeJournal);
+  const primaryCloseHistoryRaw = rowsFromPayload(raw.closeHistory);
+  const primaryTradeJournalRaw = rowsFromPayload(raw.tradeJournal);
+  const secondaryCloseHistoryRaw = rowsFromPayload(raw.secondaryCloseHistory);
+  const secondaryTradeJournalRaw = rowsFromPayload(raw.secondaryTradeJournal);
   const shadowSignals = focusSymbolRows(rowsFromPayload(raw.shadowSignals));
   const shadowOutcomes = focusSymbolRows(rowsFromPayload(raw.shadowOutcomes));
   const shadowCandidates = focusSymbolRows(rowsFromPayload(raw.shadowCandidates));
@@ -635,6 +656,24 @@ export function normalizeMt5Snapshot(raw = {}) {
     role: 'secondary',
     label: '第二账号',
   };
+  const closeHistory = annotateLedgerRows(primaryCloseHistoryRaw, primaryConnection, {
+    role: 'primary',
+    label: '主账号',
+  });
+  const tradeJournal = annotateLedgerRows(primaryTradeJournalRaw, primaryConnection, {
+    role: 'primary',
+    label: '主账号',
+  });
+  const secondaryCloseHistory = annotateLedgerRows(secondaryCloseHistoryRaw, secondaryConnection, {
+    role: 'secondary',
+    label: '第二账号',
+  });
+  const secondaryTradeJournal = annotateLedgerRows(secondaryTradeJournalRaw, secondaryConnection, {
+    role: 'secondary',
+    label: '第二账号',
+  });
+  const combinedCloseHistory = [...closeHistory, ...secondaryCloseHistory];
+  const combinedTradeJournal = [...tradeJournal, ...secondaryTradeJournal];
 
   const bridgeStatus = pick(
     { status, raw },
@@ -677,6 +716,10 @@ export function normalizeMt5Snapshot(raw = {}) {
     symbols,
     closeHistory,
     tradeJournal,
+    secondaryCloseHistory,
+    secondaryTradeJournal,
+    combinedCloseHistory,
+    combinedTradeJournal,
     shadowSignals,
     shadowOutcomes,
     shadowCandidates,
@@ -1833,8 +1876,14 @@ export function buildSymbolRows(snapshot) {
 }
 
 export function buildCloseHistoryRows(snapshot) {
-  return latestRows(snapshot.closeHistory, ['CloseTime', 'closeTime', 'OpenTime', 'openTime']).map((row) =>
+  return latestRows(snapshot.combinedCloseHistory || snapshot.closeHistory, [
+    'CloseTime',
+    'closeTime',
+    'OpenTime',
+    'openTime',
+  ]).map((row) =>
     compactRow(row, {
+      账户: ['Account', 'account', 'AccountLogin', 'accountLogin'],
       平仓时间: ['CloseTime', 'closeTime'],
       品种: ['Symbol', 'symbol'],
       方向: ['Type', 'type'],
@@ -1914,8 +1963,14 @@ export function buildUnclosedEntryRows(snapshot) {
 }
 
 export function buildTradeJournalRows(snapshot) {
-  return latestRows(snapshot.tradeJournal, ['EventTime', 'eventTime', 'Time', 'time']).map((row) =>
+  return latestRows(snapshot.combinedTradeJournal || snapshot.tradeJournal, [
+    'EventTime',
+    'eventTime',
+    'Time',
+    'time',
+  ]).map((row) =>
     compactRow(row, {
+      账户: ['Account', 'account', 'AccountLogin', 'accountLogin'],
       时间: ['EventTime', 'eventTime'],
       事件: ['EventType', 'eventType'],
       品种: ['Symbol', 'symbol'],
@@ -2021,6 +2076,20 @@ export function buildEndpointHealth(raw = {}) {
     ['连接状态', '/api/mt5-readonly/status', raw.status, '终端连接与授权'],
     ['账户快照', '/api/mt5-readonly/account', raw.account, '余额、净值、服务器'],
     ['第二账号快照', '/api/mt5-readonly-secondary/account', raw.secondaryAccount, '第二 MT5 实例账号授权'],
+    ['历史平仓', '/api/trades/close-history', raw.closeHistory, '主账号历史平仓 CSV'],
+    [
+      '第二历史平仓',
+      '/api/trades/close-history?scope=secondary',
+      raw.secondaryCloseHistory,
+      '第二账号历史平仓 CSV',
+    ],
+    ['交易流水', '/api/trades/journal', raw.tradeJournal, '主账号交易流水 CSV'],
+    [
+      '第二交易流水',
+      '/api/trades/journal?scope=secondary',
+      raw.secondaryTradeJournal,
+      '第二账号交易流水 CSV',
+    ],
     ['实时持仓', '/api/mt5-readonly/positions', raw.positions, '当前实盘持仓'],
     ['挂单状态', '/api/mt5-readonly/orders', raw.orders, '当前挂单'],
     [

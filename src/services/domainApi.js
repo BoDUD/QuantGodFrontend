@@ -98,8 +98,24 @@ export async function loadMt5Workspace(options = {}) {
           fetchRows(`/api/trades/close-history${params({ limit: tradeLimit })}`, requestOptions),
       ],
       [
+        'secondaryCloseHistory',
+        (requestOptions) =>
+          fetchRows(
+            `/api/trades/close-history${params({ limit: tradeLimit, scope: 'secondary' })}`,
+            requestOptions,
+          ),
+      ],
+      [
         'tradeJournal',
         (requestOptions) => fetchRows(`/api/trades/journal${params({ limit: tradeLimit })}`, requestOptions),
+      ],
+      [
+        'secondaryTradeJournal',
+        (requestOptions) =>
+          fetchRows(
+            `/api/trades/journal${params({ limit: tradeLimit, scope: 'secondary' })}`,
+            requestOptions,
+          ),
       ],
       ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
       ['dailyAutopilot', (requestOptions) => fetchJson('/api/daily-autopilot', null, requestOptions)],

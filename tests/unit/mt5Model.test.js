@@ -60,19 +60,34 @@ describe('mt5Model ledgers', () => {
 
   it('keeps full broker trade history instead of hiding non-focus manual records', () => {
     const snapshot = normalizeMt5Snapshot({
+      account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12' } },
+      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16' } },
       closeHistory: [
         { CloseTime: '2026.05.11 08:52', Symbol: 'XAUUSDc', NetProfit: '13.19', Strategy: 'Manual/Other' },
         { CloseTime: '2026.05.11 08:20', Symbol: 'EURUSDc', NetProfit: '-0.12', Strategy: 'Manual/Other' },
         { CloseTime: '2026.05.11 08:10', Symbol: 'USDJPYc', NetProfit: '0.22', Strategy: 'RSI_Reversal' },
       ],
+      secondaryCloseHistory: [
+        { CloseTime: '2026.05.11 08:55', Symbol: 'USDJPY', NetProfit: '0.18', Strategy: 'RSI_Reversal' },
+      ],
       tradeJournal: [
         { EventTime: '2026.05.11 08:52', EventType: 'EXIT', Symbol: 'XAUUSDc', NetProfit: '13.19' },
         { EventTime: '2026.05.11 08:10', EventType: 'ENTRY', Symbol: 'USDJPYc', NetProfit: '0.00' },
       ],
+      secondaryTradeJournal: [
+        { EventTime: '2026.05.11 08:55', EventType: 'EXIT', Symbol: 'USDJPY', NetProfit: '0.18' },
+      ],
     });
 
-    expect(buildCloseHistoryRows(snapshot).map((row) => row.品种)).toEqual(['XAUUSDc', 'EURUSDc', 'USDJPYc']);
-    expect(buildTradeJournalRows(snapshot).map((row) => row.品种)).toEqual(['XAUUSDc', 'USDJPYc']);
+    expect(buildCloseHistoryRows(snapshot).map((row) => row.品种)).toEqual([
+      'USDJPY',
+      'XAUUSDc',
+      'EURUSDc',
+      'USDJPYc',
+    ]);
+    expect(buildCloseHistoryRows(snapshot)[0].账户).toBe('第二账号 198135388');
+    expect(buildTradeJournalRows(snapshot).map((row) => row.品种)).toEqual(['USDJPY', 'XAUUSDc', 'USDJPYc']);
+    expect(buildTradeJournalRows(snapshot)[0].账户).toBe('第二账号 198135388');
   });
 
   it('surfaces USDJPY entry records that are not yet matched by an exit or close history row', () => {

@@ -155,6 +155,11 @@ function checkDomainApi(root) {
   if (!text.includes('/api/mt5-readonly-secondary/account')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load secondary MT5 account status through API facade`);
   }
+  if (!text.includes("scope: 'secondary'")) {
+    errors.push(
+      `${rel(root, api)}: MT5 workspace must load secondary account trade history through scope=secondary`,
+    );
+  }
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/parity')) {
     errors.push(
       `${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS deep parity through API facade`,
