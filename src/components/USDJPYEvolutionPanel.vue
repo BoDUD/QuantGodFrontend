@@ -10,18 +10,41 @@
         </p>
       </div>
       <div class="qg-usdjpy-evolution__actions">
-        <button type="button" :disabled="loading" @click="load">刷新证据</button>
-        <button type="button" :disabled="loading" @click="runCausalReplay">生成回放证据</button>
-        <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行治理门</button>
-        <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
-        <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
-        <button type="button" :disabled="loading" @click="runStrategyBacktest">运行回测证据</button>
-        <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据系统</button>
-        <button type="button" :disabled="loading" @click="runCaseMemoryBuild">生成经验候选</button>
-        <button type="button" :disabled="loading" @click="runGAGeneration">运行遗传进化</button>
-        <button type="button" :disabled="loading" @click="runGAFactoryBuild">生成 GA 工厂</button>
-        <button type="button" :disabled="loading" @click="runTelegramGatewayOpsCollect">收集通知报告</button>
-        <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
+        <div class="qg-usdjpy-evolution__primary-actions">
+          <button
+            type="button"
+            class="qg-usdjpy-evolution__button--primary"
+            :disabled="loading"
+            @click="load"
+          >
+            刷新证据
+          </button>
+          <button
+            type="button"
+            class="qg-usdjpy-evolution__button--primary"
+            :disabled="loading"
+            @click="runGAGeneration"
+          >
+            运行遗传进化
+          </button>
+          <button type="button" :disabled="loading" @click="runFullEvolution">生成复盘闭环</button>
+        </div>
+        <details class="qg-usdjpy-evolution__more-actions">
+          <summary>更多证据动作</summary>
+          <div>
+            <button type="button" :disabled="loading" @click="runCausalReplay">生成回放证据</button>
+            <button type="button" :disabled="loading" @click="runAutonomousGovernance">运行治理门</button>
+            <button type="button" :disabled="loading" @click="runDailyAutopilotV2">生成自动日报</button>
+            <button type="button" :disabled="loading" @click="runStrategyBacktest">运行回测证据</button>
+            <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据系统</button>
+            <button type="button" :disabled="loading" @click="runCaseMemoryBuild">生成经验候选</button>
+            <button type="button" :disabled="loading" @click="runGAFactoryBuild">生成 GA 工厂</button>
+            <button type="button" :disabled="loading" @click="runTelegramGatewayOpsCollect">
+              收集通知报告
+            </button>
+            <button type="button" :disabled="loading" @click="runStrategyContract">生成 EA 契约</button>
+          </div>
+        </details>
       </div>
     </header>
 
@@ -43,7 +66,7 @@
       {{ error }}
     </div>
     <div v-else class="qg-usdjpy-evolution__grid">
-      <article class="qg-usdjpy-evolution__card">
+      <article class="qg-usdjpy-evolution__card qg-usdjpy-evolution__card--featured">
         <span>运行数据集</span>
         <strong>{{ datasetSummary.sampleCount || 0 }}</strong>
         <p>
@@ -72,88 +95,13 @@
         <p>{{ patchWritable ? '已允许写入受控 patch' : '未放行 patch' }}；不会改源码或 live preset。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>美分账户</span>
-        <strong
-          >{{ centAccount.accountMode || 'cent' }} / {{ centAccount.accountCurrencyUnit || 'USC' }}</strong
-        >
-        <p>
-          加速 {{ centAccount.centAccountAcceleration ? '开启' : '关闭' }}；最大
-          {{ centAccount.maxLot ?? 2 }} 是上限，不是固定仓位。
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>MT5 模拟车道</span>
-        <strong>{{ mt5ShadowSummary.routeCount || 0 }} 条路线</strong>
-        <p>
-          快速模拟 {{ mt5ShadowSummary.fastShadow || 0 }} / 测试器 {{ mt5ShadowSummary.testerOnly || 0 }} /
-          暂停 {{ mt5ShadowSummary.paused || 0 }}
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>Polymarket 模拟车道</span>
-        <strong>{{ polymarketShadow.stageZh || polymarketShadow.stage || '模拟观察' }}</strong>
-        <p>模拟 PF {{ polymarketSummary.shadowProfitFactor ?? 0 }}；真实钱包和下单永远关闭。</p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>新闻门禁</span>
-        <strong>{{ newsGate.riskLevel || 'UNKNOWN' }}</strong>
-        <p>{{ newsGate.reasonZh || '默认 SOFT：普通新闻只降仓，高冲击新闻才阻断。' }}</p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
         <span>EA 对账</span>
         <strong>{{ eaRepro.statusZh || '等待对账' }}</strong>
         <p>源码 / ex5 / preset hash 只读校验；Watchlist 期望 USDJPY-only。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>自动日报 2.0</span>
-        <strong>{{
-          statusZh(agentDailyTodo?.status || dailyAutopilot?.dailyTodo?.status, '等待生成日报')
-        }}</strong>
-        <p>
-          {{
-            agentDailyTodo?.summaryZh ||
-            dailyAutopilot?.dailyTodo?.summaryZh ||
-            '自主代理自动生成早盘计划、今日待办和夜盘复盘。'
-          }}
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>下一阶段任务</span>
-        <strong>{{ statusZh(nextPhaseTodos.status, '等待下一阶段') }}</strong>
-        <p>策略契约、遗传进化审计与通知网关已接入；下一步聚焦真实样本和一致性深化。</p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>策略契约回测</span>
-        <strong>{{ strategyBacktestMetrics.netR ?? 0 }}R</strong>
-        <p>
-          交易 {{ strategyBacktestMetrics.tradeCount ?? 0 }} / PF
-          {{ strategyBacktestMetrics.profitFactor ?? 0 }} / 最大回撤
-          {{ strategyBacktestMetrics.maxDrawdownR ?? 0 }}R
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>Strategy JSON → EA 契约</span>
-        <strong>{{ strategyContractStatusZh }}</strong>
-        <p>
-          {{ strategyContractSeed }}；EA 回执 {{ strategyContractEAStatusZh }}。只读评估，不影响实盘下单。
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>真实 K线入库</span>
-        <strong>{{ h1BarCount }} 根 H1</strong>
-        <p>
-          M15 {{ klineCounts.M15 || 0 }} / H4 {{ klineCounts.H4 || 0 }} / D1 {{ klineCounts.D1 || 0 }}；只同步
-          USDJPY。
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
-        <span>遗传进化历史样本</span>
-        <strong>{{ historyProductionStatusZh }}</strong>
-        <p>{{ historyProductionSummaryZh }}</p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
         <span>Parity 校验</span>
-        <strong>{{ parityStatus }}</strong>
+        <strong>{{ deepParityStatusZh }}</strong>
         <p>策略契约 / Python 回放 / EA 三方口径审计，不通过不能晋级。</p>
       </article>
       <article class="qg-usdjpy-evolution__card">
@@ -165,13 +113,6 @@
         </p>
       </article>
       <article class="qg-usdjpy-evolution__card">
-        <span>经验记忆</span>
-        <strong>{{ caseMemory.caseCount || 0 }}</strong>
-        <p>
-          {{ caseMemory.queuedForGA || 0 }} 个经验进入遗传进化；标准种子提示 {{ gaSeedHints.length }} 条。
-        </p>
-      </article>
-      <article class="qg-usdjpy-evolution__card">
         <span>通知网关</span>
         <strong>{{ telegramGateway.pendingCount || 0 }} 待投递</strong>
         <p>
@@ -180,6 +121,37 @@
         </p>
       </article>
     </div>
+
+    <template v-if="!loading && !error">
+      <div class="qg-usdjpy-evolution__chapter-label qg-usdjpy-evolution__chapter-label--learning">
+        <span>01</span>
+        <div>
+          <strong>自学习闭环</strong>
+          <p>先看数据集、因果回放、参数候选和前向验证。</p>
+        </div>
+      </div>
+      <div class="qg-usdjpy-evolution__chapter-label qg-usdjpy-evolution__chapter-label--safety">
+        <span>02</span>
+        <div>
+          <strong>治理与安全</strong>
+          <p>再确认三车道、硬门禁、自动日报和受控 patch 状态。</p>
+        </div>
+      </div>
+      <div class="qg-usdjpy-evolution__chapter-label qg-usdjpy-evolution__chapter-label--ga">
+        <span>03</span>
+        <div>
+          <strong>GA 进化审计</strong>
+          <p>集中查看代际、候选、血统、策略契约和高保真回测。</p>
+        </div>
+      </div>
+      <div class="qg-usdjpy-evolution__chapter-label qg-usdjpy-evolution__chapter-label--execution">
+        <span>04</span>
+        <div>
+          <strong>执行证据</strong>
+          <p>最后展开执行反馈、经验记忆、通知网关和生产证据。</p>
+        </div>
+      </div>
+    </template>
 
     <section v-if="lanes" class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--lanes">
       <div class="qg-usdjpy-evolution__section-head">
@@ -206,7 +178,7 @@
           <p>模拟池包含 RSI、MA、BB、MACD、S/R、东京突破、夜盘回归和 H4 回调。</p>
         </article>
         <article>
-          <span>预测市场模拟车道</span>
+          <span>Polymarket 模拟车道</span>
           <strong>{{ polymarketShadow.stageZh || polymarketShadow.stage || '模拟观察' }}</strong>
           <p>{{ polymarketShadow.reasonZh || '只做模拟账本、跟单研究和事件风险上下文。' }}</p>
         </article>
@@ -255,6 +227,16 @@
           <span>仓位上限</span>
           <strong>{{ agentLimits.stageMaxLot ?? 0 }} / {{ agentLimits.maxLot ?? 2 }}</strong>
           <p>当前阶段 / 系统上限；最大 2.0 只是上限，不是固定仓位。</p>
+        </article>
+        <article>
+          <span>美分账户</span>
+          <strong
+            >{{ centAccount.accountMode || 'cent' }} / {{ centAccount.accountCurrencyUnit || 'USC' }}</strong
+          >
+          <p>
+            加速 {{ centAccount.centAccountAcceleration ? '开启' : '关闭' }}；最大
+            {{ centAccount.maxLot ?? 2 }} 是上限，不是固定仓位。
+          </p>
         </article>
       </div>
       <p class="qg-usdjpy-evolution__note">
@@ -563,7 +545,10 @@
       </p>
     </section>
 
-    <details class="qg-usdjpy-evolution__list" @toggle="revealDeepEvidencePanels">
+    <details
+      class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--deep-evidence"
+      @toggle="revealDeepEvidencePanels"
+    >
       <summary>深度证据面板</summary>
       <template v-if="deepEvidencePanelsVisible">
         <USDJPYCaseMemoryPanel
@@ -996,7 +981,15 @@
           </p>
         </article>
         <article>
-          <span>生产历史样本</span>
+          <span>真实 K线入库</span>
+          <strong>{{ h1BarCount }} 根 H1</strong>
+          <p>
+            M15 {{ klineCounts.M15 || 0 }} / H4 {{ klineCounts.H4 || 0 }} / D1
+            {{ klineCounts.D1 || 0 }}；只同步 USDJPY。
+          </p>
+        </article>
+        <article>
+          <span>遗传进化历史样本</span>
           <strong>{{ historyProductionStatusZh }}</strong>
           <p>{{ historyProductionSummaryZh }}</p>
         </article>
@@ -1047,11 +1040,14 @@
       </div>
     </section>
 
-    <section v-if="strategyContractPayload" class="qg-usdjpy-evolution__list">
+    <section
+      v-if="strategyContractPayload"
+      class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--strategy-contract"
+    >
       <div class="qg-usdjpy-evolution__section-head">
         <div>
           <h3>策略契约 → EA 只读契约</h3>
-          <p>EA 只读策略契约候选，在模拟、测试器和实盘行情干跑车道按同一契约评估。</p>
+          <p>EA 只读策略契约候选，在模拟、测试器和实盘行情干跑车道按同一契约做只读评估。</p>
         </div>
         <strong>{{ strategyContractStatusZh }}</strong>
       </div>
@@ -1084,7 +1080,10 @@
       </article>
     </section>
 
-    <section v-if="candidateItems.length" class="qg-usdjpy-evolution__list">
+    <section
+      v-if="candidateItems.length"
+      class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--candidates"
+    >
       <h3>下一轮 tester-only 参数候选</h3>
       <article v-for="item in candidateItems.slice(0, 4)" :key="item.param">
         <strong>{{ item.param }}</strong>
@@ -1094,17 +1093,17 @@
         <p>风险变化：{{ item.riskDelta || '未知，禁止直接改实盘' }}</p>
       </article>
     </section>
+    <details
+      class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--production"
+      @toggle="revealProductionPanels"
+    >
+      <summary>生产证据验证</summary>
+      <template v-if="productionPanelsVisible">
+        <ProductionEvidenceValidationPanel />
+        <GAMultiGenerationStabilityCard />
+      </template>
+    </details>
   </section>
-  <details
-    class="qg-usdjpy-evolution__list qg-usdjpy-evolution__list--production"
-    @toggle="revealProductionPanels"
-  >
-    <summary>生产证据验证</summary>
-    <template v-if="productionPanelsVisible">
-      <ProductionEvidenceValidationPanel />
-      <GAMultiGenerationStabilityCard />
-    </template>
-  </details>
 </template>
 
 <script setup>
@@ -2482,19 +2481,37 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .qg-usdjpy-evolution {
-  border: 1px solid rgba(80, 171, 255, 0.35);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(9, 30, 54, 0.94), rgba(6, 14, 28, 0.98)), rgba(6, 14, 28, 0.98);
-  padding: 20px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  border: 1px solid rgba(80, 171, 255, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(10, 35, 58, 0.72), rgba(10, 16, 28, 0.92) 38%, rgba(12, 20, 25, 0.94)),
+    rgba(6, 14, 28, 0.98);
+  padding: clamp(14px, 1.8vw, 20px);
   color: #eaf2ff;
 }
 
+.qg-usdjpy-evolution > *,
+.qg-usdjpy-evolution__header > *,
+.qg-usdjpy-evolution__actions > *,
+.qg-usdjpy-evolution__primary-actions > *,
+.qg-usdjpy-evolution__more-actions > *,
+.qg-usdjpy-evolution__list > *,
+.qg-usdjpy-evolution__section-head > *,
+.qg-usdjpy-evolution__scenario-grid > *,
+.qg-usdjpy-evolution__mini-list > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .qg-usdjpy-evolution__header {
+  order: 1;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(280px, 520px);
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 460px);
   gap: 18px;
   align-items: start;
-  margin-bottom: 16px;
   border-bottom: 1px solid rgba(145, 170, 210, 0.16);
   padding-bottom: 16px;
 }
@@ -2510,6 +2527,7 @@ onBeforeUnmount(() => {
 .qg-usdjpy-evolution h3,
 .qg-usdjpy-evolution p {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .qg-usdjpy-evolution__header p:not(.qg-usdjpy-evolution__eyebrow) {
@@ -2519,14 +2537,20 @@ onBeforeUnmount(() => {
 
 .qg-usdjpy-evolution__actions {
   display: grid;
+  gap: 10px;
+  align-self: start;
+}
+
+.qg-usdjpy-evolution__primary-actions,
+.qg-usdjpy-evolution__more-actions div {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  align-self: start;
 }
 
 .qg-usdjpy-evolution button {
   border: 1px solid rgba(126, 203, 255, 0.45);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(12, 39, 66, 0.9);
   color: #dff2ff;
   min-height: 38px;
@@ -2536,12 +2560,34 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
+.qg-usdjpy-evolution__button--primary {
+  border-color: rgba(103, 232, 149, 0.5) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(14, 116, 144, 0.24)) !important;
+  color: #edfff8 !important;
+}
+
+.qg-usdjpy-evolution__more-actions {
+  min-width: 0;
+}
+
+.qg-usdjpy-evolution__more-actions summary,
+.qg-usdjpy-evolution__list summary {
+  cursor: pointer;
+  color: #bfe7ff;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.qg-usdjpy-evolution__more-actions div {
+  margin-top: 8px;
+}
+
 .qg-usdjpy-evolution__action-result {
+  order: 2;
   border: 1px solid rgba(126, 203, 255, 0.35);
-  border-radius: 14px;
+  border-radius: 8px;
   background: rgba(7, 22, 38, 0.86);
   padding: 12px 14px;
-  margin: 0 0 16px;
 }
 
 .qg-usdjpy-evolution__action-result div {
@@ -2579,6 +2625,7 @@ onBeforeUnmount(() => {
 }
 
 .qg-usdjpy-evolution__grid {
+  order: 3;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
@@ -2587,11 +2634,16 @@ onBeforeUnmount(() => {
 .qg-usdjpy-evolution__card,
 .qg-usdjpy-evolution__list article {
   border: 1px solid rgba(145, 170, 210, 0.22);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(6, 18, 34, 0.7);
   padding: 13px;
   min-width: 0;
   overflow: hidden;
+}
+
+.qg-usdjpy-evolution__card--featured {
+  border-color: rgba(103, 232, 149, 0.34);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 18, 34, 0.72));
 }
 
 .qg-usdjpy-evolution__card span {
@@ -2634,9 +2686,121 @@ onBeforeUnmount(() => {
 }
 
 .qg-usdjpy-evolution__list {
-  margin-top: 18px;
+  margin-top: 0;
   display: grid;
   gap: 10px;
+  border: 1px solid rgba(145, 170, 210, 0.16);
+  border-radius: 8px;
+  padding: 14px;
+  overflow: hidden;
+  background: rgba(5, 14, 27, 0.48);
+}
+
+.qg-usdjpy-evolution__chapter-label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+  margin-top: 8px;
+  border-top: 1px solid rgba(145, 170, 210, 0.2);
+  padding-top: 16px;
+}
+
+.qg-usdjpy-evolution__chapter-label > span {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(126, 203, 255, 0.3);
+  border-radius: 8px;
+  color: #dff2ff;
+  background: rgba(13, 42, 66, 0.68);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.qg-usdjpy-evolution__chapter-label strong {
+  display: block;
+  color: #f8fbff;
+  font-size: 16px;
+}
+
+.qg-usdjpy-evolution__chapter-label p {
+  margin-top: 3px;
+  color: #9fb0c8;
+}
+
+.qg-usdjpy-evolution__chapter-label--learning {
+  order: 10;
+}
+
+.qg-usdjpy-evolution__list--causal {
+  order: 11;
+}
+
+.qg-usdjpy-evolution__list--news {
+  order: 12;
+}
+
+.qg-usdjpy-evolution__list--scenarios {
+  order: 13;
+}
+
+.qg-usdjpy-evolution__list--walk-forward {
+  order: 14;
+}
+
+.qg-usdjpy-evolution__list--candidates {
+  order: 15;
+}
+
+.qg-usdjpy-evolution__chapter-label--safety {
+  order: 20;
+}
+
+.qg-usdjpy-evolution__list--lanes {
+  order: 21;
+}
+
+.qg-usdjpy-evolution__list--agent {
+  order: 22;
+}
+
+.qg-usdjpy-evolution__list--daily {
+  order: 23;
+}
+
+.qg-usdjpy-evolution__chapter-label--ga {
+  order: 30;
+}
+
+.qg-usdjpy-evolution__list--ga {
+  order: 31;
+}
+
+.qg-usdjpy-evolution__list--strategy-backtest {
+  order: 32;
+}
+
+.qg-usdjpy-evolution__list--strategy-contract {
+  order: 33;
+}
+
+.qg-usdjpy-evolution__chapter-label--execution {
+  order: 40;
+}
+
+.qg-usdjpy-evolution__list--evidence-os {
+  order: 41;
+}
+
+.qg-usdjpy-evolution__list--deep-evidence {
+  order: 42;
+}
+
+.qg-usdjpy-evolution__list--production {
+  order: 43;
 }
 
 .qg-usdjpy-evolution__section-head {
@@ -2648,9 +2812,10 @@ onBeforeUnmount(() => {
 
 .qg-usdjpy-evolution__section-head > strong {
   border: 1px solid rgba(126, 203, 255, 0.35);
-  border-radius: 999px;
+  border-radius: 8px;
   color: #bfe7ff;
   padding: 8px 12px;
+  overflow-wrap: anywhere;
   white-space: nowrap;
 }
 
@@ -2700,7 +2865,7 @@ onBeforeUnmount(() => {
 .qg-usdjpy-evolution__table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(145, 170, 210, 0.22);
-  border-radius: 14px;
+  border-radius: 8px;
 }
 
 .qg-usdjpy-evolution__table {
@@ -2740,7 +2905,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 10px;
   border: 1px solid rgba(126, 203, 255, 0.3);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 14px;
   background: rgba(2, 11, 24, 0.55);
 }
@@ -2748,7 +2913,7 @@ onBeforeUnmount(() => {
 .qg-usdjpy-evolution__seed-detail-state {
   padding: 10px 12px;
   border: 1px solid rgba(126, 203, 255, 0.24);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(14, 42, 72, 0.34);
 }
 
@@ -2762,7 +2927,7 @@ onBeforeUnmount(() => {
 .qg-usdjpy-evolution__evidence-chain article {
   padding: 12px;
   border: 1px solid rgba(145, 170, 210, 0.18);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(10, 25, 48, 0.68);
 }
 
@@ -2770,7 +2935,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 72px;
   margin: 8px 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: linear-gradient(180deg, rgba(5, 15, 31, 0.96), rgba(9, 26, 48, 0.8));
 }
 
@@ -2787,7 +2952,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   padding: 14px;
   border: 1px solid rgba(250, 204, 21, 0.48);
-  border-radius: 12px;
+  border-radius: 8px;
   background: linear-gradient(135deg, rgba(44, 33, 9, 0.5), rgba(8, 18, 35, 0.62));
 }
 
@@ -2817,7 +2982,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 11px 12px 11px 18px;
   border: 1px solid rgba(88, 116, 158, 0.72);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(9, 19, 37, 0.76);
 }
 
@@ -2871,7 +3036,7 @@ onBeforeUnmount(() => {
   gap: 14px;
   padding: 14px;
   border: 1px solid rgba(72, 101, 145, 0.65);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(8, 16, 32, 0.42);
 }
 
@@ -2902,7 +3067,7 @@ onBeforeUnmount(() => {
   min-height: 34px;
   padding: 7px 10px;
   border: 1px solid rgba(83, 180, 255, 0.7);
-  border-radius: 999px;
+  border-radius: 8px;
   background: rgba(18, 61, 97, 0.42);
   color: #e8f3ff;
   font-size: 0.74rem;
@@ -2924,7 +3089,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 10px;
   border: 1px solid rgba(55, 84, 126, 0.7);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(10, 20, 39, 0.72);
 }
 
@@ -2938,7 +3103,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 9px 10px;
   border: 1px solid rgba(69, 100, 145, 0.8);
-  border-radius: 9px;
+  border-radius: 8px;
   background: rgba(16, 28, 51, 0.82);
 }
 
@@ -2985,7 +3150,7 @@ onBeforeUnmount(() => {
 .qg-usdjpy-evolution__lineage-edges article {
   padding: 9px 10px;
   border: 1px solid rgba(55, 84, 126, 0.6);
-  border-radius: 9px;
+  border-radius: 8px;
   background: rgba(8, 16, 32, 0.58);
 }
 
@@ -3038,7 +3203,7 @@ onBeforeUnmount(() => {
   overflow: auto;
   margin: 0;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.32);
   color: #bfe7ff;
   font-size: 12px;
@@ -3050,8 +3215,9 @@ onBeforeUnmount(() => {
 }
 
 .qg-usdjpy-evolution__state {
+  order: 3;
   border: 1px solid rgba(145, 170, 210, 0.22);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 18px;
   color: #aebbd0;
 }
@@ -3065,6 +3231,11 @@ onBeforeUnmount(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .qg-usdjpy-evolution__primary-actions,
+  .qg-usdjpy-evolution__more-actions div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .qg-usdjpy-evolution__seed-audit-grid {
     grid-template-columns: 1fr;
   }
@@ -3075,9 +3246,24 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
-  .qg-usdjpy-evolution__actions,
-  .qg-usdjpy-evolution__grid {
+  .qg-usdjpy-evolution__primary-actions,
+  .qg-usdjpy-evolution__more-actions div,
+  .qg-usdjpy-evolution__grid,
+  .qg-usdjpy-evolution__scenario-grid,
+  .qg-usdjpy-evolution__mini-list,
+  .qg-usdjpy-evolution__ga-timeline,
+  .qg-usdjpy-evolution__seed-metrics,
+  .qg-usdjpy-evolution__evidence-chain {
     grid-template-columns: 1fr;
+  }
+
+  .qg-usdjpy-evolution__section-head,
+  .qg-usdjpy-evolution__lineage-tree-head {
+    display: grid;
+  }
+
+  .qg-usdjpy-evolution__section-head > strong {
+    white-space: normal;
   }
 }
 </style>

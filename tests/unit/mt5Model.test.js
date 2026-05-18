@@ -385,7 +385,41 @@ describe('mt5Model ledgers', () => {
     expect(items.find((item) => item.label === '执行反馈晋级门')?.value).toBe('执行反馈阻断晋级');
     expect(items.find((item) => item.label === '执行阻断 / 警告')?.value).toContain('滑点损伤');
     expect(items.find((item) => item.label === '当前最大 Case')?.value).toBe('USDJPY-SLIPPAGE-001');
+    expect(items.find((item) => item.label === '当前最大 Case')?.status).toBe('warn');
     expect(items.find((item) => item.label === '下一代 GA 修复方向')?.value).toBe('降低滑点损伤');
+    expect(items.find((item) => item.label === '下一代 GA 修复方向')?.status).toBe('warn');
+  });
+
+  it('does not color research-only GA seed hints as live execution warnings', () => {
+    const snapshot = normalizeMt5Snapshot({
+      evidenceOS: {
+        executionFeedback: {
+          promotionGate: {
+            status: 'WATCH',
+            warnings: [{ code: 'SPREAD_AT_ENTRY', reasonZh: '入场点差异常，需要继续观察' }],
+          },
+        },
+        caseMemory: {
+          caseMemoryToGA: { queuedHintCount: 1 },
+          gaSeedHints: [
+            {
+              caseId: 'USDJPY-BAD_ENTRY-001',
+              caseType: 'BAD_ENTRY',
+              priority: 'MEDIUM',
+              mutationHint: 'reject_unstable_seed',
+              reasonZh: '候选在 forward 或最大不利波动上不稳定',
+            },
+          ],
+        },
+      },
+    });
+
+    const items = buildMt5EvidenceOsLiteItems(snapshot);
+
+    expect(items.find((item) => item.label === '执行阻断 / 警告')?.status).toBe('warn');
+    expect(items.find((item) => item.label === '当前最大 Case')?.status).toBe('ok');
+    expect(items.find((item) => item.label === '下一代 GA 修复方向')?.value).toBe('剔除不稳定候选');
+    expect(items.find((item) => item.label === '下一代 GA 修复方向')?.status).toBe('ok');
   });
 
   it('hides stale daily review rows instead of showing old EURUSD tasks', () => {

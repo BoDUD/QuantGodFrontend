@@ -9,13 +9,64 @@
   >
     <div class="qg-readonly-banner">
       <StatusPill
-        :status="snapshot.eaTradeReady ? 'ok' : 'warn'"
-        :label="snapshot.eaTradeReady ? 'EA交易权限已打开' : 'EA守门仍在等待'"
+        :status="snapshot.dualAccountAutoEnabled ? 'ok' : 'warn'"
+        :label="snapshot.dualAccountAutoEnabled ? '双账号EA已开启' : '仍有账号等待EA权限'"
       />
       <span
-        >前端数据桥保持只读，不会发单；当前 RSI 实盘路线会在 MT5 EA 的
-        session、新闻、点差、熔断和单仓风控全部通过时自行评估。</span
+        >前端数据桥保持只读，不会发单；两个 MT5 终端是否真正入场仍以各自 EA 的
+        session、新闻、点差、熔断、启动保护和单仓风控为准。</span
       >
+    </div>
+
+    <section class="qg-mt5-dual-accounts" aria-label="MT5 双账号 EA 状态">
+      <header class="qg-mt5-dual-accounts__header">
+        <div>
+          <p class="qg-eyebrow">Dual MT5 Runtime</p>
+          <h2>双账号 EA 运行概览</h2>
+        </div>
+        <StatusPill
+          :status="snapshot.dualAccountEntryReady ? 'ok' : snapshot.dualAccountAutoEnabled ? 'warn' : 'error'"
+          :label="
+            snapshot.dualAccountEntryReady
+              ? '双账号可入场'
+              : snapshot.dualAccountAutoEnabled
+                ? '双账号EA已开，等待守门'
+                : '双账号EA未完全开启'
+          "
+        />
+      </header>
+      <div class="qg-mt5-account-cards">
+        <article v-for="account in mt5AccountCards" :key="account.role" class="qg-mt5-account-card">
+          <div class="qg-mt5-account-card__header">
+            <div>
+              <p class="qg-eyebrow">{{ account.eyebrow }}</p>
+              <h3>{{ account.title }}</h3>
+              <p>{{ account.subtitle }}</p>
+            </div>
+            <StatusPill :status="account.status" :label="account.statusLabel" />
+          </div>
+          <KeyValueList :items="account.items" />
+          <p class="qg-section-note">{{ account.note }}</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="qg-domain-grid qg-domain-grid--two">
+      <section class="qg-section-card qg-section-card--operator">
+        <header>
+          <p class="qg-eyebrow">账号连接矩阵</p>
+          <h2>当前连接与双账号登记</h2>
+        </header>
+        <KeyValueList :items="connectionItems" />
+        <p class="qg-section-note">这里显示的是只读证据；EA 自动交易是否可入场仍以各终端守门状态为准。</p>
+      </section>
+
+      <LedgerTable
+        title="MT5 账号 Profiles"
+        :rows="accountProfileRows"
+        :limit="8"
+        class="qg-ledger-table--important qg-ledger-table--mt5-fit"
+      />
     </div>
 
     <MetricGrid :items="metrics" />
@@ -89,7 +140,7 @@
       </p>
     </section>
 
-    <div class="qg-domain-grid qg-domain-grid--two">
+    <div class="qg-domain-grid qg-domain-grid--account-snapshots">
       <section class="qg-section-card">
         <header>
           <p class="qg-eyebrow">交易边界</p>
@@ -100,10 +151,18 @@
 
       <section class="qg-section-card">
         <header>
-          <p class="qg-eyebrow">账户快照</p>
-          <h2>账户快照</h2>
+          <p class="qg-eyebrow">主账号快照</p>
+          <h2>主账号账户快照</h2>
         </header>
         <KeyValueList :items="accountItems" />
+      </section>
+
+      <section class="qg-section-card">
+        <header>
+          <p class="qg-eyebrow">第二账号快照</p>
+          <h2>第二账号账户快照</h2>
+        </header>
+        <KeyValueList :items="secondaryAccountItems" />
       </section>
     </div>
 
@@ -193,11 +252,26 @@
       <!-- Guard markers: Safety Envelope / Raw MT5 evidence. Visible copy stays Chinese and operator-facing. -->
       <div v-if="technicalEvidenceVisible" class="qg-domain-grid">
         <JsonPreview title="连接状态" source="/api/mt5-readonly/status" :payload="state.status" />
+        <JsonPreview
+          title="账号 Profiles"
+          source="/api/mt5/account-profiles"
+          :payload="state.accountProfiles"
+        />
         <JsonPreview title="账户信息" source="/api/mt5-readonly/account" :payload="state.account" />
+        <JsonPreview
+          title="第二账号信息"
+          source="/api/mt5-readonly-secondary/account"
+          :payload="state.secondaryAccount"
+        />
         <JsonPreview title="实时持仓" source="/api/mt5-readonly/positions" :payload="state.positions" />
         <JsonPreview title="挂单状态" source="/api/mt5-readonly/orders" :payload="state.orders" />
         <JsonPreview title="品种登记" source="/api/mt5-symbol-registry/symbols" :payload="state.symbols" />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.snapshot" />
+        <JsonPreview
+          title="第二 MT5 快照"
+          source="/api/mt5-readonly-secondary/snapshot"
+          :payload="state.secondarySnapshot"
+        />
         <JsonPreview title="每日复盘" source="/api/daily-review" :payload="state.dailyReview" />
       </div>
     </details>
@@ -217,6 +291,9 @@ import EndpointHealthGrid from '../shared/EndpointHealthGrid.vue';
 import StatusPill from '../shared/StatusPill.vue';
 import {
   buildAccountItems,
+  buildMt5AccountCards,
+  buildMt5AccountProfileRows,
+  buildMt5ConnectionItems,
   buildEndpointHealth,
   buildMt5Metrics,
   buildMt5ShadowBlockerRows,
@@ -236,6 +313,7 @@ import {
   buildMt5ExecutionFeedbackRows,
   buildRsiEntryDiagnosticRows,
   buildSafetyItems,
+  buildSecondaryAccountItems,
   buildSymbolRows,
   buildUsdJpyLiveLoopItems,
   normalizeMt5Snapshot,
@@ -253,11 +331,14 @@ const klineLoaded = ref(false);
 const technicalEvidenceVisible = ref(false);
 const state = shallowReactive({
   status: null,
+  accountProfiles: null,
   account: null,
+  secondaryAccount: null,
   positions: null,
   orders: null,
   symbols: null,
   snapshot: null,
+  secondarySnapshot: null,
   latest: null,
   closeHistory: [],
   tradeJournal: [],
@@ -280,7 +361,11 @@ const endpointHealth = computed(() => buildEndpointHealth(state));
 const safetyItems = computed(() => buildSafetyItems(snapshot.value));
 const simulationItems = computed(() => buildMt5SimulationItems(snapshot.value));
 const shadowMetrics = computed(() => shadowSummary.value.metrics);
+const connectionItems = computed(() => buildMt5ConnectionItems(snapshot.value));
+const accountProfileRows = computed(() => buildMt5AccountProfileRows(snapshot.value));
+const mt5AccountCards = computed(() => buildMt5AccountCards(snapshot.value));
 const accountItems = computed(() => buildAccountItems(snapshot.value));
+const secondaryAccountItems = computed(() => buildSecondaryAccountItems(snapshot.value));
 const positionRows = computed(() => buildPositionRows(snapshot.value));
 const orderRows = computed(() => buildOrderRows(snapshot.value));
 const symbolRows = computed(() => buildSymbolRows(snapshot.value));

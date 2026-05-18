@@ -60,7 +60,16 @@ export async function loadMt5Workspace(options = {}) {
   const result = await loadNamedEntries(
     [
       ['status', (requestOptions) => fetchJson('/api/mt5-readonly/status', null, requestOptions)],
+      ['accountProfiles', (requestOptions) => fetchJson('/api/mt5/account-profiles', null, requestOptions)],
       ['account', (requestOptions) => fetchJson('/api/mt5-readonly/account', null, requestOptions)],
+      [
+        'secondaryAccount',
+        (requestOptions) =>
+          fetchJson('/api/mt5-readonly-secondary/account', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
       [
         'positions',
         (requestOptions) => fetchJson(`/api/mt5-readonly/positions${symbolQuery}`, null, requestOptions),
@@ -73,6 +82,14 @@ export async function loadMt5Workspace(options = {}) {
       [
         'snapshot',
         (requestOptions) => fetchJson(`/api/mt5-readonly/snapshot${symbolQuery}`, null, requestOptions),
+      ],
+      [
+        'secondarySnapshot',
+        (requestOptions) =>
+          fetchJson(`/api/mt5-readonly-secondary/snapshot${symbolQuery}`, null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
       ],
       ['latest', (requestOptions) => fetchJson('/api/latest', null, requestOptions)],
       [
@@ -139,11 +156,14 @@ export async function loadMt5Workspace(options = {}) {
       [
         'evidenceExecutionFeedback',
         (requestOptions) =>
-          fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback', null, requestOptions),
+          fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback', null, {
+            ...requestOptions,
+            timeoutMs: 3000,
+          }),
       ],
     ],
     options,
-    5,
+    8,
   );
   const mergedEvidenceOS = {
     ...(result.evidenceOS || {}),

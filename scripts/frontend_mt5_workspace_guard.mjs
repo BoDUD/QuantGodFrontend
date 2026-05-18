@@ -40,6 +40,9 @@ function checkMt5Workspace(root) {
     'EndpointHealthGrid',
     'KeyValueList',
     'LedgerTable',
+    '账号连接矩阵',
+    'MT5 账号 Profiles',
+    '第二账号信息',
     'RSI 入场诊断',
     '执行反馈与下一代修复',
     'StatusPill',
@@ -80,6 +83,8 @@ function checkMt5Model(root) {
     'buildMt5Metrics',
     'buildSafetyItems',
     'buildAccountItems',
+    'buildMt5ConnectionItems',
+    'buildMt5AccountProfileRows',
     'buildPositionRows',
     'buildOrderRows',
     'buildSymbolRows',
@@ -144,8 +149,16 @@ function checkDomainApi(root) {
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/status')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS status through API facade`);
   }
+  if (!text.includes('/api/mt5/account-profiles')) {
+    errors.push(`${rel(root, api)}: MT5 workspace must load account profile registry through API facade`);
+  }
+  if (!text.includes('/api/mt5-readonly-secondary/account')) {
+    errors.push(`${rel(root, api)}: MT5 workspace must load secondary MT5 account status through API facade`);
+  }
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/parity')) {
-    errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS deep parity through API facade`);
+    errors.push(
+      `${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS deep parity through API facade`,
+    );
   }
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/execution-feedback')) {
     errors.push(

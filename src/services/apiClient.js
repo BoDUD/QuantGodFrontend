@@ -1,4 +1,4 @@
-const VITE_ENV = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+const VITE_ENV = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
 
 export const DEFAULT_TIMEOUT_MS = Number(VITE_ENV.VITE_QG_API_TIMEOUT_MS || 15000);
 export const API_BASE_URL = normalizeBaseUrl(VITE_ENV.VITE_QG_API_BASE_URL || '');
@@ -28,6 +28,31 @@ function asErrorPayload(error) {
   return {
     name: error.name || 'Error',
     message: error.message || String(error),
+  };
+}
+
+function requestAbortController(externalSignal, timeoutMs) {
+  const controller = new AbortController();
+  let timer = null;
+
+  const abort = () => controller.abort();
+  if (externalSignal?.aborted) {
+    abort();
+  } else if (externalSignal?.addEventListener) {
+    externalSignal.addEventListener('abort', abort, { once: true });
+  }
+  if (timeoutMs > 0) {
+    timer = setTimeout(abort, timeoutMs);
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup() {
+      if (timer) clearTimeout(timer);
+      if (externalSignal?.removeEventListener) {
+        externalSignal.removeEventListener('abort', abort);
+      }
+    },
   };
 }
 
@@ -84,8 +109,7 @@ export async function fetchApiJson(path, options = {}) {
   const endpoint = assertApiPath(path);
   const startedAtMs = nowMs();
   const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
-  const controller = new AbortController();
-  const timer = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const requestAbort = requestAbortController(options.signal, timeoutMs);
 
   try {
     const response = await fetch(makeApiUrl(endpoint), {
@@ -93,7 +117,7 @@ export async function fetchApiJson(path, options = {}) {
       headers: JSON_HEADERS,
       cache: 'no-store',
       ...options,
-      signal: options.signal || controller.signal,
+      signal: requestAbort.signal,
     });
     const data = await parseJsonSafe(response);
     return {
@@ -116,7 +140,7 @@ export async function fetchApiJson(path, options = {}) {
       durationMs: safeDuration(startedAtMs),
     };
   } finally {
-    if (timer) clearTimeout(timer);
+    requestAbort.cleanup();
   }
 }
 
@@ -124,8 +148,7 @@ export async function postApiJson(path, payload = {}, options = {}) {
   const endpoint = assertApiPath(path);
   const startedAtMs = nowMs();
   const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
-  const controller = new AbortController();
-  const timer = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const requestAbort = requestAbortController(options.signal, timeoutMs);
 
   try {
     const response = await fetch(makeApiUrl(endpoint), {
@@ -134,7 +157,7 @@ export async function postApiJson(path, payload = {}, options = {}) {
       cache: 'no-store',
       body: JSON.stringify(payload || {}),
       ...options,
-      signal: options.signal || controller.signal,
+      signal: requestAbort.signal,
     });
     const data = await parseJsonSafe(response);
     return {
@@ -157,7 +180,7 @@ export async function postApiJson(path, payload = {}, options = {}) {
       durationMs: safeDuration(startedAtMs),
     };
   } finally {
-    if (timer) clearTimeout(timer);
+    requestAbort.cleanup();
   }
 }
 
