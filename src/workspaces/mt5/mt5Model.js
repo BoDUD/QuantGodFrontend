@@ -2,6 +2,7 @@ import { formatCurrencyDisplay, formatDisplayValue, humanizeStatus } from '../..
 
 const FOCUS_SYMBOL = 'USDJPYc';
 const NON_FOCUS_SYMBOL_RE = /\b(EURUSD|EURUSDc|XAUUSD|XAUUSDc)\b/i;
+const SHADOW_SIGNAL_FRESH_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
@@ -1073,6 +1074,35 @@ function routeKey(row) {
   return pick(row, ['CandidateRoute', 'candidateRoute', 'Strategy', 'strategy'], '—');
 }
 
+function snapshotReferenceTimeMs(snapshot = {}) {
+  const candidates = [
+    snapshot.primaryConnection?.timestamp,
+    snapshot.secondaryConnection?.timestamp,
+    snapshot.runtime?.localTime,
+    snapshot.runtime?.serverTime,
+    snapshot.snapshot?.runtime?.localTime,
+    snapshot.snapshot?.runtime?.serverTime,
+    snapshot.latest?.generatedAtLocal,
+    snapshot.latest?.generatedAt,
+    snapshot.latest?.timestamp,
+  ];
+  for (const value of candidates) {
+    const parsed = parseMt5TimeMs(value);
+    if (parsed !== null) return parsed;
+  }
+  return Date.now();
+}
+
+function freshShadowSignalRows(snapshot = {}) {
+  const referenceTimeMs = snapshotReferenceTimeMs(snapshot);
+  const minTimeMs = referenceTimeMs - SHADOW_SIGNAL_FRESH_WINDOW_MS;
+  const maxFutureTimeMs = referenceTimeMs + 6 * 60 * 60 * 1000;
+  return focusSymbolRows(snapshot.shadowSignals).filter((row) => {
+    const timeMs = rowTimeMs(row, ['LabelTimeLocal', 'EventBarTime']);
+    return timeMs !== null && timeMs >= minTimeMs && timeMs <= maxFutureTimeMs;
+  });
+}
+
 export function buildMt5ShadowSummary(snapshot) {
   const candidateRows = bestOutcomeRows(
     focusSymbolRows(snapshot.shadowCandidateOutcomes),
@@ -1099,7 +1129,7 @@ export function buildMt5ShadowSummary(snapshot) {
     byRoute.set(key, bucket);
   });
   const blockers = new Map();
-  focusSymbolRows(snapshot.shadowSignals).forEach((row) => {
+  freshShadowSignalRows(snapshot).forEach((row) => {
     const blocker = humanizeStatus(
       pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'),
     );
@@ -1191,7 +1221,7 @@ export function buildMt5ShadowTradeRows(snapshot) {
 
 export function buildMt5ShadowBlockerRows(snapshot) {
   const counts = new Map();
-  focusSymbolRows(snapshot.shadowSignals).forEach((row) => {
+  freshShadowSignalRows(snapshot).forEach((row) => {
     const blocker = humanizeStatus(
       pick(row, ['Blocker', 'blocker', 'SignalStatus', 'signalStatus'], '未分类'),
     );

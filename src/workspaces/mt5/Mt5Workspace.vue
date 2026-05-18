@@ -222,7 +222,7 @@
         class="qg-ledger-table--mt5-focus"
       />
       <LedgerTable
-        title="模拟阻断原因"
+        title="近期模拟阻断原因"
         :rows="shadowBlockerRows"
         :limit="20"
         class="qg-ledger-table--mt5-focus"

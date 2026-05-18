@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCloseHistoryRows,
   buildMt5SimulationItems,
+  buildMt5ShadowBlockerRows,
   buildMt5ShadowEquityRows,
   buildMt5ShadowSummary,
   buildMt5ShadowTradeRows,
@@ -235,6 +236,11 @@ describe('mt5Model ledgers', () => {
 
   it('builds a readable MT5 shadow ledger with pips equity and trade rows', () => {
     const snapshot = normalizeMt5Snapshot({
+      snapshot: {
+        runtime: {
+          localTime: '2026.05.05 12:00',
+        },
+      },
       shadowSignals: {
         data: {
           rows: [
@@ -308,6 +314,36 @@ describe('mt5Model ledgers', () => {
     expect(trades).toHaveLength(1);
     expect(trades[0]).toMatchObject({ 品种: 'USDJPYc', 方向: '做多', 点数盈亏: '+8.5' });
     expect(equity[0]).toMatchObject({ 品种: 'USDJPYc', 模拟净值: '+8.5' });
+  });
+
+  it('hides stale shadow blocker rows from the current MT5 blocker table', () => {
+    const snapshot = normalizeMt5Snapshot({
+      snapshot: {
+        runtime: {
+          localTime: '2026.05.18 21:00',
+        },
+      },
+      shadowSignals: [
+        {
+          LabelTimeLocal: '2026.05.08 23:00:11',
+          Symbol: 'USDJPYc',
+          Strategy: 'MA_Cross',
+          Blocker: 'NEWS_BLOCK',
+        },
+        {
+          LabelTimeLocal: '2026.05.18 20:45:00',
+          Symbol: 'USDJPYc',
+          Strategy: 'RSI_Reversal',
+          Blocker: 'SPREAD_BLOCK',
+        },
+      ],
+    });
+
+    const rows = buildMt5ShadowBlockerRows(snapshot);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ 策略: 'RSI_Reversal', 最近时间: '2026.05.18 20:45:00' });
+    expect(JSON.stringify(rows)).not.toContain('2026.05.08');
   });
 
   it('keeps shadow builders USDJPY-only even when given raw unnormalized rows', () => {
