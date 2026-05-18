@@ -1046,8 +1046,8 @@
     >
       <div class="qg-usdjpy-evolution__section-head">
         <div>
-          <h3>策略契约 → EA 只读契约</h3>
-          <p>EA 只读策略契约候选，在模拟、测试器和实盘行情干跑车道按同一契约做只读评估。</p>
+          <h3>Strategy JSON → EA 契约</h3>
+          <p>策略契约 → EA 只读契约候选，在模拟、测试器和实盘行情干跑车道按同一契约做只读评估。</p>
         </div>
         <strong>{{ strategyContractStatusZh }}</strong>
       </div>
