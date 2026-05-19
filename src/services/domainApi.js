@@ -174,7 +174,7 @@ export async function loadMt5Workspace(options = {}) {
         (requestOptions) =>
           fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback', null, {
             ...requestOptions,
-            timeoutMs: 3000,
+            timeoutMs: 10000,
           }),
       ],
     ],

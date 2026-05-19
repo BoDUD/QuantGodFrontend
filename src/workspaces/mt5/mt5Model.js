@@ -113,6 +113,43 @@ function formatDiagnosticNumber(value, digits = 2) {
   return numeric.toFixed(digits);
 }
 
+function feedbackFieldPresent(row, field) {
+  const presence = row?.fieldPresence;
+  if (isObject(presence) && presence[field] === false) return false;
+  return true;
+}
+
+function feedbackPlaceholderZero(row, field, numeric) {
+  if (numeric !== 0) return false;
+  if (['expectedPrice', 'fillPrice'].includes(field)) return true;
+  const sourceTier = String(row?.sourceTier || '').toLowerCase();
+  const eventType = String(row?.eventType || '').toUpperCase();
+  if (
+    sourceTier === 'backfilled_history' &&
+    ['expectedPrice', 'slippagePips', 'latencyMs', 'spreadAtEntry'].includes(field)
+  ) {
+    return true;
+  }
+  if (
+    ['profitR', 'mfeR', 'maeR'].includes(field) &&
+    !eventType.includes('CLOSE') &&
+    !eventType.includes('OUTCOME') &&
+    !row?.exitReason
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function formatFeedbackNumber(row, field, digits = 2, suffix = '') {
+  if (!feedbackFieldPresent(row, field)) return '—';
+  const numeric = numberValue(row?.[field]);
+  if (numeric === null) return '—';
+  if (feedbackPlaceholderZero(row, field, numeric)) return '—';
+  const value = numeric.toFixed(digits);
+  return suffix ? `${value} ${suffix}` : value;
+}
+
 function formatLot(value) {
   const numeric = numberValue(value);
   if (numeric === null) return '—';
@@ -1502,15 +1539,15 @@ export function buildMt5ExecutionFeedbackRows(snapshot) {
     时间: row.fillTime || row.orderSendTime || row.entrySignalTime || row.createdAt || '—',
     策略: row.strategyId || 'RSI_Reversal',
     事件: humanizeStatus(row.eventType || row.source || 'OBSERVED'),
-    预期价: formatDiagnosticNumber(row.expectedPrice, 3),
-    成交价: formatDiagnosticNumber(row.fillPrice, 3),
-    滑点: `${formatDiagnosticNumber(row.slippagePips, 2)} pips`,
-    延迟: `${formatDiagnosticNumber(row.latencyMs, 0)} ms`,
-    点差: `${formatDiagnosticNumber(row.spreadAtEntry, 2)} pips`,
+    预期价: formatFeedbackNumber(row, 'expectedPrice', 3),
+    成交价: formatFeedbackNumber(row, 'fillPrice', 3),
+    滑点: formatFeedbackNumber(row, 'slippagePips', 2, 'pips'),
+    延迟: formatFeedbackNumber(row, 'latencyMs', 0, 'ms'),
+    点差: formatFeedbackNumber(row, 'spreadAtEntry', 2, 'pips'),
     出场: humanizeStatus(row.exitReason || row.rejectReason || '观察中'),
-    profitR: formatDiagnosticNumber(row.profitR, 2),
-    mfeR: formatDiagnosticNumber(row.mfeR, 2),
-    maeR: formatDiagnosticNumber(row.maeR, 2),
+    profitR: formatFeedbackNumber(row, 'profitR', 2),
+    mfeR: formatFeedbackNumber(row, 'mfeR', 2),
+    maeR: formatFeedbackNumber(row, 'maeR', 2),
     结论: row.rejectReason
       ? `拒单：${humanizeStatus(row.rejectReason)}`
       : row.exitReason

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCloseHistoryRows,
+  buildMt5ExecutionFeedbackRows,
   buildMt5SimulationItems,
   buildMt5ShadowBlockerRows,
   buildMt5ShadowEquityRows,
@@ -439,6 +440,93 @@ describe('mt5Model ledgers', () => {
     expect(items.find((item) => item.label === '当前最大 Case')?.status).toBe('warn');
     expect(items.find((item) => item.label === '下一代 GA 修复方向')?.value).toBe('降低滑点损伤');
     expect(items.find((item) => item.label === '下一代 GA 修复方向')?.status).toBe('warn');
+  });
+
+  it('shows missing execution feedback fields as unavailable instead of real zeroes', () => {
+    const snapshot = normalizeMt5Snapshot({
+      evidenceOS: {
+        executionFeedback: {
+          recentFeedback: [
+            {
+              fillTime: '2026.05.06 09:11',
+              eventType: 'LIVE_EXIT',
+              strategyId: 'RSI_Reversal',
+              sourceKind: 'close_history',
+              expectedPrice: 0,
+              fillPrice: 156.354,
+              slippagePips: 0,
+              spreadAtEntry: 0,
+              latencyMs: 0,
+              profitR: 0,
+              fieldPresence: {
+                expectedPrice: false,
+                fillPrice: true,
+                slippagePips: false,
+                spreadAtEntry: false,
+                latencyMs: false,
+                profitR: false,
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    const rows = buildMt5ExecutionFeedbackRows(snapshot);
+
+    expect(rows[0]).toMatchObject({
+      时间: '2026.05.06 09:11',
+      预期价: '—',
+      成交价: '156.354',
+      滑点: '—',
+      延迟: '—',
+      点差: '—',
+      profitR: '—',
+    });
+  });
+
+  it('keeps real outcome R while hiding unmeasured backfilled history zeroes', () => {
+    const snapshot = normalizeMt5Snapshot({
+      evidenceOS: {
+        executionFeedback: {
+          recentFeedback: [
+            {
+              fillTime: '2026.05.11 11:37:59',
+              eventType: 'ORDER_CLOSE',
+              strategyId: 'RSI_Reversal',
+              sourceKind: 'live_feedback_history',
+              sourceTier: 'backfilled_history',
+              expectedPrice: 0,
+              fillPrice: 156.936,
+              slippagePips: 0,
+              spreadAtEntry: 0,
+              latencyMs: 0,
+              exitReason: 'HISTORY_EXIT',
+              profitR: -0.0443,
+              fieldPresence: {
+                expectedPrice: true,
+                fillPrice: true,
+                slippagePips: true,
+                spreadAtEntry: true,
+                latencyMs: true,
+                profitR: true,
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    const rows = buildMt5ExecutionFeedbackRows(snapshot);
+
+    expect(rows[0]).toMatchObject({
+      预期价: '—',
+      成交价: '156.936',
+      滑点: '—',
+      延迟: '—',
+      点差: '—',
+      profitR: '-0.04',
+    });
   });
 
   it('does not color research-only GA seed hints as live execution warnings', () => {
