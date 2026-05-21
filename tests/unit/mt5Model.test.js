@@ -11,6 +11,7 @@ import {
   buildMt5EvidenceOsLiteItems,
   buildMt5TodoRows,
   buildMt5ReviewRows,
+  buildUsdJpyLiveLoopItems,
   buildTradeJournalRows,
   buildUnclosedEntryRows,
   normalizeMt5Snapshot,
@@ -440,6 +441,47 @@ describe('mt5Model ledgers', () => {
     expect(items.find((item) => item.label === '当前最大 Case')?.status).toBe('warn');
     expect(items.find((item) => item.label === '下一代 GA 修复方向')?.value).toBe('降低滑点损伤');
     expect(items.find((item) => item.label === '下一代 GA 修复方向')?.status).toBe('warn');
+  });
+
+  it('surfaces the actual live-loop blocker instead of positive context text', () => {
+    const snapshot = normalizeMt5Snapshot({
+      usdJpyLiveLoop: {
+        state: 'POLICY_BLOCKED',
+        stateZh: '政策仍阻断，EA 不应自动入场',
+        policyReady: false,
+        topPolicy: {
+          strategy: 'RSI_Reversal',
+          direction: 'LONG',
+          entryMode: 'BLOCKED',
+          allowed: false,
+          recommendedLot: 0,
+          maxLot: 2,
+          entryStrictness: 'BLOCKED_HIGH_IMPACT_NEWS',
+          reasons: [
+            '近期样本为正，可进入 USDJPY 策略候选',
+            '运行快照通过',
+            '高冲击新闻窗口：Tracking next USDJPY event in 77m，暂停 live，shadow / replay 继续。',
+          ],
+          newsGate: {
+            hardBlock: true,
+            riskLevel: 'HARD',
+            lotMultiplier: 0,
+            reasonZh:
+              '高冲击新闻窗口：Tracking next USDJPY event: philadelphia-fed-manufacturing-index in 77m，暂停 live，shadow / replay 继续。',
+          },
+        },
+        dryRunDecision: {
+          decisionZh: '阻断',
+          reason: '高冲击新闻窗口内暂停 live。',
+        },
+      },
+    });
+
+    const items = buildUsdJpyLiveLoopItems(snapshot);
+
+    expect(items.find((item) => item.label === '主阻断原因')?.value).toContain('高冲击新闻窗口');
+    expect(items.find((item) => item.label === '主阻断原因')?.value).not.toContain('近期样本为正');
+    expect(items.find((item) => item.label === 'EA 干跑状态')?.status).toBe('warn');
   });
 
   it('shows missing execution feedback fields as unavailable instead of real zeroes', () => {

@@ -294,6 +294,52 @@ function liveLoopStatusTone(value) {
   return 'warn';
 }
 
+function dryRunDecisionTone(value) {
+  const text = String(value || '').toUpperCase();
+  if (text.includes('BLOCK') || text.includes('阻断') || text.includes('暂停')) return 'warn';
+  if (text.includes('PASS') || text.includes('ALLOW') || text.includes('通过') || text.includes('放行')) {
+    return 'ok';
+  }
+  if (text.includes('WAIT') || text.includes('等待')) return 'warn';
+  return value ? 'warn' : 'unknown';
+}
+
+function reasonText(row) {
+  if (isObject(row)) {
+    return row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row);
+  }
+  return humanizeStatus(row);
+}
+
+function isBlockingReason(value) {
+  const text = String(value || '');
+  const upper = text.toUpperCase();
+  if (!text) return false;
+  if (/不阻断|无阻断|未报告阻断|不再挡|通过|为正|可进入|可用/.test(text)) return false;
+  return (
+    /高冲击|新闻窗口|暂停\s*live|点差|超过|缺少|样本不足|禁止|阻断|熔断|冷却/.test(text) ||
+    upper.includes('BLOCK') ||
+    upper.includes('HARD')
+  );
+}
+
+function newsGateBlockerText(...newsGates) {
+  const gate = newsGates.find((item) => isObject(item) && Object.keys(item).length);
+  if (!gate) return '';
+  const hardBlock =
+    gate.hardBlock === true ||
+    String(gate.riskLevel || '').toUpperCase() === 'HARD' ||
+    Number(gate.lotMultiplier) === 0;
+  if (!hardBlock) return '';
+  return (
+    gate.reasonZh ||
+    gate.reason ||
+    gate.highImpactEvent?.reason ||
+    gate.highImpactEvent?.eventLabel ||
+    '高冲击新闻窗口内暂停 live，shadow / replay 继续。'
+  );
+}
+
 function evidenceGateTone(value) {
   const text = String(value || '').toUpperCase();
   if (text.includes('PASS') || text.includes('ALLOW') || text.includes('READY')) return 'ok';
@@ -1309,30 +1355,25 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
   const entryMode = entryModeZh(topLive.entryMode || topLive.mode || topLive.decision);
   const recommendedLot = topLive.recommendedLot ?? topLive.lot ?? status.recommendedLot;
   const maxLot = topLive.maxLot ?? status.maxLot ?? status.autoMaxLot;
+  const newsBlocker = newsGateBlockerText(topLive.newsGate, status.newsGate, status.policy?.newsGate);
+  const blockingReasons = reasons.map(reasonText).filter(isBlockingReason);
   const blockerText = blockers.length
-    ? blockers
-        .slice(0, 2)
-        .map((row) => row.reasonZh || row.reason || row.code || row.label || humanizeStatus(row))
-        .join('；')
+    ? blockers.slice(0, 2).map(reasonText).join('；')
     : status.primaryBlocker ||
       status.mainBlocker ||
-      (shouldSurfaceReasons && reasons.length
-        ? reasons
-            .slice(0, 2)
-            .map(
-              (row) =>
-                row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row),
-            )
-            .join('；')
-        : '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估');
-  const reasonText = reasons.length
+      newsBlocker ||
+      (blockingReasons.length
+        ? blockingReasons.slice(0, 2).join('；')
+        : shouldSurfaceReasons
+          ? humanizeStatus(topLive.entryStrictness || state || 'POLICY_BLOCKED')
+          : '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估');
+  const reasonSummary = reasons.length
     ? reasons
         .slice(0, 2)
-        .map(
-          (row) => row.reasonZh || row.reason || row.detail || row.code || row.label || humanizeStatus(row),
-        )
+        .map((row) => reasonText(row))
         .join('；')
     : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
+  const dryRunDecision = dryRun.decisionZh || dryRun.decision || status.dryRunStateZh;
 
   return [
     {
@@ -1345,7 +1386,7 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
       label: '实盘候选策略',
       value: `${liveStrategy}｜${liveDirection}｜${entryMode}`,
       status: hasLivePolicy ? 'ok' : 'warn',
-      hint: reasonText,
+      hint: reasonSummary,
     },
     {
       label: '建议策略仓位',
@@ -1361,8 +1402,8 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
     },
     {
       label: 'EA 干跑状态',
-      value: dryRun.decisionZh || dryRun.decision || status.dryRunStateZh || '等待 EA 干跑同步',
-      status: dryRun.decision || status.dryRunStateZh ? 'ok' : 'warn',
+      value: dryRunDecision || '等待 EA 干跑同步',
+      status: dryRunDecisionTone(dryRunDecision),
       hint:
         dryRun.reason ||
         dryRun.summary ||
