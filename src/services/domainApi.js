@@ -272,12 +272,31 @@ export async function loadPolymarketWorkspace(query = {}, options = {}) {
         (requestOptions) => fetchJson(`/api/polymarket/radar${params({ limit })}`, null, requestOptions),
       ],
       ['worker', (requestOptions) => fetchJson('/api/polymarket/radar-worker', null, requestOptions)],
+      [
+        'candidateQueue',
+        (requestOptions) => fetchJson('/api/polymarket/candidate-queue', null, requestOptions),
+      ],
       ['aiScore', (requestOptions) => fetchJson('/api/polymarket/ai-score', null, requestOptions)],
+      [
+        'dryRunOrders',
+        (requestOptions) => fetchJson('/api/polymarket/dry-run-orders', null, requestOptions),
+      ],
+      [
+        'outcomeWatcher',
+        (requestOptions) => fetchJson('/api/polymarket/outcome-watcher', null, requestOptions),
+      ],
+      [
+        'executionGate',
+        (requestOptions) => fetchJson('/api/polymarket/execution-gate', null, requestOptions),
+      ],
       [
         'history',
         (requestOptions) =>
           fetchJson(`/api/polymarket/history${params({ table: 'all', limit })}`, null, requestOptions),
       ],
+      ['historyDb', (requestOptions) => fetchJson('/api/polymarket/history-db', null, requestOptions)],
+      ['research', (requestOptions) => fetchJson('/api/polymarket/research', null, requestOptions)],
+      ['retunePlanner', (requestOptions) => fetchJson('/api/polymarket/retune-planner', null, requestOptions)],
       [
         'autoGovernance',
         (requestOptions) => fetchJson('/api/polymarket/auto-governance', null, requestOptions),
@@ -316,6 +335,15 @@ export async function loadPolymarketWorkspace(query = {}, options = {}) {
         'autoGovernanceLedger',
         (requestOptions) =>
           fetchRows(`/api/polymarket/auto-governance-ledger${params({ limit: 80 })}`, requestOptions),
+      ],
+      [
+        'dryRunOutcomeLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/dry-run-outcome-ledger${params({ limit: 80 })}`, requestOptions),
+      ],
+      [
+        'researchLedger',
+        (requestOptions) => fetchRows(`/api/polymarket/research-ledger${params({ limit: 80 })}`, requestOptions),
       ],
     ],
     options,

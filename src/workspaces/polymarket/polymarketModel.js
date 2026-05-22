@@ -14,12 +14,54 @@ const POLYMARKET_ENDPOINTS = [
     endpoint: '/api/polymarket/radar-worker',
     description: '本地只读扫描任务',
   },
+  {
+    key: 'candidateQueue',
+    label: '候选队列',
+    endpoint: '/api/polymarket/candidate-queue',
+    description: 'shadow 分析队列',
+  },
   { key: 'aiScore', label: 'AI 评分', endpoint: '/api/polymarket/ai-score', description: '只读分析与建议' },
+  {
+    key: 'dryRunOrders',
+    label: 'Dry-run 订单',
+    endpoint: '/api/polymarket/dry-run-orders',
+    description: '模拟订单与阻断理由',
+  },
+  {
+    key: 'outcomeWatcher',
+    label: 'Outcome 观察',
+    endpoint: '/api/polymarket/outcome-watcher',
+    description: '模拟退出后验',
+  },
+  {
+    key: 'executionGate',
+    label: '执行门',
+    endpoint: '/api/polymarket/execution-gate',
+    description: '钱包前的执行阻断',
+  },
   {
     key: 'history',
     label: '历史复盘',
     endpoint: '/api/polymarket/history',
     description: '历史表现和亏损来源',
+  },
+  {
+    key: 'historyDb',
+    label: '历史库快照',
+    endpoint: '/api/polymarket/history-db',
+    description: '本地历史库聚合',
+  },
+  {
+    key: 'research',
+    label: '研究账本',
+    endpoint: '/api/polymarket/research',
+    description: 'shadow 研究效果',
+  },
+  {
+    key: 'retunePlanner',
+    label: '重调计划',
+    endpoint: '/api/polymarket/retune-planner',
+    description: '只读重调建议',
   },
   {
     key: 'autoGovernance',
@@ -108,6 +150,15 @@ function asRows(payload) {
     value.rows,
     value.items,
     value.radar,
+    value.candidateQueue,
+    value.dryRunOrders,
+    value.outcomes,
+    value.governanceDecisions,
+    value.candidateContracts,
+    value.scores,
+    value.recommendations,
+    value.experiments,
+    value.sources,
     value.marketCatalog,
     value.markets,
     value.assetOpportunities,
@@ -193,6 +244,71 @@ function formatPercent(value) {
   if (!Number.isFinite(number)) return value ?? '—';
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
   return `${normalized.toFixed(1)}%`;
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  const parsed = Date.parse(String(value));
+  if (!Number.isFinite(parsed)) return String(value);
+  return new Date(parsed).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function latestGeneratedAt(payloads = []) {
+  const values = payloads
+    .flatMap((payload) => [
+      getPath(payload, ['generatedAt', 'generatedAtIso', 'lastGeneratedAt', 'summary.latestAt'], null),
+      getPath(payload, ['data.generatedAt', 'data.generatedAtIso', 'data.summary.latestAt'], null),
+      getPath(payload, ['source.mtimeIso', '_service.sourceMtimeIso', '_service.fileMtimeIso'], null),
+    ])
+    .map((value) => {
+      const parsed = Date.parse(String(value || ''));
+      return Number.isFinite(parsed) ? { value, parsed } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.parsed - a.parsed);
+  return values[0]?.value || null;
+}
+
+function topBlockers(payload, limit = 4) {
+  const rows = asRows(payload);
+  const counts = new Map();
+  rows.forEach((row) => {
+    const blockers = Array.isArray(row.blockers)
+      ? row.blockers
+      : String(row.blockers || '')
+          .split(/\s*\/\s*|\s*,\s*/)
+          .filter(Boolean);
+    blockers.forEach((blocker) => {
+      const key = String(blocker || '').trim();
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    });
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([key, count]) => `${friendlyText(key)} x${count}`)
+    .join(' / ');
+}
+
+function evidenceProfileStats(payloads = []) {
+  const profiles = payloads
+    .flatMap((payload) => asRows(payload))
+    .map((row) => row?.evidenceProfile)
+    .filter((profile) => profile && typeof profile === 'object');
+  const samples = profiles.map((profile) => Number(profile.samples)).filter(Number.isFinite);
+  const profitFactors = profiles.map((profile) => Number(profile.profitFactor)).filter(Number.isFinite);
+  const winRates = profiles.map((profile) => Number(profile.winRatePct)).filter(Number.isFinite);
+  return {
+    count: profiles.length,
+    maxSamples: samples.length ? Math.max(...samples) : 0,
+    bestProfitFactor: profitFactors.length ? Math.max(...profitFactors) : null,
+    bestWinRatePct: winRates.length ? Math.max(...winRates) : null,
+  };
 }
 
 function inferStatus(payload) {
@@ -626,6 +742,93 @@ function buildReviewItems(payload) {
   ];
 }
 
+function buildProgressItems(payload) {
+  const candidateSummary = summaryObject(payload.candidateQueue);
+  const dryRunSummary = summaryObject(payload.dryRunOrders);
+  const outcomeSummary = summaryObject(payload.outcomeWatcher);
+  const gateSummary = summaryObject(payload.executionGate);
+  const governanceSummary = summaryObject(payload.autoGovernance);
+  const canarySummary = summaryObject(payload.canary);
+  const aiSummary = summaryObject(payload.aiScore);
+  const historySummary = summaryObject(payload.historyDb);
+  const evidenceStats = evidenceProfileStats([payload.autoGovernance, payload.canary]);
+  const candidateCount = Number(candidateSummary.queued ?? countRows(payload.candidateQueue));
+  const dryRunCandidates = Number(dryRunSummary.candidateOrders ?? countRows(payload.dryRunOrders));
+  const dryRunReady = Number(dryRunSummary.readyDryRunOrders ?? 0);
+  const gateCanBet = Number(gateSummary.canBet ?? 0);
+  const gateBlocked = Number(gateSummary.blocked ?? 0);
+  const governanceQuarantine = Number(governanceSummary.quarantine ?? 0);
+  const governanceTotal = Number(governanceSummary.totalDecisions ?? countRows(payload.autoGovernance));
+  const aiTopScore = Number(aiSummary.topScore ?? bestScore(payload.aiScore));
+  const latestAt = latestGeneratedAt([
+    payload.radar,
+    payload.candidateQueue,
+    payload.dryRunOrders,
+    payload.outcomeWatcher,
+    payload.executionGate,
+    payload.autoGovernance,
+    payload.canary,
+    payload.historyDb,
+  ]);
+
+  return [
+    {
+      label: '最新证据',
+      value: formatDateTime(latestAt),
+      hint: `历史库 ${formatNumber(historySummary.totalRows ?? 0, 0)} 行 / ${formatNumber(historySummary.runs ?? 0, 0)} 轮；前端现在读取 runtime 新鲜证据。`,
+      status: latestAt ? 'ok' : 'warn',
+    },
+    {
+      label: '候选进入量',
+      value: `${formatNumber(candidateCount, 0)} 个`,
+      hint: `高优先 ${formatNumber(candidateSummary.highPriority ?? 0, 0)}；低风险 ${formatNumber(candidateSummary.lowRisk ?? 0, 0)} / 中风险 ${formatNumber(candidateSummary.mediumRisk ?? 0, 0)}。`,
+      status: candidateCount ? 'ok' : 'warn',
+    },
+    {
+      label: 'Dry-run 开仓',
+      value: `${formatNumber(dryRunReady, 0)} / ${formatNumber(dryRunCandidates, 0)} 可开`,
+      hint: `Gate 阻断 ${formatNumber(dryRunSummary.blockedByGate ?? 0, 0)}；模拟 stake ${formatUsd(dryRunSummary.simulatedStakeTotalUSDC ?? 0)}，假设 stake ${formatUsd(dryRunSummary.hypotheticalStakeTotalUSDC ?? 0)}。`,
+      status: dryRunReady > 0 ? 'ok' : 'warn',
+    },
+    {
+      label: '退出后验',
+      value: `${formatNumber(outcomeSummary.wouldExit ?? 0, 0)} 个 would-exit`,
+      hint: `TP ${formatNumber(outcomeSummary.takeProfit ?? 0, 0)} / SL ${formatNumber(outcomeSummary.stopLoss ?? 0, 0)} / trailing ${formatNumber(outcomeSummary.trailingExit ?? 0, 0)} / time ${formatNumber(outcomeSummary.timeExit ?? 0, 0)}。`,
+      status: Number(outcomeSummary.stopLoss ?? 0) > Number(outcomeSummary.takeProfit ?? 0) ? 'warn' : 'ok',
+    },
+    {
+      label: '执行门',
+      value: `${formatNumber(gateCanBet, 0)} 可下注 / ${formatNumber(gateBlocked, 0)} 阻断`,
+      hint: topBlockers(payload.executionGate) || '没有执行门阻断明细',
+      status: gateCanBet > 0 ? 'ok' : 'locked',
+    },
+    {
+      label: '晋级有效样本',
+      value: `${formatNumber(evidenceStats.maxSamples, 0)} / 60`,
+      hint: `当前治理看到的单候选 evidence profile 仍太薄；最佳 PF ${formatNumber(evidenceStats.bestProfitFactor ?? 0, 3)}，最佳胜率 ${formatPercent(evidenceStats.bestWinRatePct ?? 0)}。`,
+      status: evidenceStats.maxSamples >= 60 ? 'ok' : 'warn',
+    },
+    {
+      label: '自动治理',
+      value: `${formatNumber(governanceQuarantine, 0)} / ${formatNumber(governanceTotal, 0)} 隔离`,
+      hint: topBlockers(payload.autoGovernance) || '亏损隔离和证据不足仍是主因',
+      status: governanceQuarantine ? 'warn' : 'ok',
+    },
+    {
+      label: 'AI 颜色',
+      value: `绿 ${formatNumber(aiSummary.green ?? 0, 0)} / 黄 ${formatNumber(aiSummary.yellow ?? 0, 0)} / 红 ${formatNumber(aiSummary.red ?? 0, 0)}`,
+      hint: `最高分 ${Number.isFinite(aiTopScore) ? formatNumber(aiTopScore, 2) : '—'}；全局惩罚 ${formatNumber(aiSummary.globalPenalty ?? 0, 1)}。`,
+      status: Number(aiSummary.green ?? 0) > 0 ? 'ok' : 'warn',
+    },
+    {
+      label: 'Canary 合约',
+      value: `${formatNumber(canarySummary.eligibleNow ?? 0, 0)} eligible-now`,
+      hint: `证据达标 ${formatNumber(canarySummary.evidenceEligible ?? 0, 0)} / 候选 ${formatNumber(canarySummary.candidateContracts ?? countRows(payload.canary), 0)}；真钱钱包仍关闭。`,
+      status: Number(canarySummary.eligibleNow ?? 0) > 0 ? 'ok' : 'locked',
+    },
+  ];
+}
+
 function buildEndpoints(payload) {
   return POLYMARKET_ENDPOINTS.map(({ key, label, endpoint, description }) => {
     const value = payload?.[key];
@@ -785,13 +988,19 @@ export function buildPolymarketModel(payload = {}) {
     crossLinkageItems: buildCrossLinkageItems(payload),
     simulationItems: buildSimulationItems(payload),
     reviewItems: buildReviewItems(payload),
+    progressItems: buildProgressItems(payload),
     tables: {
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),
+      candidateQueue: normalizeMarketRows(asRows(payload.candidateQueue)),
       aiScore: normalizeGenericRows(asRows(payload.aiScore)),
+      dryRunOrders: normalizeGenericRows(asRows(payload.dryRunOrders)),
+      outcomeWatcher: normalizeGenericRows(asRows(payload.outcomeWatcher)),
+      executionGate: normalizeGenericRows(asRows(payload.executionGate)),
       markets: normalizeMarketRows(asRows(payload.markets)),
       assets: normalizeGenericRows(asRows(payload.assets)),
       history: normalizeGenericRows(asRows(payload.history)),
+      research: normalizeGenericRows(asRows(payload.research)),
       realTrades: normalizeGenericRows(asRows(payload.realTrades)),
       cross: normalizeGenericRows(asRows(payload.cross)),
       canaryLedger: normalizeGenericRows(asRows(payload.canaryLedger)),

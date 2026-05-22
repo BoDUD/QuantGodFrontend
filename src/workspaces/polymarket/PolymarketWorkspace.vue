@@ -36,6 +36,14 @@
         </header>
         <KeyValueList :items="model.reviewItems" />
       </section>
+
+      <section class="qg-section-card qg-section-card--operator">
+        <header>
+          <p class="qg-eyebrow">进展卡点</p>
+          <h2>为什么还没有晋级</h2>
+        </header>
+        <KeyValueList :items="model.progressItems" />
+      </section>
     </div>
 
     <section class="poly-evidence-console">
@@ -102,9 +110,14 @@
     <div class="qg-domain-grid qg-domain-grid--wide-tables qg-polymarket-tables">
       <LedgerTable title="搜索结果" :rows="model.tables.search" :limit="12" />
       <LedgerTable title="雷达机会" :rows="model.tables.radar" :limit="12" />
+      <LedgerTable title="候选队列" :rows="model.tables.candidateQueue" :limit="12" />
+      <LedgerTable title="Dry-run 订单" :rows="model.tables.dryRunOrders" :limit="12" />
+      <LedgerTable title="退出后验" :rows="model.tables.outcomeWatcher" :limit="12" />
+      <LedgerTable title="执行门阻断" :rows="model.tables.executionGate" :limit="12" />
       <LedgerTable title="市场金额与概率" :rows="model.tables.markets" :limit="12" />
       <LedgerTable title="资产候选" :rows="model.tables.assets" :limit="12" />
       <LedgerTable title="历史复盘" :rows="model.tables.history" :limit="12" />
+      <LedgerTable title="研究账本" :rows="model.tables.research" :limit="12" />
       <LedgerTable title="模拟执行流水" :rows="model.tables.canaryLedger" :limit="12" />
       <LedgerTable title="治理证据流水" :rows="model.tables.autoGovernanceLedger" :limit="12" />
       <LedgerTable title="真实交易证据" :rows="model.tables.realTrades" :limit="12" />
@@ -118,8 +131,15 @@
         <JsonPreview title="搜索结果" source="/api/polymarket/search" :payload="state.search" />
         <JsonPreview title="执行雷达" source="/api/polymarket/radar" :payload="state.radar" />
         <JsonPreview title="雷达后台" source="/api/polymarket/radar-worker" :payload="state.worker" />
+        <JsonPreview title="候选队列" source="/api/polymarket/candidate-queue" :payload="state.candidateQueue" />
         <JsonPreview title="AI 评分" source="/api/polymarket/ai-score" :payload="state.aiScore" />
+        <JsonPreview title="Dry-run 订单" source="/api/polymarket/dry-run-orders" :payload="state.dryRunOrders" />
+        <JsonPreview title="退出后验" source="/api/polymarket/outcome-watcher" :payload="state.outcomeWatcher" />
+        <JsonPreview title="执行门" source="/api/polymarket/execution-gate" :payload="state.executionGate" />
         <JsonPreview title="历史复盘" source="/api/polymarket/history" :payload="state.history" />
+        <JsonPreview title="历史库快照" source="/api/polymarket/history-db" :payload="state.historyDb" />
+        <JsonPreview title="研究账本" source="/api/polymarket/research" :payload="state.research" />
+        <JsonPreview title="重调计划" source="/api/polymarket/retune-planner" :payload="state.retunePlanner" />
         <JsonPreview
           title="自动治理"
           source="/api/polymarket/auto-governance"
@@ -172,8 +192,15 @@ const state = shallowReactive({
   search: null,
   radar: null,
   worker: null,
+  candidateQueue: null,
   aiScore: null,
+  dryRunOrders: null,
+  outcomeWatcher: null,
+  executionGate: null,
   history: null,
+  historyDb: null,
+  research: null,
+  retunePlanner: null,
   autoGovernance: null,
   canary: null,
   canaryRun: null,
