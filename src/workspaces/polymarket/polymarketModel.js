@@ -6,50 +6,17 @@ import {
 } from '../../utils/displayText.js';
 
 const POLYMARKET_ENDPOINTS = [
-  { key: 'search', label: '搜索结果', endpoint: '/api/polymarket/search', description: '关键词市场检索' },
-  { key: 'radar', label: '执行雷达', endpoint: '/api/polymarket/radar', description: '机会评分与隔离证据' },
   {
-    key: 'worker',
-    label: '雷达后台',
-    endpoint: '/api/polymarket/radar-worker',
-    description: '本地只读扫描任务',
+    key: 'copyTraderDiscovery',
+    label: '强交易员发现',
+    endpoint: '/api/polymarket/copy-trader-discovery',
+    description: '只读排行榜、当前持仓、Telegram 来源',
   },
   {
-    key: 'candidateQueue',
-    label: '候选队列',
-    endpoint: '/api/polymarket/candidate-queue',
-    description: 'shadow 分析队列',
-  },
-  { key: 'aiScore', label: 'AI 评分', endpoint: '/api/polymarket/ai-score', description: '只读分析与建议' },
-  {
-    key: 'dryRunOrders',
-    label: 'Dry-run 订单',
-    endpoint: '/api/polymarket/dry-run-orders',
-    description: '模拟订单与阻断理由',
-  },
-  {
-    key: 'outcomeWatcher',
-    label: 'Outcome 观察',
-    endpoint: '/api/polymarket/outcome-watcher',
-    description: '模拟退出后验',
-  },
-  {
-    key: 'executionGate',
-    label: '执行门',
-    endpoint: '/api/polymarket/execution-gate',
-    description: '钱包前的执行阻断',
-  },
-  {
-    key: 'history',
-    label: '历史复盘',
-    endpoint: '/api/polymarket/history',
-    description: '历史表现和亏损来源',
-  },
-  {
-    key: 'historyDb',
-    label: '历史库快照',
-    endpoint: '/api/polymarket/history-db',
-    description: '本地历史库聚合',
+    key: 'copyTraderDiscoveryLedger',
+    label: '发现流水',
+    endpoint: '/api/polymarket/copy-trader-discovery-ledger',
+    description: '强交易员评分流水',
   },
   {
     key: 'research',
@@ -62,54 +29,6 @@ const POLYMARKET_ENDPOINTS = [
     label: '重调计划',
     endpoint: '/api/polymarket/retune-planner',
     description: '只读重调建议',
-  },
-  {
-    key: 'autoGovernance',
-    label: '自动治理',
-    endpoint: '/api/polymarket/auto-governance',
-    description: '隔离与复核状态',
-  },
-  {
-    key: 'canary',
-    label: '模拟合约',
-    endpoint: '/api/polymarket/canary-executor-contract',
-    description: '禁止真实下注的合约检查',
-  },
-  {
-    key: 'canaryRun',
-    label: '模拟执行',
-    endpoint: '/api/polymarket/canary-executor-run',
-    description: '模拟验证记录',
-  },
-  {
-    key: 'realTrades',
-    label: '真实交易证据',
-    endpoint: '/api/polymarket/real-trades',
-    description: '只读交易证据回放',
-  },
-  {
-    key: 'cross',
-    label: '跨市场联动',
-    endpoint: '/api/polymarket/cross-linkage',
-    description: 'MT5 与事件市场关联',
-  },
-  {
-    key: 'markets',
-    label: '市场金额',
-    endpoint: '/api/polymarket/markets',
-    description: '流动性、成交量和概率',
-  },
-  {
-    key: 'assets',
-    label: '资产候选',
-    endpoint: '/api/polymarket/asset-opportunities',
-    description: '候选资产观察池',
-  },
-  {
-    key: 'singleAnalysis',
-    label: '单市场分析',
-    endpoint: '/api/polymarket/single-market-analysis',
-    description: '单个市场的中文复盘',
   },
 ];
 
@@ -155,6 +74,8 @@ function asRows(payload) {
     value.outcomes,
     value.governanceDecisions,
     value.candidateContracts,
+    value.traders,
+    value.shadowCandidates,
     value.scores,
     value.recommendations,
     value.experiments,
@@ -274,43 +195,6 @@ function latestGeneratedAt(payloads = []) {
   return values[0]?.value || null;
 }
 
-function topBlockers(payload, limit = 4) {
-  const rows = asRows(payload);
-  const counts = new Map();
-  rows.forEach((row) => {
-    const blockers = Array.isArray(row.blockers)
-      ? row.blockers
-      : String(row.blockers || '')
-          .split(/\s*\/\s*|\s*,\s*/)
-          .filter(Boolean);
-    blockers.forEach((blocker) => {
-      const key = String(blocker || '').trim();
-      if (key) counts.set(key, (counts.get(key) || 0) + 1);
-    });
-  });
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([key, count]) => `${friendlyText(key)} x${count}`)
-    .join(' / ');
-}
-
-function evidenceProfileStats(payloads = []) {
-  const profiles = payloads
-    .flatMap((payload) => asRows(payload))
-    .map((row) => row?.evidenceProfile)
-    .filter((profile) => profile && typeof profile === 'object');
-  const samples = profiles.map((profile) => Number(profile.samples)).filter(Number.isFinite);
-  const profitFactors = profiles.map((profile) => Number(profile.profitFactor)).filter(Number.isFinite);
-  const winRates = profiles.map((profile) => Number(profile.winRatePct)).filter(Number.isFinite);
-  return {
-    count: profiles.length,
-    maxSamples: samples.length ? Math.max(...samples) : 0,
-    bestProfitFactor: profitFactors.length ? Math.max(...profitFactors) : null,
-    bestWinRatePct: winRates.length ? Math.max(...winRates) : null,
-  };
-}
-
 function inferStatus(payload) {
   if (!payload) return 'unknown';
   if (payload.ok === false || payload.error) return 'error';
@@ -424,19 +308,24 @@ function bestScore(payload) {
   return Math.max(...nums);
 }
 
-function buildSafetyItems() {
+function buildSafetyItems(payload = {}) {
+  const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const autoUnlock = policy.autonomousUnlockAllowed !== false;
+  const liveAllowed = Boolean(policy.realWalletExecutionAllowed);
   return [
     { label: '研究模式', value: '只读', status: 'ok' },
     { label: 'AI 建议', value: '仅供参考', status: 'ok' },
-    { label: '自动下注', value: '禁止', status: 'locked' },
-    { label: '真实交易', value: '禁止', status: 'locked' },
+    { label: '自动下注', value: autoUnlock ? '证据门控' : '关闭', status: autoUnlock ? 'warn' : 'locked' },
+    { label: '真实交易', value: liveAllowed ? '允许' : '自动阻断', status: liveAllowed ? 'ok' : 'locked' },
     { label: '资金划转', value: '禁止', status: 'locked' },
     { label: '保存凭据', value: '禁止', status: 'locked' },
     {
       label: 'Agent 治理',
-      value: '只生成 shadow 证据',
-      hint: 'Polymarket 永远不接真实钱包；Agent 只做模拟账本、事件风险和 shadow 策略升降级。',
-      status: 'warn',
+      value: liveAllowed ? 'micro-live 自动放行' : '自动证据门控',
+      hint:
+        policy.nextAction ||
+        'Agent 先做强交易员发现、模拟跟单账本和 shadow 策略升降级；达标后系统自动判断真实钱包。',
+      status: liveAllowed ? 'ok' : 'warn',
     },
   ];
 }
@@ -491,12 +380,12 @@ function acceptanceCriteriaText(copyPlan = {}) {
   const translated = raw.map((item) => labels[item] || friendlyText(item)).filter(Boolean);
   return translated.length
     ? `自动治理门槛：${translated.join(' / ')}`
-    : '必须先证明跟单模拟长期正收益；即使达标也只进入 shadow / paper-context，不恢复真钱。';
+    : '必须先证明跟单模拟长期正收益；达标后由自动钱包门控决定是否恢复 micro-live。';
 }
 
 function agentCopyText(
   value,
-  fallback = 'Agent 已生成 shadow-only 跟单重调方案；下一轮自动刷新样本和筛选来源，不连接真钱钱包。',
+  fallback = 'Agent 已生成 shadow-only 跟单重调方案；下一轮自动刷新样本和筛选来源，达标后由系统自动判断真实钱包。',
 ) {
   const raw = String(value || '').trim();
   if (!raw) return fallback;
@@ -508,11 +397,11 @@ function agentCopyText(
     )
     .replace(
       '若连续批次仍通过，再进入人工恢复复核。',
-      '若连续批次仍通过，也只进入 shadow / paper-context 自动治理，不恢复真钱。',
+      '若连续批次仍通过，交给自动钱包门控决定是否恢复 micro-live。',
     )
     .replace(
       '仍需人工确认钱包、限额和隔离边界。',
-      '仍只进入 shadow / paper-context 自动治理，不连接真钱钱包。',
+      '不需要人工确认；系统按钱包门控、限额和隔离边界自动判断。',
     )
     .replace('人工加入观察名单', '本地观察名单');
 }
@@ -533,10 +422,12 @@ function blockerText(blockers = []) {
 function buildSimulationItems(payload) {
   const reviewSummary = summaryObject(payload.dailyReview);
   const polyDaily = polymarketDailyReview(payload);
-  const copyReview = polyDaily.copyTradingReview || {};
+  const copyReview = polyDaily.copyTradingReview || firstObject(payload.retunePlanner).copyTradingReview || {};
   const copyCapital = copyReview.capitalSimulation || {};
   const copyPlan = copyReview.iterationPlan || {};
   const copyTools = Array.isArray(copyReview.sourceToolkit) ? copyReview.sourceToolkit : [];
+  const copyPolicy = copyReview.walletRiskPolicy || firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const copySourceMissing = copyReview.status === 'COPY_TRADER_DISCOVERY_SOURCE_MISSING';
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
     ? iteration.strategyIterationQueue
@@ -565,12 +456,20 @@ function buildSimulationItems(payload) {
     },
     {
       label: '模拟在做什么',
-      value: copyReview.active ? '跟单 + 雷达评分 + 阻断验证' : '雷达评分 + 阻断验证',
-      hint: `${canaryRows} 条模拟执行记录；跟单可覆盖任何市场模块，所有结果只写证据`,
+      value: copySourceMissing
+        ? '雷达评分 + 阻断验证（跟单来源缺失）'
+        : copyReview.active
+          ? '跟单 + 雷达评分 + 阻断验证'
+          : '雷达评分 + 阻断验证',
+      hint: copySourceMissing
+        ? `${canaryRows} 条模拟执行记录；旧 copy_archive 只作历史对照，不能当作当前跟单来源`
+        : `${canaryRows} 条模拟执行记录；跟单可覆盖任何市场模块，所有结果只写证据`,
     },
     {
       label: '跟单策略',
-      value: copyReview.active
+      value: copySourceMissing
+        ? '来源缺失'
+        : copyReview.active
         ? copyAgentPlanReady
           ? 'Agent 已生成重调方案'
           : copyReview.operatorStatusLabel || '正在模拟'
@@ -579,7 +478,7 @@ function buildSimulationItems(payload) {
         ? agentCopyText(copyReview.summary)
         : copyReview.summary ||
           '未发现跟单样本；Agent 会先收集授权频道、公开强账户或本地观察名单的 shadow 证据。',
-      status: copyReview.active ? (copyAgentPlanReady ? 'ok' : 'warn') : 'unknown',
+      status: copySourceMissing ? 'warn' : copyReview.active ? (copyAgentPlanReady ? 'ok' : 'warn') : 'unknown',
     },
     {
       label: '跟单资金模拟',
@@ -587,38 +486,43 @@ function buildSimulationItems(payload) {
         ? `真实资金折算 ${formatSignedUsd(copyCapital.cashScaledPnlUSDC)} / 模拟账本 ${formatSignedUsd(copyCapital.shadowLedgerPnlUSDC)}`
         : '暂无估算',
       hint: copyReview.active
-        ? `按真实可用现金 ${formatUsd(copyCapital.accountCashUSDC)}、配置模拟本金 ${formatUsd(copyCapital.configuredBankrollUSDC)} 等比例记账；这里只显示模拟盈亏，不连接钱包。`
+        ? `按真实可用现金 ${formatUsd(copyCapital.accountCashUSDC)}、配置模拟本金 ${formatUsd(copyCapital.configuredBankrollUSDC)} 等比例记账；这里只显示模拟盈亏，执行由自动钱包门控决定。`
         : '等待跟单 shadow 样本后再估算真实资金规模盈亏。',
       status: Number(copyCapital.cashScaledPnlUSDC) > 0 ? 'ok' : 'warn',
     },
     {
-      label: '真钱隔离',
-      value: copyCapital.restoreLiveReviewEligible ? '仅可进入模拟强化' : '继续隔离',
-      hint: copyCapital.restoreLiveReviewEligible
-        ? '即使模拟达标，也只允许进入 FAST_SHADOW / PAPER_CONTEXT；不会恢复真钱。'
-        : blockerText(copyCapital.restoreLiveReviewBlockers) || '需要更多正收益样本；真实钱包仍关闭。',
-      status: 'locked',
+      label: '真钱自动门控',
+      value: copyPolicy.realWalletExecutionAllowed ? '已自动放行' : '自动阻断',
+      hint: copyPolicy.realWalletExecutionAllowed
+        ? '已满足钱包门控；真实执行仍受 TP/SL、仓位、日亏损和 kill switch 约束。'
+        : blockerText(copyPolicy.hardBlockers || copyCapital.restoreLiveReviewBlockers) ||
+          '需要更多正收益样本；系统会自动判断，不等人工审核。',
+      status: copyPolicy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
     {
       label: '跟单工具箱',
       value: copyTools.length
         ? `${copyTools.length} 类来源 / ${Array.isArray(copyPlan.copyUniverse) ? copyPlan.copyUniverse.length : 0} 个市场模块`
         : '待接入',
-      hint: copyTools.length
-        ? '可用 Telegram 授权频道/导出、公开强账户、本地雷达和本地观察名单做 shadow 跟单。'
+      hint: copySourceMissing
+        ? '这些只是允许接入的来源类型；当前没有 fresh copied-trader ranking。'
+        : copyTools.length
+        ? '可用 Telegram 授权频道/导出、公开强账户、当前持仓和本地观察名单做 shadow 跟单。'
         : '跟单来源必须先转成只读证据，再进模拟账本。',
-      status: copyTools.length ? 'ok' : 'unknown',
+      status: copySourceMissing ? 'warn' : copyTools.length ? 'ok' : 'unknown',
     },
     {
       label: '下一轮跟单重调',
       value:
-        Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
+        copySourceMissing
+          ? '先接入来源'
+          : Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
           ? `${copyPlan.candidateVariants.length} 个模拟变体`
           : '待生成',
       hint:
-        agentCopyText(copyPlan.nextAction || copyPlan.diagnosis) ||
+        agentCopyText(copyPlan.nextAction || copyPlan.diagnosis || copyReview.nextActions?.[0]) ||
         '下一轮会按来源质量、市场家族、流动性和结算表现拆分验证。',
-      status: copyPlan.retuneRequired && !copyAgentPlanReady ? 'warn' : 'ok',
+      status: copySourceMissing || (copyPlan.retuneRequired && !copyAgentPlanReady) ? 'warn' : 'ok',
     },
     {
       label: '当前效果',
@@ -664,7 +568,7 @@ function buildReviewItems(payload) {
   const summary = summaryObject(payload.dailyReview);
   const polyDaily = polymarketDailyReview(payload);
   const polySummary = polyDaily.summary || {};
-  const copyReview = polyDaily.copyTradingReview || {};
+  const copyReview = polyDaily.copyTradingReview || firstObject(payload.retunePlanner).copyTradingReview || {};
   const copyPlan = copyReview.iterationPlan || {};
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
@@ -676,6 +580,7 @@ function buildReviewItems(payload) {
   const copyRetuneDone = queueItemDone(copyQueue);
   const copyAgentPlanReady = copyPlanReady(copyPlan, copyQueue);
   const copyVariantCount = Array.isArray(copyPlan.candidateVariants) ? copyPlan.candidateVariants.length : 0;
+  const copySourceMissing = copyReview.status === 'COPY_TRADER_DISCOVERY_SOURCE_MISSING';
   return [
     {
       label: '亏损复盘',
@@ -703,23 +608,35 @@ function buildReviewItems(payload) {
         ? 'Agent 已生成跟单重调'
         : copyAgentPlanReady
           ? 'Agent 已生成跟单重调'
+          : copySourceMissing
+            ? '来源缺失'
           : copyReview.active
-            ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '需要复核')
+            ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '等待自动门控')
             : '暂无跟单样本',
       hint:
         copyRetuneDone || copyAgentPlanReady
           ? `${agentCopyText(copyQueue?.recommendation || copyPlan.nextAction || copyReview.summary || '跟单 shadow-only 重调方案已生成')} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
+          : copySourceMissing
+            ? copyReview.summary || '当前没有 fresh copied-trader ranking；旧 copy_archive 只作历史对照。'
           : copyReview.active
             ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
             : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
-      status: copyRetuneDone || copyAgentPlanReady ? 'ok' : copyReview.active ? 'warn' : 'unknown',
+      status: copyRetuneDone || copyAgentPlanReady ? 'ok' : copySourceMissing || copyReview.active ? 'warn' : 'unknown',
     },
     {
       label: '跟单迭代方案',
-      value: copyVariantCount ? `${copyVariantCount} 个 shadow-only 变体` : '等待重调证据',
-      hint: acceptanceCriteriaText(copyPlan),
+      value: copySourceMissing
+        ? '先接入来源'
+        : copyVariantCount
+          ? `${copyVariantCount} 个 shadow-only 变体`
+          : '等待重调证据',
+      hint: copySourceMissing
+        ? agentCopyText(copyReview.nextActions?.[0], '先生成当前强交易员只读排名，再做 shadow replay。')
+        : acceptanceCriteriaText(copyPlan),
       status:
-        copyVariantCount || copyRetuneDone || copyAgentPlanReady
+        copySourceMissing
+          ? 'warn'
+          : copyVariantCount || copyRetuneDone || copyAgentPlanReady
           ? 'ok'
           : copyPlan.retuneRequired
             ? 'warn'
@@ -730,8 +647,8 @@ function buildReviewItems(payload) {
       value: `${polySummary.retuneRed || 0} 红 / ${polySummary.retuneYellow || 0} 黄 / 跟单 ${polySummary.retuneCopyTrading || 0}`,
       hint:
         polyRetuneDone || copyRetuneDone
-          ? '今日 shadow-only 重调已生成；不会恢复真钱或自动下注。'
-          : '红/黄只进入 shadow-only retune；不会恢复真钱或自动下注。',
+          ? '今日 shadow-only 重调已生成；达标后由自动钱包门控决定 micro-live。'
+          : '红/黄先进入 shadow-only retune；达标后由自动钱包门控决定 micro-live。',
       status:
         polyRetuneDone || copyRetuneDone
           ? 'ok'
@@ -743,88 +660,55 @@ function buildReviewItems(payload) {
 }
 
 function buildProgressItems(payload) {
-  const candidateSummary = summaryObject(payload.candidateQueue);
-  const dryRunSummary = summaryObject(payload.dryRunOrders);
-  const outcomeSummary = summaryObject(payload.outcomeWatcher);
-  const gateSummary = summaryObject(payload.executionGate);
-  const governanceSummary = summaryObject(payload.autoGovernance);
-  const canarySummary = summaryObject(payload.canary);
-  const aiSummary = summaryObject(payload.aiScore);
-  const historySummary = summaryObject(payload.historyDb);
-  const evidenceStats = evidenceProfileStats([payload.autoGovernance, payload.canary]);
-  const candidateCount = Number(candidateSummary.queued ?? countRows(payload.candidateQueue));
-  const dryRunCandidates = Number(dryRunSummary.candidateOrders ?? countRows(payload.dryRunOrders));
-  const dryRunReady = Number(dryRunSummary.readyDryRunOrders ?? 0);
-  const gateCanBet = Number(gateSummary.canBet ?? 0);
-  const gateBlocked = Number(gateSummary.blocked ?? 0);
-  const governanceQuarantine = Number(governanceSummary.quarantine ?? 0);
-  const governanceTotal = Number(governanceSummary.totalDecisions ?? countRows(payload.autoGovernance));
-  const aiTopScore = Number(aiSummary.topScore ?? bestScore(payload.aiScore));
+  const copySummary = summaryObject(payload.copyTraderDiscovery);
+  const discovery = firstObject(payload.copyTraderDiscovery);
+  const source = discovery.sourceStatus || {};
+  const telegram = source.telegramChannel || {};
+  const policy = discovery.walletRiskPolicy || {};
+  const retune = firstObject(payload.retunePlanner);
+  const copyReview = retune.copyTradingReview || polymarketDailyReview(payload).copyTradingReview || {};
   const latestAt = latestGeneratedAt([
-    payload.radar,
-    payload.candidateQueue,
-    payload.dryRunOrders,
-    payload.outcomeWatcher,
-    payload.executionGate,
-    payload.autoGovernance,
-    payload.canary,
-    payload.historyDb,
+    payload.copyTraderDiscovery,
+    payload.retunePlanner,
+    payload.research,
   ]);
 
   return [
     {
+      label: '强交易员发现',
+      value: `${formatNumber(copySummary.eligibleTraders ?? 0, 0)} 可跟 / ${formatNumber(copySummary.rankedTraders ?? 0, 0)} 排名`,
+      hint: `当前持仓候选 ${formatNumber(copySummary.shadowCandidates ?? 0, 0)}；Telegram 钱包 ${formatNumber(copySummary.telegramWallets ?? 0, 0)}。`,
+      status: Number(copySummary.shadowCandidates ?? 0) ? 'ok' : 'warn',
+    },
+    {
       label: '最新证据',
       value: formatDateTime(latestAt),
-      hint: `历史库 ${formatNumber(historySummary.totalRows ?? 0, 0)} 行 / ${formatNumber(historySummary.runs ?? 0, 0)} 轮；前端现在读取 runtime 新鲜证据。`,
+      hint: '前端只读强交易员发现、跟单候选和重调计划。',
       status: latestAt ? 'ok' : 'warn',
     },
     {
-      label: '候选进入量',
-      value: `${formatNumber(candidateCount, 0)} 个`,
-      hint: `高优先 ${formatNumber(candidateSummary.highPriority ?? 0, 0)}；低风险 ${formatNumber(candidateSummary.lowRisk ?? 0, 0)} / 中风险 ${formatNumber(candidateSummary.mediumRisk ?? 0, 0)}。`,
-      status: candidateCount ? 'ok' : 'warn',
+      label: 'Shadow replay',
+      value: Number(copySummary.shadowCandidates ?? 0) ? '待写入回放账本' : '暂无候选',
+      hint: copyReview.summary || '下一步验证跟随延迟、盘口深度、退出规则和 walk-forward。',
+      status: Number(copySummary.shadowCandidates ?? 0) ? 'warn' : 'locked',
     },
     {
-      label: 'Dry-run 开仓',
-      value: `${formatNumber(dryRunReady, 0)} / ${formatNumber(dryRunCandidates, 0)} 可开`,
-      hint: `Gate 阻断 ${formatNumber(dryRunSummary.blockedByGate ?? 0, 0)}；模拟 stake ${formatUsd(dryRunSummary.simulatedStakeTotalUSDC ?? 0)}，假设 stake ${formatUsd(dryRunSummary.hypotheticalStakeTotalUSDC ?? 0)}。`,
-      status: dryRunReady > 0 ? 'ok' : 'warn',
+      label: 'Telegram来源',
+      value: Number(copySummary.telegramWallets ?? 0)
+        ? `${formatNumber(copySummary.telegramWallets, 0)} 钱包`
+        : telegram.configured
+          ? '已配置未提取'
+          : '待接入',
+      hint: telegram.nextAction || '需要 Telegram 导出或只读 session 才能读取该频道。',
+      status: Number(copySummary.telegramWallets ?? 0) ? 'ok' : 'warn',
     },
     {
-      label: '退出后验',
-      value: `${formatNumber(outcomeSummary.wouldExit ?? 0, 0)} 个 would-exit`,
-      hint: `TP ${formatNumber(outcomeSummary.takeProfit ?? 0, 0)} / SL ${formatNumber(outcomeSummary.stopLoss ?? 0, 0)} / trailing ${formatNumber(outcomeSummary.trailingExit ?? 0, 0)} / time ${formatNumber(outcomeSummary.timeExit ?? 0, 0)}。`,
-      status: Number(outcomeSummary.stopLoss ?? 0) > Number(outcomeSummary.takeProfit ?? 0) ? 'warn' : 'ok',
-    },
-    {
-      label: '执行门',
-      value: `${formatNumber(gateCanBet, 0)} 可下注 / ${formatNumber(gateBlocked, 0)} 阻断`,
-      hint: topBlockers(payload.executionGate) || '没有执行门阻断明细',
-      status: gateCanBet > 0 ? 'ok' : 'locked',
-    },
-    {
-      label: '晋级有效样本',
-      value: `${formatNumber(evidenceStats.maxSamples, 0)} / 60`,
-      hint: `当前治理看到的单候选 evidence profile 仍太薄；最佳 PF ${formatNumber(evidenceStats.bestProfitFactor ?? 0, 3)}，最佳胜率 ${formatPercent(evidenceStats.bestWinRatePct ?? 0)}。`,
-      status: evidenceStats.maxSamples >= 60 ? 'ok' : 'warn',
-    },
-    {
-      label: '自动治理',
-      value: `${formatNumber(governanceQuarantine, 0)} / ${formatNumber(governanceTotal, 0)} 隔离`,
-      hint: topBlockers(payload.autoGovernance) || '亏损隔离和证据不足仍是主因',
-      status: governanceQuarantine ? 'warn' : 'ok',
-    },
-    {
-      label: 'AI 颜色',
-      value: `绿 ${formatNumber(aiSummary.green ?? 0, 0)} / 黄 ${formatNumber(aiSummary.yellow ?? 0, 0)} / 红 ${formatNumber(aiSummary.red ?? 0, 0)}`,
-      hint: `最高分 ${Number.isFinite(aiTopScore) ? formatNumber(aiTopScore, 2) : '—'}；全局惩罚 ${formatNumber(aiSummary.globalPenalty ?? 0, 1)}。`,
-      status: Number(aiSummary.green ?? 0) > 0 ? 'ok' : 'warn',
-    },
-    {
-      label: 'Canary 合约',
-      value: `${formatNumber(canarySummary.eligibleNow ?? 0, 0)} eligible-now`,
-      hint: `证据达标 ${formatNumber(canarySummary.evidenceEligible ?? 0, 0)} / 候选 ${formatNumber(canarySummary.candidateContracts ?? countRows(payload.canary), 0)}；真钱钱包仍关闭。`,
-      status: Number(canarySummary.eligibleNow ?? 0) > 0 ? 'ok' : 'locked',
+      label: '真钱状态',
+      value: policy.realWalletExecutionAllowed ? '自动放行' : '自动阻断',
+      hint:
+        policy.nextAction ||
+        'discovery -> shadow replay -> walk-forward 全部通过后，系统自动决定是否放开钱包。',
+      status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
   ];
 }
@@ -838,24 +722,10 @@ function buildEndpoints(payload) {
 }
 
 function buildMetrics(payload) {
-  const searchRows = countRows(payload.search);
-  const radarRows = countRows(payload.radar);
-  const marketRows = countRows(payload.markets);
-  const assetRows = countRows(payload.assets);
-  const historyRows = countRows(payload.history);
-  const tradeRows = countRows(payload.realTrades);
-  const score = bestScore(payload.aiScore);
-  const radar = asRows(payload.radar);
-  const markets = asRows(payload.markets);
-  const allMarkets = [...radar, ...markets];
-  const topLiquidity = Math.max(
-    0,
-    ...allMarkets.map((row) => Number(row.liquidity || row.clobLiquidityUsd || 0)).filter(Number.isFinite),
-  );
-  const topVolume24h = Math.max(
-    0,
-    ...allMarkets.map((row) => Number(row.volume24h || row.volume_24h || 0)).filter(Number.isFinite),
-  );
+  const copySummary = summaryObject(payload.copyTraderDiscovery);
+  const copySource = firstObject(payload.copyTraderDiscovery).sourceStatus || {};
+  const telegram = copySource.telegramChannel || {};
+  const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
   const wallet = walletBalance(payload);
   return [
     {
@@ -864,15 +734,39 @@ function buildMetrics(payload) {
       hint: wallet === null ? '只读钱包余额还没有回灌' : '真实钱包余额',
       status: wallet === null ? 'warn' : 'ok',
     },
-    { label: '搜索结果', value: searchRows, hint: '关键词匹配' },
-    { label: '雷达机会', value: radarRows, hint: '只读研究候选' },
-    { label: '市场数量', value: marketRows, hint: '按成交量排序' },
-    { label: '最高流动性', value: formatUsd(topLiquidity), hint: '公开市场数据' },
-    { label: '最高24h成交', value: formatUsd(topVolume24h), hint: '公开市场成交量' },
     {
-      label: 'AI评分',
-      value: score === null ? '—' : formatNumber(score, 3),
-      hint: `${assetRows} 候选 / ${historyRows} 历史 / ${tradeRows} 交易证据`,
+      label: '强交易员',
+      value: formatNumber(copySummary.rankedTraders ?? 0, 0),
+      hint: `公开排行榜钱包 ${formatNumber(copySummary.candidateWallets ?? 0, 0)} 个`,
+      status: Number(copySummary.rankedTraders ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: '可跟来源',
+      value: formatNumber(copySummary.eligibleTraders ?? 0, 0),
+      hint: `Top ${copySummary.topTrader || '—'} / 分数 ${formatNumber(copySummary.topScore ?? 0, 2)}`,
+      status: Number(copySummary.eligibleTraders ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: '跟单候选',
+      value: formatNumber(copySummary.shadowCandidates ?? 0, 0),
+      hint: `当前持仓 ${formatNumber(copySummary.currentPositions ?? 0, 0)} 个，只进 shadow`,
+      status: Number(copySummary.shadowCandidates ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: 'Telegram来源',
+      value: Number(copySummary.telegramWallets ?? 0)
+        ? `${formatNumber(copySummary.telegramWallets, 0)} 个钱包`
+        : telegram.configured
+          ? '未提取钱包'
+          : '待接入',
+      hint: telegram.channelName || '预测市场内幕钱包监控',
+      status: Number(copySummary.telegramWallets ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: '真实钱包TP/SL',
+      value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% / ${formatNumber(policy.stopLossPct ?? 0, 0)}%`,
+      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；自动门控 ${policy.realWalletExecutionAllowed ? '已放行' : '阻断中'}`,
+      status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
   ];
 }
@@ -890,6 +784,68 @@ function buildRadarItems(payload) {
       value: getPath(worker, ['updated_at', 'timestamp', 'last_run_at', 'last_updated'], '—'),
     },
     { label: '搜索词', value: getPath(payload.search, ['query', 'q', 'keyword'], '—') },
+  ];
+}
+
+function buildCopyTraderItems(payload) {
+  const discovery = firstObject(payload.copyTraderDiscovery);
+  const summary = discovery.summary || {};
+  const source = discovery.sourceStatus || {};
+  const topTrader = Array.isArray(discovery.traders) ? discovery.traders[0] || {} : {};
+  const telegram = source.telegramChannel || {};
+  const botApi = telegram.sources?.botApi || {};
+  const policy = discovery.walletRiskPolicy || {};
+  return [
+    {
+      label: '发现状态',
+      value: friendlyText(discovery.status || 'UNKNOWN'),
+      hint: '只读读取公开排行榜、已结算仓位、当前持仓和最近活动',
+      status: inferStatus(payload.copyTraderDiscovery),
+    },
+    {
+      label: '强交易员排行',
+      value: `${formatNumber(summary.rankedTraders ?? 0, 0)} 个`,
+      hint: `可跟 ${formatNumber(summary.eligibleTraders ?? 0, 0)}；候选钱包 ${formatNumber(summary.candidateWallets ?? 0, 0)}`,
+      status: Number(summary.eligibleTraders ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: 'Top trader',
+      value: topTrader.userName || summary.topTrader || '—',
+      hint: `copyScore ${formatNumber(topTrader.copyScore ?? summary.topScore ?? 0, 2)} / 月PnL ${formatUsd(topTrader.monthPnl ?? 0)}`,
+      status: topTrader.eligibleForShadowCopy ? 'ok' : 'warn',
+    },
+    {
+      label: '当前可跟持仓',
+      value: `${formatNumber(summary.shadowCandidates ?? 0, 0)} 个`,
+      hint: policy.realWalletExecutionAllowed
+        ? '已通过自动钱包门控；候选仍必须带 TP/SL 和仓位上限'
+        : '先写 shadow copy watch，未通过自动钱包门控前不下单',
+      status: Number(summary.shadowCandidates ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: 'Telegram频道',
+      value: telegram.configured
+        ? Number(telegram.walletCount ?? 0)
+          ? `${formatNumber(telegram.walletCount, 0)} 个钱包`
+          : botApi.configured
+            ? 'Bot已配置无更新'
+            : '已配置待解析'
+        : '待接入',
+      hint: telegram.nextAction || telegram.channelName || '预测市场内幕钱包监控',
+      status: Number(telegram.walletCount ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: '真实钱包止盈止损',
+      value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% TP / ${formatNumber(policy.stopLossPct ?? 0, 0)}% SL`,
+      hint: `自动放行 ${policy.realWalletExecutionAllowed ? '已允许' : '未通过'}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
+      status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
+    },
+    {
+      label: '下一步',
+      value: Number(summary.shadowCandidates ?? 0) ? '进入 shadow replay' : '继续找来源',
+      hint: agentCopyText(discovery.nextActions?.[0], '把强交易员当前持仓写入跟单回放账本。'),
+      status: Number(summary.shadowCandidates ?? 0) ? 'ok' : 'warn',
+    },
   ];
 }
 
@@ -931,7 +887,7 @@ function buildCanaryItems(payload) {
     { label: '模拟记录', value: `${ledgerRows} 条`, hint: '只写模拟证据，不写钱包或订单' },
     { label: '运行模式', value: friendlyText(getPath(run, ['mode', 'run_mode', 'dry_run'], '只读研究')) },
     { label: '运行时间', value: getPath(run, ['last_run_at', 'updated_at', 'timestamp'], '—') },
-    { label: '真实执行', value: '前端禁止', status: 'locked' },
+    { label: '真实执行', value: '自动钱包门控', status: 'locked' },
   ];
 }
 
@@ -981,7 +937,8 @@ export function buildPolymarketModel(payload = {}) {
     safety: POLYMARKET_SAFETY_DEFAULTS,
     metrics: buildMetrics(payload),
     endpoints: buildEndpoints(payload),
-    safetyItems: buildSafetyItems(),
+    safetyItems: buildSafetyItems(payload),
+    copyTraderItems: buildCopyTraderItems(payload),
     radarItems: buildRadarItems(payload),
     aiScoreItems: buildAiScoreItems(payload),
     canaryItems: buildCanaryItems(payload),
@@ -990,6 +947,9 @@ export function buildPolymarketModel(payload = {}) {
     reviewItems: buildReviewItems(payload),
     progressItems: buildProgressItems(payload),
     tables: {
+      copyTraders: normalizeGenericRows(firstObject(payload.copyTraderDiscovery).traders || []),
+      copyShadowCandidates: normalizeGenericRows(firstObject(payload.copyTraderDiscovery).shadowCandidates || []),
+      copyTraderDiscoveryLedger: normalizeGenericRows(asRows(payload.copyTraderDiscoveryLedger)),
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),
       candidateQueue: normalizeMarketRows(asRows(payload.candidateQueue)),

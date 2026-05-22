@@ -98,19 +98,10 @@ for (const marker of requiredModelMarkers) {
 }
 
 const requiredEndpoints = [
-  '/api/polymarket/search',
-  '/api/polymarket/radar',
-  '/api/polymarket/radar-worker',
-  '/api/polymarket/ai-score',
-  '/api/polymarket/history',
-  '/api/polymarket/auto-governance',
-  '/api/polymarket/canary-executor-contract',
-  '/api/polymarket/canary-executor-run',
-  '/api/polymarket/real-trades',
-  '/api/polymarket/cross-linkage',
-  '/api/polymarket/markets',
-  '/api/polymarket/asset-opportunities',
-  '/api/polymarket/single-market-analysis',
+  '/api/polymarket/copy-trader-discovery',
+  '/api/polymarket/copy-trader-discovery-ledger',
+  '/api/polymarket/research',
+  '/api/polymarket/retune-planner',
 ];
 for (const endpoint of requiredEndpoints) {
   if (!workspace.includes(endpoint) && !model.includes(endpoint)) fail(`missing Polymarket endpoint marker: ${endpoint}`);

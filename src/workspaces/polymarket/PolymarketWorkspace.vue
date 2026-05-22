@@ -1,20 +1,20 @@
 <template>
   <WorkspaceFrame
-    eyebrow="预测市场研究"
-    title="预测市场研究工作台"
-    description="查看预测市场概率、流动性、成交量、AI 评分、亏损隔离和跨市场联动；全部只读研究，不自动下注。"
+    eyebrow="预测市场跟单"
+    title="Polymarket 强交易员跟单工作台"
+    description="只读发现公开强交易员、Telegram 钱包来源、当前持仓和已结算表现；先 shadow 跟单验证，达标后由系统自动判断 micro-live。"
     :loading="loading"
     :error="error"
     @refresh="load"
   >
     <div class="qg-readonly-banner">
       <StatusPill status="locked" label="只读研究" />
-      <span>预测市场数据仅用于研究与治理证据。前端不允许下注、资金划转、提现、自动执行或绕过授权链路。</span>
+      <span>预测市场前端不直接下注或划转资金；真实钱包是否放行由后端自动证据门控、TP/SL 和仓位限制决定。</span>
     </div>
 
     <div class="qg-search-row">
-      <input v-model="query" placeholder="搜索市场关键词" @keydown.enter="load" />
-      <button type="button" class="qg-button" @click="load">搜索</button>
+      <input v-model="query" placeholder="筛选交易员、钱包或市场关键词" @keydown.enter="load" />
+      <button type="button" class="qg-button" @click="load">刷新</button>
     </div>
 
     <MetricGrid :items="model.metrics" />
@@ -49,8 +49,8 @@
     <section class="poly-evidence-console">
       <header class="poly-evidence-console__header">
         <div>
-          <p class="qg-eyebrow">综合证据</p>
-          <h3>统一搜索综合证据卡</h3>
+          <p class="qg-eyebrow">跟单证据</p>
+          <h3>强交易员与当前持仓</h3>
         </div>
         <strong>{{ evidenceRows.length }} 条</strong>
       </header>
@@ -75,95 +75,41 @@
           <small>{{ item.source }}</small>
         </article>
         <p v-if="!evidenceRows.length" class="qg-empty-text">
-          当前分栏没有可读证据；刷新或换关键词后会自动更新。
+          当前没有可读跟单证据；刷新后会读取公开排行榜和 Telegram 来源配置。
         </p>
       </div>
     </section>
 
     <div class="qg-domain-grid">
       <section class="qg-panel">
+        <h3>强交易员发现</h3>
+        <KeyValueList :items="model.copyTraderItems" />
+      </section>
+
+      <section class="qg-panel">
         <h3>研究边界</h3>
         <KeyValueList :items="model.safetyItems" />
-      </section>
-
-      <section class="qg-panel">
-        <h3>雷达摘要</h3>
-        <KeyValueList :items="model.radarItems" />
-      </section>
-
-      <section class="qg-panel">
-        <h3>AI 评分与治理</h3>
-        <KeyValueList :items="model.aiScoreItems" />
-      </section>
-
-      <section class="qg-panel">
-        <h3>模拟执行保护</h3>
-        <KeyValueList :items="model.canaryItems" />
-      </section>
-
-      <section class="qg-panel qg-panel--wide">
-        <h3>跨市场联动与单市场分析</h3>
-        <KeyValueList :items="model.crossLinkageItems" />
       </section>
     </div>
 
     <div class="qg-domain-grid qg-domain-grid--wide-tables qg-polymarket-tables">
-      <LedgerTable title="搜索结果" :rows="model.tables.search" :limit="12" />
-      <LedgerTable title="雷达机会" :rows="model.tables.radar" :limit="12" />
-      <LedgerTable title="候选队列" :rows="model.tables.candidateQueue" :limit="12" />
-      <LedgerTable title="Dry-run 订单" :rows="model.tables.dryRunOrders" :limit="12" />
-      <LedgerTable title="退出后验" :rows="model.tables.outcomeWatcher" :limit="12" />
-      <LedgerTable title="执行门阻断" :rows="model.tables.executionGate" :limit="12" />
-      <LedgerTable title="市场金额与概率" :rows="model.tables.markets" :limit="12" />
-      <LedgerTable title="资产候选" :rows="model.tables.assets" :limit="12" />
-      <LedgerTable title="历史复盘" :rows="model.tables.history" :limit="12" />
+      <LedgerTable title="强交易员排行" :rows="model.tables.copyTraders" :limit="12" />
+      <LedgerTable title="当前跟单候选持仓" :rows="model.tables.copyShadowCandidates" :limit="12" />
+      <LedgerTable title="强交易员发现流水" :rows="model.tables.copyTraderDiscoveryLedger" :limit="12" />
       <LedgerTable title="研究账本" :rows="model.tables.research" :limit="12" />
-      <LedgerTable title="模拟执行流水" :rows="model.tables.canaryLedger" :limit="12" />
-      <LedgerTable title="治理证据流水" :rows="model.tables.autoGovernanceLedger" :limit="12" />
-      <LedgerTable title="真实交易证据" :rows="model.tables.realTrades" :limit="12" />
-      <LedgerTable title="跨市场联动" :rows="model.tables.cross" :limit="12" />
     </div>
 
     <details class="qg-details" @toggle="revealTechnicalEvidence">
       <!-- Raw Polymarket evidence / research-only markers retained for the safety guard; the visible label stays Chinese. -->
       <summary>技术证据</summary>
       <div v-if="technicalEvidenceVisible" class="qg-domain-grid">
-        <JsonPreview title="搜索结果" source="/api/polymarket/search" :payload="state.search" />
-        <JsonPreview title="执行雷达" source="/api/polymarket/radar" :payload="state.radar" />
-        <JsonPreview title="雷达后台" source="/api/polymarket/radar-worker" :payload="state.worker" />
-        <JsonPreview title="候选队列" source="/api/polymarket/candidate-queue" :payload="state.candidateQueue" />
-        <JsonPreview title="AI 评分" source="/api/polymarket/ai-score" :payload="state.aiScore" />
-        <JsonPreview title="Dry-run 订单" source="/api/polymarket/dry-run-orders" :payload="state.dryRunOrders" />
-        <JsonPreview title="退出后验" source="/api/polymarket/outcome-watcher" :payload="state.outcomeWatcher" />
-        <JsonPreview title="执行门" source="/api/polymarket/execution-gate" :payload="state.executionGate" />
-        <JsonPreview title="历史复盘" source="/api/polymarket/history" :payload="state.history" />
-        <JsonPreview title="历史库快照" source="/api/polymarket/history-db" :payload="state.historyDb" />
+        <JsonPreview
+          title="强交易员发现"
+          source="/api/polymarket/copy-trader-discovery"
+          :payload="state.copyTraderDiscovery"
+        />
         <JsonPreview title="研究账本" source="/api/polymarket/research" :payload="state.research" />
         <JsonPreview title="重调计划" source="/api/polymarket/retune-planner" :payload="state.retunePlanner" />
-        <JsonPreview
-          title="自动治理"
-          source="/api/polymarket/auto-governance"
-          :payload="state.autoGovernance"
-        />
-        <JsonPreview
-          title="模拟合约"
-          source="/api/polymarket/canary-executor-contract"
-          :payload="state.canary"
-        />
-        <JsonPreview
-          title="模拟执行"
-          source="/api/polymarket/canary-executor-run"
-          :payload="state.canaryRun"
-        />
-        <JsonPreview title="真实交易证据" source="/api/polymarket/real-trades" :payload="state.realTrades" />
-        <JsonPreview title="跨市场联动" source="/api/polymarket/cross-linkage" :payload="state.cross" />
-        <JsonPreview title="市场金额" source="/api/polymarket/markets" :payload="state.markets" />
-        <JsonPreview title="资产候选" source="/api/polymarket/asset-opportunities" :payload="state.assets" />
-        <JsonPreview
-          title="单市场分析"
-          source="/api/polymarket/single-market-analysis"
-          :payload="state.singleAnalysis"
-        />
       </div>
     </details>
   </WorkspaceFrame>
@@ -201,6 +147,7 @@ const state = shallowReactive({
   historyDb: null,
   research: null,
   retunePlanner: null,
+  copyTraderDiscovery: null,
   autoGovernance: null,
   canary: null,
   canaryRun: null,
@@ -212,12 +159,17 @@ const state = shallowReactive({
   dailyReview: null,
   canaryLedger: null,
   autoGovernanceLedger: null,
+  copyTraderDiscoveryLedger: null,
 });
 let loadController = null;
 let loadRunId = 0;
 
 const model = computed(() => buildPolymarketModel(state));
 const evidenceBuckets = computed(() => {
+  const copyRows = [
+    ...model.value.tables.copyShadowCandidates,
+    ...model.value.tables.copyTraders,
+  ];
   const aiScoreRows = model.value.tables.aiScore.length
     ? model.value.tables.aiScore
     : model.value.aiScoreItems.map((item) => ({
@@ -227,22 +179,20 @@ const evidenceBuckets = computed(() => {
       }));
   return {
     all: [
-      ...toEvidenceRows(model.value.tables.search, '综合证据'),
-      ...toEvidenceRows(model.value.tables.radar, '雷达'),
-      ...toEvidenceRows(model.value.tables.history, '历史分析'),
-      ...toEvidenceRows(aiScoreRows, 'AI 评分'),
+      ...toEvidenceRows(copyRows, '跟单'),
+      ...toEvidenceRows(model.value.tables.research, '研究分析'),
     ].slice(0, 16),
-    radar: toEvidenceRows(model.value.tables.radar, '雷达'),
-    history: toEvidenceRows(model.value.tables.history, '历史分析'),
-    ai: toEvidenceRows(aiScoreRows, 'AI 评分'),
+    radar: toEvidenceRows(model.value.tables.copyTraders, '强交易员'),
+    history: toEvidenceRows(model.value.tables.copyShadowCandidates, '当前持仓'),
+    ai: toEvidenceRows(aiScoreRows, '旧AI评分'),
   };
 });
 const evidenceRows = computed(() => evidenceBuckets.value[evidenceMode.value] || evidenceBuckets.value.all);
 const evidenceTabs = computed(() => [
   { key: 'all', label: '综合证据', count: evidenceBuckets.value.all.length },
-  { key: 'radar', label: '雷达', count: evidenceBuckets.value.radar.length },
-  { key: 'history', label: '历史分析', count: evidenceBuckets.value.history.length },
-  { key: 'ai', label: 'AI评分', count: evidenceBuckets.value.ai.length },
+  { key: 'radar', label: '强交易员', count: evidenceBuckets.value.radar.length },
+  { key: 'history', label: '当前持仓', count: evidenceBuckets.value.history.length },
+  { key: 'ai', label: '旧AI评分', count: evidenceBuckets.value.ai.length },
 ]);
 
 async function load() {
@@ -281,7 +231,7 @@ function toEvidenceRows(rows, fallbackSource) {
     .map((row, index) => {
       const title = firstValue(
         row,
-        ['市场', '名称', 'title', 'question', 'market', 'name', 'id', 'marketId'],
+        ['市场', '名称', 'userName', 'trader', 'marketTitle', 'title', 'question', 'market', 'proxyWallet', 'name', 'id', 'marketId'],
         `${fallbackSource} #${index + 1}`,
       );
       const summary = firstValue(
@@ -296,6 +246,8 @@ function toEvidenceRows(rows, fallbackSource) {
           'status',
           'state',
           'score',
+          'copyScore',
+          'candidateScore',
           '建议',
           '状态',
           '说明',

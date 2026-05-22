@@ -259,91 +259,24 @@ export async function loadResearchWorkspace(query = {}) {
 }
 
 export async function loadPolymarketWorkspace(query = {}, options = {}) {
-  const q = query.q || '';
   const limit = Number(query.limit) || 12;
   return loadNamedEntries(
     [
       [
-        'search',
-        (requestOptions) => fetchJson(`/api/polymarket/search${params({ q, limit })}`, null, requestOptions),
+        'copyTraderDiscovery',
+        (requestOptions) => fetchJson('/api/polymarket/copy-trader-discovery', null, requestOptions),
       ],
-      [
-        'radar',
-        (requestOptions) => fetchJson(`/api/polymarket/radar${params({ limit })}`, null, requestOptions),
-      ],
-      ['worker', (requestOptions) => fetchJson('/api/polymarket/radar-worker', null, requestOptions)],
-      [
-        'candidateQueue',
-        (requestOptions) => fetchJson('/api/polymarket/candidate-queue', null, requestOptions),
-      ],
-      ['aiScore', (requestOptions) => fetchJson('/api/polymarket/ai-score', null, requestOptions)],
-      [
-        'dryRunOrders',
-        (requestOptions) => fetchJson('/api/polymarket/dry-run-orders', null, requestOptions),
-      ],
-      [
-        'outcomeWatcher',
-        (requestOptions) => fetchJson('/api/polymarket/outcome-watcher', null, requestOptions),
-      ],
-      [
-        'executionGate',
-        (requestOptions) => fetchJson('/api/polymarket/execution-gate', null, requestOptions),
-      ],
-      [
-        'history',
-        (requestOptions) =>
-          fetchJson(`/api/polymarket/history${params({ table: 'all', limit })}`, null, requestOptions),
-      ],
-      ['historyDb', (requestOptions) => fetchJson('/api/polymarket/history-db', null, requestOptions)],
       ['research', (requestOptions) => fetchJson('/api/polymarket/research', null, requestOptions)],
       ['retunePlanner', (requestOptions) => fetchJson('/api/polymarket/retune-planner', null, requestOptions)],
-      [
-        'autoGovernance',
-        (requestOptions) => fetchJson('/api/polymarket/auto-governance', null, requestOptions),
-      ],
-      [
-        'canary',
-        (requestOptions) => fetchJson('/api/polymarket/canary-executor-contract', null, requestOptions),
-      ],
-      [
-        'canaryRun',
-        (requestOptions) => fetchJson('/api/polymarket/canary-executor-run', null, requestOptions),
-      ],
-      ['realTrades', (requestOptions) => fetchJson('/api/polymarket/real-trades', null, requestOptions)],
-      ['cross', (requestOptions) => fetchJson('/api/polymarket/cross-linkage', null, requestOptions)],
-      [
-        'markets',
-        (requestOptions) =>
-          fetchJson(`/api/polymarket/markets${params({ limit, sort: 'volume' })}`, null, requestOptions),
-      ],
-      [
-        'assets',
-        (requestOptions) =>
-          fetchJson(`/api/polymarket/asset-opportunities${params({ limit })}`, null, requestOptions),
-      ],
-      [
-        'singleAnalysis',
-        (requestOptions) => fetchJson('/api/polymarket/single-market-analysis', null, requestOptions),
-      ],
       ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
       [
-        'canaryLedger',
-        (requestOptions) =>
-          fetchRows(`/api/polymarket/canary-executor-ledger${params({ limit: 80 })}`, requestOptions),
-      ],
-      [
-        'autoGovernanceLedger',
-        (requestOptions) =>
-          fetchRows(`/api/polymarket/auto-governance-ledger${params({ limit: 80 })}`, requestOptions),
-      ],
-      [
-        'dryRunOutcomeLedger',
-        (requestOptions) =>
-          fetchRows(`/api/polymarket/dry-run-outcome-ledger${params({ limit: 80 })}`, requestOptions),
-      ],
-      [
         'researchLedger',
-        (requestOptions) => fetchRows(`/api/polymarket/research-ledger${params({ limit: 80 })}`, requestOptions),
+        (requestOptions) => fetchRows(`/api/polymarket/research-ledger${params({ limit })}`, requestOptions),
+      ],
+      [
+        'copyTraderDiscoveryLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/copy-trader-discovery-ledger${params({ limit })}`, requestOptions),
       ],
     ],
     options,
