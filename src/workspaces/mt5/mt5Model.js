@@ -311,6 +311,26 @@ function reasonText(row) {
   return humanizeStatus(row);
 }
 
+function nonEmptyObject(value) {
+  return isObject(value) && Object.keys(value).length > 0;
+}
+
+function firstNonEmptyObject(...values) {
+  return values.find(nonEmptyObject) || {};
+}
+
+function reasonTextsFrom(...values) {
+  const seen = new Set();
+  const texts = [];
+  values.flatMap((value) => rowsFromPayload(value)).forEach((row) => {
+    const text = reasonText(row);
+    if (!text || seen.has(text)) return;
+    seen.add(text);
+    texts.push(text);
+  });
+  return texts;
+}
+
 function isBlockingReason(value) {
   const text = String(value || '');
   const upper = text.toUpperCase();
@@ -324,7 +344,7 @@ function isBlockingReason(value) {
 }
 
 function newsGateBlockerText(...newsGates) {
-  const gate = newsGates.find((item) => isObject(item) && Object.keys(item).length);
+  const gate = newsGates.find(nonEmptyObject);
   if (!gate) return '';
   const hardBlock =
     gate.hardBlock === true ||
@@ -338,6 +358,15 @@ function newsGateBlockerText(...newsGates) {
     gate.highImpactEvent?.eventLabel ||
     '高冲击新闻窗口内暂停 live，shadow / replay 继续。'
   );
+}
+
+function rsiDiagnosticBlockerText(diagnostics = {}) {
+  if (!nonEmptyObject(diagnostics)) return '';
+  const reasons = rowsFromPayload(diagnostics.whyNoEntry).map(reasonText).filter(Boolean);
+  if (reasons.length) return reasons.slice(0, 2).join('；');
+  const state = String(diagnostics.state || '').toUpperCase();
+  if (!state || ['READY', 'OK', 'PASS'].includes(state)) return '';
+  return diagnostics.stateZh || diagnostics.summary || humanizeStatus(diagnostics.state);
 }
 
 function evidenceGateTone(value) {
@@ -1339,40 +1368,72 @@ export function buildMt5RouteModeRows(snapshot) {
 export function buildUsdJpyLiveLoopItems(snapshot) {
   const loop = snapshot.usdJpyLiveLoop || {};
   const status = loop.status || loop.latest || loop;
-  const topLive = status.topLiveEligiblePolicy || status.topPolicy || status.liveRecoveryCandidate || {};
+  const topLive = firstNonEmptyObject(
+    status.topLiveEligiblePolicy,
+    status.topPolicy,
+    status.liveRecoveryCandidate,
+    status.policy?.topLiveEligiblePolicy,
+    status.policy?.topPolicy,
+    status.policy?.liveRecoveryCandidate,
+  );
   const topShadow = status.topShadowPolicy || {};
   const dryRun = status.dryRunDecision || status.eaDryRunDecision || status.dryRun || {};
   const blockers = rowsFromPayload(status.blockers || status.primaryBlockers || status.mainBlockers);
-  const reasons = rowsFromPayload(topLive.reasons || status.reasons || status.nextActions);
+  const reasons = reasonTextsFrom(
+    topLive.reasons,
+    status.topPolicy?.reasons,
+    status.liveRecoveryCandidate?.reasons,
+    status.policy?.topPolicy?.reasons,
+    status.policy?.liveRecoveryCandidate?.reasons,
+    dryRun.reasons,
+    status.reasons,
+    status.nextActions,
+  );
   const state = status.state || status.status || status.overallState || '等待同步';
   const stateZh = status.stateZh || status.conclusionZh || humanizeStatus(state);
   const stateUpper = String(state || '').toUpperCase();
   const isReadyState = ['READY_FOR_EXISTING_EA', 'READY', 'POLICY_READY'].includes(stateUpper);
   const hasLivePolicy = Boolean(topLive.strategy && topLive.entryMode && topLive.entryMode !== 'BLOCKED');
   const shouldSurfaceReasons = !isReadyState || status.policyReady === false || topLive.allowed === false;
+  const blockerTexts = blockers.map(reasonText).filter(Boolean);
+  const hardBlockerTexts = blockerTexts.filter(isBlockingReason);
+  const explicitBlockerTexts = [status.primaryBlocker, status.mainBlocker].map(reasonText).filter(Boolean);
+  const hardExplicitBlockerText = explicitBlockerTexts.find(isBlockingReason) || '';
   const liveStrategy = topLive.strategy || topLive.route || topLive.routeKey || '—';
   const liveDirection = directionZh(topLive.direction || topLive.side || topLive.action);
   const entryMode = entryModeZh(topLive.entryMode || topLive.mode || topLive.decision);
   const recommendedLot = topLive.recommendedLot ?? topLive.lot ?? status.recommendedLot;
   const maxLot = topLive.maxLot ?? status.maxLot ?? status.autoMaxLot;
-  const newsBlocker = newsGateBlockerText(topLive.newsGate, status.newsGate, status.policy?.newsGate);
-  const blockingReasons = reasons.map(reasonText).filter(isBlockingReason);
-  const blockerText = blockers.length
-    ? blockers.slice(0, 2).map(reasonText).join('；')
-    : status.primaryBlocker ||
-      status.mainBlocker ||
-      newsBlocker ||
-      (blockingReasons.length
-        ? blockingReasons.slice(0, 2).join('；')
-        : shouldSurfaceReasons
-          ? humanizeStatus(topLive.entryStrictness || state || 'POLICY_BLOCKED')
-          : '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估');
-  const reasonSummary = reasons.length
-    ? reasons
-        .slice(0, 2)
-        .map((row) => reasonText(row))
-        .join('；')
-    : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
+  const newsBlocker = newsGateBlockerText(
+    topLive.newsGate,
+    status.topPolicy?.newsGate,
+    status.liveRecoveryCandidate?.newsGate,
+    status.policy?.topPolicy?.newsGate,
+    status.policy?.liveRecoveryCandidate?.newsGate,
+    status.newsGate,
+    status.policy?.newsGate,
+  );
+  const blockingReasons = reasons.filter(isBlockingReason);
+  const eaDiagnosticBlocker = rsiDiagnosticBlockerText(snapshot.usdJpyRsiEntryDiagnostics);
+  const derivedBlockerText =
+    newsBlocker ||
+    (blockingReasons.length ? blockingReasons.slice(0, 2).join('；') : '') ||
+    eaDiagnosticBlocker ||
+    (shouldSurfaceReasons ? humanizeStatus(topLive.entryStrictness || state || 'POLICY_BLOCKED') : '');
+  const blockerText = hardBlockerTexts.length
+    ? hardBlockerTexts.slice(0, 2).join('；')
+    : hardExplicitBlockerText ||
+      derivedBlockerText ||
+      explicitBlockerTexts.find(Boolean) ||
+      (blockerTexts.length ? blockerTexts.slice(0, 2).join('；') : '') ||
+      '无；等待 MT5 EA 自身 RSI、时段、点差、新闻和仓位风控评估';
+  const reasonSummary = newsBlocker
+    ? newsBlocker
+    : blockingReasons.length
+      ? blockingReasons.slice(0, 2).join('；')
+    : reasons.length
+      ? reasons.slice(0, 2).join('；')
+      : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
   const dryRunDecision = dryRun.decisionZh || dryRun.decision || status.dryRunStateZh;
 
   return [
@@ -1397,7 +1458,7 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
     {
       label: '主阻断原因',
       value: blockerText,
-      status: blockers.length || status.primaryBlocker || shouldSurfaceReasons ? 'warn' : 'ok',
+      status: hardBlockerTexts.length || hardExplicitBlockerText || shouldSurfaceReasons ? 'warn' : 'ok',
       hint: '无阻断不代表强制入场，代表后端策略链路不再挡 RSI 买入路线。',
     },
     {

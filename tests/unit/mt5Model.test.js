@@ -484,6 +484,79 @@ describe('mt5Model ledgers', () => {
     expect(items.find((item) => item.label === 'EA 干跑状态')?.status).toBe('warn');
   });
 
+  it('does not let a shadow top-live placeholder hide the policy blocker', () => {
+    const snapshot = normalizeMt5Snapshot({
+      usdJpyLiveLoop: {
+        state: 'POLICY_BLOCKED',
+        stateZh: '政策仍阻断，EA 不应自动入场',
+        policyReady: false,
+        primaryBlocker: '模拟观察',
+        blockers: ['SHADOW_REVIEW'],
+        topLiveEligiblePolicy: {
+          strategy: 'RSI_Reversal',
+          direction: 'LONG',
+          entryMode: 'BLOCKED',
+          allowed: false,
+          entryStrictness: 'SHADOW_REVIEW',
+          reasons: ['近期样本为正，可进入 USDJPY 策略候选', '运行快照通过'],
+        },
+        topPolicy: {
+          strategy: 'RSI_Reversal',
+          direction: 'LONG',
+          entryMode: 'BLOCKED',
+          allowed: false,
+          entryStrictness: 'BLOCKED_HIGH_IMPACT_NEWS',
+          reasons: [
+            '近期样本为正，可进入 USDJPY 策略候选',
+            '高冲击新闻窗口：Tracking next USDJPY event in 107m，暂停 live，shadow / replay 继续。',
+          ],
+          newsGate: {
+            hardBlock: true,
+            riskLevel: 'HARD',
+            lotMultiplier: 0,
+            reasonZh: '高冲击新闻窗口：Tracking next USDJPY event in 107m，暂停 live。',
+          },
+        },
+      },
+    });
+
+    const items = buildUsdJpyLiveLoopItems(snapshot);
+
+    expect(items.find((item) => item.label === '主阻断原因')?.value).toContain('高冲击新闻窗口');
+    expect(items.find((item) => item.label === '主阻断原因')?.value).not.toBe('模拟观察');
+    expect(items.find((item) => item.label === '实盘候选策略')?.hint).toContain('高冲击新闻窗口');
+  });
+
+  it('falls back to the EA RSI diagnostic blocker when policy text is vague', () => {
+    const snapshot = normalizeMt5Snapshot({
+      snapshot: {
+        usdJpyRsiEntryDiagnostics: {
+          state: 'SPREAD_BLOCK',
+          stateZh: '点差超过 EA 入场限制',
+          whyNoEntry: [{ code: 'SPREAD_BLOCK', label: '点差过高', detail: '3.0 / 2.0 pips' }],
+        },
+      },
+      usdJpyLiveLoop: {
+        state: 'POLICY_BLOCKED',
+        stateZh: '政策仍阻断，EA 不应自动入场',
+        policyReady: false,
+        topPolicy: {
+          strategy: 'RSI_Reversal',
+          direction: 'LONG',
+          entryMode: 'BLOCKED',
+          allowed: false,
+          entryStrictness: 'SHADOW_REVIEW',
+          reasons: ['近期样本为正，可进入 USDJPY 策略候选', '运行快照通过'],
+        },
+      },
+    });
+
+    const items = buildUsdJpyLiveLoopItems(snapshot);
+
+    expect(items.find((item) => item.label === '主阻断原因')?.value).toContain('3.0 / 2.0 pips');
+    expect(items.find((item) => item.label === '主阻断原因')?.value).not.toBe('模拟观察');
+  });
+
   it('shows missing execution feedback fields as unavailable instead of real zeroes', () => {
     const snapshot = normalizeMt5Snapshot({
       evidenceOS: {

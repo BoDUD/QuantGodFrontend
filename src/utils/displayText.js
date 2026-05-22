@@ -189,27 +189,30 @@ export function humanizeStatus(value, fallback = EMPTY) {
   const original = String(value).trim();
   const raw = normalizeToken(value);
   const lower = raw.toLowerCase();
+  const tokenLike = /^[a-z0-9_.|/-]+$/i.test(original);
   if (STATUS_LABELS.has(raw)) return STATUS_LABELS.get(raw);
   if (STATUS_LABELS.has(lower)) return STATUS_LABELS.get(lower);
-  if (lower.includes('keep_dry_run')) return '保持只读研究，等待策略通过';
-  if (lower.includes('ai_score_only')) return '只做 AI 评分，不自动下注';
-  if (lower.includes('config_only')) return '仅配置自动化';
-  if (lower.includes('file_only')) return '只读本地记录';
-  if (lower.includes('auto_paused')) return '自动暂停阻断';
-  if (lower.includes('session_block')) return '交易时段阻断';
-  if (lower.includes('no_cross')) return '未出现信号，仅观察';
-  if (lower.includes('blocked')) return '已阻断';
-  if (lower.includes('quarantine')) return '隔离中';
-  if (lower.includes('shadow')) return '模拟观察';
-  if (lower.includes('canary')) return '模拟验证';
-  if (lower.includes('readonly') || lower.includes('read_only')) return '只读';
-  if (lower.includes('dry_run')) return '模拟运行';
-  if (lower.includes('missing')) return '缺失';
-  if (lower.includes('unknown')) return '未同步';
-  if (lower.includes('error') || lower.includes('failed')) return '异常';
+  if (tokenLike) {
+    if (lower.includes('keep_dry_run')) return '保持只读研究，等待策略通过';
+    if (lower.includes('ai_score_only')) return '只做 AI 评分，不自动下注';
+    if (lower.includes('config_only')) return '仅配置自动化';
+    if (lower.includes('file_only')) return '只读本地记录';
+    if (lower.includes('auto_paused')) return '自动暂停阻断';
+    if (lower.includes('session_block')) return '交易时段阻断';
+    if (lower.includes('no_cross')) return '未出现信号，仅观察';
+    if (lower.includes('blocked')) return '已阻断';
+    if (lower.includes('quarantine')) return '隔离中';
+    if (lower.includes('shadow')) return '模拟观察';
+    if (lower.includes('canary')) return '模拟验证';
+    if (lower.includes('readonly') || lower.includes('read_only')) return '只读';
+    if (lower.includes('dry_run')) return '模拟运行';
+    if (lower.includes('missing')) return '缺失';
+    if (lower.includes('unknown')) return '未同步';
+    if (lower.includes('error') || lower.includes('failed')) return '异常';
+  }
   if (original.startsWith('/') || original.includes('\\')) return original;
   if (/^[+$¥€£]?\s*\d[\d,]*(\.\d+)?(\s*[A-Z]{3})?$/i.test(original)) return original;
-  if (/[,/|]/.test(original)) {
+  if (tokenLike && /[,/|]/.test(original)) {
     const parts = original
       .split(/[,/|]+/)
       .map((part) => humanizeStatus(part.trim(), part.trim()))
