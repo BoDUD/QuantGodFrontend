@@ -257,6 +257,74 @@ function friendlyText(value, fallback = '—') {
   return raw;
 }
 
+function friendlyTelegramError(error) {
+  const raw = String(error || '');
+  const lower = raw.toLowerCase();
+  if (!raw) return '';
+  if (lower.includes('telethon_api_id_hash_missing')) return 'Telethon待配置';
+  if (lower.includes('telethon_session_not_authorized')) return 'Telethon待登录';
+  if (lower.includes('telethon_channel_not_found')) return '频道未匹配';
+  if (lower.includes('no_bot_updates')) return 'Bot无更新';
+  if (lower.includes('telegram_bot_token_missing')) return 'Bot待配置';
+  return friendlyText(raw, raw);
+}
+
+function telegramIntakeState(telegram = {}, summary = {}) {
+  const sources = telegram.sources || {};
+  const botApi = sources.botApi || {};
+  const telethon = sources.telethon || {};
+  const exportSource = sources.export || {};
+  const walletCount = Number(summary.telegramWallets ?? telegram.walletCount ?? 0);
+  const signalCount = Number(summary.telegramSignals ?? telegram.signalCount ?? 0);
+  if (walletCount > 0) {
+    return {
+      value: `${formatNumber(walletCount, 0)} 个钱包`,
+      hint: telegram.nextAction || `频道 ${telegram.channelName || '预测市场内幕钱包监控'} 已进入排序。`,
+      status: 'ok',
+    };
+  }
+  if (signalCount > 0) {
+    return {
+      value: `${formatNumber(signalCount, 0)} 个交易员信号`,
+      hint: telegram.nextAction || 'Telegram 用户名/Rank 信号已进入强交易员排序。',
+      status: 'ok',
+    };
+  }
+  if (telethon.configured && Number(telethon.messagesRead ?? 0) > 0) {
+    return {
+      value: `Telethon已读 ${formatNumber(telethon.messagesRead, 0)} 条`,
+      hint: telethon.nextAction || '已读取频道历史，等待可解析完整钱包地址。',
+      status: 'warn',
+    };
+  }
+  if (telethon.configured) {
+    return {
+      value: friendlyTelegramError(telethon.error) || 'Telethon待登录',
+      hint: telethon.nextAction || telegram.nextAction || '登录本地 Telethon user session 后可读取该频道。',
+      status: 'warn',
+    };
+  }
+  if (botApi.configured) {
+    return {
+      value: friendlyTelegramError(botApi.error) || 'Bot已配置无更新',
+      hint: botApi.nextAction || telegram.nextAction || '把 bot 加入频道后才能收到 channel_post。',
+      status: 'warn',
+    };
+  }
+  if (exportSource.configured) {
+    return {
+      value: friendlyTelegramError(exportSource.error) || '导出待解析',
+      hint: exportSource.nextAction || telegram.nextAction || '导出 Telegram 历史后解析钱包。',
+      status: 'warn',
+    };
+  }
+  return {
+    value: telegram.configured ? '已配置待解析' : '待接入',
+    hint: telegram.nextAction || telegram.channelName || '预测市场内幕钱包监控',
+    status: 'warn',
+  };
+}
+
 function walletBalance(payload) {
   const paths = [
     'walletBalanceUSDC',
@@ -664,6 +732,7 @@ function buildProgressItems(payload) {
   const discovery = firstObject(payload.copyTraderDiscovery);
   const source = discovery.sourceStatus || {};
   const telegram = source.telegramChannel || {};
+  const telegramState = telegramIntakeState(telegram, copySummary);
   const policy = discovery.walletRiskPolicy || {};
   const retune = firstObject(payload.retunePlanner);
   const copyReview = retune.copyTradingReview || polymarketDailyReview(payload).copyTradingReview || {};
@@ -677,7 +746,7 @@ function buildProgressItems(payload) {
     {
       label: '强交易员发现',
       value: `${formatNumber(copySummary.eligibleTraders ?? 0, 0)} 可跟 / ${formatNumber(copySummary.rankedTraders ?? 0, 0)} 排名`,
-      hint: `当前持仓候选 ${formatNumber(copySummary.shadowCandidates ?? 0, 0)}；Telegram 钱包 ${formatNumber(copySummary.telegramWallets ?? 0, 0)}。`,
+      hint: `当前持仓候选 ${formatNumber(copySummary.shadowCandidates ?? 0, 0)}；Telegram 钱包 ${formatNumber(copySummary.telegramWallets ?? 0, 0)} / 信号 ${formatNumber(copySummary.telegramSignals ?? 0, 0)}。`,
       status: Number(copySummary.shadowCandidates ?? 0) ? 'ok' : 'warn',
     },
     {
@@ -694,13 +763,9 @@ function buildProgressItems(payload) {
     },
     {
       label: 'Telegram来源',
-      value: Number(copySummary.telegramWallets ?? 0)
-        ? `${formatNumber(copySummary.telegramWallets, 0)} 钱包`
-        : telegram.configured
-          ? '已配置未提取'
-          : '待接入',
-      hint: telegram.nextAction || '需要 Telegram 导出或只读 session 才能读取该频道。',
-      status: Number(copySummary.telegramWallets ?? 0) ? 'ok' : 'warn',
+      value: telegramState.value,
+      hint: telegramState.hint,
+      status: telegramState.status,
     },
     {
       label: '真钱状态',
@@ -725,6 +790,7 @@ function buildMetrics(payload) {
   const copySummary = summaryObject(payload.copyTraderDiscovery);
   const copySource = firstObject(payload.copyTraderDiscovery).sourceStatus || {};
   const telegram = copySource.telegramChannel || {};
+  const telegramState = telegramIntakeState(telegram, copySummary);
   const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
   const wallet = walletBalance(payload);
   return [
@@ -754,13 +820,9 @@ function buildMetrics(payload) {
     },
     {
       label: 'Telegram来源',
-      value: Number(copySummary.telegramWallets ?? 0)
-        ? `${formatNumber(copySummary.telegramWallets, 0)} 个钱包`
-        : telegram.configured
-          ? '未提取钱包'
-          : '待接入',
-      hint: telegram.channelName || '预测市场内幕钱包监控',
-      status: Number(copySummary.telegramWallets ?? 0) ? 'ok' : 'warn',
+      value: telegramState.value,
+      hint: telegramState.hint,
+      status: telegramState.status,
     },
     {
       label: '真实钱包TP/SL',
@@ -793,7 +855,7 @@ function buildCopyTraderItems(payload) {
   const source = discovery.sourceStatus || {};
   const topTrader = Array.isArray(discovery.traders) ? discovery.traders[0] || {} : {};
   const telegram = source.telegramChannel || {};
-  const botApi = telegram.sources?.botApi || {};
+  const telegramState = telegramIntakeState(telegram, summary);
   const policy = discovery.walletRiskPolicy || {};
   return [
     {
@@ -824,15 +886,9 @@ function buildCopyTraderItems(payload) {
     },
     {
       label: 'Telegram频道',
-      value: telegram.configured
-        ? Number(telegram.walletCount ?? 0)
-          ? `${formatNumber(telegram.walletCount, 0)} 个钱包`
-          : botApi.configured
-            ? 'Bot已配置无更新'
-            : '已配置待解析'
-        : '待接入',
-      hint: telegram.nextAction || telegram.channelName || '预测市场内幕钱包监控',
-      status: Number(telegram.walletCount ?? 0) ? 'ok' : 'warn',
+      value: telegramState.value,
+      hint: telegramState.hint,
+      status: telegramState.status,
     },
     {
       label: '真实钱包止盈止损',
