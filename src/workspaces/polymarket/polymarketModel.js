@@ -423,7 +423,11 @@ function buildSafetyItems(payload = {}) {
     { label: '研究模式', value: '只读', status: 'ok' },
     { label: 'AI 建议', value: '仅供参考', status: 'ok' },
     { label: '自动下注', value: autoUnlock ? '证据门控' : '关闭', status: autoUnlock ? 'warn' : 'locked' },
-    { label: '真实交易', value: liveAllowed ? '允许' : '自动阻断', status: liveAllowed ? 'ok' : 'locked' },
+    {
+      label: '真实交易',
+      value: liveAllowed ? '允许' : walletGateValue(policy, isolated),
+      status: liveAllowed ? 'ok' : 'locked',
+    },
     {
       label: 'CLOB隔离',
       value: isolated.runtimePrepared ? '已准备' : '待配置',
@@ -522,10 +526,10 @@ function blockerText(blockers = []) {
     pf_lt_1_10: 'PF 低于 1.10',
     win_rate_lt_52: '胜率低于 52%',
     cash_scaled_pnl_not_positive: '按当前资金估算仍未盈利',
-    real_execution_switch_false: '真实执行开关未打开',
-    wallet_kill_switch_on_or_unset: '钱包 kill switch 仍开启或未配置',
+    real_execution_switch_false: '真钱执行开关未打开',
+    wallet_kill_switch_on_or_unset: '真钱 kill switch 仍开启或未配置',
     wallet_adapter_not_isolated_clob: '未配置 isolated CLOB adapter',
-    private_key_env_missing: '钱包私钥环境变量缺失',
+    private_key_env_missing: '真钱钱包私钥环境变量缺失',
     clob_host_env_missing: 'CLOB host 未配置',
     clob_host_missing: 'CLOB host 未配置',
     py_clob_client_missing: 'py-clob-client 未安装',
@@ -549,10 +553,34 @@ function isolatedRuntimeHint(runtime = {}) {
   if (!runtime || !Object.keys(runtime).length) return '等待 isolated CLOB runtime manifest。';
   const blockers = blockerText(isolatedRuntimeBlockers(runtime));
   const adapter = runtime.adapter?.name || 'isolated_clob';
-  const host = runtime.clob?.hostConfigured ? 'host已配置' : 'host待配置';
+  const host = runtime.clob?.hostConfigured ? 'host 已配置' : 'host 待配置';
   const sendAllowed = Boolean(runtime.safety?.orderSendAllowed);
   if (sendAllowed) return `${adapter} / ${host}；订单发送已由后端策略放行。`;
-  return `${adapter} / ${host}；${blockers || 'prepare-only 模式，未开放真钱订单发送。'}`;
+  return `${adapter} / ${host}；CLOB 已配置，真钱钱包仍锁定；${blockers || 'prepare-only 模式，未开放真钱订单发送。'}`;
+}
+
+function policyBlockers(policy = {}) {
+  const blockers = policy.hardBlockers?.length ? policy.hardBlockers : policy.runtimePreflight?.blockers;
+  return Array.isArray(blockers) ? blockers : [];
+}
+
+function walletGateValue(policy = {}, isolated = {}) {
+  if (policy.realWalletExecutionAllowed) return '已自动放行';
+  const blockers = policyBlockers(policy);
+  if (blockers.length === 1 && blockers.includes('private_key_env_missing')) return '软件已开 / 缺私钥';
+  if (isolated.runtimePrepared) return 'CLOB已配 / 钱包锁定';
+  return '真钱钱包锁定';
+}
+
+function walletGateHint(policy = {}, isolated = {}, fallback = '') {
+  if (policy.realWalletExecutionAllowed) {
+    return '已满足钱包门控；真实执行仍受 TP/SL、仓位、日亏损和 kill switch 约束。';
+  }
+  const blockers = blockerText(policyBlockers(policy));
+  if (isolated.runtimePrepared) {
+    return `CLOB adapter 和 host 已配置；没有放开真钱是因为 ${blockers || fallback || '真钱执行闸门仍未通过'}。`;
+  }
+  return blockers || fallback || '先准备 isolated CLOB runtime，再由系统按证据门控判断是否进入 micro-live。';
 }
 
 function policyValidation(payload, key) {
@@ -649,6 +677,7 @@ function buildSimulationItems(payload) {
   const copyTools = Array.isArray(copyReview.sourceToolkit) ? copyReview.sourceToolkit : [];
   const copyPolicy =
     copyReview.walletRiskPolicy || firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const isolated = isolatedRuntime(payload);
   const copySourceMissing = copyReview.status === 'COPY_TRADER_DISCOVERY_SOURCE_MISSING';
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
@@ -719,12 +748,13 @@ function buildSimulationItems(payload) {
       status: Number(copyCapital.cashScaledPnlUSDC) > 0 ? 'ok' : 'warn',
     },
     {
-      label: '真钱自动门控',
-      value: copyPolicy.realWalletExecutionAllowed ? '已自动放行' : '自动阻断',
-      hint: copyPolicy.realWalletExecutionAllowed
-        ? '已满足钱包门控；真实执行仍受 TP/SL、仓位、日亏损和 kill switch 约束。'
-        : blockerText(copyPolicy.hardBlockers || copyCapital.restoreLiveReviewBlockers) ||
-          '需要更多正收益样本；系统会自动判断，不等人工审核。',
+      label: '真钱钱包门控',
+      value: walletGateValue(copyPolicy, isolated),
+      hint: walletGateHint(
+        copyPolicy,
+        isolated,
+        blockerText(copyCapital.restoreLiveReviewBlockers) || '需要更多正收益样本；系统会自动判断。',
+      ),
       status: copyPolicy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
     {
@@ -960,17 +990,19 @@ function buildProgressItems(payload) {
       status: telegramState.status,
     },
     {
-      label: '真钱状态',
-      value: policy.realWalletExecutionAllowed ? '自动放行' : '自动阻断',
-      hint:
-        blockerText(policy.hardBlockers || policy.runtimePreflight?.blockers) ||
+      label: '真钱钱包',
+      value: walletGateValue(policy, isolated),
+      hint: walletGateHint(
+        policy,
+        isolated,
         policy.nextAction ||
-        'discovery -> shadow replay -> walk-forward 全部通过后，系统自动决定是否放开钱包。',
+          'discovery -> shadow replay -> walk-forward 全部通过后，系统自动决定是否放开钱包。',
+      ),
       status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
     {
       label: 'Isolated CLOB',
-      value: isolated.runtimePrepared ? '隔离已准备' : '等待配置',
+      value: isolated.runtimePrepared ? 'CLOB已配置 / 钱包锁定' : '等待配置',
       hint: isolatedRuntimeHint(isolated),
       status: isolated.runtimePrepared ? 'locked' : 'warn',
     },
@@ -1054,12 +1086,12 @@ function buildMetrics(payload) {
     {
       label: '真实钱包TP/SL',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% / ${formatNumber(policy.stopLossPct ?? 0, 0)}%`,
-      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；自动门控 ${policy.realWalletExecutionAllowed ? '已放行' : '阻断中'}`,
+      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；${walletGateHint(policy, isolated)}`,
       status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
     {
       label: 'Isolated CLOB',
-      value: isolated.runtimePrepared ? 'Ready / locked' : '等待配置',
+      value: isolated.runtimePrepared ? 'CLOB已配置 / 钱包锁定' : '等待配置',
       hint: isolatedRuntimeHint(isolated),
       status: isolated.runtimePrepared ? 'locked' : 'warn',
     },
@@ -1092,9 +1124,10 @@ function buildCopyTraderItems(payload) {
   const policy = discovery.walletRiskPolicy || {};
   const replay = shadowReplaySummary(payload);
   const walk = walkForwardSummary(payload);
+  const isolated = isolatedRuntime(payload);
   const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
   const walkBatches = Number(walk.batches ?? 0);
-  const runtimeBlockers = blockerText(policy.hardBlockers || policy.runtimePreflight?.blockers);
+  const runtimeBlockers = blockerText(policyBlockers(policy));
   return [
     {
       label: '发现状态',
@@ -1149,7 +1182,7 @@ function buildCopyTraderItems(payload) {
     {
       label: '真实钱包止盈止损',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% TP / ${formatNumber(policy.stopLossPct ?? 0, 0)}% SL`,
-      hint: `自动放行 ${policy.realWalletExecutionAllowed ? '已允许' : '未通过'}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
+      hint: `${walletGateHint(policy, isolated)}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
       status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
     {
@@ -1157,7 +1190,7 @@ function buildCopyTraderItems(payload) {
       value: policy.realWalletExecutionAllowed
         ? 'micro-live 受限执行'
         : replay.passed && walk.passed
-          ? '配置真钱 runtime'
+          ? '真钱钱包待解锁'
           : Number(summary.shadowCandidates ?? 0)
             ? '继续回放验证'
             : '继续找来源',
