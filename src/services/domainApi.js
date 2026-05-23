@@ -266,8 +266,23 @@ export async function loadPolymarketWorkspace(query = {}, options = {}) {
         'copyTraderDiscovery',
         (requestOptions) => fetchJson('/api/polymarket/copy-trader-discovery', null, requestOptions),
       ],
+      [
+        'copyTraderShadowReplay',
+        (requestOptions) => fetchJson('/api/polymarket/copy-trader-shadow-replay', null, requestOptions),
+      ],
+      [
+        'copyTraderWalkForward',
+        (requestOptions) => fetchJson('/api/polymarket/copy-trader-walk-forward', null, requestOptions),
+      ],
+      [
+        'copyTraderSourceBuckets',
+        (requestOptions) => fetchJson('/api/polymarket/copy-trader-source-buckets', null, requestOptions),
+      ],
       ['research', (requestOptions) => fetchJson('/api/polymarket/research', null, requestOptions)],
-      ['retunePlanner', (requestOptions) => fetchJson('/api/polymarket/retune-planner', null, requestOptions)],
+      [
+        'retunePlanner',
+        (requestOptions) => fetchJson('/api/polymarket/retune-planner', null, requestOptions),
+      ],
       ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
       [
         'researchLedger',
@@ -278,9 +293,41 @@ export async function loadPolymarketWorkspace(query = {}, options = {}) {
         (requestOptions) =>
           fetchRows(`/api/polymarket/copy-trader-discovery-ledger${params({ limit })}`, requestOptions),
       ],
+      [
+        'copyTraderShadowReplayLedger',
+        (requestOptions) =>
+          fetchRows(
+            `/api/polymarket/copy-trader-shadow-replay-ledger${params({ limit: Math.max(limit, 24) })}`,
+            requestOptions,
+          ),
+      ],
+      [
+        'copyTraderOutcomeLedger',
+        (requestOptions) =>
+          fetchRows(
+            `/api/polymarket/copy-trader-outcome-ledger${params({ limit: Math.max(limit, 24) })}`,
+            requestOptions,
+          ),
+      ],
+      [
+        'copyTraderWalkForwardLedger',
+        (requestOptions) =>
+          fetchRows(
+            `/api/polymarket/copy-trader-walk-forward-ledger${params({ limit: Math.max(limit, 12) })}`,
+            requestOptions,
+          ),
+      ],
+      [
+        'copyTraderSourceBucketsLedger',
+        (requestOptions) =>
+          fetchRows(
+            `/api/polymarket/copy-trader-source-buckets-ledger${params({ limit: Math.max(limit, 24) })}`,
+            requestOptions,
+          ),
+      ],
     ],
     options,
-    5,
+    8,
   );
 }
 

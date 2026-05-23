@@ -19,6 +19,24 @@ const POLYMARKET_ENDPOINTS = [
     description: '强交易员评分流水',
   },
   {
+    key: 'copyTraderShadowReplay',
+    label: 'Shadow回放',
+    endpoint: '/api/polymarket/copy-trader-shadow-replay',
+    description: 'Telegram跟单回放汇总',
+  },
+  {
+    key: 'copyTraderWalkForward',
+    label: 'Walk-forward',
+    endpoint: '/api/polymarket/copy-trader-walk-forward',
+    description: '分批前推验证',
+  },
+  {
+    key: 'copyTraderSourceBuckets',
+    label: '来源分桶',
+    endpoint: '/api/polymarket/copy-trader-source-buckets',
+    description: '按来源和交易员淘汰弱信号',
+  },
+  {
     key: 'research',
     label: '研究账本',
     endpoint: '/api/polymarket/research',
@@ -52,6 +70,10 @@ export const POLYMARKET_SAFETY_DEFAULTS = Object.freeze({
   autoExecutionAllowed: false,
   requiresManualAuthorization: true,
 });
+
+const DATA_PENDING = '等待数据';
+const NOT_SYNCED = '未同步';
+const NO_SIGNAL = '暂无信号';
 
 function unwrap(payload) {
   if (!payload) return payload;
@@ -141,34 +163,39 @@ function countRows(payload) {
   return asRows(payload).length;
 }
 
-function formatNumber(value, digits = 2) {
+function fallbackValue(value, fallback = DATA_PENDING) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return formatDisplayValue(value);
+}
+
+function formatNumber(value, digits = 2, fallback = DATA_PENDING) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return value ?? '—';
+  if (!Number.isFinite(number)) return fallbackValue(value, fallback);
   return number.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
-function formatUsd(value, digits = 2) {
+function formatUsd(value, digits = 2, fallback = DATA_PENDING) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
+  if (!Number.isFinite(number)) return fallback;
   return `$${number.toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
-function formatSignedUsd(value, digits = 2) {
+function formatSignedUsd(value, digits = 2, fallback = DATA_PENDING) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
+  if (!Number.isFinite(number)) return fallback;
   const sign = number > 0 ? '+' : number < 0 ? '-' : '';
   return `${sign}${formatUsd(Math.abs(number), digits)}`;
 }
 
-function formatPercent(value) {
+function formatPercent(value, fallback = DATA_PENDING) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return value ?? '—';
+  if (!Number.isFinite(number)) return fallbackValue(value, fallback);
   const normalized = Math.abs(number) <= 1 ? number * 100 : number;
   return `${normalized.toFixed(1)}%`;
 }
 
-function formatDateTime(value) {
-  if (!value) return '—';
+function formatDateTime(value, fallback = NOT_SYNCED) {
+  if (!value) return fallback;
   const parsed = Date.parse(String(value));
   if (!Number.isFinite(parsed)) return String(value);
   return new Date(parsed).toLocaleString('zh-CN', {
@@ -235,7 +262,7 @@ function friendlyModeLabel(payload) {
   return friendlyStatusLabel(payload);
 }
 
-function friendlyText(value, fallback = '—') {
+function friendlyText(value, fallback = DATA_PENDING) {
   if (value === undefined || value === null || value === '') return fallback;
   if (typeof value === 'object') return formatDisplayValue(value);
   const translated = humanizeStatus(value, null);
@@ -245,6 +272,9 @@ function friendlyText(value, fallback = '—') {
   if (normalized.includes('keep_dry_run') || normalized.includes('dry_run')) {
     return '保持只读研究，等待策略通过';
   }
+  if (normalized.includes('promotable')) return '可晋级';
+  if (normalized.includes('passed') || normalized === 'pass') return '已通过';
+  if (normalized.includes('collect_more') || normalized.includes('collecting')) return '收集中';
   if (normalized.includes('missing_db') || normalized.includes('missing')) return '待同步';
   if (normalized.includes('quarantine')) return '隔离中';
   if (normalized.includes('blocked')) return '已阻断';
@@ -467,10 +497,7 @@ function agentCopyText(
       '若连续批次仍通过，再进入人工恢复复核。',
       '若连续批次仍通过，交给自动钱包门控决定是否恢复 micro-live。',
     )
-    .replace(
-      '仍需人工确认钱包、限额和隔离边界。',
-      '不需要人工确认；系统按钱包门控、限额和隔离边界自动判断。',
-    )
+    .replace('仍需人工确认钱包、限额和隔离边界。', '不需要人工确认；系统按钱包门控、限额和隔离边界自动判断。')
     .replace('人工加入观察名单', '本地观察名单');
 }
 
@@ -480,6 +507,11 @@ function blockerText(blockers = []) {
     pf_lt_1_10: 'PF 低于 1.10',
     win_rate_lt_52: '胜率低于 52%',
     cash_scaled_pnl_not_positive: '按当前资金估算仍未盈利',
+    real_execution_switch_false: '真实执行开关未打开',
+    wallet_kill_switch_on_or_unset: '钱包 kill switch 仍开启或未配置',
+    wallet_adapter_not_isolated_clob: '未配置 isolated CLOB adapter',
+    private_key_env_missing: '钱包私钥环境变量缺失',
+    clob_host_env_missing: 'CLOB host 未配置',
   };
   return (Array.isArray(blockers) ? blockers : [])
     .map((item) => labels[item] || friendlyText(item))
@@ -487,14 +519,100 @@ function blockerText(blockers = []) {
     .join(' / ');
 }
 
+function policyValidation(payload, key) {
+  const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  return policy.validation?.[key] && typeof policy.validation[key] === 'object' ? policy.validation[key] : {};
+}
+
+function shadowReplaySummary(payload) {
+  const direct = summaryObject(payload.copyTraderShadowReplay);
+  const validation = policyValidation(payload, 'shadowReplay');
+  return { ...validation, ...direct };
+}
+
+function walkForwardSummary(payload) {
+  const direct = summaryObject(payload.copyTraderWalkForward);
+  const validation = policyValidation(payload, 'walkForward');
+  const rows = asRows(payload.copyTraderWalkForward);
+  return {
+    ...validation,
+    ...direct,
+    batches: direct.batches ?? direct.windows ?? validation.batches ?? rows.length,
+    rows: direct.rows ?? rows.length,
+  };
+}
+
+function sourceBucketPayload(payload) {
+  return firstObject(payload.copyTraderSourceBuckets);
+}
+
+function sourceBucketRows(payload) {
+  const buckets = sourceBucketPayload(payload);
+  const rows = [
+    ...(Array.isArray(buckets.bySource) ? buckets.bySource : []),
+    ...(Array.isArray(buckets.byTrader) ? buckets.byTrader : []),
+    ...(Array.isArray(buckets.bySourceTrader) ? buckets.bySourceTrader : []),
+  ];
+  return rows.length ? rows : asRows(payload.copyTraderSourceBucketsLedger);
+}
+
+function sourceBucketSummary(payload) {
+  const discovery = firstObject(payload.copyTraderDiscovery);
+  const qualityGate = discovery.copyReplayQualityGate || {};
+  const buckets = sourceBucketPayload(payload);
+  const quarantine = buckets.quarantine || {};
+  const rows = sourceBucketRows(payload);
+  const quarantinedTraders = qualityGate.quarantinedTraders || quarantine.quarantinedTraders || [];
+  const weakSources = qualityGate.weakSources || quarantine.weakSources || [];
+  const weakSourceTraders = qualityGate.quarantinedSourceTraders || quarantine.quarantinedSourceTraders || [];
+  const weakCount =
+    Number(qualityGate.weakBucketCount ?? 0) ||
+    rows.filter((row) => {
+      const status = String(row.status || '').toUpperCase();
+      return status.includes('QUARANTINE') || status.includes('WEAK');
+    }).length;
+  return {
+    rows,
+    quarantinedTraders,
+    weakSources,
+    weakSourceTraders,
+    weakCount,
+  };
+}
+
+function replayStatusText(summary) {
+  if (summary.passed === true || String(summary.status || '').toUpperCase() === 'PASSED') return '已通过';
+  if (summary.present === false) return '未产出';
+  if (summary.samples || summary.outcomeSamples || summary.rows) return '未通过';
+  return '等待样本';
+}
+
+function replayStatus(summary) {
+  if (summary.passed === true || String(summary.status || '').toUpperCase() === 'PASSED') return 'ok';
+  if (summary.present === false) return 'locked';
+  if (summary.samples || summary.outcomeSamples || summary.rows) return 'warn';
+  return 'unknown';
+}
+
+function sourceBucketHint(bucketSummary) {
+  const blocked = [
+    ...(bucketSummary.quarantinedTraders || []).map((item) => `交易员 ${item}`),
+    ...(bucketSummary.weakSources || []).map((item) => `来源 ${item}`),
+  ];
+  if (blocked.length) return `${blocked.slice(0, 3).join(' / ')} 已隔离，后续候选会自动排除。`;
+  return '暂未发现需要淘汰的弱来源；继续按来源分桶观察。';
+}
+
 function buildSimulationItems(payload) {
   const reviewSummary = summaryObject(payload.dailyReview);
   const polyDaily = polymarketDailyReview(payload);
-  const copyReview = firstObject(payload.retunePlanner).copyTradingReview || polyDaily.copyTradingReview || {};
+  const copyReview =
+    firstObject(payload.retunePlanner).copyTradingReview || polyDaily.copyTradingReview || {};
   const copyCapital = copyReview.capitalSimulation || {};
   const copyPlan = copyReview.iterationPlan || {};
   const copyTools = Array.isArray(copyReview.sourceToolkit) ? copyReview.sourceToolkit : [];
-  const copyPolicy = copyReview.walletRiskPolicy || firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const copyPolicy =
+    copyReview.walletRiskPolicy || firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
   const copySourceMissing = copyReview.status === 'COPY_TRADER_DISCOVERY_SOURCE_MISSING';
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
@@ -538,15 +656,21 @@ function buildSimulationItems(payload) {
       value: copySourceMissing
         ? '来源缺失'
         : copyReview.active
-        ? copyAgentPlanReady
-          ? 'Agent 已生成重调方案'
-          : copyReview.operatorStatusLabel || '正在模拟'
-        : '暂无样本',
+          ? copyAgentPlanReady
+            ? 'Agent 已生成重调方案'
+            : copyReview.operatorStatusLabel || '正在模拟'
+          : '暂无样本',
       hint: copyAgentPlanReady
         ? agentCopyText(copyReview.summary)
         : copyReview.summary ||
           '未发现跟单样本；Agent 会先收集授权频道、公开强账户或本地观察名单的 shadow 证据。',
-      status: copySourceMissing ? 'warn' : copyReview.active ? (copyAgentPlanReady ? 'ok' : 'warn') : 'unknown',
+      status: copySourceMissing
+        ? 'warn'
+        : copyReview.active
+          ? copyAgentPlanReady
+            ? 'ok'
+            : 'warn'
+          : 'unknown',
     },
     {
       label: '跟单资金模拟',
@@ -575,16 +699,15 @@ function buildSimulationItems(payload) {
       hint: copySourceMissing
         ? '这些只是允许接入的来源类型；当前没有 fresh copied-trader ranking。'
         : copyTools.length
-        ? '可用 Telegram 授权频道/导出、公开强账户、当前持仓和本地观察名单做 shadow 跟单。'
-        : '跟单来源必须先转成只读证据，再进模拟账本。',
+          ? '可用 Telegram 授权频道/导出、公开强账户、当前持仓和本地观察名单做 shadow 跟单。'
+          : '跟单来源必须先转成只读证据，再进模拟账本。',
       status: copySourceMissing ? 'warn' : copyTools.length ? 'ok' : 'unknown',
     },
     {
       label: '下一轮跟单重调',
-      value:
-        copySourceMissing
-          ? '先接入来源'
-          : Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
+      value: copySourceMissing
+        ? '先接入来源'
+        : Array.isArray(copyPlan.candidateVariants) && copyPlan.candidateVariants.length
           ? `${copyPlan.candidateVariants.length} 个模拟变体`
           : '待生成',
       hint:
@@ -636,7 +759,8 @@ function buildReviewItems(payload) {
   const summary = summaryObject(payload.dailyReview);
   const polyDaily = polymarketDailyReview(payload);
   const polySummary = polyDaily.summary || {};
-  const copyReview = polyDaily.copyTradingReview || firstObject(payload.retunePlanner).copyTradingReview || {};
+  const copyReview =
+    polyDaily.copyTradingReview || firstObject(payload.retunePlanner).copyTradingReview || {};
   const copyPlan = copyReview.iterationPlan || {};
   const iteration = dailyIteration(payload);
   const strategyQueue = Array.isArray(iteration.strategyIterationQueue)
@@ -678,18 +802,23 @@ function buildReviewItems(payload) {
           ? 'Agent 已生成跟单重调'
           : copySourceMissing
             ? '来源缺失'
-          : copyReview.active
-            ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '等待自动门控')
-            : '暂无跟单样本',
+            : copyReview.active
+              ? copyReview.operatorStatusLabel || friendlyText(copyReview.status, '等待自动门控')
+              : '暂无跟单样本',
       hint:
         copyRetuneDone || copyAgentPlanReady
           ? `${agentCopyText(copyQueue?.recommendation || copyPlan.nextAction || copyReview.summary || '跟单 shadow-only 重调方案已生成')} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
           : copySourceMissing
             ? copyReview.summary || '当前没有 fresh copied-trader ranking；旧 copy_archive 只作历史对照。'
-          : copyReview.active
-            ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
-            : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
-      status: copyRetuneDone || copyAgentPlanReady ? 'ok' : copySourceMissing || copyReview.active ? 'warn' : 'unknown',
+            : copyReview.active
+              ? `${copyReview.summary || ''} 当前资金估算 ${formatSignedUsd(copyReview.capitalSimulation?.cashScaledPnlUSDC)}。`
+              : '跟单策略会按市场家族、来源质量和流动性继续收集 shadow 证据。',
+      status:
+        copyRetuneDone || copyAgentPlanReady
+          ? 'ok'
+          : copySourceMissing || copyReview.active
+            ? 'warn'
+            : 'unknown',
     },
     {
       label: '跟单迭代方案',
@@ -701,10 +830,9 @@ function buildReviewItems(payload) {
       hint: copySourceMissing
         ? agentCopyText(copyReview.nextActions?.[0], '先生成当前强交易员只读排名，再做 shadow replay。')
         : acceptanceCriteriaText(copyPlan),
-      status:
-        copySourceMissing
-          ? 'warn'
-          : copyVariantCount || copyRetuneDone || copyAgentPlanReady
+      status: copySourceMissing
+        ? 'warn'
+        : copyVariantCount || copyRetuneDone || copyAgentPlanReady
           ? 'ok'
           : copyPlan.retuneRequired
             ? 'warn'
@@ -736,11 +864,19 @@ function buildProgressItems(payload) {
   const policy = discovery.walletRiskPolicy || {};
   const retune = firstObject(payload.retunePlanner);
   const copyReview = retune.copyTradingReview || polymarketDailyReview(payload).copyTradingReview || {};
+  const replay = shadowReplaySummary(payload);
+  const walk = walkForwardSummary(payload);
+  const buckets = sourceBucketSummary(payload);
   const latestAt = latestGeneratedAt([
     payload.copyTraderDiscovery,
+    payload.copyTraderShadowReplay,
+    payload.copyTraderWalkForward,
+    payload.copyTraderSourceBuckets,
     payload.retunePlanner,
     payload.research,
   ]);
+  const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
+  const walkBatches = Number(walk.batches ?? 0);
 
   return [
     {
@@ -752,14 +888,32 @@ function buildProgressItems(payload) {
     {
       label: '最新证据',
       value: formatDateTime(latestAt),
-      hint: '前端只读强交易员发现、跟单候选和重调计划。',
+      hint: '前端只读强交易员发现、回放、walk-forward、来源分桶和重调计划。',
       status: latestAt ? 'ok' : 'warn',
     },
     {
       label: 'Shadow replay',
-      value: Number(copySummary.shadowCandidates ?? 0) ? '待写入回放账本' : '暂无候选',
-      hint: copyReview.summary || '下一步验证跟随延迟、盘口深度、退出规则和 walk-forward。',
-      status: Number(copySummary.shadowCandidates ?? 0) ? 'warn' : 'locked',
+      value: `${replayStatusText(replay)} / ${formatNumber(replaySamples, 0)} 样本`,
+      hint: replaySamples
+        ? `PF ${formatNumber(replay.profitFactor, 4)}；净盈亏 ${formatSignedUsd(replay.netPnlUSDC)}；未结算 ${formatNumber(replay.openOrUnresolved ?? 0, 0)}。`
+        : copyReview.summary || '等待跟单候选写入回放账本。',
+      status: replayStatus(replay),
+    },
+    {
+      label: 'Walk-forward',
+      value: walkBatches
+        ? `${replayStatusText(walk)} / ${formatNumber(walkBatches, 0)} 批 / ${formatPercent(walk.passRatePct ?? 0)}`
+        : '等待回放样本',
+      hint: walkBatches
+        ? `净盈亏 ${formatSignedUsd(walk.netPnlUSDC)}；阻断 ${blockerText(walk.blockers) || '无硬阻断'}。`
+        : 'shadow replay 产出后自动做分批前推验证。',
+      status: replayStatus(walk),
+    },
+    {
+      label: '弱源隔离',
+      value: `${formatNumber(buckets.quarantinedTraders.length, 0)} 交易员 / ${formatNumber(buckets.weakSources.length, 0)} 来源`,
+      hint: sourceBucketHint(buckets),
+      status: buckets.weakCount ? 'warn' : 'ok',
     },
     {
       label: 'Telegram来源',
@@ -771,6 +925,7 @@ function buildProgressItems(payload) {
       label: '真钱状态',
       value: policy.realWalletExecutionAllowed ? '自动放行' : '自动阻断',
       hint:
+        blockerText(policy.hardBlockers || policy.runtimePreflight?.blockers) ||
         policy.nextAction ||
         'discovery -> shadow replay -> walk-forward 全部通过后，系统自动决定是否放开钱包。',
       status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
@@ -792,7 +947,12 @@ function buildMetrics(payload) {
   const telegram = copySource.telegramChannel || {};
   const telegramState = telegramIntakeState(telegram, copySummary);
   const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const replay = shadowReplaySummary(payload);
+  const walk = walkForwardSummary(payload);
+  const buckets = sourceBucketSummary(payload);
   const wallet = walletBalance(payload);
+  const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
+  const walkBatches = Number(walk.batches ?? 0);
   return [
     {
       label: '钱包余额',
@@ -809,8 +969,30 @@ function buildMetrics(payload) {
     {
       label: '可跟来源',
       value: formatNumber(copySummary.eligibleTraders ?? 0, 0),
-      hint: `Top ${copySummary.topTrader || '—'} / 分数 ${formatNumber(copySummary.topScore ?? 0, 2)}`,
+      hint: `Top ${copySummary.topTrader || '等待排名'} / 分数 ${formatNumber(copySummary.topScore ?? 0, 2)}`,
       status: Number(copySummary.eligibleTraders ?? 0) ? 'ok' : 'warn',
+    },
+    {
+      label: 'Replay PF',
+      value: replaySamples ? formatNumber(replay.profitFactor, 4) : '等待回放',
+      hint: replaySamples
+        ? `${formatNumber(replaySamples, 0)} 个已验证样本，净盈亏 ${formatSignedUsd(replay.netPnlUSDC)}`
+        : 'shadow replay 尚未产出可展示样本',
+      status: replayStatus(replay),
+    },
+    {
+      label: 'Walk-forward',
+      value: walkBatches ? formatPercent(walk.passRatePct ?? 0) : '等待批次',
+      hint: walkBatches
+        ? `${formatNumber(walkBatches, 0)} 批，净盈亏 ${formatSignedUsd(walk.netPnlUSDC)}`
+        : '回放通过后自动分批验证',
+      status: replayStatus(walk),
+    },
+    {
+      label: '弱源隔离',
+      value: formatNumber(buckets.weakCount, 0),
+      hint: sourceBucketHint(buckets),
+      status: buckets.weakCount ? 'warn' : 'ok',
     },
     {
       label: '跟单候选',
@@ -839,13 +1021,13 @@ function buildRadarItems(payload) {
   return [
     { label: '雷达状态', value: friendlyModeLabel(payload.radar), status: inferStatus(payload.radar) },
     { label: '雷达数量', value: countRows(payload.radar) },
-    { label: '最高评分', value: radarScore === null ? '—' : formatNumber(radarScore, 3) },
+    { label: '最高评分', value: radarScore === null ? DATA_PENDING : formatNumber(radarScore, 3) },
     { label: '后台任务', value: friendlyModeLabel(worker), status: inferStatus(worker) },
     {
       label: '最近更新',
-      value: getPath(worker, ['updated_at', 'timestamp', 'last_run_at', 'last_updated'], '—'),
+      value: getPath(worker, ['updated_at', 'timestamp', 'last_run_at', 'last_updated'], NOT_SYNCED),
     },
-    { label: '搜索词', value: getPath(payload.search, ['query', 'q', 'keyword'], '—') },
+    { label: '搜索词', value: getPath(payload.search, ['query', 'q', 'keyword'], NO_SIGNAL) },
   ];
 }
 
@@ -857,6 +1039,11 @@ function buildCopyTraderItems(payload) {
   const telegram = source.telegramChannel || {};
   const telegramState = telegramIntakeState(telegram, summary);
   const policy = discovery.walletRiskPolicy || {};
+  const replay = shadowReplaySummary(payload);
+  const walk = walkForwardSummary(payload);
+  const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
+  const walkBatches = Number(walk.batches ?? 0);
+  const runtimeBlockers = blockerText(policy.hardBlockers || policy.runtimePreflight?.blockers);
   return [
     {
       label: '发现状态',
@@ -872,7 +1059,7 @@ function buildCopyTraderItems(payload) {
     },
     {
       label: 'Top trader',
-      value: topTrader.userName || summary.topTrader || '—',
+      value: topTrader.userName || summary.topTrader || '等待排名',
       hint: `copyScore ${formatNumber(topTrader.copyScore ?? summary.topScore ?? 0, 2)} / 月PnL ${formatUsd(topTrader.monthPnl ?? 0)}`,
       status: topTrader.eligibleForShadowCopy ? 'ok' : 'warn',
     },
@@ -891,6 +1078,24 @@ function buildCopyTraderItems(payload) {
       status: telegramState.status,
     },
     {
+      label: 'Shadow replay',
+      value: `${replayStatusText(replay)} / ${formatNumber(replaySamples, 0)} 样本`,
+      hint: replaySamples
+        ? `胜负 ${formatNumber(replay.wins ?? 0, 0)}W/${formatNumber(replay.losses ?? 0, 0)}L；PF ${formatNumber(replay.profitFactor, 4)}。`
+        : '等待 Telegram 跟单信号结算后入账。',
+      status: replayStatus(replay),
+    },
+    {
+      label: 'Walk-forward',
+      value: walkBatches
+        ? `${formatNumber(walkBatches, 0)} 批 / ${formatPercent(walk.passRatePct ?? 0)}`
+        : '等待批次',
+      hint: walkBatches
+        ? `分批净盈亏 ${formatSignedUsd(walk.netPnlUSDC)}；${replayStatusText(walk)}。`
+        : 'shadow replay 有足够结算样本后自动运行。',
+      status: replayStatus(walk),
+    },
+    {
       label: '真实钱包止盈止损',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% TP / ${formatNumber(policy.stopLossPct ?? 0, 0)}% SL`,
       hint: `自动放行 ${policy.realWalletExecutionAllowed ? '已允许' : '未通过'}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
@@ -898,9 +1103,16 @@ function buildCopyTraderItems(payload) {
     },
     {
       label: '下一步',
-      value: Number(summary.shadowCandidates ?? 0) ? '进入 shadow replay' : '继续找来源',
-      hint: agentCopyText(discovery.nextActions?.[0], '把强交易员当前持仓写入跟单回放账本。'),
-      status: Number(summary.shadowCandidates ?? 0) ? 'ok' : 'warn',
+      value: policy.realWalletExecutionAllowed
+        ? 'micro-live 受限执行'
+        : replay.passed && walk.passed
+          ? '配置真钱 runtime'
+          : Number(summary.shadowCandidates ?? 0)
+            ? '继续回放验证'
+            : '继续找来源',
+      hint:
+        runtimeBlockers || agentCopyText(discovery.nextActions?.[0], '把强交易员当前持仓写入跟单回放账本。'),
+      status: policy.realWalletExecutionAllowed ? 'ok' : replay.passed && walk.passed ? 'warn' : 'ok',
     },
   ];
 }
@@ -910,14 +1122,14 @@ function buildAiScoreItems(payload) {
   const governance = payload.autoGovernance;
   return [
     { label: 'AI评分状态', value: friendlyModeLabel(score), status: inferStatus(score) },
-    { label: '分数', value: bestScore(score) === null ? '—' : formatNumber(bestScore(score), 3) },
+    { label: '分数', value: bestScore(score) === null ? DATA_PENDING : formatNumber(bestScore(score), 3) },
     {
       label: '置信度',
       value: formatPercent(getPath(score, ['confidence', 'decision.confidence', 'score.confidence'], null)),
     },
     {
       label: '建议',
-      value: friendlyText(getPath(score, ['recommendation', 'decision', 'action', 'side'], '—')),
+      value: friendlyText(getPath(score, ['recommendation', 'decision', 'action', 'side'], '只读观察')),
     },
     { label: '自动治理', value: friendlyModeLabel(governance), status: inferStatus(governance) },
     {
@@ -937,12 +1149,12 @@ function buildCanaryItems(payload) {
     { label: '执行合约状态', value: friendlyModeLabel(contract), status: inferStatus(contract) },
     {
       label: '合约版本',
-      value: friendlyText(getPath(contract, ['version', 'schemaVersion', 'contract_version'], '—')),
+      value: friendlyText(getPath(contract, ['version', 'schemaVersion', 'contract_version'], NOT_SYNCED)),
     },
     { label: '最近运行', value: friendlyModeLabel(run), status: inferStatus(run) },
     { label: '模拟记录', value: `${ledgerRows} 条`, hint: '只写模拟证据，不写钱包或订单' },
     { label: '运行模式', value: friendlyText(getPath(run, ['mode', 'run_mode', 'dry_run'], '只读研究')) },
-    { label: '运行时间', value: getPath(run, ['last_run_at', 'updated_at', 'timestamp'], '—') },
+    { label: '运行时间', value: getPath(run, ['last_run_at', 'updated_at', 'timestamp'], NOT_SYNCED) },
     { label: '真实执行', value: '自动钱包门控', status: 'locked' },
   ];
 }
@@ -956,22 +1168,22 @@ function buildCrossLinkageItems(payload) {
     { label: '单市场分析', value: friendlyModeLabel(analysis), status: inferStatus(analysis) },
     {
       label: '联动资产',
-      value: getPath(cross, ['asset', 'symbol', 'linked_symbol', 'market.asset'], '—'),
+      value: getPath(cross, ['asset', 'symbol', 'linked_symbol', 'market.asset'], DATA_PENDING),
     },
-    { label: '主题', value: getPath(analysis, ['theme', 'macro_theme', 'market.theme'], '—') },
-    { label: '分析理由', value: getPath(analysis, ['reasoning', 'summary', 'thesis'], '—') },
+    { label: '主题', value: getPath(analysis, ['theme', 'macro_theme', 'market.theme'], DATA_PENDING) },
+    { label: '分析理由', value: getPath(analysis, ['reasoning', 'summary', 'thesis'], DATA_PENDING) },
   ];
 }
 
 function normalizeMarketRows(rows) {
   return rows.slice(0, 12).map((row) => ({
-    市场: row.question || row.title || row.eventTitle || row.slug || '—',
+    市场: row.question || row.title || row.eventTitle || row.slug || DATA_PENDING,
     概率: formatPercent(row.probability ?? row.yesPrice),
     流动性: formatUsd(row.liquidity ?? row.clobLiquidityUsd),
     '24h成交': formatUsd(row.volume24h ?? row.volume_24h),
     总成交: formatUsd(row.volume),
     点差: row.clobSpread !== undefined ? formatPercent(row.clobSpread) : formatNumber(row.spread, 4),
-    评分: row.aiRuleScore ?? row.ruleScore ?? row.score ?? '—',
+    评分: row.aiRuleScore ?? row.ruleScore ?? row.score ?? DATA_PENDING,
     建议: friendlyText(row.recommendedAction || row.action, '只读观察'),
     来源: friendlyText(row.source || row.category, '预测市场'),
   }));
@@ -979,12 +1191,65 @@ function normalizeMarketRows(rows) {
 
 function normalizeGenericRows(rows) {
   return rows.slice(0, 12).map((row) => ({
-    名称: row.question || row.title || row.market || row.name || row.id || '—',
-    状态: friendlyText(row.status || row.state || row.decision || row.action),
+    名称:
+      row.userName ||
+      row.trader ||
+      row.bucketKey ||
+      row.question ||
+      row.title ||
+      row.marketTitle ||
+      row.market ||
+      row.name ||
+      row.id ||
+      DATA_PENDING,
+    状态: friendlyText(row.status || row.state || row.decision || row.action || row.exitReason),
     金额:
-      row.amount !== undefined ? formatUsd(row.amount) : row.stake !== undefined ? formatUsd(row.stake) : '—',
-    分数: row.score ?? row.aiScore ?? row.confidence ?? '—',
-    说明: compactDisplay(row.reason || row.summary || row.note || row.source || row, 160),
+      row.netPnlUSDC !== undefined
+        ? formatSignedUsd(row.netPnlUSDC)
+        : row.amount !== undefined
+          ? formatUsd(row.amount)
+          : row.stake !== undefined
+            ? formatUsd(row.stake)
+            : DATA_PENDING,
+    分数: row.copyScore ?? row.profitFactor ?? row.score ?? row.aiScore ?? row.confidence ?? DATA_PENDING,
+    说明: compactDisplay(row.reason || row.summary || row.note || row.marketTitle || row.source || row, 160),
+  }));
+}
+
+function normalizeReplayRows(rows) {
+  return rows.slice(0, 24).map((row) => ({
+    交易员: row.trader || row.userName || DATA_PENDING,
+    市场: row.marketTitle || row.marketSlug || row.matchedQuestion || DATA_PENDING,
+    方向: friendlyText(row.side || row.outcome, DATA_PENDING),
+    结果: friendlyText(row.exitReason || row.status, DATA_PENDING),
+    盈亏: formatSignedUsd(row.netPnlUSDC),
+    回报: formatPercent(row.returnPct),
+    入场: row.entryPrice !== undefined ? formatNumber(row.entryPrice, 4) : DATA_PENDING,
+    出场: row.exitPrice !== undefined ? formatNumber(row.exitPrice, 4) : DATA_PENDING,
+    时间: formatDateTime(row.messageDate || row.timestamp || row.time),
+  }));
+}
+
+function normalizeWalkForwardRows(rows) {
+  return rows.slice(0, 12).map((row) => ({
+    批次: row.batch ?? row.window ?? DATA_PENDING,
+    样本: formatNumber(row.samples ?? row.rows ?? 0, 0),
+    净盈亏: formatSignedUsd(row.netPnlUSDC),
+    PF: formatNumber(row.profitFactor, 4),
+    结果: row.passed === true || String(row.passed).toLowerCase() === 'true' ? '已通过' : '未通过',
+  }));
+}
+
+function normalizeSourceBucketRows(rows) {
+  return rows.slice(0, 24).map((row) => ({
+    分桶: row.bucketKey || row.source || row.trader || DATA_PENDING,
+    类型: friendlyText(row.bucketType || 'source', '来源'),
+    状态: friendlyText(row.status || row.action, '收集中'),
+    样本: formatNumber(row.samples ?? row.outcomeSamples ?? 0, 0),
+    胜负: `${formatNumber(row.wins ?? 0, 0)}W/${formatNumber(row.losses ?? 0, 0)}L`,
+    PF: formatNumber(row.profitFactor, 4),
+    净盈亏: formatSignedUsd(row.netPnlUSDC),
+    动作: friendlyText(row.action, '继续观察'),
   }));
 }
 
@@ -1004,8 +1269,22 @@ export function buildPolymarketModel(payload = {}) {
     progressItems: buildProgressItems(payload),
     tables: {
       copyTraders: normalizeGenericRows(firstObject(payload.copyTraderDiscovery).traders || []),
-      copyShadowCandidates: normalizeGenericRows(firstObject(payload.copyTraderDiscovery).shadowCandidates || []),
+      copyShadowCandidates: normalizeGenericRows(
+        firstObject(payload.copyTraderDiscovery).shadowCandidates || [],
+      ),
       copyTraderDiscoveryLedger: normalizeGenericRows(asRows(payload.copyTraderDiscoveryLedger)),
+      copyTraderShadowReplay: normalizeReplayRows(
+        asRows(payload.copyTraderShadowReplayLedger).length
+          ? asRows(payload.copyTraderShadowReplayLedger)
+          : asRows(payload.copyTraderShadowReplay),
+      ),
+      copyTraderOutcomeLedger: normalizeReplayRows(asRows(payload.copyTraderOutcomeLedger)),
+      copyTraderWalkForward: normalizeWalkForwardRows(
+        asRows(payload.copyTraderWalkForwardLedger).length
+          ? asRows(payload.copyTraderWalkForwardLedger)
+          : asRows(payload.copyTraderWalkForward),
+      ),
+      copyTraderSourceBuckets: normalizeSourceBucketRows(sourceBucketRows(payload)),
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),
       candidateQueue: normalizeMarketRows(asRows(payload.candidateQueue)),

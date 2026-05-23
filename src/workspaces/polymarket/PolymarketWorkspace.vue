@@ -9,7 +9,9 @@
   >
     <div class="qg-readonly-banner">
       <StatusPill status="locked" label="只读研究" />
-      <span>预测市场前端不直接下注或划转资金；真实钱包是否放行由后端自动证据门控、TP/SL 和仓位限制决定。</span>
+      <span
+        >预测市场前端不直接下注或划转资金；真实钱包是否放行由后端自动证据门控、TP/SL 和仓位限制决定。</span
+      >
     </div>
 
     <div class="qg-search-row">
@@ -95,6 +97,9 @@
     <div class="qg-domain-grid qg-domain-grid--wide-tables qg-polymarket-tables">
       <LedgerTable title="强交易员排行" :rows="model.tables.copyTraders" :limit="12" />
       <LedgerTable title="当前跟单候选持仓" :rows="model.tables.copyShadowCandidates" :limit="12" />
+      <LedgerTable title="来源质量分桶" :rows="model.tables.copyTraderSourceBuckets" :limit="12" />
+      <LedgerTable title="Shadow 回放样本" :rows="model.tables.copyTraderShadowReplay" :limit="12" />
+      <LedgerTable title="Walk-forward 批次" :rows="model.tables.copyTraderWalkForward" :limit="12" />
       <LedgerTable title="强交易员发现流水" :rows="model.tables.copyTraderDiscoveryLedger" :limit="12" />
       <LedgerTable title="研究账本" :rows="model.tables.research" :limit="12" />
     </div>
@@ -108,8 +113,27 @@
           source="/api/polymarket/copy-trader-discovery"
           :payload="state.copyTraderDiscovery"
         />
+        <JsonPreview
+          title="Shadow 回放"
+          source="/api/polymarket/copy-trader-shadow-replay"
+          :payload="state.copyTraderShadowReplay"
+        />
+        <JsonPreview
+          title="Walk-forward"
+          source="/api/polymarket/copy-trader-walk-forward"
+          :payload="state.copyTraderWalkForward"
+        />
+        <JsonPreview
+          title="来源分桶"
+          source="/api/polymarket/copy-trader-source-buckets"
+          :payload="state.copyTraderSourceBuckets"
+        />
         <JsonPreview title="研究账本" source="/api/polymarket/research" :payload="state.research" />
-        <JsonPreview title="重调计划" source="/api/polymarket/retune-planner" :payload="state.retunePlanner" />
+        <JsonPreview
+          title="重调计划"
+          source="/api/polymarket/retune-planner"
+          :payload="state.retunePlanner"
+        />
       </div>
     </details>
   </WorkspaceFrame>
@@ -160,30 +184,38 @@ const state = shallowReactive({
   canaryLedger: null,
   autoGovernanceLedger: null,
   copyTraderDiscoveryLedger: null,
+  copyTraderShadowReplay: null,
+  copyTraderShadowReplayLedger: null,
+  copyTraderOutcomeLedger: null,
+  copyTraderWalkForward: null,
+  copyTraderWalkForwardLedger: null,
+  copyTraderSourceBuckets: null,
+  copyTraderSourceBucketsLedger: null,
 });
 let loadController = null;
 let loadRunId = 0;
 
 const model = computed(() => buildPolymarketModel(state));
 const evidenceBuckets = computed(() => {
-  const copyRows = [
-    ...model.value.tables.copyShadowCandidates,
-    ...model.value.tables.copyTraders,
-  ];
+  const copyRows = [...model.value.tables.copyShadowCandidates, ...model.value.tables.copyTraders];
   const aiScoreRows = model.value.tables.aiScore.length
     ? model.value.tables.aiScore
     : model.value.aiScoreItems.map((item) => ({
         title: item.label,
-        summary: `${item.value ?? '—'}${item.hint ? ` · ${item.hint}` : ''}`,
+        summary: `${item.value ?? '等待数据'}${item.hint ? ` · ${item.hint}` : ''}`,
         source: 'AI Score',
       }));
   return {
     all: [
+      ...toEvidenceRows(model.value.tables.copyTraderSourceBuckets, '来源质量'),
+      ...toEvidenceRows(model.value.tables.copyTraderShadowReplay, '回放样本'),
       ...toEvidenceRows(copyRows, '跟单'),
       ...toEvidenceRows(model.value.tables.research, '研究分析'),
     ].slice(0, 16),
     radar: toEvidenceRows(model.value.tables.copyTraders, '强交易员'),
     history: toEvidenceRows(model.value.tables.copyShadowCandidates, '当前持仓'),
+    buckets: toEvidenceRows(model.value.tables.copyTraderSourceBuckets, '来源质量'),
+    replay: toEvidenceRows(model.value.tables.copyTraderShadowReplay, '回放样本'),
     ai: toEvidenceRows(aiScoreRows, '旧AI评分'),
   };
 });
@@ -192,6 +224,8 @@ const evidenceTabs = computed(() => [
   { key: 'all', label: '综合证据', count: evidenceBuckets.value.all.length },
   { key: 'radar', label: '强交易员', count: evidenceBuckets.value.radar.length },
   { key: 'history', label: '当前持仓', count: evidenceBuckets.value.history.length },
+  { key: 'buckets', label: '来源质量', count: evidenceBuckets.value.buckets.length },
+  { key: 'replay', label: '回放样本', count: evidenceBuckets.value.replay.length },
   { key: 'ai', label: '旧AI评分', count: evidenceBuckets.value.ai.length },
 ]);
 
@@ -231,7 +265,20 @@ function toEvidenceRows(rows, fallbackSource) {
     .map((row, index) => {
       const title = firstValue(
         row,
-        ['市场', '名称', 'userName', 'trader', 'marketTitle', 'title', 'question', 'market', 'proxyWallet', 'name', 'id', 'marketId'],
+        [
+          '市场',
+          '名称',
+          'userName',
+          'trader',
+          'marketTitle',
+          'title',
+          'question',
+          'market',
+          'proxyWallet',
+          'name',
+          'id',
+          'marketId',
+        ],
         `${fallbackSource} #${index + 1}`,
       );
       const summary = firstValue(

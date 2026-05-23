@@ -43,8 +43,12 @@ for (const marker of requiredWorkspaceMarkers) {
 }
 
 if (/\bfetch\s*\(/.test(workspace)) fail('PolymarketWorkspace.vue must not call fetch() directly');
-if (/\/QuantGod_[A-Za-z0-9_-]+\.(json|csv)/.test(workspace)) fail('PolymarketWorkspace.vue must not read local QuantGod JSON/CSV paths');
+if (/\/QuantGod_[A-Za-z0-9_-]+\.(json|csv)/.test(workspace))
+  fail('PolymarketWorkspace.vue must not read local QuantGod JSON/CSV paths');
 if (/LegacyWorkbench/.test(workspace)) fail('PolymarketWorkspace.vue must not import LegacyWorkbench');
+if (/[—]/.test(workspace) || /[—]/.test(model)) {
+  fail('Polymarket workspace must show concrete Chinese states instead of em dash placeholders');
+}
 
 const forbiddenExecutionPatterns = [
   /\bsubmitOrder\b/,
@@ -100,14 +104,20 @@ for (const marker of requiredModelMarkers) {
 const requiredEndpoints = [
   '/api/polymarket/copy-trader-discovery',
   '/api/polymarket/copy-trader-discovery-ledger',
+  '/api/polymarket/copy-trader-shadow-replay',
+  '/api/polymarket/copy-trader-walk-forward',
+  '/api/polymarket/copy-trader-source-buckets',
   '/api/polymarket/research',
   '/api/polymarket/retune-planner',
 ];
 for (const endpoint of requiredEndpoints) {
-  if (!workspace.includes(endpoint) && !model.includes(endpoint)) fail(`missing Polymarket endpoint marker: ${endpoint}`);
+  if (!workspace.includes(endpoint) && !model.includes(endpoint))
+    fail(`missing Polymarket endpoint marker: ${endpoint}`);
 }
 
-if (packageJson.scripts?.['polymarket-workspace'] !== 'node scripts/frontend_polymarket_workspace_guard.mjs') {
+if (
+  packageJson.scripts?.['polymarket-workspace'] !== 'node scripts/frontend_polymarket_workspace_guard.mjs'
+) {
   fail('package.json must define npm run polymarket-workspace');
 }
 
