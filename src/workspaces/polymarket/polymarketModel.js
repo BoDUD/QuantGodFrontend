@@ -490,7 +490,7 @@ function blockerText(blockers = []) {
 function buildSimulationItems(payload) {
   const reviewSummary = summaryObject(payload.dailyReview);
   const polyDaily = polymarketDailyReview(payload);
-  const copyReview = polyDaily.copyTradingReview || firstObject(payload.retunePlanner).copyTradingReview || {};
+  const copyReview = firstObject(payload.retunePlanner).copyTradingReview || polyDaily.copyTradingReview || {};
   const copyCapital = copyReview.capitalSimulation || {};
   const copyPlan = copyReview.iterationPlan || {};
   const copyTools = Array.isArray(copyReview.sourceToolkit) ? copyReview.sourceToolkit : [];
