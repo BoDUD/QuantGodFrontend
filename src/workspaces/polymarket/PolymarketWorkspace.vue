@@ -25,6 +25,24 @@
     <div class="qg-domain-grid qg-domain-grid--two">
       <section class="qg-section-card qg-section-card--operator">
         <header>
+          <p class="qg-eyebrow">真实钱包</p>
+          <h2>当前真实持仓</h2>
+        </header>
+        <KeyValueList :items="model.realPositionItems" />
+      </section>
+
+      <section class="qg-section-card qg-section-card--operator">
+        <header>
+          <p class="qg-eyebrow">真实执行记录</p>
+          <h2>成交与退出监控</h2>
+        </header>
+        <KeyValueList :items="model.realExecutionItems" />
+      </section>
+    </div>
+
+    <div class="qg-domain-grid qg-domain-grid--two">
+      <section class="qg-section-card qg-section-card--operator">
+        <header>
           <p class="qg-eyebrow">模拟 / 真实一眼看懂</p>
           <h2>预测市场现在在做什么</h2>
         </header>
@@ -95,6 +113,8 @@
     </div>
 
     <div class="qg-domain-grid qg-domain-grid--wide-tables qg-polymarket-tables">
+      <LedgerTable title="真实持仓" :rows="model.tables.realPositions" :limit="12" />
+      <LedgerTable title="真实成交/退出记录" :rows="model.tables.realExecutions" :limit="12" />
       <LedgerTable title="强交易员排行" :rows="model.tables.copyTraders" :limit="12" />
       <LedgerTable title="当前跟单候选持仓" :rows="model.tables.copyShadowCandidates" :limit="12" />
       <LedgerTable title="来源质量分桶" :rows="model.tables.copyTraderSourceBuckets" :limit="12" />
@@ -133,6 +153,16 @@
           title="Isolated CLOB runtime"
           source="/api/polymarket/isolated-clob-runtime"
           :payload="state.isolatedClobRuntime"
+        />
+        <JsonPreview
+          title="Canary executor run"
+          source="/api/polymarket/canary-executor-run"
+          :payload="state.canaryRun"
+        />
+        <JsonPreview
+          title="Canary exit monitor"
+          source="/api/polymarket/canary-exit-monitor-run"
+          :payload="state.canaryExitMonitorRun"
         />
         <JsonPreview title="研究账本" source="/api/polymarket/research" :payload="state.research" />
         <JsonPreview
@@ -183,6 +213,7 @@ const state = shallowReactive({
   autoGovernance: null,
   canary: null,
   canaryRun: null,
+  canaryExitMonitorRun: null,
   realTrades: null,
   cross: null,
   markets: null,
@@ -190,6 +221,9 @@ const state = shallowReactive({
   singleAnalysis: null,
   dailyReview: null,
   canaryLedger: null,
+  canaryPositionLedger: null,
+  canaryOrderAuditLedger: null,
+  canaryExitLedger: null,
   autoGovernanceLedger: null,
   copyTraderDiscoveryLedger: null,
   copyTraderShadowReplay: null,
@@ -215,11 +249,17 @@ const evidenceBuckets = computed(() => {
       }));
   return {
     all: [
+      ...toEvidenceRows(model.value.tables.realPositions, '真实持仓'),
+      ...toEvidenceRows(model.value.tables.realExecutions, '真实执行'),
       ...toEvidenceRows(model.value.tables.copyTraderSourceBuckets, '来源质量'),
       ...toEvidenceRows(model.value.tables.copyTraderShadowReplay, '回放样本'),
       ...toEvidenceRows(copyRows, '跟单'),
       ...toEvidenceRows(model.value.tables.research, '研究分析'),
     ].slice(0, 16),
+    real: [
+      ...toEvidenceRows(model.value.tables.realPositions, '真实持仓'),
+      ...toEvidenceRows(model.value.tables.realExecutions, '真实执行'),
+    ],
     radar: toEvidenceRows(model.value.tables.copyTraders, '强交易员'),
     history: toEvidenceRows(model.value.tables.copyShadowCandidates, '当前持仓'),
     buckets: toEvidenceRows(model.value.tables.copyTraderSourceBuckets, '来源质量'),
@@ -230,6 +270,7 @@ const evidenceBuckets = computed(() => {
 const evidenceRows = computed(() => evidenceBuckets.value[evidenceMode.value] || evidenceBuckets.value.all);
 const evidenceTabs = computed(() => [
   { key: 'all', label: '综合证据', count: evidenceBuckets.value.all.length },
+  { key: 'real', label: '真实持仓', count: evidenceBuckets.value.real.length },
   { key: 'radar', label: '强交易员', count: evidenceBuckets.value.radar.length },
   { key: 'history', label: '当前持仓', count: evidenceBuckets.value.history.length },
   { key: 'buckets', label: '来源质量', count: evidenceBuckets.value.buckets.length },

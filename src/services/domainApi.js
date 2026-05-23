@@ -287,7 +287,36 @@ export async function loadPolymarketWorkspace(query = {}, options = {}) {
         'isolatedClobRuntime',
         (requestOptions) => fetchJson('/api/polymarket/isolated-clob-runtime', null, requestOptions),
       ],
+      [
+        'canaryRun',
+        (requestOptions) => fetchJson('/api/polymarket/canary-executor-run', null, requestOptions),
+      ],
+      [
+        'canaryExitMonitorRun',
+        (requestOptions) => fetchJson('/api/polymarket/canary-exit-monitor-run', null, requestOptions),
+      ],
+      ['realTrades', (requestOptions) => fetchJson('/api/polymarket/real-trades', null, requestOptions)],
       ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
+      [
+        'canaryLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/canary-executor-ledger${params({ limit })}`, requestOptions),
+      ],
+      [
+        'canaryPositionLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/canary-position-ledger${params({ limit })}`, requestOptions),
+      ],
+      [
+        'canaryOrderAuditLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/canary-order-audit-ledger${params({ limit })}`, requestOptions),
+      ],
+      [
+        'canaryExitLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/canary-exit-ledger${params({ limit })}`, requestOptions),
+      ],
       [
         'researchLedger',
         (requestOptions) => fetchRows(`/api/polymarket/research-ledger${params({ limit })}`, requestOptions),
