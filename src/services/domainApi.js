@@ -283,10 +283,19 @@ export async function loadPolymarketWorkspace(query = {}, options = {}) {
         'retunePlanner',
         (requestOptions) => fetchJson('/api/polymarket/retune-planner', null, requestOptions),
       ],
+      [
+        'isolatedClobRuntime',
+        (requestOptions) => fetchJson('/api/polymarket/isolated-clob-runtime', null, requestOptions),
+      ],
       ['dailyReview', (requestOptions) => fetchJson('/api/daily-review', null, requestOptions)],
       [
         'researchLedger',
         (requestOptions) => fetchRows(`/api/polymarket/research-ledger${params({ limit })}`, requestOptions),
+      ],
+      [
+        'isolatedClobRuntimeLedger',
+        (requestOptions) =>
+          fetchRows(`/api/polymarket/isolated-clob-runtime-ledger${params({ limit })}`, requestOptions),
       ],
       [
         'copyTraderDiscoveryLedger',

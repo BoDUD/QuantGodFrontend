@@ -98,6 +98,7 @@
       <LedgerTable title="强交易员排行" :rows="model.tables.copyTraders" :limit="12" />
       <LedgerTable title="当前跟单候选持仓" :rows="model.tables.copyShadowCandidates" :limit="12" />
       <LedgerTable title="来源质量分桶" :rows="model.tables.copyTraderSourceBuckets" :limit="12" />
+      <LedgerTable title="Isolated CLOB 预检" :rows="model.tables.isolatedClobRuntime" :limit="12" />
       <LedgerTable title="Shadow 回放样本" :rows="model.tables.copyTraderShadowReplay" :limit="12" />
       <LedgerTable title="Walk-forward 批次" :rows="model.tables.copyTraderWalkForward" :limit="12" />
       <LedgerTable title="强交易员发现流水" :rows="model.tables.copyTraderDiscoveryLedger" :limit="12" />
@@ -127,6 +128,11 @@
           title="来源分桶"
           source="/api/polymarket/copy-trader-source-buckets"
           :payload="state.copyTraderSourceBuckets"
+        />
+        <JsonPreview
+          title="Isolated CLOB runtime"
+          source="/api/polymarket/isolated-clob-runtime"
+          :payload="state.isolatedClobRuntime"
         />
         <JsonPreview title="研究账本" source="/api/polymarket/research" :payload="state.research" />
         <JsonPreview
@@ -171,6 +177,8 @@ const state = shallowReactive({
   historyDb: null,
   research: null,
   retunePlanner: null,
+  isolatedClobRuntime: null,
+  isolatedClobRuntimeLedger: null,
   copyTraderDiscovery: null,
   autoGovernance: null,
   canary: null,

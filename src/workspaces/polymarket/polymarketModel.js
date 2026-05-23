@@ -48,6 +48,12 @@ const POLYMARKET_ENDPOINTS = [
     endpoint: '/api/polymarket/retune-planner',
     description: '只读重调建议',
   },
+  {
+    key: 'isolatedClobRuntime',
+    label: '隔离CLOB',
+    endpoint: '/api/polymarket/isolated-clob-runtime',
+    description: '真钱适配器隔离运行时预检',
+  },
 ];
 
 export const POLYMARKET_SAFETY_DEFAULTS = Object.freeze({
@@ -229,6 +235,7 @@ function inferStatus(payload) {
   if (Array.isArray(value)) return value.length ? 'ok' : 'warn';
   if (value && typeof value === 'object') {
     const state = String(value.status || value.state || value.health || value.mode || '').toLowerCase();
+    if (state.includes('prepared_real_wallet_blocked')) return 'locked';
     if (['error', 'fail', 'failed', 'blocked', 'offline', 'critical'].includes(state)) return 'error';
     if (['warn', 'warning', 'degraded', 'pending', 'paused'].includes(state)) return 'warn';
     if (['ok', 'healthy', 'active', 'online', 'available', 'ready', 'running'].includes(state)) return 'ok';
@@ -247,6 +254,7 @@ function friendlyStatusLabel(payload) {
   if (status === 'ok') return '正常';
   if (status === 'warn') return '待确认';
   if (status === 'error') return '异常';
+  if (status === 'locked') return '已锁定';
   return '未同步';
 }
 
@@ -408,6 +416,7 @@ function bestScore(payload) {
 
 function buildSafetyItems(payload = {}) {
   const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const isolated = isolatedRuntime(payload);
   const autoUnlock = policy.autonomousUnlockAllowed !== false;
   const liveAllowed = Boolean(policy.realWalletExecutionAllowed);
   return [
@@ -415,6 +424,12 @@ function buildSafetyItems(payload = {}) {
     { label: 'AI 建议', value: '仅供参考', status: 'ok' },
     { label: '自动下注', value: autoUnlock ? '证据门控' : '关闭', status: autoUnlock ? 'warn' : 'locked' },
     { label: '真实交易', value: liveAllowed ? '允许' : '自动阻断', status: liveAllowed ? 'ok' : 'locked' },
+    {
+      label: 'CLOB隔离',
+      value: isolated.runtimePrepared ? '已准备' : '待配置',
+      hint: isolatedRuntimeHint(isolated),
+      status: isolated.runtimePrepared ? 'locked' : 'warn',
+    },
     { label: '资金划转', value: '禁止', status: 'locked' },
     { label: '保存凭据', value: '禁止', status: 'locked' },
     {
@@ -512,11 +527,32 @@ function blockerText(blockers = []) {
     wallet_adapter_not_isolated_clob: '未配置 isolated CLOB adapter',
     private_key_env_missing: '钱包私钥环境变量缺失',
     clob_host_env_missing: 'CLOB host 未配置',
+    clob_host_missing: 'CLOB host 未配置',
+    py_clob_client_missing: 'py-clob-client 未安装',
   };
   return (Array.isArray(blockers) ? blockers : [])
     .map((item) => labels[item] || friendlyText(item))
     .filter(Boolean)
     .join(' / ');
+}
+
+function isolatedRuntime(payload) {
+  return firstObject(payload.isolatedClobRuntime);
+}
+
+function isolatedRuntimeBlockers(runtime = {}) {
+  const blockers = runtime.preflight?.blockers;
+  return Array.isArray(blockers) ? blockers : [];
+}
+
+function isolatedRuntimeHint(runtime = {}) {
+  if (!runtime || !Object.keys(runtime).length) return '等待 isolated CLOB runtime manifest。';
+  const blockers = blockerText(isolatedRuntimeBlockers(runtime));
+  const adapter = runtime.adapter?.name || 'isolated_clob';
+  const host = runtime.clob?.hostConfigured ? 'host已配置' : 'host待配置';
+  const sendAllowed = Boolean(runtime.safety?.orderSendAllowed);
+  if (sendAllowed) return `${adapter} / ${host}；订单发送已由后端策略放行。`;
+  return `${adapter} / ${host}；${blockers || 'prepare-only 模式，未开放真钱订单发送。'}`;
 }
 
 function policyValidation(payload, key) {
@@ -867,6 +903,7 @@ function buildProgressItems(payload) {
   const replay = shadowReplaySummary(payload);
   const walk = walkForwardSummary(payload);
   const buckets = sourceBucketSummary(payload);
+  const isolated = isolatedRuntime(payload);
   const latestAt = latestGeneratedAt([
     payload.copyTraderDiscovery,
     payload.copyTraderShadowReplay,
@@ -874,6 +911,7 @@ function buildProgressItems(payload) {
     payload.copyTraderSourceBuckets,
     payload.retunePlanner,
     payload.research,
+    payload.isolatedClobRuntime,
   ]);
   const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
   const walkBatches = Number(walk.batches ?? 0);
@@ -930,6 +968,12 @@ function buildProgressItems(payload) {
         'discovery -> shadow replay -> walk-forward 全部通过后，系统自动决定是否放开钱包。',
       status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
     },
+    {
+      label: 'Isolated CLOB',
+      value: isolated.runtimePrepared ? '隔离已准备' : '等待配置',
+      hint: isolatedRuntimeHint(isolated),
+      status: isolated.runtimePrepared ? 'locked' : 'warn',
+    },
   ];
 }
 
@@ -947,6 +991,7 @@ function buildMetrics(payload) {
   const telegram = copySource.telegramChannel || {};
   const telegramState = telegramIntakeState(telegram, copySummary);
   const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
+  const isolated = isolatedRuntime(payload);
   const replay = shadowReplaySummary(payload);
   const walk = walkForwardSummary(payload);
   const buckets = sourceBucketSummary(payload);
@@ -1011,6 +1056,12 @@ function buildMetrics(payload) {
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% / ${formatNumber(policy.stopLossPct ?? 0, 0)}%`,
       hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；自动门控 ${policy.realWalletExecutionAllowed ? '已放行' : '阻断中'}`,
       status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
+    },
+    {
+      label: 'Isolated CLOB',
+      value: isolated.runtimePrepared ? 'Ready / locked' : '等待配置',
+      hint: isolatedRuntimeHint(isolated),
+      status: isolated.runtimePrepared ? 'locked' : 'warn',
     },
   ];
 }
@@ -1285,6 +1336,7 @@ export function buildPolymarketModel(payload = {}) {
           : asRows(payload.copyTraderWalkForward),
       ),
       copyTraderSourceBuckets: normalizeSourceBucketRows(sourceBucketRows(payload)),
+      isolatedClobRuntime: normalizeGenericRows(asRows(payload.isolatedClobRuntimeLedger)),
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),
       candidateQueue: normalizeMarketRows(asRows(payload.candidateQueue)),

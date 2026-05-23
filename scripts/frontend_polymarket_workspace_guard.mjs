@@ -109,6 +109,7 @@ const requiredEndpoints = [
   '/api/polymarket/copy-trader-source-buckets',
   '/api/polymarket/research',
   '/api/polymarket/retune-planner',
+  '/api/polymarket/isolated-clob-runtime',
 ];
 for (const endpoint of requiredEndpoints) {
   if (!workspace.includes(endpoint) && !model.includes(endpoint))
