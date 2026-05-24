@@ -290,4 +290,37 @@ describe('polymarketModel simulation explanation', () => {
     expect(selfExplore?.hint).toContain('83');
     expect(model.tables.sourceQuality).toHaveLength(3);
   });
+
+  it('labels retained source promotions as a hold state', () => {
+    const model = buildPolymarketModel({
+      copyTraderSourceBuckets: {
+        bySource: [
+          {
+            bucketType: 'source',
+            bucketKey: 'telegram_telethon:ai 1000x polymarket',
+            status: 'PROMOTABLE_PROBATION',
+            rawStatus: 'QUARANTINE',
+            retainedPromotion: true,
+            promotionHoldUntilIso: '2026-05-24T18:57:10.000Z',
+            samples: 54,
+            wins: 26,
+            losses: 28,
+            openOrUnresolved: 103,
+            netPnlUSDC: -0.6,
+            profitFactor: 0.464286,
+            minSamples: 30,
+            action: 'retain_micro_live_during_promotion_hold',
+          },
+        ],
+      },
+    });
+
+    const aiChannel = model.sourceQualityItems.find(
+      (item) => item.label === 'AI 1000x Polymarket',
+    );
+
+    expect(aiChannel?.value).toContain('晋级保持');
+    expect(aiChannel?.hint).toContain('原始状态 隔离中');
+    expect(aiChannel?.status).toBe('warn');
+  });
 });
