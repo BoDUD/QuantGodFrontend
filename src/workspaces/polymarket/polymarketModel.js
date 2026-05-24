@@ -265,6 +265,17 @@ function responseStatus(row = {}) {
   return response.status || row.status || row.adapterStatus || row.decision || '';
 }
 
+function hasRealOrderEvidence(row = {}) {
+  return Boolean(
+    row.orderSent ||
+    String(row.order_sent ?? '').toLowerCase() === 'true' ||
+    responseOrderId(row) ||
+    responseTxHash(row) ||
+    row.response_status ||
+    Object.keys(responseObject(row)).length,
+  );
+}
+
 function auditOrderRows(payload = {}) {
   return asRows(payload.canaryOrderAuditLedger)
     .filter((row) => String(row.order_sent ?? row.orderSent ?? '').toLowerCase() === 'true')
@@ -292,7 +303,10 @@ function auditOrderRows(payload = {}) {
 function realOrderRows(payload = {}) {
   const run = firstObject(payload.canaryRun);
   const direct = Array.isArray(run.plannedOrders) ? run.plannedOrders : asRows(payload.canaryRun);
-  const rows = [...direct.filter((row) => row && typeof row === 'object'), ...auditOrderRows(payload)];
+  const rows = [
+    ...direct.filter((row) => row && typeof row === 'object' && hasRealOrderEvidence(row)),
+    ...auditOrderRows(payload),
+  ];
   const seen = new Set();
   return rows.filter((row) => {
     const key = responseOrderId(row) || row.candidateId || JSON.stringify(row);
@@ -348,7 +362,7 @@ function realPositionRows(payload = {}) {
 
   if (rows.length) return rows;
   return realOrderRows(payload)
-    .filter((order) => order.orderSent || responseStatus(order))
+    .filter((order) => hasRealOrderEvidence(order))
     .map((order) => ({
       ...order,
       positionSize: order.size,
@@ -466,8 +480,7 @@ function realExecutionSummary(payload = {}) {
     executions,
     orderRows,
     ordersSent:
-      Number(run.summary?.ordersSent ?? 0) ||
-      orderRows.filter((row) => row.orderSent || responseStatus(row)).length,
+      Number(run.summary?.ordersSent ?? 0) || orderRows.filter((row) => hasRealOrderEvidence(row)).length,
     matched: orderRows.filter((row) => String(responseStatus(row)).toLowerCase() === 'matched').length,
     exitsSent: Number(exitRun.summary?.exitsSent ?? 0),
     exitSignals: Number(exitRun.summary?.exitSignals ?? 0),
@@ -741,22 +754,24 @@ function bestScore(payload) {
 function buildSafetyItems(payload = {}) {
   const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
   const isolated = isolatedRuntime(payload);
+  const trading = realTradingState(payload);
   const autoUnlock = policy.autonomousUnlockAllowed !== false;
-  const liveAllowed = Boolean(policy.realWalletExecutionAllowed);
+  const liveAllowed = Boolean(policy.realWalletExecutionAllowed) || realTradingConnected(trading);
   return [
     { label: '研究模式', value: '只读', status: 'ok' },
     { label: 'AI 建议', value: '仅供参考', status: 'ok' },
     { label: '自动下注', value: autoUnlock ? '证据门控' : '关闭', status: autoUnlock ? 'warn' : 'locked' },
     {
       label: '真实交易',
-      value: liveAllowed ? '允许' : walletGateValue(policy, isolated),
-      status: liveAllowed ? 'ok' : 'locked',
+      value: walletGateValue(policy, isolated, trading),
+      hint: walletGateHint(policy, isolated, '', trading),
+      status: walletGateStatus(policy, trading),
     },
     {
       label: 'CLOB隔离',
-      value: isolated.runtimePrepared ? '已准备' : '待配置',
-      hint: isolatedRuntimeHint(isolated),
-      status: isolated.runtimePrepared ? 'locked' : 'warn',
+      value: isolatedRuntimeValue(isolated, trading),
+      hint: isolatedRuntimeLiveHint(isolated, trading),
+      status: isolatedRuntimeStatus(isolated, trading),
     },
     { label: '资金划转', value: '禁止', status: 'locked' },
     { label: '保存凭据', value: '禁止', status: 'locked' },
@@ -840,6 +855,12 @@ function agentCopyText(
       '若连续批次仍通过，再进入人工恢复复核。',
       '若连续批次仍通过，交给自动钱包门控决定是否恢复 micro-live。',
     )
+    .replace('真钱钱包保持隔离', '新增开仓保持隔离')
+    .replace('真钱钱包仍锁定', '新增开仓仍锁定')
+    .replace(
+      '通过前禁止真钱下注、钱包写入或自动恢复执行。',
+      '通过前新增开仓保持隔离；已接入真实持仓继续由退出监控管理。',
+    )
     .replace('仍需人工确认钱包、限额和隔离边界。', '不需要人工确认；系统按钱包门控、限额和隔离边界自动判断。')
     .replace('人工加入观察名单', '本地观察名单');
 }
@@ -883,26 +904,96 @@ function isolatedRuntimeHint(runtime = {}) {
   return `${adapter} / ${host}；CLOB 已配置，真钱钱包仍锁定；${blockers || 'prepare-only 模式，未开放真钱订单发送。'}`;
 }
 
+function realTradingConnected(trading = {}) {
+  const execution = trading.executionSummary || {};
+  const position = trading.positionSummary || {};
+  return Boolean(
+    trading.connected ||
+    Number(execution.ordersSent ?? 0) > 0 ||
+    Number(execution.matched ?? 0) > 0 ||
+    Number(execution.positionsTracked ?? 0) > 0 ||
+    Number(position.count ?? 0) > 0,
+  );
+}
+
+function realTradingExitHint(trading = {}) {
+  const execution = trading.executionSummary || {};
+  if (execution.exitRealEnabled) return '退出监控实盘启用，TP/SL/源交易员卖出会发 SELL';
+  if (execution.exitPlanOnly) return '退出监控仍是计划模式，不会发 SELL';
+  return '退出监控等待持仓同步';
+}
+
+function realTradingConnectedHint(trading = {}) {
+  const execution = trading.executionSummary || {};
+  const position = trading.positionSummary || {};
+  return `已有真实订单 ${formatNumber(execution.ordersSent ?? 0, 0)} 笔 / matched ${formatNumber(execution.matched ?? 0, 0)} 笔；当前真实持仓 ${formatNumber(position.count ?? 0, 0)} 个 / ${formatShares(position.totalShares ?? 0)}；${realTradingExitHint(trading)}。`;
+}
+
+function realTradingState(payload = {}) {
+  const executionSummary = realExecutionSummary(payload);
+  const positionSummary = realPositionSummary(payload);
+  return {
+    executionSummary,
+    positionSummary,
+    connected: realTradingConnected({ executionSummary, positionSummary }),
+  };
+}
+
+function isolatedRuntimeValue(isolated = {}, trading = {}) {
+  if (realTradingConnected(trading)) return 'CLOB已配置 / 实盘监控';
+  if (isolated.runtimePrepared) return 'CLOB已配置 / 新开仓锁定';
+  return '等待配置';
+}
+
+function isolatedRuntimeStatus(isolated = {}, trading = {}) {
+  if (realTradingConnected(trading)) return 'ok';
+  return isolated.runtimePrepared ? 'locked' : 'warn';
+}
+
+function isolatedRuntimeLiveHint(runtime = {}, trading = {}) {
+  if (!realTradingConnected(trading)) return isolatedRuntimeHint(runtime);
+  const blockers = blockerText(isolatedRuntimeBlockers(runtime));
+  const adapter = runtime.adapter?.name || 'isolated_clob';
+  const host = runtime.clob?.hostConfigured ? 'host 已配置' : 'host 待配置';
+  const expandGate = blockers
+    ? `新开仓扩容门控：${blockers}。`
+    : '新开仓扩容仍按后端策略、限额和 kill switch 管理。';
+  return `${adapter} / ${host}；真实交易已接入，${realTradingExitHint(trading)}；${expandGate}`;
+}
+
 function policyBlockers(policy = {}) {
   const blockers = policy.hardBlockers?.length ? policy.hardBlockers : policy.runtimePreflight?.blockers;
   return Array.isArray(blockers) ? blockers : [];
 }
 
-function walletGateValue(policy = {}, isolated = {}) {
+function walletGateValue(policy = {}, isolated = {}, trading = {}) {
+  if (realTradingConnected(trading)) return '真实已接入 / 持仓监控';
   if (policy.realWalletExecutionAllowed) return '已自动放行';
   const blockers = policyBlockers(policy);
   if (blockers.length === 1 && blockers.includes('private_key_env_missing')) return '软件已开 / 缺私钥';
-  if (isolated.runtimePrepared) return 'CLOB已配 / 钱包锁定';
+  if (isolated.runtimePrepared) return 'CLOB已配 / 新开仓锁定';
   return '真钱钱包锁定';
 }
 
-function walletGateHint(policy = {}, isolated = {}, fallback = '') {
+function walletGateStatus(policy = {}, trading = {}) {
+  if (realTradingConnected(trading)) return 'ok';
+  return policy.realWalletExecutionAllowed ? 'ok' : 'locked';
+}
+
+function walletGateHint(policy = {}, isolated = {}, fallback = '', trading = {}) {
+  if (realTradingConnected(trading)) {
+    const blockers = blockerText(policyBlockers(policy));
+    const expandGate = blockers
+      ? `新开仓扩容当前仍受门控：${blockers}。`
+      : '新开仓扩容仍由后端证据门控、仓位上限和 kill switch 管理。';
+    return `${realTradingConnectedHint(trading)} ${expandGate}`;
+  }
   if (policy.realWalletExecutionAllowed) {
     return '已满足钱包门控；真实执行仍受 TP/SL、仓位、日亏损和 kill switch 约束。';
   }
   const blockers = blockerText(policyBlockers(policy));
   if (isolated.runtimePrepared) {
-    return `CLOB adapter 和 host 已配置；没有放开真钱是因为 ${blockers || fallback || '真钱执行闸门仍未通过'}。`;
+    return `CLOB adapter 和 host 已配置；新开仓扩容未放行是因为 ${blockers || fallback || '真钱执行闸门仍未通过'}。`;
   }
   return blockers || fallback || '先准备 isolated CLOB runtime，再由系统按证据门控判断是否进入 micro-live。';
 }
@@ -1020,13 +1111,14 @@ function buildSimulationItems(payload) {
   const governanceRows = countRows(payload.autoGovernanceLedger) || countRows(payload.autoGovernance);
   const positionSummary = realPositionSummary(payload);
   const executionSummary = realExecutionSummary(payload);
+  const trading = { executionSummary, positionSummary };
   const executedPF = reviewSummary.polymarketExecutedPF;
   const shadowPF = reviewSummary.polymarketShadowPF;
   const quarantined = Boolean(reviewSummary.polymarketLossQuarantine);
   return [
     {
       label: '真实下注',
-      value: executionSummary.ordersSent ? '已开启' : '等待订单',
+      value: executionSummary.ordersSent ? '已开启' : '未开启',
       hint: executionSummary.ordersSent
         ? `已发送 ${formatNumber(executionSummary.ordersSent, 0)} 笔，成交 ${formatNumber(executionSummary.matched, 0)} 笔；当前真实持仓 ${formatNumber(positionSummary.count, 0)} 个 / ${formatShares(positionSummary.totalShares)}。`
         : '真实钱包由后端证据门控，前端只显示结果。',
@@ -1076,13 +1168,14 @@ function buildSimulationItems(payload) {
     },
     {
       label: '真钱钱包门控',
-      value: walletGateValue(copyPolicy, isolated),
+      value: walletGateValue(copyPolicy, isolated, trading),
       hint: walletGateHint(
         copyPolicy,
         isolated,
         blockerText(copyCapital.restoreLiveReviewBlockers) || '需要更多正收益样本；系统会自动判断。',
+        trading,
       ),
-      status: copyPolicy.realWalletExecutionAllowed ? 'ok' : 'locked',
+      status: walletGateStatus(copyPolicy, trading),
     },
     {
       label: '跟单工具箱',
@@ -1261,6 +1354,7 @@ function buildProgressItems(payload) {
   const walk = walkForwardSummary(payload);
   const buckets = sourceBucketSummary(payload);
   const isolated = isolatedRuntime(payload);
+  const trading = realTradingState(payload);
   const latestAt = latestGeneratedAt([
     payload.copyTraderDiscovery,
     payload.copyTraderShadowReplay,
@@ -1320,20 +1414,21 @@ function buildProgressItems(payload) {
     },
     {
       label: '真钱钱包',
-      value: walletGateValue(policy, isolated),
+      value: walletGateValue(policy, isolated, trading),
       hint: walletGateHint(
         policy,
         isolated,
         policy.nextAction ||
           'discovery -> shadow replay -> walk-forward 全部通过后，系统自动决定是否放开钱包。',
+        trading,
       ),
-      status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
+      status: walletGateStatus(policy, trading),
     },
     {
       label: 'Isolated CLOB',
-      value: isolated.runtimePrepared ? 'CLOB已配置 / 钱包锁定' : '等待配置',
-      hint: isolatedRuntimeHint(isolated),
-      status: isolated.runtimePrepared ? 'locked' : 'warn',
+      value: isolatedRuntimeValue(isolated, trading),
+      hint: isolatedRuntimeLiveHint(isolated, trading),
+      status: isolatedRuntimeStatus(isolated, trading),
     },
   ];
 }
@@ -1361,6 +1456,7 @@ function buildMetrics(payload) {
   const walkBatches = Number(walk.batches ?? 0);
   const positionSummary = realPositionSummary(payload);
   const executionSummary = realExecutionSummary(payload);
+  const trading = { executionSummary, positionSummary };
   return [
     {
       label: '真实持仓',
@@ -1431,14 +1527,14 @@ function buildMetrics(payload) {
     {
       label: '真实钱包TP/SL',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% / ${formatNumber(policy.stopLossPct ?? 0, 0)}%`,
-      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；${walletGateHint(policy, isolated)}`,
-      status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
+      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；${walletGateHint(policy, isolated, '', trading)}`,
+      status: walletGateStatus(policy, trading),
     },
     {
       label: 'Isolated CLOB',
-      value: isolated.runtimePrepared ? 'CLOB已配置 / 钱包锁定' : '等待配置',
-      hint: isolatedRuntimeHint(isolated),
-      status: isolated.runtimePrepared ? 'locked' : 'warn',
+      value: isolatedRuntimeValue(isolated, trading),
+      hint: isolatedRuntimeLiveHint(isolated, trading),
+      status: isolatedRuntimeStatus(isolated, trading),
     },
   ];
 }
@@ -1470,6 +1566,7 @@ function buildCopyTraderItems(payload) {
   const replay = shadowReplaySummary(payload);
   const walk = walkForwardSummary(payload);
   const isolated = isolatedRuntime(payload);
+  const trading = realTradingState(payload);
   const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
   const walkBatches = Number(walk.batches ?? 0);
   const runtimeBlockers = blockerText(policyBlockers(policy));
@@ -1495,9 +1592,11 @@ function buildCopyTraderItems(payload) {
     {
       label: '当前可跟持仓',
       value: `${formatNumber(summary.shadowCandidates ?? 0, 0)} 个`,
-      hint: policy.realWalletExecutionAllowed
-        ? '已通过自动钱包门控；候选仍必须带 TP/SL 和仓位上限'
-        : '先写 shadow copy watch，未通过自动钱包门控前不下单',
+      hint: realTradingConnected(trading)
+        ? '已有 micro-live 真实仓位；新增候选仍按证据门控、TP/SL 和仓位上限自动判断'
+        : policy.realWalletExecutionAllowed
+          ? '已通过自动钱包门控；候选仍必须带 TP/SL 和仓位上限'
+          : '先写 shadow copy watch，未通过自动钱包门控前不下单',
       status: Number(summary.shadowCandidates ?? 0) ? 'ok' : 'warn',
     },
     {
@@ -1527,21 +1626,28 @@ function buildCopyTraderItems(payload) {
     {
       label: '真实钱包止盈止损',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% TP / ${formatNumber(policy.stopLossPct ?? 0, 0)}% SL`,
-      hint: `${walletGateHint(policy, isolated)}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
-      status: policy.realWalletExecutionAllowed ? 'ok' : 'locked',
+      hint: `${walletGateHint(policy, isolated, '', trading)}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
+      status: walletGateStatus(policy, trading),
     },
     {
       label: '下一步',
-      value: policy.realWalletExecutionAllowed
-        ? 'micro-live 受限执行'
-        : replay.passed && walk.passed
-          ? '真钱钱包待解锁'
-          : Number(summary.shadowCandidates ?? 0)
-            ? '继续回放验证'
-            : '继续找来源',
+      value: realTradingConnected(trading)
+        ? '监控持仓 / 扩容验证'
+        : policy.realWalletExecutionAllowed
+          ? 'micro-live 受限执行'
+          : replay.passed && walk.passed
+            ? '真钱钱包待解锁'
+            : Number(summary.shadowCandidates ?? 0)
+              ? '继续回放验证'
+              : '继续找来源',
       hint:
         runtimeBlockers || agentCopyText(discovery.nextActions?.[0], '把强交易员当前持仓写入跟单回放账本。'),
-      status: policy.realWalletExecutionAllowed ? 'ok' : replay.passed && walk.passed ? 'warn' : 'ok',
+      status:
+        realTradingConnected(trading) || policy.realWalletExecutionAllowed
+          ? 'ok'
+          : replay.passed && walk.passed
+            ? 'warn'
+            : 'ok',
     },
   ];
 }

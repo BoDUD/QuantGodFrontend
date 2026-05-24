@@ -107,4 +107,72 @@ describe('polymarketModel simulation explanation', () => {
     );
     expect(model.reviewItems.find((item) => item.label === '跟单迭代方案')?.hint).not.toContain('closed >=');
   });
+
+  it('does not show real wallet as unconnected after a matched live order', () => {
+    const model = buildPolymarketModel({
+      copyTraderDiscovery: {
+        walletRiskPolicy: {
+          realWalletExecutionAllowed: false,
+          runtimePreflight: {
+            blockers: ['walk_forward_not_validated', 'real_execution_switch_false'],
+          },
+          takeProfitPct: 35,
+          stopLossPct: 18,
+          trailingStopPct: 12,
+          maxPositionUSDC: 3,
+          maxDailyLossUSDC: 2,
+        },
+      },
+      isolatedClobRuntime: {
+        status: 'PREPARED_REAL_WALLET_BLOCKED',
+        adapter: { name: 'isolated_clob' },
+        clob: { hostConfigured: true },
+        safety: { orderSendAllowed: false },
+        preflight: {
+          blockers: ['real_execution_switch_false'],
+        },
+        runtimePrepared: true,
+      },
+      canaryOrderAuditLedger: {
+        rows: [
+          {
+            order_sent: 'true',
+            response_status: 'matched',
+            response_id: 'order-1',
+            question: 'Example market',
+            size: 12.23,
+            limit_price: 0.49,
+          },
+        ],
+      },
+      canaryExitMonitorRun: {
+        planOnly: false,
+        summary: {
+          positionsTracked: 1,
+          exitSignals: 0,
+          exitsSent: 0,
+        },
+        positions: [
+          {
+            orderID: 'order-1',
+            question: 'Example market',
+            positionSize: 12.23,
+            entryPrice: 0.49,
+            currentExitPrice: 0.54,
+            decision: 'HOLD',
+          },
+        ],
+      },
+    });
+
+    const wallet = model.progressItems.find((item) => item.label === '真钱钱包');
+    const clob = model.progressItems.find((item) => item.label === 'Isolated CLOB');
+    expect(wallet?.value).toBe('真实已接入 / 持仓监控');
+    expect(wallet?.hint).toContain('已有真实订单 1 笔');
+    expect(wallet?.hint).toContain('新开仓扩容当前仍受门控');
+    expect(wallet?.hint).not.toContain('没有放开真钱');
+    expect(wallet?.status).toBe('ok');
+    expect(clob?.value).toBe('CLOB已配置 / 实盘监控');
+    expect(clob?.status).toBe('ok');
+  });
 });
