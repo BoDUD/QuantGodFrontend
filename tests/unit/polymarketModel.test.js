@@ -180,4 +180,68 @@ describe('polymarketModel simulation explanation', () => {
     expect(clob?.value).toBe('CLOB已配置 / 实盘监控');
     expect(clob?.status).toBe('ok');
   });
+
+  it('shows Telegram channel quality separately from aggregate replay', () => {
+    const model = buildPolymarketModel({
+      copyTraderDiscovery: {
+        sourceStatus: {
+          telegramChannel: {
+            channelNames: ['预测市场内幕钱包监控', 'AI 1000x Polymarket'],
+            sources: {
+              telethon: {
+                signals: [
+                  { channelName: '预测市场内幕钱包监控' },
+                  { channelName: 'AI 1000x Polymarket' },
+                  { channelName: 'AI 1000x Polymarket' },
+                ],
+              },
+            },
+          },
+        },
+      },
+      copyTraderSourceBuckets: {
+        bySource: [
+          {
+            bucketType: 'source',
+            bucketKey: 'telegram_telethon:预测市场内幕钱包监控',
+            status: 'QUARANTINE',
+            samples: 207,
+            wins: 89,
+            losses: 118,
+            openOrUnresolved: 258,
+            netPnlUSDC: -2.94,
+            profitFactor: 0.377119,
+            minSamples: 30,
+            action: 'exclude_from_shadow_candidates',
+          },
+          {
+            bucketType: 'source',
+            bucketKey: 'telegram_telethon:ai 1000x polymarket',
+            status: 'COLLECTING',
+            samples: 28,
+            wins: 19,
+            losses: 9,
+            openOrUnresolved: 42,
+            netPnlUSDC: 0.02,
+            profitFactor: 1.055556,
+            minSamples: 30,
+            action: 'collect_more_settled_samples',
+          },
+        ],
+      },
+    });
+
+    const oldChannel = model.telegramChannelQualityItems.find(
+      (item) => item.label === '预测市场内幕钱包监控',
+    );
+    const aiChannel = model.telegramChannelQualityItems.find(
+      (item) => item.label === 'AI 1000x Polymarket',
+    );
+
+    expect(oldChannel?.value).toContain('隔离中');
+    expect(oldChannel?.value).toContain('-$2.94');
+    expect(aiChannel?.value).toContain('收集中');
+    expect(aiChannel?.hint).toContain('2');
+    expect(model.tables.telegramChannelQuality).toHaveLength(2);
+  });
 });

@@ -1060,6 +1060,14 @@ function sourceBucketRows(payload) {
   return rows.length ? rows : asRows(payload.copyTraderSourceBucketsLedger);
 }
 
+function sourceChannelRows(payload) {
+  const buckets = sourceBucketPayload(payload);
+  const rows = Array.isArray(buckets.bySource)
+    ? buckets.bySource
+    : sourceBucketRows(payload).filter((row) => String(row.bucketType || '').toLowerCase() === 'source');
+  return rows.filter((row) => String(row.bucketKey || row.source || '').toLowerCase().includes('telegram'));
+}
+
 function sourceBucketSummary(payload) {
   const discovery = firstObject(payload.copyTraderDiscovery);
   const qualityGate = discovery.copyReplayQualityGate || {};
@@ -1113,6 +1121,90 @@ function sourceBucketHint(bucketSummary) {
   ];
   if (blocked.length) return `${blocked.slice(0, 3).join(' / ')} 已隔离，后续候选会自动排除。`;
   return '暂未发现需要淘汰的弱来源；继续按来源分桶观察。';
+}
+
+function telegramChannelDisplayName(value) {
+  const text = String(value || '').trim();
+  const withoutSource = text.replace(/^telegram[_-]telethon:/i, '').trim();
+  const normalized = withoutSource.toLowerCase();
+  if (normalized === 'ai 1000x polymarket') return 'AI 1000x Polymarket';
+  if (withoutSource.includes('预测市场内幕钱包监控')) return '预测市场内幕钱包监控';
+  return withoutSource || text || DATA_PENDING;
+}
+
+function channelStatus(row = {}) {
+  const normalized = String(row.status || '').toUpperCase();
+  if (normalized.includes('PROMOTABLE')) return 'ok';
+  if (normalized.includes('QUARANTINE')) return 'warn';
+  if (normalized.includes('COLLECTING')) return 'unknown';
+  return inferStatus(row);
+}
+
+function telegramSignalCounts(telegram = {}) {
+  const sources = telegram.sources || {};
+  const telethon = sources.telethon || {};
+  const signals = Array.isArray(telethon.signals)
+    ? telethon.signals
+    : Array.isArray(telegram.signals)
+      ? telegram.signals
+      : [];
+  return signals.reduce((acc, signal) => {
+    const label = telegramChannelDisplayName(signal.channelName || telegram.channelName);
+    if (!label || label === DATA_PENDING) return acc;
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function telegramChannelQualityItems(payload) {
+  const discovery = firstObject(payload.copyTraderDiscovery);
+  const telegram = discovery.sourceStatus?.telegramChannel || {};
+  const signalCounts = telegramSignalCounts(telegram);
+  const bucketRows = sourceChannelRows(payload);
+  const rowsByChannel = bucketRows.reduce((acc, row) => {
+    const label = telegramChannelDisplayName(row.bucketKey || row.source);
+    if (label && label !== DATA_PENDING) acc[label] = row;
+    return acc;
+  }, {});
+  const channelNames = [
+    ...(Array.isArray(telegram.channelNames) ? telegram.channelNames : []),
+    ...Object.keys(signalCounts),
+    ...Object.keys(rowsByChannel),
+  ]
+    .map(telegramChannelDisplayName)
+    .filter((name, index, names) => name && name !== DATA_PENDING && names.indexOf(name) === index);
+
+  if (!channelNames.length) {
+    return [
+      {
+        label: '频道来源',
+        value: '等待 Telegram 数据',
+        hint: 'Telethon 读取到频道后会按频道拆分样本、PF、净盈亏和隔离状态。',
+        status: 'unknown',
+      },
+    ];
+  }
+
+  return channelNames.map((channelName) => {
+    const row = rowsByChannel[channelName] || {};
+    const signalCount = Number(signalCounts[channelName] || 0);
+    const samples = Number(row.samples ?? row.outcomeSamples ?? 0);
+    const minSamples = Number(row.minSamples ?? 0);
+    const statusText = friendlyText(row.status || (samples ? 'COLLECTING' : 'WAITING_REPLAY'));
+    const value = samples
+      ? `${statusText} / PF ${formatNumber(row.profitFactor, 4)} / ${formatSignedUsd(row.netPnlUSDC)}`
+      : `${formatNumber(signalCount, 0)} 条信号 / 等待回放`;
+    const sampleText = minSamples ? `${formatNumber(samples, 0)}/${formatNumber(minSamples, 0)} 样本` : `${formatNumber(samples, 0)} 样本`;
+    const hint = samples
+      ? `信号 ${formatNumber(signalCount, 0)}；${sampleText}；胜负 ${formatNumber(row.wins ?? 0, 0)}W/${formatNumber(row.losses ?? 0, 0)}L；未结算 ${formatNumber(row.openOrUnresolved ?? 0, 0)}；${friendlyText(row.action || 'collect_more_settled_samples')}。`
+      : `信号 ${formatNumber(signalCount, 0)}；还没有足够已结算样本进入来源分桶。`;
+    return {
+      label: channelName,
+      value,
+      hint,
+      status: samples ? channelStatus(row) : 'unknown',
+    };
+  });
 }
 
 function buildSimulationItems(payload) {
@@ -1983,6 +2075,7 @@ export function buildPolymarketModel(payload = {}) {
     endpoints: buildEndpoints(payload),
     safetyItems: buildSafetyItems(payload),
     copyTraderItems: buildCopyTraderItems(payload),
+    telegramChannelQualityItems: telegramChannelQualityItems(payload),
     realPositionItems: buildRealPositionItems(payload),
     realExecutionItems: buildRealExecutionItems(payload),
     radarItems: buildRadarItems(payload),
@@ -2012,6 +2105,7 @@ export function buildPolymarketModel(payload = {}) {
           : asRows(payload.copyTraderWalkForward),
       ),
       copyTraderSourceBuckets: normalizeSourceBucketRows(sourceBucketRows(payload)),
+      telegramChannelQuality: normalizeSourceBucketRows(sourceChannelRows(payload)),
       isolatedClobRuntime: normalizeGenericRows(asRows(payload.isolatedClobRuntimeLedger)),
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),
