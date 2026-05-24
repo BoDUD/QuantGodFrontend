@@ -998,6 +998,19 @@ function walletGateHint(policy = {}, isolated = {}, fallback = '', trading = {})
   return blockers || fallback || '先准备 isolated CLOB runtime，再由系统按证据门控判断是否进入 micro-live。';
 }
 
+function microProfitPolicyText(policy = {}) {
+  const value = Number(policy.takeProfitUSDC ?? 0);
+  return value > 0 ? `微利 ${formatUsd(value)} 先到先走；` : '';
+}
+
+function microProfitPositionText(row = {}) {
+  const value = Number(row.takeProfitUSDC ?? 0);
+  if (value <= 0) return '';
+  const price = Number(row.takeProfitUSDCPrice ?? 0);
+  const priceText = price > 0 ? `，约价格 ${formatNumber(price, 4)}` : '';
+  return `或浮盈 ${formatUsd(value)}${priceText} 先走；`;
+}
+
 function policyValidation(payload, key) {
   const policy = firstObject(payload.copyTraderDiscovery).walletRiskPolicy || {};
   return policy.validation?.[key] && typeof policy.validation[key] === 'object' ? policy.validation[key] : {};
@@ -1527,7 +1540,7 @@ function buildMetrics(payload) {
     {
       label: '真实钱包TP/SL',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% / ${formatNumber(policy.stopLossPct ?? 0, 0)}%`,
-      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；${walletGateHint(policy, isolated, '', trading)}`,
+      hint: `单笔上限 ${formatUsd(policy.maxPositionUSDC ?? 0)}；${microProfitPolicyText(policy)}${walletGateHint(policy, isolated, '', trading)}`,
       status: walletGateStatus(policy, trading),
     },
     {
@@ -1626,7 +1639,7 @@ function buildCopyTraderItems(payload) {
     {
       label: '真实钱包止盈止损',
       value: `${formatNumber(policy.takeProfitPct ?? 0, 0)}% TP / ${formatNumber(policy.stopLossPct ?? 0, 0)}% SL`,
-      hint: `${walletGateHint(policy, isolated, '', trading)}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
+      hint: `${microProfitPolicyText(policy)}${walletGateHint(policy, isolated, '', trading)}；追踪止损 ${formatNumber(policy.trailingStopPct ?? 0, 0)}%；单笔 ${formatUsd(policy.maxPositionUSDC ?? 0)}，日亏损上限 ${formatUsd(policy.maxDailyLossUSDC ?? 0)}。`,
       status: walletGateStatus(policy, trading),
     },
     {
@@ -1693,7 +1706,7 @@ function buildRealPositionItems(payload) {
         ? `入场 ${formatNumber(row.entryPrice, 4)} / 当前 ${formatNumber(row.currentExitPrice, 4)}`
         : DATA_PENDING,
       hint: summary.count
-        ? `触发价：涨到 ${formatNumber(row.takeProfitPrice, 4)} 止盈；跌到 ${formatNumber(row.stopLossPrice, 4)} 止损；回落到 ${Number(row.trailingStopPrice) ? formatNumber(row.trailingStopPrice, 4) : '未激活'} 追踪止损。`
+        ? `触发价：${microProfitPositionText(row)}涨到 ${formatNumber(row.takeProfitPrice, 4)} 止盈；跌到 ${formatNumber(row.stopLossPrice, 4)} 止损；回落到 ${Number(row.trailingStopPrice) ? formatNumber(row.trailingStopPrice, 4) : '未激活'} 追踪止损。`
         : '没有持仓价格可展示。',
       status: summary.count ? 'ok' : 'warn',
     },
@@ -1912,6 +1925,7 @@ function normalizeRealPositionRows(rows) {
       当前: row.currentExitPrice === null ? DATA_PENDING : formatNumber(row.currentExitPrice, 4),
       浮动: floating === null ? DATA_PENDING : formatSignedUsd(floating),
       止盈: formatNumber(row.takeProfitPrice, 4),
+      微利止盈: Number(row.takeProfitUSDC) > 0 ? formatUsd(row.takeProfitUSDC) : DATA_PENDING,
       止损: formatNumber(row.stopLossPrice, 4),
       跟单交易员: row.copiedTrader || row.sourceTrader || DATA_PENDING,
       源持仓: sourcePositionStatusText(row.sourcePositionStatus),

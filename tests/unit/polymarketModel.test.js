@@ -116,10 +116,11 @@ describe('polymarketModel simulation explanation', () => {
           runtimePreflight: {
             blockers: ['walk_forward_not_validated', 'real_execution_switch_false'],
           },
-          takeProfitPct: 35,
-          stopLossPct: 18,
-          trailingStopPct: 12,
-          maxPositionUSDC: 3,
+          takeProfitPct: 2,
+          takeProfitUSDC: 0.05,
+          stopLossPct: 4,
+          trailingStopPct: 2,
+          maxPositionUSDC: 5,
           maxDailyLossUSDC: 2,
         },
       },
@@ -159,6 +160,8 @@ describe('polymarketModel simulation explanation', () => {
             positionSize: 12.23,
             entryPrice: 0.49,
             currentExitPrice: 0.54,
+            takeProfitUSDC: 0.05,
+            takeProfitUSDCPrice: 0.4941,
             decision: 'HOLD',
           },
         ],
@@ -170,6 +173,8 @@ describe('polymarketModel simulation explanation', () => {
     expect(wallet?.value).toBe('真实已接入 / 持仓监控');
     expect(wallet?.hint).toContain('已有真实订单 1 笔');
     expect(wallet?.hint).toContain('新开仓扩容当前仍受门控');
+    expect(model.metrics.find((item) => item.label === '真实钱包TP/SL')?.hint).toContain('微利 $0.05');
+    expect(model.realPositionItems.find((item) => item.label === '价格状态')?.hint).toContain('浮盈 $0.05');
     expect(wallet?.hint).not.toContain('没有放开真钱');
     expect(wallet?.status).toBe('ok');
     expect(clob?.value).toBe('CLOB已配置 / 实盘监控');
