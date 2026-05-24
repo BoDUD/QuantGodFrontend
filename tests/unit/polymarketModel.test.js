@@ -181,7 +181,7 @@ describe('polymarketModel simulation explanation', () => {
     expect(clob?.status).toBe('ok');
   });
 
-  it('shows Telegram channel quality separately from aggregate replay', () => {
+  it('shows source quality separately from aggregate replay', () => {
     const model = buildPolymarketModel({
       copyTraderDiscovery: {
         sourceStatus: {
@@ -197,6 +197,11 @@ describe('polymarketModel simulation explanation', () => {
               },
             },
           },
+        },
+      },
+      copyTraderShadowReplay: {
+        collection: {
+          currentDiscoveryCandidates: 83,
         },
       },
       copyTraderSourceBuckets: {
@@ -227,21 +232,37 @@ describe('polymarketModel simulation explanation', () => {
             minSamples: 30,
             action: 'collect_more_settled_samples',
           },
+          {
+            bucketType: 'source',
+            bucketKey: 'copy_trader_discovery:self_explore',
+            status: 'COLLECTING',
+            samples: 14,
+            wins: 1,
+            losses: 13,
+            openOrUnresolved: 69,
+            netPnlUSDC: -0.44,
+            profitFactor: 0.083333,
+            minSamples: 30,
+            action: 'collect_more_settled_samples',
+          },
         ],
       },
     });
 
-    const oldChannel = model.telegramChannelQualityItems.find(
+    const oldChannel = model.sourceQualityItems.find(
       (item) => item.label === '预测市场内幕钱包监控',
     );
-    const aiChannel = model.telegramChannelQualityItems.find(
+    const aiChannel = model.sourceQualityItems.find(
       (item) => item.label === 'AI 1000x Polymarket',
     );
+    const selfExplore = model.sourceQualityItems.find((item) => item.label === '自探索强交易员');
 
     expect(oldChannel?.value).toContain('隔离中');
     expect(oldChannel?.value).toContain('-$2.94');
     expect(aiChannel?.value).toContain('收集中');
     expect(aiChannel?.hint).toContain('2');
-    expect(model.tables.telegramChannelQuality).toHaveLength(2);
+    expect(selfExplore?.value).toContain('收集中');
+    expect(selfExplore?.hint).toContain('83');
+    expect(model.tables.sourceQuality).toHaveLength(3);
   });
 });

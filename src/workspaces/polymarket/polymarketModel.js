@@ -1060,12 +1060,12 @@ function sourceBucketRows(payload) {
   return rows.length ? rows : asRows(payload.copyTraderSourceBucketsLedger);
 }
 
-function sourceChannelRows(payload) {
+function sourceQualityRows(payload) {
   const buckets = sourceBucketPayload(payload);
   const rows = Array.isArray(buckets.bySource)
     ? buckets.bySource
     : sourceBucketRows(payload).filter((row) => String(row.bucketType || '').toLowerCase() === 'source');
-  return rows.filter((row) => String(row.bucketKey || row.source || '').toLowerCase().includes('telegram'));
+  return rows;
 }
 
 function sourceBucketSummary(payload) {
@@ -1123,11 +1123,16 @@ function sourceBucketHint(bucketSummary) {
   return '暂未发现需要淘汰的弱来源；继续按来源分桶观察。';
 }
 
-function telegramChannelDisplayName(value) {
+function sourceDisplayName(value) {
   const text = String(value || '').trim();
-  const withoutSource = text.replace(/^telegram[_-]telethon:/i, '').trim();
+  if (/^copy_trader_discovery:self_explore$/i.test(text)) return '自探索强交易员';
+  const withoutSource = text
+    .replace(/^telegram[_-]telethon:/i, '')
+    .replace(/^copy_trader_discovery:/i, '')
+    .trim();
   const normalized = withoutSource.toLowerCase();
   if (normalized === 'ai 1000x polymarket') return 'AI 1000x Polymarket';
+  if (normalized === 'self_explore') return '自探索强交易员';
   if (withoutSource.includes('预测市场内幕钱包监控')) return '预测市场内幕钱包监控';
   return withoutSource || text || DATA_PENDING;
 }
@@ -1149,20 +1154,24 @@ function telegramSignalCounts(telegram = {}) {
       ? telegram.signals
       : [];
   return signals.reduce((acc, signal) => {
-    const label = telegramChannelDisplayName(signal.channelName || telegram.channelName);
+    const label = sourceDisplayName(signal.channelName || telegram.channelName);
     if (!label || label === DATA_PENDING) return acc;
     acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
 }
 
-function telegramChannelQualityItems(payload) {
+function sourceQualityItems(payload) {
   const discovery = firstObject(payload.copyTraderDiscovery);
   const telegram = discovery.sourceStatus?.telegramChannel || {};
   const signalCounts = telegramSignalCounts(telegram);
-  const bucketRows = sourceChannelRows(payload);
+  const replayCollection = firstObject(payload.copyTraderShadowReplay).collection || {};
+  if (Number(replayCollection.currentDiscoveryCandidates || 0)) {
+    signalCounts['自探索强交易员'] = Number(replayCollection.currentDiscoveryCandidates || 0);
+  }
+  const bucketRows = sourceQualityRows(payload);
   const rowsByChannel = bucketRows.reduce((acc, row) => {
-    const label = telegramChannelDisplayName(row.bucketKey || row.source);
+    const label = sourceDisplayName(row.bucketKey || row.source);
     if (label && label !== DATA_PENDING) acc[label] = row;
     return acc;
   }, {});
@@ -1171,15 +1180,15 @@ function telegramChannelQualityItems(payload) {
     ...Object.keys(signalCounts),
     ...Object.keys(rowsByChannel),
   ]
-    .map(telegramChannelDisplayName)
+    .map(sourceDisplayName)
     .filter((name, index, names) => name && name !== DATA_PENDING && names.indexOf(name) === index);
 
   if (!channelNames.length) {
     return [
       {
-        label: '频道来源',
-        value: '等待 Telegram 数据',
-        hint: 'Telethon 读取到频道后会按频道拆分样本、PF、净盈亏和隔离状态。',
+        label: '跟单来源',
+        value: '等待来源样本',
+        hint: 'Telegram 与自探索强交易员都会按来源拆分样本、PF、净盈亏和隔离状态。',
         status: 'unknown',
       },
     ];
@@ -1206,6 +1215,8 @@ function telegramChannelQualityItems(payload) {
     };
   });
 }
+
+const telegramChannelQualityItems = sourceQualityItems;
 
 function buildSimulationItems(payload) {
   const reviewSummary = summaryObject(payload.dailyReview);
@@ -1532,9 +1543,9 @@ function buildProgressItems(payload) {
       status: buckets.promotedMicroBuckets ? 'ok' : buckets.weakCount ? 'warn' : 'unknown',
     },
     {
-      label: 'Telegram来源',
+      label: '来源接入',
       value: telegramState.value,
-      hint: telegramState.hint,
+      hint: `${telegramState.hint} 自探索强交易员也会进入 replay 分桶。`,
       status: telegramState.status,
     },
     {
@@ -1644,9 +1655,9 @@ function buildMetrics(payload) {
       status: Number(copySummary.shadowCandidates ?? 0) ? 'ok' : 'warn',
     },
     {
-      label: 'Telegram来源',
+      label: '来源接入',
       value: telegramState.value,
-      hint: telegramState.hint,
+      hint: `${telegramState.hint} 自探索强交易员也会进入 replay 分桶。`,
       status: telegramState.status,
     },
     {
@@ -1725,9 +1736,9 @@ function buildCopyTraderItems(payload) {
       status: Number(summary.shadowCandidates ?? 0) ? 'ok' : 'warn',
     },
     {
-      label: 'Telegram频道',
+      label: '来源接入',
       value: telegramState.value,
-      hint: telegramState.hint,
+      hint: `${telegramState.hint} 自探索强交易员也会进入 replay 分桶。`,
       status: telegramState.status,
     },
     {
@@ -2076,6 +2087,7 @@ export function buildPolymarketModel(payload = {}) {
     safetyItems: buildSafetyItems(payload),
     copyTraderItems: buildCopyTraderItems(payload),
     telegramChannelQualityItems: telegramChannelQualityItems(payload),
+    sourceQualityItems: sourceQualityItems(payload),
     realPositionItems: buildRealPositionItems(payload),
     realExecutionItems: buildRealExecutionItems(payload),
     radarItems: buildRadarItems(payload),
@@ -2105,7 +2117,8 @@ export function buildPolymarketModel(payload = {}) {
           : asRows(payload.copyTraderWalkForward),
       ),
       copyTraderSourceBuckets: normalizeSourceBucketRows(sourceBucketRows(payload)),
-      telegramChannelQuality: normalizeSourceBucketRows(sourceChannelRows(payload)),
+      telegramChannelQuality: normalizeSourceBucketRows(sourceQualityRows(payload)),
+      sourceQuality: normalizeSourceBucketRows(sourceQualityRows(payload)),
       isolatedClobRuntime: normalizeGenericRows(asRows(payload.isolatedClobRuntimeLedger)),
       search: normalizeMarketRows(asRows(payload.search)),
       radar: normalizeMarketRows(asRows(payload.radar)),

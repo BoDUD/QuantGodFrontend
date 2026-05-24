@@ -67,10 +67,10 @@
 
       <section class="qg-section-card qg-section-card--operator">
         <header>
-          <p class="qg-eyebrow">Telegram来源</p>
-          <h2>频道表现拆分</h2>
+          <p class="qg-eyebrow">跟单来源</p>
+          <h2>来源表现拆分</h2>
         </header>
-        <KeyValueList :items="model.telegramChannelQualityItems" />
+        <KeyValueList :items="model.sourceQualityItems" />
       </section>
     </div>
 
@@ -125,7 +125,7 @@
       <LedgerTable title="真实成交/退出记录" :rows="model.tables.realExecutions" :limit="12" />
       <LedgerTable title="强交易员排行" :rows="model.tables.copyTraders" :limit="12" />
       <LedgerTable title="当前跟单候选持仓" :rows="model.tables.copyShadowCandidates" :limit="12" />
-      <LedgerTable title="Telegram频道表现" :rows="model.tables.telegramChannelQuality" :limit="8" />
+      <LedgerTable title="来源表现" :rows="model.tables.sourceQuality" :limit="8" />
       <LedgerTable title="来源质量分桶" :rows="model.tables.copyTraderSourceBuckets" :limit="12" />
       <LedgerTable title="Isolated CLOB 预检" :rows="model.tables.isolatedClobRuntime" :limit="12" />
       <LedgerTable title="Shadow 回放样本" :rows="model.tables.copyTraderShadowReplay" :limit="12" />
