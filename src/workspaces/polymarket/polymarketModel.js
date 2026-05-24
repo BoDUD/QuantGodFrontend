@@ -1044,6 +1044,10 @@ function sourceBucketRows(payload) {
     ...(Array.isArray(buckets.bySource) ? buckets.bySource : []),
     ...(Array.isArray(buckets.byTrader) ? buckets.byTrader : []),
     ...(Array.isArray(buckets.bySourceTrader) ? buckets.bySourceTrader : []),
+    ...(Array.isArray(buckets.byMarketFamily) ? buckets.byMarketFamily : []),
+    ...(Array.isArray(buckets.byEntryPriceBand) ? buckets.byEntryPriceBand : []),
+    ...(Array.isArray(buckets.byTraderMarketFamily) ? buckets.byTraderMarketFamily : []),
+    ...(Array.isArray(buckets.byTraderEntryPriceBand) ? buckets.byTraderEntryPriceBand : []),
   ];
   return rows.length ? rows : asRows(payload.copyTraderSourceBucketsLedger);
 }
@@ -1053,10 +1057,14 @@ function sourceBucketSummary(payload) {
   const qualityGate = discovery.copyReplayQualityGate || {};
   const buckets = sourceBucketPayload(payload);
   const quarantine = buckets.quarantine || {};
+  const microPolicy = buckets.microScalpPolicy || {};
   const rows = sourceBucketRows(payload);
   const quarantinedTraders = qualityGate.quarantinedTraders || quarantine.quarantinedTraders || [];
   const weakSources = qualityGate.weakSources || quarantine.weakSources || [];
   const weakSourceTraders = qualityGate.quarantinedSourceTraders || quarantine.quarantinedSourceTraders || [];
+  const promotedMicroBuckets =
+    Number(qualityGate.promotedCompositeBucketCount ?? 0) ||
+    Number(microPolicy.promotedCompositeBucketCount ?? 0);
   const weakCount =
     Number(qualityGate.weakBucketCount ?? 0) ||
     rows.filter((row) => {
@@ -1068,6 +1076,7 @@ function sourceBucketSummary(payload) {
     quarantinedTraders,
     weakSources,
     weakSourceTraders,
+    promotedMicroBuckets,
     weakCount,
   };
 }
@@ -1087,6 +1096,9 @@ function replayStatus(summary) {
 }
 
 function sourceBucketHint(bucketSummary) {
+  if (bucketSummary.promotedMicroBuckets) {
+    return `${formatNumber(bucketSummary.promotedMicroBuckets, 0)} 个交易员+市场/价带组合已证明适合微利重复；真钱候选只允许这些组合继续。`;
+  }
   const blocked = [
     ...(bucketSummary.quarantinedTraders || []).map((item) => `交易员 ${item}`),
     ...(bucketSummary.weakSources || []).map((item) => `来源 ${item}`),
@@ -1414,10 +1426,10 @@ function buildProgressItems(payload) {
       status: replayStatus(walk),
     },
     {
-      label: '弱源隔离',
-      value: `${formatNumber(buckets.quarantinedTraders.length, 0)} 交易员 / ${formatNumber(buckets.weakSources.length, 0)} 来源`,
+      label: '微利分桶',
+      value: `${formatNumber(buckets.promotedMicroBuckets, 0)} 可跟 / ${formatNumber(buckets.weakCount, 0)} 弱桶`,
       hint: sourceBucketHint(buckets),
-      status: buckets.weakCount ? 'warn' : 'ok',
+      status: buckets.promotedMicroBuckets ? 'ok' : buckets.weakCount ? 'warn' : 'unknown',
     },
     {
       label: 'Telegram来源',
