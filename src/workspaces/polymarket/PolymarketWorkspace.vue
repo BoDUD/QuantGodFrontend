@@ -59,8 +59,8 @@
 
       <section class="qg-section-card qg-section-card--operator">
         <header>
-          <p class="qg-eyebrow">进展卡点</p>
-          <h2>为什么还没有晋级</h2>
+          <p class="qg-eyebrow">晋级状态</p>
+          <h2>来源与逐笔候选</h2>
         </header>
         <KeyValueList :items="model.progressItems" />
       </section>

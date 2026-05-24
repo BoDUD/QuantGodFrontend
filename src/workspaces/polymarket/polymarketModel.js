@@ -1512,8 +1512,26 @@ function buildProgressItems(payload) {
   ]);
   const replaySamples = Number(replay.samples ?? replay.outcomeSamples ?? replay.validatedCandidates ?? 0);
   const walkBatches = Number(walk.batches ?? 0);
+  const realWalletCandidates = Number(copySummary.realWalletCandidates ?? 0);
+  const sourceScopedAllowed = Boolean(policy.sourceScopedMicroLiveGatePassed);
+  const walletAllowed = Boolean(policy.realWalletExecutionAllowed);
+  const gateMode = sourceScopedAllowed ? '来源局部 micro-live' : '全局 replay/walk-forward';
 
   return [
+    {
+      label: '晋级状态',
+      value: walletAllowed
+        ? realWalletCandidates
+          ? `已放行 / ${formatNumber(realWalletCandidates, 0)} 候选`
+          : '来源已晋级 / 候选0'
+        : '仍在证据门控',
+      hint: walletAllowed
+        ? realWalletCandidates
+          ? `${gateMode} 已通过；executor 会继续做 token、限价、仓位和 kill switch 预检。`
+          : `${gateMode} 已通过；当前没有逐笔候选同时满足来源、交易员、市场/价带微桶和入场价要求。`
+        : `阻断 ${blockerText(policyBlockers(policy)) || blockerText(walk.blockers) || blockerText(replay.blockers) || '等待更多样本'}。`,
+      status: walletAllowed ? (realWalletCandidates ? 'ok' : 'warn') : 'locked',
+    },
     {
       label: '强交易员发现',
       value: `${formatNumber(copySummary.eligibleTraders ?? 0, 0)} 可跟 / ${formatNumber(copySummary.rankedTraders ?? 0, 0)} 排名`,

@@ -181,6 +181,31 @@ describe('polymarketModel simulation explanation', () => {
     expect(clob?.status).toBe('ok');
   });
 
+  it('separates promoted source state from zero executable candidates', () => {
+    const model = buildPolymarketModel({
+      copyTraderDiscovery: {
+        summary: {
+          eligibleTraders: 15,
+          rankedTraders: 30,
+          shadowCandidates: 84,
+          realWalletCandidates: 0,
+          telegramWallets: 78,
+          telegramSignals: 300,
+        },
+        walletRiskPolicy: {
+          realWalletExecutionAllowed: true,
+          sourceScopedMicroLiveGatePassed: true,
+        },
+      },
+    });
+
+    const promotion = model.progressItems.find((item) => item.label === '晋级状态');
+    expect(promotion?.value).toBe('来源已晋级 / 候选0');
+    expect(promotion?.hint).toContain('来源局部 micro-live 已通过');
+    expect(promotion?.hint).toContain('没有逐笔候选');
+    expect(promotion?.status).toBe('warn');
+  });
+
   it('shows source quality separately from aggregate replay', () => {
     const model = buildPolymarketModel({
       copyTraderDiscovery: {
