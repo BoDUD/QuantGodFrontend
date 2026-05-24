@@ -908,7 +908,9 @@ function isolatedRuntimeHint(runtime = {}) {
   const adapter = runtime.adapter?.name || 'isolated_clob';
   const host = runtime.clob?.hostConfigured ? 'host 已配置' : 'host 待配置';
   const sendAllowed = Boolean(runtime.safety?.orderSendAllowed);
+  const switchesOpen = Boolean(runtime.runtimeSwitches?.realExecutionSwitch && runtime.runtimeSwitches?.killSwitchOff);
   if (sendAllowed) return `${adapter} / ${host}；订单发送已由后端策略放行。`;
+  if (switchesOpen) return `${adapter} / ${host}；runtime 开关已开，最终下单仍由候选级 preflight 和 executor 检查。`;
   return `${adapter} / ${host}；CLOB 已配置，真钱钱包仍锁定；${blockers || 'prepare-only 模式，未开放真钱订单发送。'}`;
 }
 
@@ -949,12 +951,18 @@ function realTradingState(payload = {}) {
 
 function isolatedRuntimeValue(isolated = {}, trading = {}) {
   if (realTradingConnected(trading)) return 'CLOB已配置 / 实盘监控';
+  if (isolated.runtimePrepared && isolated.runtimeSwitches?.realExecutionSwitch && isolated.runtimeSwitches?.killSwitchOff) {
+    return 'CLOB已配置 / 开关已开';
+  }
   if (isolated.runtimePrepared) return 'CLOB已配置 / 新开仓锁定';
   return '等待配置';
 }
 
 function isolatedRuntimeStatus(isolated = {}, trading = {}) {
   if (realTradingConnected(trading)) return 'ok';
+  if (isolated.runtimePrepared && isolated.runtimeSwitches?.realExecutionSwitch && isolated.runtimeSwitches?.killSwitchOff) {
+    return 'ok';
+  }
   return isolated.runtimePrepared ? 'locked' : 'warn';
 }
 
