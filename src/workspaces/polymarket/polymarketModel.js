@@ -644,6 +644,13 @@ function friendlyTelegramError(error) {
   return friendlyText(raw, raw);
 }
 
+function telegramChannelLabel(telegram = {}) {
+  const names = Array.isArray(telegram.channelNames)
+    ? telegram.channelNames.map((name) => String(name || '').trim()).filter(Boolean)
+    : [];
+  return names.length ? names.join(' / ') : telegram.channelName || '预测市场内幕钱包监控';
+}
+
 function telegramIntakeState(telegram = {}, summary = {}) {
   const sources = telegram.sources || {};
   const botApi = sources.botApi || {};
@@ -651,17 +658,18 @@ function telegramIntakeState(telegram = {}, summary = {}) {
   const exportSource = sources.export || {};
   const walletCount = Number(summary.telegramWallets ?? telegram.walletCount ?? 0);
   const signalCount = Number(summary.telegramSignals ?? telegram.signalCount ?? 0);
+  const channelLabel = telegramChannelLabel(telegram);
   if (walletCount > 0) {
     return {
       value: `${formatNumber(walletCount, 0)} 个钱包`,
-      hint: telegram.nextAction || `频道 ${telegram.channelName || '预测市场内幕钱包监控'} 已进入排序。`,
+      hint: telegram.nextAction ? `${channelLabel}：${telegram.nextAction}` : `频道 ${channelLabel} 已进入排序。`,
       status: 'ok',
     };
   }
   if (signalCount > 0) {
     return {
       value: `${formatNumber(signalCount, 0)} 个交易员信号`,
-      hint: telegram.nextAction || 'Telegram 用户名/Rank 信号已进入强交易员排序。',
+      hint: telegram.nextAction ? `${channelLabel}：${telegram.nextAction}` : 'Telegram 用户名/Rank 信号已进入强交易员排序。',
       status: 'ok',
     };
   }
@@ -695,7 +703,7 @@ function telegramIntakeState(telegram = {}, summary = {}) {
   }
   return {
     value: telegram.configured ? '已配置待解析' : '待接入',
-    hint: telegram.nextAction || telegram.channelName || '预测市场内幕钱包监控',
+    hint: telegram.nextAction ? `${channelLabel}：${telegram.nextAction}` : channelLabel,
     status: 'warn',
   };
 }
