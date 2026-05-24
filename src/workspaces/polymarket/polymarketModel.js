@@ -265,10 +265,41 @@ function responseStatus(row = {}) {
   return response.status || row.status || row.adapterStatus || row.decision || '';
 }
 
+function auditOrderRows(payload = {}) {
+  return asRows(payload.canaryOrderAuditLedger)
+    .filter((row) => String(row.order_sent ?? row.orderSent ?? '').toLowerCase() === 'true')
+    .map((row) => ({
+      generatedAt: row.generated_at || row.generatedAt,
+      candidateId: row.candidate_id || row.candidateId,
+      marketId: row.market_id || row.marketId,
+      question: row.question,
+      track: row.track,
+      side: row.side,
+      limitPrice: row.limit_price ?? row.limitPrice,
+      stakeUSDC: row.stake_usdc ?? row.stakeUSDC,
+      size: row.size,
+      decision: row.decision,
+      orderSent: true,
+      adapterStatus: row.adapter_status || row.adapterStatus,
+      response: {
+        orderID: row.response_id || row.orderID || row.orderId,
+        status: row.response_status || row.status,
+        transactionsHashes: row.tx_hash ? [row.tx_hash] : [],
+      },
+    }));
+}
+
 function realOrderRows(payload = {}) {
   const run = firstObject(payload.canaryRun);
   const direct = Array.isArray(run.plannedOrders) ? run.plannedOrders : asRows(payload.canaryRun);
-  return direct.filter((row) => row && typeof row === 'object');
+  const rows = [...direct.filter((row) => row && typeof row === 'object'), ...auditOrderRows(payload)];
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = responseOrderId(row) || row.candidateId || JSON.stringify(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function exitMonitorPositions(payload = {}) {
@@ -429,6 +460,8 @@ function realExecutionSummary(payload = {}) {
   const exitRun = firstObject(payload.canaryExitMonitorRun);
   const executions = realExecutionRows(payload);
   const orderRows = realOrderRows(payload);
+  const positionsTracked = Number(exitRun.summary?.positionsTracked ?? 0);
+  const exitPlanOnly = boolValue(exitRun.planOnly, true);
   return {
     executions,
     orderRows,
@@ -438,10 +471,33 @@ function realExecutionSummary(payload = {}) {
     matched: orderRows.filter((row) => String(responseStatus(row)).toLowerCase() === 'matched').length,
     exitsSent: Number(exitRun.summary?.exitsSent ?? 0),
     exitSignals: Number(exitRun.summary?.exitSignals ?? 0),
-    positionsTracked: Number(exitRun.summary?.positionsTracked ?? 0),
-    mode: run.executionMode || run.mode || '',
+    positionsTracked,
+    exitPlanOnly,
+    exitRealEnabled: positionsTracked > 0 && !exitPlanOnly,
+    mode:
+      Number(run.summary?.ordersSent ?? 0) > 0
+        ? run.executionMode || run.mode || ''
+        : orderRows.length
+          ? 'REAL_ORDER_AUDIT_LEDGER'
+          : run.executionMode || run.mode || '',
     policy: run.summary?.walletPolicyStatus || run.envPreflight?.autonomousPolicyStatus || '',
   };
+}
+
+function realExecutionHint(summary = {}) {
+  const exitHint = summary.exitRealEnabled
+    ? '退出监控实盘启用，TP/SL/源交易员卖出会发送 SELL。'
+    : summary.exitPlanOnly
+      ? '退出监控仍是计划模式，不会发送 SELL。'
+      : '退出监控等待持仓同步。';
+
+  if (summary.mode === 'REAL_ORDER_AUDIT_LEDGER') {
+    return `真实成交来自订单审计账本；${exitHint}`;
+  }
+  if (summary.policy) {
+    return `钱包策略 ${friendlyText(summary.policy)}；${exitHint}`;
+  }
+  return '还没有真实执行运行记录。';
 }
 
 function latestGeneratedAt(payloads = []) {
@@ -527,6 +583,18 @@ function friendlyText(value, fallback = DATA_PENDING) {
   return raw;
 }
 
+function boolValue(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return fallback;
+  if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
 function realPositionStatusText(value, fallback = DATA_PENDING) {
   const raw = String(value || '').trim();
   const normalized = raw.toUpperCase();
@@ -538,6 +606,17 @@ function realPositionStatusText(value, fallback = DATA_PENDING) {
   if (normalized.includes('CLOSED')) return '已退出';
   if (normalized.includes('NOT_ATTEMPTED')) return '未触发退出';
   return friendlyText(value, fallback);
+}
+
+function sourcePositionStatusText(value, fallback = DATA_PENDING) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase();
+  if (!normalized) return fallback;
+  if (normalized === 'SOURCE_POSITION_STILL_HELD') return '源交易员仍持有';
+  if (normalized === 'SOURCE_POSITION_NOT_HELD') return '源交易员已卖出';
+  if (normalized === 'SOURCE_CHECK_UNAVAILABLE') return '源持仓待同步';
+  return realPositionStatusText(value, fallback);
 }
 
 function friendlyTelegramError(error) {
@@ -1490,9 +1569,17 @@ function buildRealPositionItems(payload) {
       label: '目前持仓',
       value: row.question || '暂无持仓',
       hint: summary.count
-        ? `${sideText || '方向待同步'}；跟单交易员 ${row.copiedTrader || '待同步'}。`
+        ? `${sideText || '方向待同步'}；源持仓 ${sourcePositionStatusText(row.sourcePositionStatus)}。`
         : '等待 canary executor 或 exit monitor 写入持仓。',
       status: summary.count ? 'ok' : 'warn',
+    },
+    {
+      label: '跟单交易员',
+      value: row.copiedTrader || row.sourceTrader || '待同步',
+      hint: summary.count
+        ? `钱包 ${shortenId(row.sourceProxyWallet, 10, 8, '待同步')}；${sourcePositionStatusText(row.sourcePositionStatus)}。`
+        : '暂无源交易员信息。',
+      status: row.sourcePositionPresent === false ? 'warn' : summary.count ? 'ok' : 'warn',
     },
     {
       label: '价格状态',
@@ -1500,7 +1587,7 @@ function buildRealPositionItems(payload) {
         ? `入场 ${formatNumber(row.entryPrice, 4)} / 当前 ${formatNumber(row.currentExitPrice, 4)}`
         : DATA_PENDING,
       hint: summary.count
-        ? `止盈 ${formatNumber(row.takeProfitPrice, 4)}；止损 ${formatNumber(row.stopLossPrice, 4)}；追踪 ${Number(row.trailingStopPrice) ? formatNumber(row.trailingStopPrice, 4) : '未激活'}。`
+        ? `触发价：涨到 ${formatNumber(row.takeProfitPrice, 4)} 止盈；跌到 ${formatNumber(row.stopLossPrice, 4)} 止损；回落到 ${Number(row.trailingStopPrice) ? formatNumber(row.trailingStopPrice, 4) : '未激活'} 追踪止损。`
         : '没有持仓价格可展示。',
       status: summary.count ? 'ok' : 'warn',
     },
@@ -1508,7 +1595,7 @@ function buildRealPositionItems(payload) {
       label: '持仓状态',
       value: summary.count ? realPositionStatusText(row.decision || row.orderStatus || 'HOLD') : '无持仓',
       hint: summary.count
-        ? realPositionStatusText(row.reason || row.adapterStatus || 'exit_not_triggered')
+        ? `${realPositionStatusText(row.reason || row.adapterStatus || 'exit_not_triggered')}；${sourcePositionStatusText(row.sourcePositionStatus)}。`
         : '无需退出监控动作。',
       status: summary.count ? 'ok' : 'warn',
     },
@@ -1531,9 +1618,7 @@ function buildRealExecutionItems(payload) {
     {
       label: '执行模式',
       value: summary.ordersSent ? friendlyText(summary.mode || 'REAL_ORDER_ATTEMPTED') : '等待订单',
-      hint: summary.policy
-        ? `钱包策略 ${friendlyText(summary.policy)}；前端只读显示，不发送订单。`
-        : '还没有真实执行运行记录。',
+      hint: realExecutionHint(summary),
       status: summary.ordersSent ? 'ok' : 'warn',
     },
     {
@@ -1722,7 +1807,8 @@ function normalizeRealPositionRows(rows) {
       浮动: floating === null ? DATA_PENDING : formatSignedUsd(floating),
       止盈: formatNumber(row.takeProfitPrice, 4),
       止损: formatNumber(row.stopLossPrice, 4),
-      交易员: row.copiedTrader || DATA_PENDING,
+      跟单交易员: row.copiedTrader || row.sourceTrader || DATA_PENDING,
+      源持仓: sourcePositionStatusText(row.sourcePositionStatus),
       订单: shortenId(row.orderID || row.orderId),
       说明: realPositionStatusText(row.reason || row.adapterStatus || row.orderStatus, DATA_PENDING),
     };
