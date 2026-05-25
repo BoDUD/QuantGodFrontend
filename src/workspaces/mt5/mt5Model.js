@@ -638,6 +638,11 @@ function accountSnapshotItems(account = {}) {
 
 function accountCard(account = {}, fallback = {}) {
   const title = fallback.title || account.label || 'MT5 账号';
+  const lane = present(fallback.lane) ? fallback.lane : null;
+  const isUsdLane =
+    lane?.accountMode === 'standard_usd' ||
+    String(lane?.lane || '').includes('USD') ||
+    String(fallback.eyebrow || '').includes('USD');
   const subtitle =
     normalizeAccountId(account.login) || account.server
       ? `${account.login || '未返回账号'} / ${account.server || '未返回服务器'}`
@@ -675,22 +680,25 @@ function accountCard(account = {}, fallback = {}) {
         hint: account.startupGuardReason || account.tradePermissionBlocker || '',
       },
       accountPermissionItem(account),
-      ...(fallback.lane
+      ...(lane
         ? [
             {
               label: '账户车道',
-              value: fallback.lane.laneZh || humanizeStatus(fallback.lane.lane || fallback.lane.role),
-              status: fallback.lane.accountMode === 'standard_usd' ? 'warn' : 'ok',
-              hint: fallback.lane.purposeZh || fallback.lane.entryPolicyZh || '',
+              value: lane.laneZh || humanizeStatus(lane.lane || lane.role),
+              status: isUsdLane ? 'warn' : 'ok',
+              hint:
+                lane.purposeZh ||
+                lane.entryPolicyZh ||
+                (isUsdLane ? '美元账户只部署已验证结构，不参与探索。' : '美分账户用于小仓收集真实执行样本。'),
             },
             {
               label: '允许入场',
-              value: Array.isArray(fallback.lane.allowedEntryModes)
-                ? fallback.lane.allowedEntryModes.join(' / ')
-                : format(fallback.lane.allowedEntryModes || '等待治理门'),
-              status: fallback.lane.accountMode === 'standard_usd' ? 'warn' : 'ok',
+              value: Array.isArray(lane.allowedEntryModes)
+                ? lane.allowedEntryModes.join(' / ')
+                : format(lane.allowedEntryModes || '等待治理门'),
+              status: isUsdLane ? 'warn' : 'ok',
               hint:
-                fallback.lane.accountMode === 'standard_usd'
+                isUsdLane
                   ? '美元账户不参与探索；OPPORTUNITY_ENTRY 只做 paper mirror。'
                   : '美分账户用于小仓收集真实执行样本。',
             },

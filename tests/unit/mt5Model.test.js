@@ -139,8 +139,21 @@ describe('mt5Model ledgers', () => {
 
     expect(cards[0].title).toBe('美分账户学习车道');
     expect(cards[1].title).toBe('美元账户部署车道');
+    expect(cards[1].items.find((item) => item.label === '账户车道')?.hint).toContain('只部署已验证结构');
     expect(cards[0].items.find((item) => item.label === '允许入场')?.value).toContain('OPPORTUNITY_ENTRY');
     expect(cards[1].items.find((item) => item.label === '允许入场')?.hint).toContain('paper mirror');
+  });
+
+  it('does not render cent lane hints on an empty USD lane fallback', () => {
+    const snapshot = normalizeMt5Snapshot({
+      account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
+      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+    });
+
+    const usdItems = buildMt5AccountCards(snapshot)[1].items;
+
+    expect(usdItems.find((item) => item.label === '账户车道')).toBeUndefined();
+    expect(usdItems.find((item) => item.hint === '美分账户用于小仓收集真实执行样本。')).toBeUndefined();
   });
 
   it('shows manual non-USDJPY live positions in the realtime positions table', () => {
