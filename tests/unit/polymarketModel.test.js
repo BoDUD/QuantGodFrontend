@@ -275,6 +275,46 @@ describe('polymarketModel simulation explanation', () => {
     );
   });
 
+  it('does not count exited live trades as current positions', () => {
+    const model = buildPolymarketModel({
+      canaryOrderAuditLedger: {
+        rows: [
+          {
+            order_sent: 'true',
+            response_status: 'matched',
+            response_id: 'order-1',
+            question: 'Exited market',
+            size: 6.8,
+            limit_price: 0.735,
+          },
+        ],
+      },
+      canaryExitMonitorRun: {
+        planOnly: false,
+        summary: {
+          positionsTracked: 1,
+          exitSignals: 1,
+          exitsSent: 1,
+        },
+        positions: [
+          {
+            orderID: 'order-1',
+            question: 'Exited market',
+            positionSize: 6.8,
+            entryPrice: 0.735,
+            currentExitPrice: 0.65,
+            decision: 'EXIT_STOP_LOSS',
+            exitSent: true,
+          },
+        ],
+      },
+    });
+
+    expect(model.metrics.find((item) => item.label === '真实持仓')?.value).toBe('0 个 / 0 shares');
+    expect(model.tables.realPositions).toHaveLength(0);
+    expect(model.tables.realExecutions.length).toBeGreaterThan(0);
+  });
+
   it('separates promoted source state from zero executable candidates', () => {
     const model = buildPolymarketModel({
       copyTraderDiscovery: {

@@ -367,6 +367,10 @@ function realPositionRows(payload = {}) {
       txHash: responseTxHash(order),
       orderID: responseOrderId({ ...order, ...row }),
     };
+  }).filter((row) => {
+    const decision = String(row.decision || '').toUpperCase();
+    const exitSent = String(row.exitSent || '').toLowerCase() === 'true' || row.exitSent === true;
+    return Number(row.positionSize ?? row.size ?? 0) > 0 && !exitSent && !decision.startsWith('EXIT_');
   });
 
   if (rows.length) return rows;
@@ -442,7 +446,7 @@ function realPositionSummary(payload = {}) {
     const exitSent = String(row.exitSent || '').toLowerCase() === 'true' || row.exitSent === true;
     return !exitSent && !decision.includes('EXIT_SENT') && !decision.includes('CLOSED');
   });
-  const tracked = openRows.length ? openRows : rows;
+  const tracked = openRows;
   const totalShares = tracked.reduce((sum, row) => sum + (Number(row.positionSize ?? row.size) || 0), 0);
   const currentValue = tracked.reduce(
     (sum, row) => sum + (Number(row.positionSize ?? row.size) || 0) * (Number(row.currentExitPrice) || 0),
