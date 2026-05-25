@@ -636,9 +636,36 @@ function accountSnapshotItems(account = {}) {
   ];
 }
 
+function spreadGateTone(spreadGate = {}) {
+  const tier = String(spreadGate.tier || '').toUpperCase();
+  if (spreadGate.hardBlock || tier === 'HARD_WIDE' || tier === 'UNKNOWN') return 'error';
+  if (tier.includes('SOFT_WIDE')) return 'warn';
+  if (tier === 'NORMAL') return 'ok';
+  return 'unknown';
+}
+
+function spreadGateLabel(spreadGate = {}) {
+  const spread = numberValue(spreadGate.spreadPips);
+  const tier = spreadGate.tierZh || humanizeStatus(spreadGate.tier || '待同步');
+  return `${spread === null ? '—' : spread.toFixed(2)} pips / ${tier}`;
+}
+
+function spreadGateHint(spreadGate = {}, isUsdLane = false) {
+  const action = isUsdLane ? spreadGate.usdActionZh : spreadGate.centActionZh;
+  const limits = [
+    numberValue(spreadGate.normalLimitPips),
+    numberValue(spreadGate.softLimitPips),
+    numberValue(spreadGate.hardLimitPips),
+  ]
+    .map((value) => (value === null ? '—' : value.toFixed(1)))
+    .join(' / ');
+  return `${action || spreadGate.reasonZh || '按点差等级降级/阻断。'} 阈值 ${limits} pips`;
+}
+
 function accountCard(account = {}, fallback = {}) {
   const title = fallback.title || account.label || 'MT5 账号';
   const lane = present(fallback.lane) ? fallback.lane : null;
+  const spreadGate = present(fallback.spreadGate) ? fallback.spreadGate : null;
   const isUsdLane =
     lane?.accountMode === 'standard_usd' ||
     String(lane?.lane || '').includes('USD') ||
@@ -701,6 +728,16 @@ function accountCard(account = {}, fallback = {}) {
                 isUsdLane
                   ? '美元账户不参与探索；OPPORTUNITY_ENTRY 只做 paper mirror。'
                   : '美分账户用于小仓收集真实执行样本。',
+            },
+          ]
+        : []),
+      ...(spreadGate
+        ? [
+            {
+              label: '点差门禁',
+              value: spreadGateLabel(spreadGate),
+              status: spreadGateTone(spreadGate),
+              hint: spreadGateHint(spreadGate, isUsdLane),
             },
           ]
         : []),
@@ -779,6 +816,13 @@ export function normalizeMt5Snapshot(raw = {}) {
     raw.dailyAutopilot?.morningPlan?.accountLanes ||
     raw.dailyAutopilot?.lanes ||
     usdJpyLiveLoop?.policy?.accountLanePolicy ||
+    {};
+  const spreadGate =
+    raw.dailyAutopilot?.morningPlan?.spreadGate ||
+    raw.dailyAutopilot?.spreadGate ||
+    usdJpyLiveLoop?.spreadGate ||
+    usdJpyLiveLoop?.policy?.spreadGate ||
+    usdJpyLiveLoop?.topPolicy?.spreadGate ||
     {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
@@ -881,6 +925,7 @@ export function normalizeMt5Snapshot(raw = {}) {
     dailyAutopilot: raw.dailyAutopilot || {},
     accountRegistry,
     accountLanes,
+    spreadGate,
     researchStats: raw.researchStats || {},
     governanceAdvisor: raw.governanceAdvisor || {},
     usdJpyLiveLoop,
@@ -1880,12 +1925,14 @@ export function buildMt5AccountCards(snapshot) {
       eyebrow: 'Cent Lane',
       title: centLane.laneZh || '美分账户学习',
       lane: centLane,
+      spreadGate: snapshot.spreadGate,
     }),
     accountCard(snapshot.secondaryConnection || {}, {
       role: 'secondary',
       eyebrow: 'USD Lane',
       title: usdLane.laneZh || '美元账户部署',
       lane: usdLane,
+      spreadGate: snapshot.spreadGate,
     }),
   ];
 }

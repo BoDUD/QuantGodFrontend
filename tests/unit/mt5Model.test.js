@@ -131,6 +131,16 @@ describe('mt5Model ledgers', () => {
               allowedEntryModes: ['STANDARD_ENTRY'],
             },
           },
+          spreadGate: {
+            spreadPips: 2.3,
+            tier: 'SOFT_WIDE',
+            tierZh: '轻微偏宽',
+            normalLimitPips: 2.2,
+            softLimitPips: 2.7,
+            hardLimitPips: 3.0,
+            centActionZh: '美分账户允许小仓机会入场。',
+            usdActionZh: '美元账户仅 paper mirror，不实盘。',
+          },
         },
       },
     });
@@ -142,6 +152,12 @@ describe('mt5Model ledgers', () => {
     expect(cards[1].items.find((item) => item.label === '账户车道')?.hint).toContain('只部署已验证结构');
     expect(cards[0].items.find((item) => item.label === '允许入场')?.value).toContain('OPPORTUNITY_ENTRY');
     expect(cards[1].items.find((item) => item.label === '允许入场')?.hint).toContain('paper mirror');
+    expect(cards[0].items.find((item) => item.label === '点差门禁')).toMatchObject({
+      value: '2.30 pips / 轻微偏宽',
+      status: 'warn',
+    });
+    expect(cards[0].items.find((item) => item.label === '点差门禁')?.hint).toContain('小仓机会入场');
+    expect(cards[1].items.find((item) => item.label === '点差门禁')?.hint).toContain('paper mirror');
   });
 
   it('does not render cent lane hints on an empty USD lane fallback', () => {
