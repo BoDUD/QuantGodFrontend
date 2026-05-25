@@ -245,6 +245,9 @@ const state = shallowReactive({
 });
 let loadController = null;
 let loadRunId = 0;
+let refreshTimer = null;
+let loadInFlight = false;
+const POLYMARKET_REFRESH_MS = 15000;
 
 const model = computed(() => buildPolymarketModel(state));
 const evidenceBuckets = computed(() => {
@@ -287,13 +290,15 @@ const evidenceTabs = computed(() => [
   { key: 'ai', label: '旧AI评分', count: evidenceBuckets.value.ai.length },
 ]);
 
-async function load() {
+async function load(options = {}) {
+  if (loadInFlight && options.silent) return;
   loadController?.abort();
   const runId = loadRunId + 1;
   loadRunId = runId;
   const controller = new globalThis.AbortController();
   loadController = controller;
-  loading.value = true;
+  loadInFlight = true;
+  if (!options.silent) loading.value = true;
   error.value = '';
   try {
     const nextState = await loadPolymarketWorkspace({ q: query.value }, { signal: controller.signal });
@@ -304,14 +309,25 @@ async function load() {
     error.value = exc?.message || 'Failed to load Polymarket workspace';
   } finally {
     if (runId === loadRunId) {
+      loadInFlight = false;
       loading.value = false;
       loadController = null;
     }
   }
 }
 
-onMounted(load);
-onBeforeUnmount(() => loadController?.abort());
+onMounted(() => {
+  load();
+  refreshTimer = window.setInterval(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    load({ silent: true });
+  }, POLYMARKET_REFRESH_MS);
+});
+onBeforeUnmount(() => {
+  if (refreshTimer) window.clearInterval(refreshTimer);
+  refreshTimer = null;
+  loadController?.abort();
+});
 
 function revealTechnicalEvidence(event) {
   technicalEvidenceVisible.value = technicalEvidenceVisible.value || Boolean(event.target.open);
