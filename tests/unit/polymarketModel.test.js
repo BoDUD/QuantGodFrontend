@@ -181,6 +181,74 @@ describe('polymarketModel simulation explanation', () => {
     expect(clob?.status).toBe('ok');
   });
 
+  it('does not turn failed planned orders or historical fills into current positions', () => {
+    const model = buildPolymarketModel({
+      copyTraderDiscovery: {
+        walletRiskPolicy: {
+          realWalletExecutionAllowed: false,
+        },
+      },
+      isolatedClobRuntime: {
+        status: 'PREPARED_REAL_WALLET_BLOCKED',
+        runtimePrepared: true,
+        adapter: { name: 'isolated_clob' },
+        clob: { hostConfigured: true },
+      },
+      canaryRun: {
+        summary: {
+          ordersSent: 0,
+          walletPolicyRealExecutionAllowed: true,
+        },
+        plannedOrders: [
+          {
+            orderSent: false,
+            question: 'Failed planned market',
+            size: 8.13,
+            limitPrice: 0.61,
+            adapterStatus: 'CLOB_API_KEY_SIGNER_MISMATCH:PolyApiException',
+            response: {
+              originalError: 'the order signer address has to be the address of the API KEY',
+            },
+          },
+        ],
+      },
+      canaryOrderAuditLedger: {
+        rows: [
+          {
+            order_sent: 'true',
+            response_status: 'matched',
+            response_id: 'old-order-1',
+            question: 'Historical market',
+            size: 5.71,
+            limit_price: 0.52,
+          },
+        ],
+      },
+      canaryExitMonitorRun: {
+        planOnly: false,
+        summary: {
+          positionsTracked: 0,
+          exitSignals: 0,
+          exitsSent: 0,
+        },
+        positions: [],
+      },
+      canaryPositionLedger: {
+        rows: [],
+      },
+    });
+
+    expect(model.tables.realPositions).toHaveLength(0);
+    expect(model.tables.realExecutions).toHaveLength(1);
+    expect(model.simulationItems.find((item) => item.label === '真实下注')?.value).toBe('未开启');
+    expect(model.simulationItems.find((item) => item.label === '真实下注')?.hint).toContain(
+      '历史真实订单记录',
+    );
+    expect(model.progressItems.find((item) => item.label === '真钱钱包')?.value).not.toBe(
+      '真实已接入 / 持仓监控',
+    );
+  });
+
   it('separates promoted source state from zero executable candidates', () => {
     const model = buildPolymarketModel({
       copyTraderDiscovery: {

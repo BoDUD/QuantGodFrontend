@@ -265,15 +265,24 @@ function responseStatus(row = {}) {
   return response.status || row.status || row.adapterStatus || row.decision || '';
 }
 
-function hasRealOrderEvidence(row = {}) {
-  return Boolean(
-    row.orderSent ||
-    String(row.order_sent ?? '').toLowerCase() === 'true' ||
-    responseOrderId(row) ||
-    responseTxHash(row) ||
-    row.response_status ||
-    Object.keys(responseObject(row)).length,
+function orderSentFlag(row = {}) {
+  return Boolean(row.orderSent || String(row.order_sent ?? '').toLowerCase() === 'true');
+}
+
+function failedOrderStatus(row = {}) {
+  const status = String(responseStatus(row) || '').toUpperCase();
+  return (
+    status.includes('FAILED') ||
+    status.includes('MISMATCH') ||
+    status.includes('ERROR') ||
+    status.includes('BLOCKED')
   );
+}
+
+function hasRealOrderEvidence(row = {}) {
+  const hasExchangeRef = Boolean(responseOrderId(row) || responseTxHash(row));
+  if (orderSentFlag(row)) return true;
+  return hasExchangeRef && !failedOrderStatus(row);
 }
 
 function auditOrderRows(payload = {}) {
@@ -361,21 +370,7 @@ function realPositionRows(payload = {}) {
   });
 
   if (rows.length) return rows;
-  return realOrderRows(payload)
-    .filter((order) => hasRealOrderEvidence(order))
-    .map((order) => ({
-      ...order,
-      positionSize: order.size,
-      entryPrice:
-        order.response?.makingAmount && order.response?.takingAmount
-          ? Number(order.response.makingAmount) / Number(order.response.takingAmount)
-          : order.limitPrice,
-      currentExitPrice: null,
-      decision: order.orderSent ? 'OPEN_TRACKING' : order.decision,
-      orderStatus: responseStatus(order),
-      txHash: responseTxHash(order),
-      orderID: responseOrderId(order),
-    }));
+  return [];
 }
 
 function realExecutionRows(payload = {}) {
@@ -474,13 +469,17 @@ function realExecutionSummary(payload = {}) {
   const exitRun = firstObject(payload.canaryExitMonitorRun);
   const executions = realExecutionRows(payload);
   const orderRows = realOrderRows(payload);
+  const currentRunOrders = Array.isArray(run.plannedOrders) ? run.plannedOrders : asRows(payload.canaryRun);
+  const currentRunOrdersSent =
+    Number(run.summary?.ordersSent ?? 0) ||
+    currentRunOrders.filter((row) => row && typeof row === 'object' && hasRealOrderEvidence(row)).length;
   const positionsTracked = Number(exitRun.summary?.positionsTracked ?? 0);
   const exitPlanOnly = boolValue(exitRun.planOnly, true);
   return {
     executions,
     orderRows,
-    ordersSent:
-      Number(run.summary?.ordersSent ?? 0) || orderRows.filter((row) => hasRealOrderEvidence(row)).length,
+    currentRunOrdersSent,
+    ordersSent: currentRunOrdersSent || orderRows.filter((row) => hasRealOrderEvidence(row)).length,
     matched: orderRows.filter((row) => String(responseStatus(row)).toLowerCase() === 'matched').length,
     exitsSent: Number(exitRun.summary?.exitsSent ?? 0),
     exitSignals: Number(exitRun.summary?.exitSignals ?? 0),
@@ -921,8 +920,7 @@ function realTradingConnected(trading = {}) {
   const position = trading.positionSummary || {};
   return Boolean(
     trading.connected ||
-    Number(execution.ordersSent ?? 0) > 0 ||
-    Number(execution.matched ?? 0) > 0 ||
+    Number(execution.currentRunOrdersSent ?? 0) > 0 ||
     Number(execution.positionsTracked ?? 0) > 0 ||
     Number(position.count ?? 0) > 0,
   );
@@ -1262,17 +1260,20 @@ function buildSimulationItems(payload) {
   const positionSummary = realPositionSummary(payload);
   const executionSummary = realExecutionSummary(payload);
   const trading = { executionSummary, positionSummary };
+  const realLiveActive = realTradingConnected(trading);
   const executedPF = reviewSummary.polymarketExecutedPF;
   const shadowPF = reviewSummary.polymarketShadowPF;
   const quarantined = Boolean(reviewSummary.polymarketLossQuarantine);
   return [
     {
       label: '真实下注',
-      value: executionSummary.ordersSent ? '已开启' : '未开启',
-      hint: executionSummary.ordersSent
+      value: realLiveActive ? '已开启' : '未开启',
+      hint: realLiveActive
         ? `已发送 ${formatNumber(executionSummary.ordersSent, 0)} 笔，成交 ${formatNumber(executionSummary.matched, 0)} 笔；当前真实持仓 ${formatNumber(positionSummary.count, 0)} 个 / ${formatShares(positionSummary.totalShares)}。`
-        : '真实钱包由后端证据门控，前端只显示结果。',
-      status: executionSummary.ordersSent ? 'ok' : 'locked',
+        : executionSummary.ordersSent
+          ? `有 ${formatNumber(executionSummary.ordersSent, 0)} 笔历史真实订单记录，但当前 executor 未发送新单，持仓监控为 0。`
+          : '真实钱包由后端证据门控，前端只显示结果。',
+      status: realLiveActive ? 'ok' : 'locked',
     },
     {
       label: '模拟在做什么',

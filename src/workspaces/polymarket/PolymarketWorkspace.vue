@@ -279,7 +279,7 @@ const evidenceBuckets = computed(() => {
 const evidenceRows = computed(() => evidenceBuckets.value[evidenceMode.value] || evidenceBuckets.value.all);
 const evidenceTabs = computed(() => [
   { key: 'all', label: '综合证据', count: evidenceBuckets.value.all.length },
-  { key: 'real', label: '真实持仓', count: evidenceBuckets.value.real.length },
+  { key: 'real', label: '真实记录', count: evidenceBuckets.value.real.length },
   { key: 'radar', label: '强交易员', count: evidenceBuckets.value.radar.length },
   { key: 'history', label: '当前持仓', count: evidenceBuckets.value.history.length },
   { key: 'buckets', label: '来源质量', count: evidenceBuckets.value.buckets.length },
