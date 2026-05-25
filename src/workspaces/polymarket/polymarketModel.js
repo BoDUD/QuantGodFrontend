@@ -711,6 +711,14 @@ function telegramIntakeState(telegram = {}, summary = {}) {
 
 function walletBalance(payload) {
   const paths = [
+    'account.accountCash',
+    'account.accountCashUSDC',
+    'account.cashUSDC',
+    'account.balanceUSDC',
+    'accountSnapshot.accountCash',
+    'accountSnapshot.accountCashUSDC',
+    'accountSnapshot.cashUSDC',
+    'accountSnapshot.balanceUSDC',
     'walletBalanceUSDC',
     'wallet.balanceUSDC',
     'wallet.usdc',
@@ -726,8 +734,15 @@ function walletBalance(payload) {
     'polymarket.dailyReview.copyTradingReview.capitalSimulation.accountCashUSDC',
     'dailyReview.copyTradingReview.capitalSimulation.accountCashUSDC',
     'copyTradingReview.capitalSimulation.accountCashUSDC',
+    'copyTradingReview.iterationPlan.capitalResult.accountCashUSDC',
   ];
   for (const part of [
+    'retunePlanner',
+    'research',
+    'isolatedClobRuntime',
+    'canaryRun',
+    'canaryExitMonitorRun',
+    'copyTraderDiscovery',
     'dailyReview',
     'autoGovernance',
     'realTrades',
@@ -1150,7 +1165,7 @@ function channelStatus(row = {}) {
   if (normalized.includes('PROMOTABLE_PROBATION')) return 'warn';
   if (normalized.includes('PROMOTABLE')) return 'ok';
   if (normalized.includes('QUARANTINE')) return 'warn';
-  if (normalized.includes('COLLECTING')) return 'unknown';
+  if (normalized.includes('COLLECTING')) return 'warn';
   return inferStatus(row);
 }
 

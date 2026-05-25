@@ -3,6 +3,32 @@ import { describe, expect, it } from 'vitest';
 import { buildPolymarketModel } from '../../src/workspaces/polymarket/polymarketModel.js';
 
 describe('polymarketModel simulation explanation', () => {
+  it('prefers live Polymarket account cash when displaying wallet balance', () => {
+    const model = buildPolymarketModel({
+      dailyReview: {
+        copyTradingReview: {
+          capitalSimulation: {
+            accountCashUSDC: 1,
+          },
+        },
+      },
+      retunePlanner: {
+        data: [
+          {
+            account: {
+              accountCash: 7.100176,
+            },
+          },
+        ],
+      },
+    });
+
+    const wallet = model.metrics.find((item) => item.label === '钱包余额');
+
+    expect(wallet?.value).toContain('7.10');
+    expect(wallet?.status).toBe('ok');
+  });
+
   it('makes research-only simulation and loss quarantine readable', () => {
     const model = buildPolymarketModel({
       canaryRun: { data: { rows: [{ status: 'EVIDENCE_BLOCKED' }, { status: 'EVIDENCE_BLOCKED' }] } },
@@ -353,8 +379,10 @@ describe('polymarketModel simulation explanation', () => {
     expect(oldChannel?.value).toContain('隔离中');
     expect(oldChannel?.value).toContain('-$2.94');
     expect(aiChannel?.value).toContain('收集中');
+    expect(aiChannel?.status).toBe('warn');
     expect(aiChannel?.hint).toContain('2');
     expect(selfExplore?.value).toContain('收集中');
+    expect(selfExplore?.status).toBe('warn');
     expect(selfExplore?.hint).toContain('83');
     expect(model.tables.sourceQuality).toHaveLength(3);
   });
