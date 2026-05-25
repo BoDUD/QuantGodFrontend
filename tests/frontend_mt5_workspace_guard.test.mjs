@@ -20,6 +20,8 @@ const model = [
   'export function buildMt5Metrics() {}',
   'export function buildSafetyItems() {}',
   'export function buildAccountItems() {}',
+  'export function buildMt5ConnectionItems() {}',
+  'export function buildMt5AccountProfileRows() {}',
   'export function buildPositionRows() {}',
   'export function buildOrderRows() {}',
   'export function buildSymbolRows() {}',
@@ -37,7 +39,7 @@ const model = [
 ].join('\n');
 
 const workspace = [
-  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="RSI 入场诊断" /><StatusPill />执行反馈与下一代修复 Safety Envelope Raw MT5 evidence</template>',
+  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="账号连接矩阵" /><LedgerTable title="MT5 账号 Profiles" /><LedgerTable title="第二账号信息" /><LedgerTable title="RSI 入场诊断" /><StatusPill />执行反馈与下一代修复 Safety Envelope Raw MT5 evidence</template>',
   '<script setup>',
   "import { loadMt5Workspace } from '../../services/domainApi.js';",
   "import { normalizeMt5Snapshot } from './mt5Model.js';",
@@ -53,10 +55,17 @@ const validFiles = {
   'src/services/domainApi.js': `
 export async function loadMt5Workspace() {
   const focusSymbol = 'USDJPYc';
+  fetchJson('/api/mt5/account-profiles');
+  fetchJson('/api/mt5-readonly-secondary/account');
   fetchJson(\`/api/shadow/signals\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/candidates\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
   fetchJson(\`/api/shadow/candidate-outcomes\${params({ symbol: focusSymbol, limit: 500, days: 30 })}\`);
+  fetchJson('/api/mt5-readonly/positions');
+  fetchJson('/api/mt5-readonly/orders');
+  fetchJson('/api/mt5-readonly/snapshot');
+  fetchJson('/api/mt5-readonly-secondary/snapshot');
+  fetchRows(\`/api/trades/journal\${params({ limit: 200, scope: 'secondary' })}\`);
   fetchJson('/api/usdjpy-strategy-lab/evidence-os/status');
   fetchJson('/api/usdjpy-strategy-lab/evidence-os/parity');
   fetchJson('/api/usdjpy-strategy-lab/evidence-os/execution-feedback');
@@ -74,6 +83,20 @@ test('rejects direct fetch in MT5 workspace', () => {
     'src/workspaces/mt5/Mt5Workspace.vue': `${workspace}\nfetch('/api/mt5-readonly/status')`,
   });
   assert.match(checkProject(root).join('\n'), /must not call fetch directly/);
+});
+
+test('rejects USDJPY-scoped live account positions and snapshots', () => {
+  const root = makeProject({
+    ...validFiles,
+    'src/services/domainApi.js': validFiles['src/services/domainApi.js'].replace(
+      "fetchJson('/api/mt5-readonly/positions');",
+      'fetchJson(`/api/mt5-readonly/positions${symbolQuery}`);',
+    ),
+  });
+  assert.match(
+    checkProject(root).join('\n'),
+    /live account positions, orders, and snapshots must not be USDJPY-scoped/,
+  );
 });
 
 test('rejects direct runtime file reads', () => {

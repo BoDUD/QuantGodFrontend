@@ -31,6 +31,7 @@ export function rowsFromPayload(payload) {
   if (Array.isArray(payload?.rows)) return payload.rows;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.result)) return payload.result;
+  if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.positions)) return payload.positions;
   if (Array.isArray(payload?.positions?.items)) return payload.positions.items;
   if (Array.isArray(payload?.orders)) return payload.orders;
@@ -2010,6 +2011,10 @@ export function buildPositionRows(snapshot) {
       开仓价: ['priceOpen', 'price_open', 'open_price', 'entry_price'],
       当前价: ['priceCurrent', 'price_current', 'current_price'],
       浮盈: ['profit', 'pnl'],
+      止损: ['sl', 'stop_loss'],
+      止盈: ['tp', 'take_profit'],
+      策略: ['strategy', 'Strategy'],
+      来源: ['source', 'Source'],
     }),
   );
 }

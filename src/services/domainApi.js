@@ -72,21 +72,21 @@ export async function loadMt5Workspace(options = {}) {
       ],
       [
         'positions',
-        (requestOptions) => fetchJson(`/api/mt5-readonly/positions${symbolQuery}`, null, requestOptions),
+        (requestOptions) => fetchJson('/api/mt5-readonly/positions', null, requestOptions),
       ],
       [
         'orders',
-        (requestOptions) => fetchJson(`/api/mt5-readonly/orders${symbolQuery}`, null, requestOptions),
+        (requestOptions) => fetchJson('/api/mt5-readonly/orders', null, requestOptions),
       ],
       ['symbols', (requestOptions) => fetchJson('/api/mt5-symbol-registry/symbols', null, requestOptions)],
       [
         'snapshot',
-        (requestOptions) => fetchJson(`/api/mt5-readonly/snapshot${symbolQuery}`, null, requestOptions),
+        (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions),
       ],
       [
         'secondarySnapshot',
         (requestOptions) =>
-          fetchJson(`/api/mt5-readonly-secondary/snapshot${symbolQuery}`, null, {
+          fetchJson('/api/mt5-readonly-secondary/snapshot', null, {
             ...requestOptions,
             timeoutMs: 10000,
           }),

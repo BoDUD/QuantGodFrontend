@@ -152,6 +152,21 @@ function checkDomainApi(root) {
   if (!text.includes('/api/mt5/account-profiles')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load account profile registry through API facade`);
   }
+  for (const endpoint of [
+    '/api/mt5-readonly/positions',
+    '/api/mt5-readonly/orders',
+    '/api/mt5-readonly/snapshot',
+    '/api/mt5-readonly-secondary/snapshot',
+  ]) {
+    if (!text.includes(endpoint)) {
+      errors.push(`${rel(root, api)}: MT5 workspace must load unscoped live account ${endpoint}`);
+    }
+  }
+  if (/\/api\/mt5-readonly(?:-secondary)?\/(?:positions|orders|snapshot)\$\{symbolQuery\}/.test(text)) {
+    errors.push(
+      `${rel(root, api)}: MT5 live account positions, orders, and snapshots must not be USDJPY-scoped`,
+    );
+  }
   if (!text.includes('/api/mt5-readonly-secondary/account')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load secondary MT5 account status through API facade`);
   }

@@ -11,6 +11,7 @@ import {
   buildMt5EvidenceOsLiteItems,
   buildMt5TodoRows,
   buildMt5ReviewRows,
+  buildPositionRows,
   buildUsdJpyLiveLoopItems,
   buildTradeJournalRows,
   buildUnclosedEntryRows,
@@ -91,6 +92,35 @@ describe('mt5Model ledgers', () => {
     expect(buildCloseHistoryRows(snapshot)[0].账户).toBe('第二账号 198135388');
     expect(buildTradeJournalRows(snapshot).map((row) => row.品种)).toEqual(['USDJPY', 'XAUUSDc', 'USDJPYc']);
     expect(buildTradeJournalRows(snapshot)[0].账户).toBe('第二账号 198135388');
+  });
+
+  it('shows manual non-USDJPY live positions in the realtime positions table', () => {
+    const snapshot = normalizeMt5Snapshot({
+      positions: {
+        items: [
+          {
+            ticket: 637134294,
+            symbol: 'XAUUSDc',
+            type: 'buy',
+            volume: 0.01,
+            priceOpen: 4650.17,
+            priceCurrent: 0,
+            profit: -92.13,
+            sl: 0,
+            tp: 4695,
+            strategy: 'Manual/Other',
+            source: 'MANUAL',
+          },
+        ],
+      },
+    });
+
+    expect(buildPositionRows(snapshot)[0]).toMatchObject({
+      票号: 637134294,
+      品种: 'XAUUSDc',
+      策略: 'Manual/Other',
+      来源: 'MANUAL',
+    });
   });
 
   it('surfaces USDJPY entry records that are not yet matched by an exit or close history row', () => {
