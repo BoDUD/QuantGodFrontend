@@ -605,8 +605,8 @@ function friendlyText(value, fallback = DATA_PENDING) {
   if (normalized.includes('keep_dry_run') || normalized.includes('dry_run')) {
     return '保持只读研究，等待策略通过';
   }
-  if (normalized.includes('promotable_probation')) return '晋级保持';
-  if (normalized.includes('retain_micro_live')) return '保持晋级';
+  if (normalized.includes('promotable_probation')) return '保留晋级';
+  if (normalized.includes('retain_micro_live')) return '保留晋级';
   if (normalized.includes('promotable')) return '可晋级';
   if (normalized.includes('passed') || normalized === 'pass') return '已通过';
   if (normalized.includes('collect_more') || normalized.includes('collecting')) return '收集中';
@@ -777,6 +777,7 @@ function walletBalance(payload) {
     'worker',
   ]) {
     const value = getPath(payload?.[part], paths, null);
+    if (value === null || value === undefined || value === '') continue;
     const numeric = Number(value);
     if (Number.isFinite(numeric)) return numeric;
   }
@@ -1191,7 +1192,10 @@ function sourceDisplayName(value) {
 
 function channelStatus(row = {}) {
   const normalized = String(row.status || '').toUpperCase();
-  if (normalized.includes('PROMOTABLE_PROBATION')) return 'warn';
+  if (normalized.includes('PROMOTABLE_PROBATION')) {
+    const rawStatus = String(row.rawStatus || '').toUpperCase();
+    return rawStatus.includes('QUARANTINE') ? 'warn' : 'ok';
+  }
   if (normalized.includes('PROMOTABLE')) return 'ok';
   if (normalized.includes('QUARANTINE')) return 'warn';
   if (normalized.includes('COLLECTING')) return 'warn';
@@ -1258,7 +1262,7 @@ function sourceQualityItems(payload) {
       : `${formatNumber(signalCount, 0)} 条信号 / 等待回放`;
     const sampleText = minSamples ? `${formatNumber(samples, 0)}/${formatNumber(minSamples, 0)} 样本` : `${formatNumber(samples, 0)} 样本`;
     const holdText = row.retainedPromotion
-      ? `；保持到 ${formatDateTime(row.promotionHoldUntilIso)}，原始状态 ${friendlyText(row.rawStatus)}`
+      ? `；资格保留到 ${formatDateTime(row.promotionHoldUntilIso)}，当前原始状态 ${friendlyText(row.rawStatus)}，真钱仍按交易员+市场/价带微桶逐笔过滤`
       : '';
     const hint = samples
       ? `信号 ${formatNumber(signalCount, 0)}；${sampleText}；胜负 ${formatNumber(row.wins ?? 0, 0)}W/${formatNumber(row.losses ?? 0, 0)}L；未结算 ${formatNumber(row.openOrUnresolved ?? 0, 0)}；${friendlyText(row.action || 'collect_more_settled_samples')}${holdText}。`

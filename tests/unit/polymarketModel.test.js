@@ -29,6 +29,26 @@ describe('polymarketModel simulation explanation', () => {
     expect(wallet?.status).toBe('ok');
   });
 
+  it('does not convert missing wallet snapshots into a false zero balance', () => {
+    const model = buildPolymarketModel({
+      copyTraderDiscovery: {
+        summary: {
+          realWalletExecutionAllowed: true,
+        },
+      },
+      canaryRun: {
+        summary: {
+          walletWriteAllowed: false,
+        },
+      },
+    });
+
+    const wallet = model.metrics.find((item) => item.label === '钱包余额');
+
+    expect(wallet?.value).toBe('未同步');
+    expect(wallet?.status).toBe('warn');
+  });
+
   it('makes research-only simulation and loss quarantine readable', () => {
     const model = buildPolymarketModel({
       canaryRun: { data: { rows: [{ status: 'EVIDENCE_BLOCKED' }, { status: 'EVIDENCE_BLOCKED' }] } },
@@ -498,7 +518,42 @@ describe('polymarketModel simulation explanation', () => {
     expect(model.tables.sourceQuality).toHaveLength(3);
   });
 
-  it('labels retained source promotions as a hold state', () => {
+  it('keeps retained collecting source promotions readable as still eligible', () => {
+    const model = buildPolymarketModel({
+      copyTraderSourceBuckets: {
+        bySource: [
+          {
+            bucketType: 'source',
+            bucketKey: 'telegram_telethon:ai 1000x polymarket',
+            status: 'PROMOTABLE_PROBATION',
+            rawStatus: 'COLLECTING',
+            retainedPromotion: true,
+            promotionHoldUntilIso: '2026-05-24T18:57:10.000Z',
+            samples: 24,
+            wins: 17,
+            losses: 7,
+            openOrUnresolved: 12,
+            netPnlUSDC: 0.06,
+            profitFactor: 1.214286,
+            minSamples: 30,
+            action: 'retain_micro_live_during_promotion_hold',
+          },
+        ],
+      },
+    });
+
+    const aiChannel = model.sourceQualityItems.find(
+      (item) => item.label === 'AI 1000x Polymarket',
+    );
+
+    expect(aiChannel?.value).toContain('保留晋级');
+    expect(aiChannel?.hint).toContain('资格保留到');
+    expect(aiChannel?.hint).toContain('当前原始状态 收集中');
+    expect(aiChannel?.hint).toContain('交易员+市场/价带微桶');
+    expect(aiChannel?.status).toBe('ok');
+  });
+
+  it('keeps retained quarantined source promotions in warning state', () => {
     const model = buildPolymarketModel({
       copyTraderSourceBuckets: {
         bySource: [
@@ -526,8 +581,9 @@ describe('polymarketModel simulation explanation', () => {
       (item) => item.label === 'AI 1000x Polymarket',
     );
 
-    expect(aiChannel?.value).toContain('晋级保持');
-    expect(aiChannel?.hint).toContain('原始状态 隔离中');
+    expect(aiChannel?.value).toContain('保留晋级');
+    expect(aiChannel?.hint).toContain('资格保留到');
+    expect(aiChannel?.hint).toContain('当前原始状态 隔离中');
     expect(aiChannel?.status).toBe('warn');
   });
 });
