@@ -141,6 +141,12 @@ describe('mt5Model ledgers', () => {
             centActionZh: '美分账户允许小仓机会入场。',
             usdActionZh: '美元账户仅 paper mirror，不实盘。',
           },
+          usdDeploymentGate: {
+            liveAllowed: false,
+            action: 'PAPER_MIRROR',
+            targetStage: 'USD_PAPER_MIRROR',
+            reasonZh: '美元账户继续 mirror；只有美分账户验证和严格 STANDARD_ENTRY 条件全部通过后才切 USD_MICRO_LIVE。',
+          },
         },
       },
     });
@@ -151,7 +157,9 @@ describe('mt5Model ledgers', () => {
     expect(cards[1].title).toBe('美元账户部署车道');
     expect(cards[1].items.find((item) => item.label === '账户车道')?.hint).toContain('只部署已验证结构');
     expect(cards[0].items.find((item) => item.label === '允许入场')?.value).toContain('OPPORTUNITY_ENTRY');
-    expect(cards[1].items.find((item) => item.label === '允许入场')?.hint).toContain('paper mirror');
+    expect(cards[1].items.find((item) => item.label === '允许入场')?.hint).toContain('STANDARD_ENTRY');
+    expect(cards[1].items.find((item) => item.label === 'USD 部署门')?.value).toContain('PAPER_MIRROR');
+    expect(cards[1].items.find((item) => item.label === 'USD 部署门')?.hint).toContain('USD_MICRO_LIVE');
     expect(cards[0].items.find((item) => item.label === '点差门禁')).toMatchObject({
       value: '2.30 pips / 轻微偏宽',
       status: 'warn',

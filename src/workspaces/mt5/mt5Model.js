@@ -666,6 +666,7 @@ function accountCard(account = {}, fallback = {}) {
   const title = fallback.title || account.label || 'MT5 账号';
   const lane = present(fallback.lane) ? fallback.lane : null;
   const spreadGate = present(fallback.spreadGate) ? fallback.spreadGate : null;
+  const usdDeploymentGate = present(fallback.usdDeploymentGate) ? fallback.usdDeploymentGate : null;
   const isUsdLane =
     lane?.accountMode === 'standard_usd' ||
     String(lane?.lane || '').includes('USD') ||
@@ -726,8 +727,22 @@ function accountCard(account = {}, fallback = {}) {
               status: isUsdLane ? 'warn' : 'ok',
               hint:
                 isUsdLane
-                  ? '美元账户不参与探索；OPPORTUNITY_ENTRY 只做 paper mirror。'
+                  ? '美元账户严格部署；STANDARD_ENTRY 达标可小仓实盘，OPPORTUNITY_ENTRY 只 mirror。'
                   : '美分账户用于小仓收集真实执行样本。',
+            },
+          ]
+        : []),
+      ...(isUsdLane && usdDeploymentGate
+        ? [
+            {
+              label: 'USD 部署门',
+              value: `${humanizeStatus(usdDeploymentGate.action || 'PAPER_MIRROR')} / ${humanizeStatus(
+                usdDeploymentGate.targetStage || 'USD_PAPER_MIRROR',
+              )}`,
+              status: usdDeploymentGate.liveAllowed ? 'ok' : 'warn',
+              hint:
+                usdDeploymentGate.reasonZh ||
+                '只有 STANDARD_ENTRY / NORMAL 点差 / 无新闻风险 / 美分验证达标后才切 USD_MICRO_LIVE。',
             },
           ]
         : []),
@@ -823,6 +838,12 @@ export function normalizeMt5Snapshot(raw = {}) {
     usdJpyLiveLoop?.spreadGate ||
     usdJpyLiveLoop?.policy?.spreadGate ||
     usdJpyLiveLoop?.topPolicy?.spreadGate ||
+    {};
+  const usdDeploymentGate =
+    raw.dailyAutopilot?.morningPlan?.usdDeploymentGate ||
+    raw.dailyAutopilot?.usdDeploymentGate ||
+    usdJpyLiveLoop?.policy?.usdDeploymentGate ||
+    usdJpyLiveLoop?.usdDeploymentGate ||
     {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
@@ -926,6 +947,7 @@ export function normalizeMt5Snapshot(raw = {}) {
     accountRegistry,
     accountLanes,
     spreadGate,
+    usdDeploymentGate,
     researchStats: raw.researchStats || {},
     governanceAdvisor: raw.governanceAdvisor || {},
     usdJpyLiveLoop,
@@ -1933,6 +1955,7 @@ export function buildMt5AccountCards(snapshot) {
       title: usdLane.laneZh || '美元账户部署',
       lane: usdLane,
       spreadGate: snapshot.spreadGate,
+      usdDeploymentGate: snapshot.usdDeploymentGate,
     }),
   ];
 }
