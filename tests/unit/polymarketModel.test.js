@@ -315,6 +315,77 @@ describe('polymarketModel simulation explanation', () => {
     expect(model.tables.realExecutions.length).toBeGreaterThan(0);
   });
 
+  it('uses CLOB exit monitor evidence to refresh matched and sell rows', () => {
+    const model = buildPolymarketModel({
+      canaryRun: {
+        generatedAt: '2026-05-25T01:47:51Z',
+        summary: { ordersSent: 0 },
+        plannedOrders: [
+          {
+            orderSent: true,
+            adapterStatus: 'EXISTING_LIVE_ORDER',
+            question: 'Thunder vs. Spurs',
+            size: 6.3694,
+            limitPrice: 0.785,
+            response: { orderID: 'order-7424', status: 'live' },
+          },
+        ],
+      },
+      canaryOrderAuditLedger: {
+        rows: [
+          {
+            generated_at: '2026-05-25T01:12:53Z',
+            order_sent: 'true',
+            response_status: 'live',
+            response_id: 'order-7424',
+            question: 'Thunder vs. Spurs',
+            size: 7.29927,
+            limit_price: 0.685,
+            stake_usdc: 5,
+          },
+        ],
+      },
+      canaryExitMonitorRun: {
+        planOnly: false,
+        summary: {
+          positionsTracked: 0,
+          exitSignals: 1,
+          exitsSent: 0,
+        },
+        positions: [
+          {
+            orderID: 'order-7424',
+            question: 'Thunder vs. Spurs',
+            positionSize: 0,
+            orderStatus: 'MATCHED',
+            orderMatchedSize: 7.29,
+            entryPrice: 0.685,
+            exitPrice: 0.78,
+            exitSize: 7.29,
+            exitOrderID: 'sell-0bea',
+            decision: 'EXIT_WALLET_SELL_CONFIRMED',
+            reason: 'clob_sell_trade_detected_after_entry',
+          },
+        ],
+      },
+    });
+
+    expect(model.metrics.find((item) => item.label === '真实成交')?.value).toBe('1 matched');
+    expect(model.progressItems.find((item) => item.label === '真钱钱包')?.hint).toContain('退出监控已同步');
+    expect(model.tables.realPositions).toHaveLength(0);
+    expect(model.tables.realExecutions[0]).toMatchObject({
+      状态: 'MATCHED',
+      数量: '7.29 shares',
+      价格: '0.685',
+    });
+    expect(model.tables.realExecutions[1]).toMatchObject({
+      状态: 'EXIT_WALLET_SELL_CONFIRMED',
+      数量: '7.29 shares',
+      价格: '0.78',
+      订单: 'sell-0bea',
+    });
+  });
+
   it('separates promoted source state from zero executable candidates', () => {
     const model = buildPolymarketModel({
       copyTraderDiscovery: {

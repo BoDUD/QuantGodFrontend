@@ -313,8 +313,8 @@ function realOrderRows(payload = {}) {
   const run = firstObject(payload.canaryRun);
   const direct = Array.isArray(run.plannedOrders) ? run.plannedOrders : asRows(payload.canaryRun);
   const rows = [
-    ...direct.filter((row) => row && typeof row === 'object' && hasRealOrderEvidence(row)),
     ...auditOrderRows(payload),
+    ...direct.filter((row) => row && typeof row === 'object' && hasRealOrderEvidence(row)),
   ];
   const seen = new Set();
   return rows.filter((row) => {
@@ -379,21 +379,28 @@ function realPositionRows(payload = {}) {
 
 function realExecutionRows(payload = {}) {
   const executions = [];
+  const exitRowsByOrderId = new Map();
+  for (const position of exitMonitorPositions(payload)) {
+    const orderId = responseOrderId(position);
+    if (orderId) exitRowsByOrderId.set(orderId, position);
+  }
   for (const order of realOrderRows(payload)) {
+    const orderId = responseOrderId(order);
+    const exitState = exitRowsByOrderId.get(orderId) || {};
     executions.push({
       type: '真实成交',
-      generatedAt: firstObject(payload.canaryRun).generatedAt,
+      generatedAt: order.generatedAt || firstObject(payload.canaryRun).generatedAt,
       question: order.question,
       marketId: order.marketId,
       copiedTrader: order.copiedTrader,
       side: order.side,
       outcome: order.outcome,
       stakeUSDC: order.stakeUSDC,
-      size: order.size,
-      price: order.limitPrice,
-      status: responseStatus(order),
+      size: exitState.orderMatchedSize || order.size,
+      price: exitState.entryPrice || order.limitPrice,
+      status: exitState.orderStatus || responseStatus(order),
       adapterStatus: order.adapterStatus,
-      orderID: responseOrderId(order),
+      orderID: orderId,
       txHash: responseTxHash(order),
       reason: order.decision,
     });
@@ -407,12 +414,12 @@ function realExecutionRows(payload = {}) {
       side: 'SELL_CHECK',
       outcome: '',
       stakeUSDC: '',
-      size: position.positionSize,
-      price: position.currentExitPrice,
+      size: position.exitSize || position.positionSize,
+      price: position.exitPrice || position.currentExitPrice,
       status: position.decision,
       adapterStatus: position.adapterStatus,
-      orderID: responseOrderId(position),
-      txHash: responseTxHash(position),
+      orderID: position.exitOrderID || responseOrderId(position),
+      txHash: position.exitTxHash || responseTxHash(position),
       reason: position.reason,
     });
   }
@@ -473,6 +480,17 @@ function realExecutionSummary(payload = {}) {
   const exitRun = firstObject(payload.canaryExitMonitorRun);
   const executions = realExecutionRows(payload);
   const orderRows = realOrderRows(payload);
+  const matchedOrderIds = new Set();
+  for (const row of orderRows) {
+    if (String(responseStatus(row)).toLowerCase() === 'matched') {
+      matchedOrderIds.add(responseOrderId(row) || rowKey(row));
+    }
+  }
+  for (const row of exitMonitorPositions(payload)) {
+    if (String(row.orderStatus || '').toLowerCase() === 'matched') {
+      matchedOrderIds.add(row.orderID || row.orderId || rowKey(row));
+    }
+  }
   const currentRunOrders = Array.isArray(run.plannedOrders) ? run.plannedOrders : asRows(payload.canaryRun);
   const currentRunOrdersSent =
     Number(run.summary?.ordersSent ?? 0) ||
@@ -484,10 +502,11 @@ function realExecutionSummary(payload = {}) {
     orderRows,
     currentRunOrdersSent,
     ordersSent: currentRunOrdersSent || orderRows.filter((row) => hasRealOrderEvidence(row)).length,
-    matched: orderRows.filter((row) => String(responseStatus(row)).toLowerCase() === 'matched').length,
+    matched: matchedOrderIds.size,
     exitsSent: Number(exitRun.summary?.exitsSent ?? 0),
     exitSignals: Number(exitRun.summary?.exitSignals ?? 0),
     positionsTracked,
+    openOrderOnly: Number(exitRun.summary?.openOrderOnly ?? 0),
     exitPlanOnly,
     exitRealEnabled: positionsTracked > 0 && !exitPlanOnly,
     mode:
@@ -505,7 +524,9 @@ function realExecutionHint(summary = {}) {
     ? '退出监控实盘启用，TP/SL/源交易员卖出会发送 SELL。'
     : summary.exitPlanOnly
       ? '退出监控仍是计划模式，不会发送 SELL。'
-      : '退出监控等待持仓同步。';
+      : Number(summary.exitSignals ?? 0) > 0 && Number(summary.positionsTracked ?? 0) === 0
+        ? '退出监控已同步，当前无持仓。'
+        : '退出监控等待持仓同步。';
 
   if (summary.mode === 'REAL_ORDER_AUDIT_LEDGER') {
     return `真实成交来自订单审计账本；${exitHint}`;
@@ -947,8 +968,12 @@ function realTradingConnected(trading = {}) {
 
 function realTradingExitHint(trading = {}) {
   const execution = trading.executionSummary || {};
+  const position = trading.positionSummary || {};
   if (execution.exitRealEnabled) return '退出监控实盘启用，TP/SL/源交易员卖出会发 SELL';
   if (execution.exitPlanOnly) return '退出监控仍是计划模式，不会发 SELL';
+  if (Number(execution.exitSignals ?? 0) > 0 && Number(position.count ?? 0) === 0) {
+    return '退出监控已同步，当前无持仓';
+  }
   return '退出监控等待持仓同步';
 }
 
@@ -1908,6 +1933,7 @@ function buildRealExecutionItems(payload) {
   const summary = realExecutionSummary(payload);
   const order = summary.orderRows[0] || {};
   const position = realPositionSummary(payload).first || {};
+  const exitPosition = exitMonitorPositions(payload)[0] || {};
   return [
     {
       label: '执行模式',
@@ -1926,7 +1952,7 @@ function buildRealExecutionItems(payload) {
     {
       label: '退出监控',
       value: summary.exitSignals ? `${formatNumber(summary.exitSignals, 0)} 个退出信号` : '持仓中未触发',
-      hint: `跟踪 ${formatNumber(summary.positionsTracked, 0)} 个持仓；已发送退出 ${formatNumber(summary.exitsSent, 0)} 笔；当前决策 ${realPositionStatusText(position.decision || 'HOLD')}。`,
+      hint: `跟踪 ${formatNumber(summary.positionsTracked, 0)} 个持仓；已发送退出 ${formatNumber(summary.exitsSent, 0)} 笔；当前决策 ${realPositionStatusText(exitPosition.decision || position.decision || 'HOLD')}。`,
       status: summary.exitsSent ? 'ok' : 'warn',
     },
     {
