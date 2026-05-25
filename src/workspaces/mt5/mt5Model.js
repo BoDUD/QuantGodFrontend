@@ -675,6 +675,27 @@ function accountCard(account = {}, fallback = {}) {
         hint: account.startupGuardReason || account.tradePermissionBlocker || '',
       },
       accountPermissionItem(account),
+      ...(fallback.lane
+        ? [
+            {
+              label: '账户车道',
+              value: fallback.lane.laneZh || humanizeStatus(fallback.lane.lane || fallback.lane.role),
+              status: fallback.lane.accountMode === 'standard_usd' ? 'warn' : 'ok',
+              hint: fallback.lane.purposeZh || fallback.lane.entryPolicyZh || '',
+            },
+            {
+              label: '允许入场',
+              value: Array.isArray(fallback.lane.allowedEntryModes)
+                ? fallback.lane.allowedEntryModes.join(' / ')
+                : format(fallback.lane.allowedEntryModes || '等待治理门'),
+              status: fallback.lane.accountMode === 'standard_usd' ? 'warn' : 'ok',
+              hint:
+                fallback.lane.accountMode === 'standard_usd'
+                  ? '美元账户不参与探索；OPPORTUNITY_ENTRY 只做 paper mirror。'
+                  : '美分账户用于小仓收集真实执行样本。',
+            },
+          ]
+        : []),
       {
         label: '快照刷新',
         value: account.snapshotFresh === false ? '待刷新' : '同步中',
@@ -741,6 +762,16 @@ export function normalizeMt5Snapshot(raw = {}) {
   const latest = unwrap(raw.latest) || {};
   const usdJpyLiveLoop = unwrap(raw.usdJpyLiveLoop) || {};
   const evidenceOS = unwrap(raw.evidenceOS) || {};
+  const accountRegistry =
+    raw.dailyAutopilot?.accountRegistry ||
+    usdJpyLiveLoop?.accountRegistry ||
+    usdJpyLiveLoop?.policy?.accountRegistry ||
+    {};
+  const accountLanes =
+    raw.dailyAutopilot?.morningPlan?.accountLanes ||
+    raw.dailyAutopilot?.lanes ||
+    usdJpyLiveLoop?.policy?.accountLanePolicy ||
+    {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const positions = rowsFromPayload(raw.positions);
   const orders = rowsFromPayload(raw.orders);
@@ -840,6 +871,8 @@ export function normalizeMt5Snapshot(raw = {}) {
     shadowCandidateOutcomes,
     dailyReview: raw.dailyReview || {},
     dailyAutopilot: raw.dailyAutopilot || {},
+    accountRegistry,
+    accountLanes,
     researchStats: raw.researchStats || {},
     governanceAdvisor: raw.governanceAdvisor || {},
     usdJpyLiveLoop,
@@ -1829,16 +1862,22 @@ export function buildSecondaryAccountItems(snapshot) {
 }
 
 export function buildMt5AccountCards(snapshot) {
+  const lanes = snapshot.accountLanes || {};
+  const accounts = Array.isArray(snapshot.accountRegistry?.accounts) ? snapshot.accountRegistry.accounts : [];
+  const centLane = lanes.centLive || accounts.find((item) => item?.accountMode === 'cent') || {};
+  const usdLane = lanes.usdDeployment || accounts.find((item) => item?.accountMode === 'standard_usd') || {};
   return [
     accountCard(snapshot.primaryConnection || snapshot, {
       role: 'primary',
-      eyebrow: 'Primary',
-      title: '主账号',
+      eyebrow: 'Cent Lane',
+      title: centLane.laneZh || '美分账户学习',
+      lane: centLane,
     }),
     accountCard(snapshot.secondaryConnection || {}, {
       role: 'secondary',
-      eyebrow: 'Secondary',
-      title: '第二账号',
+      eyebrow: 'USD Lane',
+      title: usdLane.laneZh || '美元账户部署',
+      lane: usdLane,
     }),
   ];
 }

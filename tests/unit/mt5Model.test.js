@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCloseHistoryRows,
+  buildMt5AccountCards,
   buildMt5ExecutionFeedbackRows,
   buildMt5SimulationItems,
   buildMt5ShadowBlockerRows,
@@ -92,6 +93,54 @@ describe('mt5Model ledgers', () => {
     expect(buildCloseHistoryRows(snapshot)[0].账户).toBe('第二账号 198135388');
     expect(buildTradeJournalRows(snapshot).map((row) => row.品种)).toEqual(['USDJPY', 'XAUUSDc', 'USDJPYc']);
     expect(buildTradeJournalRows(snapshot)[0].账户).toBe('第二账号 198135388');
+  });
+
+  it('labels MT5 account cards as cent learning and USD deployment lanes', () => {
+    const snapshot = normalizeMt5Snapshot({
+      account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
+      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      dailyAutopilot: {
+        accountRegistry: {
+          accounts: [
+            {
+              accountAlias: 'hfm_cent',
+              accountMode: 'cent',
+              laneZh: '美分账户学习车道',
+              purposeZh: '收集真实小仓执行样本',
+              allowedEntryModes: ['OPPORTUNITY_ENTRY', 'STANDARD_ENTRY'],
+            },
+            {
+              accountAlias: 'hfm_usd',
+              accountMode: 'standard_usd',
+              laneZh: '美元账户部署车道',
+              purposeZh: '只部署已验证结构',
+              allowedEntryModes: ['STANDARD_ENTRY'],
+            },
+          ],
+        },
+        morningPlan: {
+          accountLanes: {
+            centLive: {
+              accountMode: 'cent',
+              laneZh: '美分账户学习车道',
+              allowedEntryModes: ['OPPORTUNITY_ENTRY', 'STANDARD_ENTRY'],
+            },
+            usdDeployment: {
+              accountMode: 'standard_usd',
+              laneZh: '美元账户部署车道',
+              allowedEntryModes: ['STANDARD_ENTRY'],
+            },
+          },
+        },
+      },
+    });
+
+    const cards = buildMt5AccountCards(snapshot);
+
+    expect(cards[0].title).toBe('美分账户学习车道');
+    expect(cards[1].title).toBe('美元账户部署车道');
+    expect(cards[0].items.find((item) => item.label === '允许入场')?.value).toContain('OPPORTUNITY_ENTRY');
+    expect(cards[1].items.find((item) => item.label === '允许入场')?.hint).toContain('paper mirror');
   });
 
   it('shows manual non-USDJPY live positions in the realtime positions table', () => {
