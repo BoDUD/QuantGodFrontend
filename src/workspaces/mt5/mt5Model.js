@@ -323,12 +323,14 @@ function firstNonEmptyObject(...values) {
 function reasonTextsFrom(...values) {
   const seen = new Set();
   const texts = [];
-  values.flatMap((value) => rowsFromPayload(value)).forEach((row) => {
-    const text = reasonText(row);
-    if (!text || seen.has(text)) return;
-    seen.add(text);
-    texts.push(text);
-  });
+  values
+    .flatMap((value) => rowsFromPayload(value))
+    .forEach((row) => {
+      const text = reasonText(row);
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      texts.push(text);
+    });
   return texts;
 }
 
@@ -738,10 +740,9 @@ function accountCard(account = {}, fallback = {}) {
                 ? lane.allowedEntryModes.join(' / ')
                 : format(lane.allowedEntryModes || '等待治理门'),
               status: isUsdLane ? 'warn' : 'ok',
-              hint:
-                isUsdLane
-                  ? '美元账户严格部署；STANDARD_ENTRY 达标可小仓实盘，OPPORTUNITY_ENTRY 只 mirror。'
-                  : '美分账户用于小仓收集真实执行样本。',
+              hint: isUsdLane
+                ? '美元账户严格部署；STANDARD_ENTRY 达标可小仓实盘，OPPORTUNITY_ENTRY 只 mirror。'
+                : '美分账户用于小仓收集真实执行样本。',
             },
           ]
         : []),
@@ -1553,9 +1554,9 @@ export function buildUsdJpyLiveLoopItems(snapshot) {
     ? newsBlocker
     : blockingReasons.length
       ? blockingReasons.slice(0, 2).join('；')
-    : reasons.length
-      ? reasons.slice(0, 2).join('；')
-      : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
+      : reasons.length
+        ? reasons.slice(0, 2).join('；')
+        : topLive.reason || status.summary || '页面、Telegram 和 EA 干跑统一读取 USDJPY Live Loop。';
   const dryRunDecision = dryRun.decisionZh || dryRun.decision || status.dryRunStateZh;
 
   return [
@@ -1674,22 +1675,33 @@ export function buildMt5EvidenceOsLiteItems(snapshot) {
   const nextFix = mutationHintZh(topHint);
   const parityStatus = deepParity.status || parity.status || 'MISSING';
   const parityMismatches = rowsFromPayload(deepParity.hardMismatches);
+  const demotedOutOfScopeSignal = deepParity.demotedOutOfScopeSignal || {};
+  const isDemotedOutOfScopeSignal = demotedOutOfScopeSignal.demoted === true;
   const parityMissing = rowsFromPayload(deepParity.missingOptionalFields);
   const evidenceSyncSummary = evidenceSyncZh(evidenceSync);
-  const parityHintBase = parityMismatches.length
-    ? `硬差异：${parityMismatches.slice(0, 2).join('；')}`
-    : parityMissing.length
-      ? `缺字段：${parityMissing.slice(0, 2).join('；')}；缺字段只做审计提醒。`
-      : deepParity.reasonZh ||
-        parity.reasonZh ||
-        'Strategy JSON / Python Replay / MQL5 EA 三方证据一致或等待同步。';
+  const parityHintBase = isDemotedOutOfScopeSignal
+    ? demotedOutOfScopeSignal.reasonZh ||
+      deepParity.reasonZh ||
+      'EA 当前看到已降级的反向 RSI 信号；当前周期不作为 LONG 晋级证据。'
+    : parityMismatches.length
+      ? `硬差异：${parityMismatches.slice(0, 2).join('；')}`
+      : parityMissing.length
+        ? `缺字段：${parityMissing.slice(0, 2).join('；')}；缺字段只做审计提醒。`
+        : deepParity.reasonZh ||
+          parity.reasonZh ||
+          'Strategy JSON / Python Replay / MQL5 EA 三方证据一致或等待同步。';
   const parityHint = `${parityHintBase}；${evidenceSyncSummary.detail}`;
 
   return [
     {
       label: '三方一致性',
-      value: `${parityGateZh(parityStatus)} / ${evidenceSyncSummary.label}`,
-      status: evidenceSyncSummary.status === 'error' ? 'error' : evidenceGateTone(parityStatus),
+      value: `${isDemotedOutOfScopeSignal ? '反向信号已降级' : parityGateZh(parityStatus)} / ${evidenceSyncSummary.label}`,
+      status:
+        evidenceSyncSummary.status === 'error'
+          ? 'error'
+          : isDemotedOutOfScopeSignal
+            ? 'warn'
+            : evidenceGateTone(parityStatus),
       hint: parityHint,
     },
     {

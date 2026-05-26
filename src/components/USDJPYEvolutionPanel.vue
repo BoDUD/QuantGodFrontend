@@ -444,11 +444,7 @@
         <article>
           <span>三方一致性</span>
           <strong>{{ deepParityStatusZh }}</strong>
-          <p>
-            {{
-              deepParity.reasonZh || parityReport.reasonZh || '等待策略契约、Python 回放和 EA 输出三方证据。'
-            }}
-          </p>
+          <p>{{ deepParityDisplayReason }}</p>
         </article>
         <article>
           <span>策略契约</span>
@@ -1350,8 +1346,18 @@ const evidenceOS = computed(() => evidenceOSPayload.value || {});
 const parityReport = computed(() => evidenceOS.value?.parity || {});
 const deepParity = computed(() => parityReport.value?.deepParity || {});
 const parityStatus = computed(() => parityReport.value?.status || '等待校验');
+const deepParityDemotedSignal = computed(() => deepParity.value?.demotedOutOfScopeSignal || {});
 const deepParityStatus = computed(() => deepParity.value?.status || parityStatus.value);
-const deepParityStatusZh = computed(() => parityStatusZh(deepParityStatus.value));
+const deepParityStatusZh = computed(() =>
+  deepParityDemotedSignal.value?.demoted ? '反向信号已降级' : parityStatusZh(deepParityStatus.value),
+);
+const deepParityDisplayReason = computed(
+  () =>
+    deepParityDemotedSignal.value?.reasonZh ||
+    deepParity.value?.reasonZh ||
+    parityReport.value?.reasonZh ||
+    '等待策略契约、Python 回放和 EA 输出三方证据。',
+);
 const deepParityHardMismatches = computed(() => {
   const rows = deepParity.value?.hardMismatches || [];
   return Array.isArray(rows) ? rows : [];
@@ -1391,6 +1397,12 @@ const deepEaSummary = computed(() => {
   return `${deepMql5Ea.value?.state || '等待 EA'} / ${route.timeframe || 'H1'} / RSI ${metricText(rsi.period)}`;
 });
 const deepEaGateSummary = computed(() => {
+  if (deepParityDemotedSignal.value?.demoted) {
+    return (
+      deepParityDemotedSignal.value.reasonZh ||
+      'EA 当前看到反向 RSI 信号，但该方向已降级；当前周期不作为晋级证据。'
+    );
+  }
   const guards = deepMql5Ea.value?.guards || {};
   return `session ${boolZh(guards.sessionOpen)} / spread ${boolZh(guards.spreadAllowed)} / newsBlocked ${boolZh(guards.newsBlocked)}`;
 });
