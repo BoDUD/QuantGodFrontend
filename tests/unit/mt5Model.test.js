@@ -13,6 +13,7 @@ import {
   buildMt5TodoRows,
   buildMt5ReviewRows,
   buildPositionRows,
+  buildRsiEntryDiagnosticRows,
   buildUsdJpyLiveLoopItems,
   buildTradeJournalRows,
   buildUnclosedEntryRows,
@@ -166,6 +167,83 @@ describe('mt5Model ledgers', () => {
     });
     expect(cards[0].items.find((item) => item.label === '点差门禁')?.hint).toContain('小仓机会入场');
     expect(cards[1].items.find((item) => item.label === '点差门禁')?.hint).toContain('paper mirror');
+  });
+
+  it('prefers latest live spread gate over stale daily autopilot spread snapshot', () => {
+    const snapshot = normalizeMt5Snapshot({
+      account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
+      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      dailyAutopilot: {
+        morningPlan: {
+          spreadGate: {
+            spreadPips: 2.3,
+            tier: 'SOFT_WIDE',
+            tierZh: '轻微偏宽',
+            normalLimitPips: 2.2,
+            softLimitPips: 2.7,
+            hardLimitPips: 3.0,
+          },
+        },
+      },
+      usdJpyLiveLoop: {
+        policy: {
+          spreadGate: {
+            spreadPips: 2.9,
+            tier: 'SOFT_WIDE_HIGH',
+            tierZh: '偏宽较高',
+            normalLimitPips: 2.2,
+            softLimitPips: 2.7,
+            hardLimitPips: 3.0,
+            hardBlock: false,
+            centActionZh: '美分账户允许极小仓机会入场。',
+            usdActionZh: '美元账户仅 paper mirror，不实盘。',
+          },
+        },
+      },
+    });
+
+    const cards = buildMt5AccountCards(snapshot);
+    const centSpread = cards[0].items.find((item) => item.label === '点差门禁');
+
+    expect(centSpread).toMatchObject({
+      value: '2.90 pips / 偏宽较高',
+      status: 'warn',
+    });
+    expect(centSpread?.hint).toContain('正常/软/硬阈值 2.2 / 2.7 / 3.0 pips');
+    expect(centSpread?.hint).not.toContain('阈值 2.2 pips');
+  });
+
+  it('explains spread tiers in RSI diagnostics instead of showing 2.2 as a hard cap', () => {
+    const snapshot = normalizeMt5Snapshot({
+      usdJpyLiveLoop: {
+        policy: {
+          spreadGate: {
+            spreadPips: 2.9,
+            tier: 'SOFT_WIDE_HIGH',
+            tierZh: '偏宽较高',
+            normalLimitPips: 2.2,
+            softLimitPips: 2.7,
+            hardLimitPips: 3.0,
+            hardBlock: false,
+            centActionZh: '美分账户允许极小仓机会入场。',
+          },
+        },
+      },
+      snapshot: {
+        usdJpyRsiEntryDiagnostics: {
+          stateZh: '等待信号',
+          permissions: { liveMode: true, tradeAllowed: true },
+          guards: { sessionOpen: true, spreadAllowed: true, spreadPips: 2.3, maxSpreadPips: 2.2 },
+          rsi: {},
+        },
+      },
+    });
+
+    const spreadRow = buildRsiEntryDiagnosticRows(snapshot).find((row) => row.项目 === '点差');
+
+    expect(spreadRow?.结论).toBe('偏宽较高 / 未硬阻断');
+    expect(spreadRow?.说明).toContain('2.90 pips / 偏宽较高');
+    expect(spreadRow?.说明).toContain('正常/软/硬阈值 2.2 / 2.7 / 3.0 pips');
   });
 
   it('does not render cent lane hints on an empty USD lane fallback', () => {

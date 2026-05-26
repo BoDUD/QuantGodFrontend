@@ -659,7 +659,20 @@ function spreadGateHint(spreadGate = {}, isUsdLane = false) {
   ]
     .map((value) => (value === null ? '—' : value.toFixed(1)))
     .join(' / ');
-  return `${action || spreadGate.reasonZh || '按点差等级降级/阻断。'} 阈值 ${limits} pips`;
+  return `${action || spreadGate.reasonZh || '按点差等级降级/阻断。'} 正常/软/硬阈值 ${limits} pips`;
+}
+
+function spreadGateDiagnosticConclusion(spreadGate = {}) {
+  if (!present(spreadGate)) return null;
+  if (spreadGate.hardBlock) return '严重偏宽 / 硬阻断';
+  const tier = spreadGate.tierZh || humanizeStatus(spreadGate.tier || '');
+  if (!tier) return '未硬阻断';
+  return `${tier} / 未硬阻断`;
+}
+
+function spreadGateDiagnosticDetail(spreadGate = {}, isUsdLane = false) {
+  if (!present(spreadGate)) return null;
+  return `${spreadGateLabel(spreadGate)}；${spreadGateHint(spreadGate, isUsdLane)}`;
 }
 
 function accountCard(account = {}, fallback = {}) {
@@ -833,11 +846,11 @@ export function normalizeMt5Snapshot(raw = {}) {
     usdJpyLiveLoop?.policy?.accountLanePolicy ||
     {};
   const spreadGate =
-    raw.dailyAutopilot?.morningPlan?.spreadGate ||
-    raw.dailyAutopilot?.spreadGate ||
     usdJpyLiveLoop?.spreadGate ||
     usdJpyLiveLoop?.policy?.spreadGate ||
     usdJpyLiveLoop?.topPolicy?.spreadGate ||
+    raw.dailyAutopilot?.morningPlan?.spreadGate ||
+    raw.dailyAutopilot?.spreadGate ||
     {};
   const usdDeploymentGate =
     raw.dailyAutopilot?.morningPlan?.usdDeploymentGate ||
@@ -1827,6 +1840,9 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
   const route = diagnostics.route || {};
   const permissions = diagnostics.permissions || {};
   const guards = diagnostics.guards || {};
+  const spreadGate = snapshot.spreadGate || {};
+  const spreadGateConclusion = spreadGateDiagnosticConclusion(spreadGate);
+  const spreadGateDetail = spreadGateDiagnosticDetail(spreadGate);
   const rsi = diagnostics.rsi || {};
   const reasons = rowsFromPayload(diagnostics.whyNoEntry);
   const permissionReady = Boolean(permissions.liveMode && permissions.tradeAllowed);
@@ -1888,11 +1904,13 @@ export function buildRsiEntryDiagnosticRows(snapshot) {
     },
     {
       项目: '点差',
-      结论: passText(guards.spreadAllowed),
-      说明: `${formatDiagnosticNumber(guards.spreadPips, 1)} / ${formatDiagnosticNumber(
-        guards.maxSpreadPips,
-        1,
-      )} pips`,
+      结论: spreadGateConclusion || passText(guards.spreadAllowed),
+      说明:
+        spreadGateDetail ||
+        `${formatDiagnosticNumber(guards.spreadPips, 1)} / ${formatDiagnosticNumber(
+          guards.maxSpreadPips,
+          1,
+        )} pips`,
     },
     {
       项目: '新闻门禁',
