@@ -56,7 +56,6 @@ export async function loadMt5Workspace(options = {}) {
   const focusSymbol = 'USDJPYc';
   const shadowLimit = 180;
   const tradeLimit = 200;
-  const symbolQuery = params({ symbol: focusSymbol });
   const result = await loadNamedEntries(
     [
       ['status', (requestOptions) => fetchJson('/api/mt5-readonly/status', null, requestOptions)],

@@ -287,6 +287,51 @@ describe('mt5Model ledgers', () => {
     });
   });
 
+  it('merges secondary USD account live positions into the realtime positions table', () => {
+    const snapshot = normalizeMt5Snapshot({
+      account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
+      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      positions: {
+        items: [
+          {
+            ticket: 637134294,
+            symbol: 'XAUUSDc',
+            type: 'buy',
+            volume: 0.01,
+            profit: -165.45,
+          },
+        ],
+      },
+      secondarySnapshot: {
+        positions: {
+          items: [
+            {
+              ticket: 1551939838,
+              symbol: 'XAUUSD',
+              type: 'buy',
+              volume: 0.01,
+              profit: -31.17,
+            },
+          ],
+        },
+      },
+    });
+
+    const rows = buildPositionRows(snapshot);
+
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({
+      账户: '第二账号 198135388',
+      票号: 1551939838,
+      品种: 'XAUUSD',
+      浮盈: -31.17,
+    });
+    expect(buildMt5AccountCards(snapshot)[1].items.find((item) => item.label === '当前持仓')).toMatchObject({
+      value: '1 笔',
+      status: 'warn',
+    });
+  });
+
   it('surfaces USDJPY entry records that are not yet matched by an exit or close history row', () => {
     const snapshot = normalizeMt5Snapshot({
       positions: [],

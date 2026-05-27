@@ -682,6 +682,13 @@ function accountCard(account = {}, fallback = {}) {
   const lane = present(fallback.lane) ? fallback.lane : null;
   const spreadGate = present(fallback.spreadGate) ? fallback.spreadGate : null;
   const usdDeploymentGate = present(fallback.usdDeploymentGate) ? fallback.usdDeploymentGate : null;
+  const positions = Array.isArray(fallback.positions) ? fallback.positions : [];
+  const positionHint = positions.length
+    ? positions
+        .slice(0, 3)
+        .map((row) => `${row.symbol || '未知品种'} ${humanizeStatus(row.type || row.side || '')} ${format(row.volume || row.lots || 0)}`)
+        .join('；')
+    : '该账号实时快照当前无持仓';
   const isUsdLane =
     lane?.accountMode === 'standard_usd' ||
     String(lane?.lane || '').includes('USD') ||
@@ -705,6 +712,12 @@ function accountCard(account = {}, fallback = {}) {
     items: [
       { label: '账号', value: account.login || '—' },
       { label: '服务器', value: account.server || '—' },
+      {
+        label: '当前持仓',
+        value: `${positions.length} 笔`,
+        status: positions.length ? 'warn' : 'ok',
+        hint: positionHint,
+      },
       { label: '净值', value: formatAccountWithCurrency(account.equity, account.currency) },
       { label: '余额', value: formatAccountWithCurrency(account.balance, account.currency) },
       { label: '交易品种', value: accountSymbolLabel(account), hint: accountMarketHint(account) },
@@ -860,8 +873,15 @@ export function normalizeMt5Snapshot(raw = {}) {
     usdJpyLiveLoop?.usdDeploymentGate ||
     {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
-  const positions = rowsFromPayload(raw.positions);
-  const orders = rowsFromPayload(raw.orders);
+  const primaryPositionsRaw = rowsFromPayload(raw.positions);
+  const secondarySnapshotEnvelope = unwrap(raw.secondarySnapshot) || {};
+  const secondaryPositionsRaw = rowsFromPayload(raw.secondaryPositions).length
+    ? rowsFromPayload(raw.secondaryPositions)
+    : rowsFromPayload(secondarySnapshotEnvelope.positions || secondarySnapshotEnvelope);
+  const primaryOrdersRaw = rowsFromPayload(raw.orders);
+  const secondaryOrdersRaw = rowsFromPayload(raw.secondaryOrders).length
+    ? rowsFromPayload(raw.secondaryOrders)
+    : rowsFromPayload(secondarySnapshotEnvelope.orders || {});
   const rawSymbols = rowsFromPayload(raw.symbols).length
     ? rowsFromPayload(raw.symbols)
     : rowsFromPayload(snapshot.symbols);
@@ -888,6 +908,26 @@ export function normalizeMt5Snapshot(raw = {}) {
     role: 'secondary',
     label: '第二账号',
   };
+  const positions = [
+    ...annotateLedgerRows(primaryPositionsRaw, primaryConnection, {
+      role: 'primary',
+      label: '主账号',
+    }),
+    ...annotateLedgerRows(secondaryPositionsRaw, secondaryConnection, {
+      role: 'secondary',
+      label: '第二账号',
+    }),
+  ];
+  const orders = [
+    ...annotateLedgerRows(primaryOrdersRaw, primaryConnection, {
+      role: 'primary',
+      label: '主账号',
+    }),
+    ...annotateLedgerRows(secondaryOrdersRaw, secondaryConnection, {
+      role: 'secondary',
+      label: '第二账号',
+    }),
+  ];
   const closeHistory = annotateLedgerRows(primaryCloseHistoryRaw, primaryConnection, {
     role: 'primary',
     label: '主账号',
@@ -1971,6 +2011,8 @@ export function buildMt5AccountCards(snapshot) {
   const accounts = Array.isArray(snapshot.accountRegistry?.accounts) ? snapshot.accountRegistry.accounts : [];
   const centLane = lanes.centLive || accounts.find((item) => item?.accountMode === 'cent') || {};
   const usdLane = lanes.usdDeployment || accounts.find((item) => item?.accountMode === 'standard_usd') || {};
+  const primaryPositions = (snapshot.positions || []).filter((row) => row.AccountRole === 'primary');
+  const secondaryPositions = (snapshot.positions || []).filter((row) => row.AccountRole === 'secondary');
   return [
     accountCard(snapshot.primaryConnection || snapshot, {
       role: 'primary',
@@ -1978,6 +2020,7 @@ export function buildMt5AccountCards(snapshot) {
       title: centLane.laneZh || '美分账户学习',
       lane: centLane,
       spreadGate: snapshot.spreadGate,
+      positions: primaryPositions,
     }),
     accountCard(snapshot.secondaryConnection || {}, {
       role: 'secondary',
@@ -1986,6 +2029,7 @@ export function buildMt5AccountCards(snapshot) {
       lane: usdLane,
       spreadGate: snapshot.spreadGate,
       usdDeploymentGate: snapshot.usdDeploymentGate,
+      positions: secondaryPositions,
     }),
   ];
 }
@@ -2151,6 +2195,7 @@ function latestRows(rows, keys, limit = Number.POSITIVE_INFINITY) {
 export function buildPositionRows(snapshot) {
   return snapshot.positions.slice(0, 30).map((row) =>
     compactRow(row, {
+      账户: ['Account', 'account', 'AccountLogin', 'accountLogin'],
       票号: ['ticket', 'position', 'id'],
       品种: ['symbol'],
       方向: ['type', 'side', 'action'],
@@ -2169,6 +2214,7 @@ export function buildPositionRows(snapshot) {
 export function buildOrderRows(snapshot) {
   return snapshot.orders.slice(0, 30).map((row) =>
     compactRow(row, {
+      账户: ['Account', 'account', 'AccountLogin', 'accountLogin'],
       票号: ['ticket', 'order', 'id'],
       品种: ['symbol'],
       类型: ['type', 'side', 'action'],
