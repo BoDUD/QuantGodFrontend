@@ -47,6 +47,10 @@
           <span>阻断</span>
           <strong>{{ payload.blockedCount || 0 }}</strong>
         </div>
+        <div>
+          <span>复核就绪</span>
+          <strong :class="entryReadinessTone">{{ entryReadinessScoreLabel }}</strong>
+        </div>
       </div>
 
       <div class="qg-automation-chain-panel__truth">
@@ -70,9 +74,68 @@
           <strong>{{ dryRunLabel }}</strong>
           <small>干跑只验证政策读取，不代表工具下单</small>
         </article>
+        <article>
+          <span>入场慢点</span>
+          <strong>{{ entryLatencyLabel }}</strong>
+          <small>{{ entryLatencyNextAction || entryLatencyReason }}</small>
+        </article>
+        <article>
+          <span>首个缺口</span>
+          <strong :class="entryReadinessTone">{{ firstReadinessGapLabel }}</strong>
+          <small>{{ firstReadinessGapAction }}</small>
+        </article>
+        <article>
+          <span>GA 精英</span>
+          <strong>{{ bestGaEliteLabel }}</strong>
+          <small>{{ gaFactoryMeta }}</small>
+        </article>
       </div>
 
       <div class="qg-automation-chain-panel__grid">
+        <article>
+          <h3>安全迭代计划</h3>
+          <ul class="qg-automation-chain-panel__plain-list">
+            <li v-for="item in safeIterationActions" :key="item.actionId || item.labelZh">
+              <span class="warn">{{ item.labelZh || item.actionId }}</span>
+              {{ item.nextRequiredActionZh || item.reasonZh || '' }}
+              <small>{{ iterationEvidenceText(item) }}</small>
+            </li>
+            <li v-if="!safeIterationActions.length">暂无新的安全迭代动作</li>
+          </ul>
+        </article>
+        <article>
+          <h3>就绪缺口</h3>
+          <ul class="qg-automation-chain-panel__plain-list">
+            <li v-for="item in failedReadinessGaps" :key="item.gapId || item.stage">
+              <span class="bad">{{ item.labelZh || item.gapId }}</span>
+              {{ gapCurrentText(item) }}
+              <small>{{ item.nextRequiredActionZh || '' }}</small>
+            </li>
+            <li v-if="!failedReadinessGaps.length">暂无未通过缺口</li>
+          </ul>
+        </article>
+        <article>
+          <h3>恢复动作</h3>
+          <ul class="qg-automation-chain-panel__plain-list">
+            <li v-for="item in entryLatencyRecoveryActions" :key="item.actionId || item.stage">
+              <span class="warn">{{ item.labelZh || item.actionId }}</span>
+              {{ item.nextRequiredActionZh || item.reasonZh || '' }}
+              <small>{{ recoveryEvidenceText(item) }}</small>
+            </li>
+            <li v-if="!entryLatencyRecoveryActions.length">暂无恢复动作</li>
+          </ul>
+        </article>
+        <article>
+          <h3>入场延迟时间线</h3>
+          <ul class="qg-automation-chain-panel__plain-list">
+            <li v-for="item in entryLatencyTimeline" :key="item.stage || item.labelZh">
+              <span :class="latencyTone(item)">{{ item.statusZh || item.status }}</span>
+              {{ item.labelZh || item.stage }}
+              <small>{{ item.reasonZh || '' }}</small>
+            </li>
+            <li v-if="!entryLatencyTimeline.length">暂无入场延迟归因</li>
+          </ul>
+        </article>
         <article>
           <h3>技术链路详情</h3>
           <ul class="qg-automation-chain-panel__plain-list">
@@ -134,6 +197,56 @@ const topShadow = computed(
   () => payload.value.topShadowPolicy || payload.value.liveLoopStatus?.topShadowPolicy || {},
 );
 const dryRun = computed(() => payload.value.dryRunDecision || payload.value.liveLoopStatus?.dryRun || {});
+const entryLatency = computed(() => payload.value.entryLatencyReport || {});
+const safeIterationPlan = computed(() => payload.value.safeIterationPlan || {});
+const safeIterationActions = computed(() => safeIterationPlan.value.actions || []);
+const gaFactorySummary = computed(() => payload.value.gaFactorySummary || safeIterationPlan.value.gaFactorySummary || {});
+const bestGaElite = computed(() => gaFactorySummary.value.bestElite || {});
+const entryLatencySummary = computed(() => payload.value.entryLatencySummary || entryLatency.value.summary || {});
+const entryLatencyTimeline = computed(
+  () => payload.value.entryLatencyTimeline || entryLatency.value.timeline || [],
+);
+const entryLatencyRecoveryActions = computed(() => entryLatency.value.recoveryActions || []);
+const entryReadiness = computed(() => entryLatency.value.entryReadiness || {});
+const entryReadinessGaps = computed(() => entryLatency.value.readinessGaps || []);
+const failedReadinessGaps = computed(() =>
+  entryReadinessGaps.value.filter((item) => item && item.essential !== false && !item.passed).slice(0, 6),
+);
+const entryLatencyNextAction = computed(
+  () => entryLatency.value.nextRequiredActionZh || entryLatencySummary.value.nextRequiredActionZh || '',
+);
+const entryReadinessScore = computed(() => entryLatencySummary.value.readinessScore ?? entryReadiness.value.score);
+const entryReadinessScoreLabel = computed(() => {
+  const score = Number(entryReadinessScore.value);
+  if (!Number.isFinite(score)) return '暂无';
+  return `${Math.round(score)}%`;
+});
+const entryReadinessTone = computed(() => {
+  if (entryReadiness.value.readyForEntryReview || entryLatencySummary.value.readyForEntryReview) return 'good';
+  const score = Number(entryReadinessScore.value);
+  if (Number.isFinite(score) && score >= 70) return 'warn';
+  return 'bad';
+});
+const firstReadinessGap = computed(() => failedReadinessGaps.value[0] || {});
+const firstReadinessGapLabel = computed(() => firstReadinessGap.value.labelZh || entryReadiness.value.firstFailedLabelZh || '暂无缺口');
+const firstReadinessGapAction = computed(
+  () => firstReadinessGap.value.nextRequiredActionZh || entryReadiness.value.nextRequiredActionZh || '等待下一次自动化链路刷新。',
+);
+const bestGaEliteLabel = computed(() => {
+  const elite = bestGaElite.value || {};
+  if (!elite.seedId) return '暂无 elite';
+  const fitness = Number(elite.fitness);
+  const fitnessText = Number.isFinite(fitness) ? fitness.toFixed(2) : '暂无';
+  return `${elite.seedId}｜${fitnessText}`;
+});
+const gaFactoryMeta = computed(() => {
+  const summary = gaFactorySummary.value || {};
+  const next = summary.nextGeneration || {};
+  const generation = summary.currentGeneration ?? '暂无';
+  const stage = bestGaElite.value.promotionStage || 'SHADOW';
+  const nextGen = next.targetGeneration ? `｜下一代 ${next.targetGeneration}` : '';
+  return `第 ${generation} 代｜${stage}${nextGen}`;
+});
 const livePolicyLabel = computed(() => {
   const item = topLive.value || {};
   if (!item.strategy) return '暂无实盘候选';
@@ -148,6 +261,8 @@ const dryRunLabel = computed(() => {
   const item = dryRun.value || {};
   return item.decision || '暂无干跑结果';
 });
+const entryLatencyLabel = computed(() => entryLatencySummary.value.stateZh || entryLatencySummary.value.primaryStage || '暂无归因');
+const entryLatencyReason = computed(() => entryLatencySummary.value.primaryReasonZh || '等待下一次自动化链路生成归因。');
 const stateClass = computed(() => {
   const state = String(payload.value.state || '');
   if (state.includes('READY')) return 'good';
@@ -185,6 +300,33 @@ function cleanStepLabel(value) {
       .replace(/^[-:：\s]+/, '')
       .trim() || '链路检查'
   );
+}
+
+function latencyTone(item) {
+  const status = String(item?.status || '').toUpperCase();
+  if (status === 'READY' || status === 'ATTEMPTED') return 'ok';
+  if (status === 'MISSING' || status === 'BLOCKED' || status === 'SPREAD_BLOCK' || status === 'STARTUP_GUARD')
+    return 'bad';
+  return 'warn';
+}
+
+function recoveryEvidenceText(item) {
+  const evidence = item?.expectedEvidence || {};
+  const fields = Array.isArray(evidence.fields) ? evidence.fields.join(' / ') : '';
+  if (evidence.file && fields) return `${evidence.file}｜${fields}`;
+  return evidence.file || fields || item?.reasonZh || '';
+}
+
+function gapCurrentText(item) {
+  const current = item?.current ?? 'UNKNOWN';
+  const required = item?.required ?? 'PASS';
+  return `当前 ${current}｜需要 ${required}`;
+}
+
+function iterationEvidenceText(item) {
+  const evidence = Array.isArray(item?.expectedEvidence) ? item.expectedEvidence.join(' / ') : '';
+  const mode = item?.mode || safeIterationPlan.value.mode || 'SHADOW_SIMULATION_ONLY';
+  return evidence ? `${mode}｜${evidence}` : mode;
 }
 
 function actionTime() {
@@ -335,7 +477,7 @@ onMounted(() => loadStatus({ silent: true }));
 }
 
 .qg-automation-chain-panel__summary {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-top: 14px;
 }
 

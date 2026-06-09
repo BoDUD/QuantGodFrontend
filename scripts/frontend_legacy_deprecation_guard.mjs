@@ -57,21 +57,17 @@ function checkCoreFiles() {
     'src/app/workspaceRegistry.js',
     'src/app/navigation.js',
     'src/stores/workspaceStore.js',
-    'archive/legacy-workbench/LegacyWorkbenchFull.vue',
   ];
-  for (const file of required) assert(fileExists(file), `${file} is required for legacy archive tracking`);
+  for (const file of required) assert(fileExists(file), `${file} is required for legacy removal tracking`);
 }
 
 function checkLegacySourceRemoved() {
   assert(!fileExists('src/workspaces/legacy'), 'src/workspaces/legacy must be removed; legacy UI is archive-only after migration');
 }
 
-function checkArchiveOnly() {
+function checkLegacyArchiveRemoved() {
   const archivePath = 'archive/legacy-workbench/LegacyWorkbenchFull.vue';
-  if (!fileExists(archivePath)) return;
-  const archived = read(archivePath);
-  assert(countLines(archived) >= 1000, `${archivePath} must keep the full historical source`);
-  assert(!/\bfetch\s*\(/.test(archived) || archived.includes('LegacyWorkbenchFull'), `${archivePath} is audit-only and must not be imported by src`);
+  assert(!fileExists(archivePath), `${archivePath} must be removed after full HFM crypto workspace migration`);
 }
 
 function checkDefaultWorkspace() {
@@ -112,7 +108,7 @@ function checkMigratedWorkspacesExist() {
     'src/workspaces/governance/GovernanceWorkspace.vue',
     'src/workspaces/paramlab/ParamLabWorkspace.vue',
     'src/workspaces/research/ResearchWorkspace.vue',
-    'src/workspaces/polymarket/PolymarketWorkspace.vue',
+    'src/workspaces/hfm-crypto/HfmCryptoWorkspace.vue',
     'src/workspaces/phase1/Phase1Workspace.vue',
     'src/workspaces/phase2/Phase2OperationsWorkspace.vue',
     'src/workspaces/phase3/Phase3Workspace.vue',
@@ -135,7 +131,7 @@ function checkPackageScript() {
 
 checkCoreFiles();
 checkLegacySourceRemoved();
-checkArchiveOnly();
+checkLegacyArchiveRemoved();
 checkDefaultWorkspace();
 checkRegistryBoundary();
 checkMigratedWorkspacesExist();

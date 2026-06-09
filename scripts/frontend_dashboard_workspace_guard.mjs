@@ -43,6 +43,23 @@ function checkDashboardWorkspace(root) {
     'Agent 日报 v2',
     'agentOpsHealth',
     'Agent 自动化健康',
+    '/api/hfm-crypto/status?view=summary&scope=secondary',
+    'Release token 闸门',
+    'Release Token 证据',
+    '/api/live-automation/release-token-evidence-review?scope=secondary',
+    'championPromotionGate',
+    '冠军长期记忆晋级闸',
+    '/api/live-automation/champion-promotion-gate?scope=secondary',
+    'buildChampionMemoryItems',
+    'Release Token 签收草案',
+    '/api/live-automation/release-token-signoff-draft?scope=secondary',
+    'Release Token 签收输入',
+    '/api/live-automation/release-token-signoff-input-review?scope=secondary',
+    'Release Token 签收交接',
+    '/api/live-automation/release-token-signoff-handoff?scope=secondary',
+    '外币 Live12 实盘交接',
+    '/api/live-automation/forex-live12-runtime-handoff?scope=secondary',
+    'buildReleaseGateRows',
   ]) {
     if (!text.includes(required)) errors.push(`${rel(root, workspace)}: missing ${required}`);
   }
@@ -68,6 +85,7 @@ function checkDashboardModel(root) {
     'buildAgentOpsItems',
     'buildAgentOpsRows',
     'buildRouteRows',
+    'buildChampionMemoryItems',
   ]) {
     if (!text.includes(`export function ${exportedName}`)) {
       errors.push(`${rel(root, model)}: missing export ${exportedName}`);
@@ -83,12 +101,26 @@ function checkDashboardModel(root) {
     'systemStatus',
     'strategyStatus',
     '策略观察健康',
-    'Polymarket 跟单重调',
+    'HFM Crypto shadow',
+    'brokerSymbolDiagnostics',
     'Telegram Gateway',
     'deliveryObservability',
     '最近真实发送',
     '最近抑制',
     'Topic 队列',
+    'buildReleaseGateRows',
+    'longTermMemoryPromotionReview',
+    'memoryBlocksLivePromotion',
+    '冠军长期记忆晋级闸',
+    'releaseTokenEvidenceProgressLine',
+    'releaseTokenSignoffDraftProgressLine',
+    'releaseTokenSignoffInputTemplateProgressLine',
+    'releaseTokenSignoffInputProgressLine',
+    'releaseTokenSignoffHandoffProgressLine',
+    '无副作用证据',
+    'Release Token 签收模板',
+    'Release Token 签收交接',
+    'forexLive12RuntimeHandoff',
   ]) {
     if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }

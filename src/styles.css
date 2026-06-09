@@ -468,17 +468,14 @@ h2 {
 .qd-radar-header,
 .qd-card-head,
 .qd-market-head,
-.qd-market-foot,
-.poly-filter-head,
-.poly-filter-row {
+.qd-market-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.qd-radar-header h2,
-.poly-filter-head h2 {
+.qd-radar-header h2 {
   font-size: 18px;
 }
 
@@ -1578,170 +1575,8 @@ h2 {
   cursor: wait;
 }
 
-.poly-hero {
-  grid-template-columns: minmax(0, 1fr) minmax(480px, 0.9fr);
-}
-
-.page-polymarket,
-.page-polymarket > *,
-.page-polymarket .workbench-hero,
-.page-polymarket .hero-copy,
-.page-polymarket .hero-metrics,
-.page-polymarket .poly-account-strip,
-.page-polymarket .poly-filter-shell,
-.page-polymarket .single-analysis-workspace {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.page-polymarket .hero-copy h2,
-.page-polymarket .hero-copy p,
-.page-polymarket .panel-title,
-.page-polymarket .panel-title span,
-.page-polymarket .panel-title small,
-.page-polymarket .pill,
-.page-polymarket .eyebrow {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.poly-metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .hero-form {
   max-width: 760px;
-}
-
-.poly-cockpit-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
-  gap: 12px;
-}
-
-.poly-filter-shell {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  background: rgba(17, 24, 32, 0.96);
-  border: 1px solid rgba(129, 151, 178, 0.22);
-  border-radius: 10px;
-}
-
-.poly-account-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.poly-account-card {
-  min-width: 0;
-  padding: 12px;
-  background: linear-gradient(180deg, rgba(31, 40, 52, 0.98), rgba(19, 26, 35, 0.98));
-  border: 1px solid rgba(129, 151, 178, 0.2);
-  border-radius: 10px;
-}
-
-.poly-account-card span,
-.poly-account-card strong,
-.poly-account-card small {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.poly-account-card span {
-  color: var(--faint);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.poly-account-card strong {
-  margin-top: 7px;
-  color: #f5f9ff;
-  font-size: 18px;
-}
-
-.poly-account-card small {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.poly-account-card.green {
-  border-color: rgba(51, 217, 154, 0.34);
-}
-
-.poly-account-card.amber {
-  border-color: rgba(255, 184, 77, 0.36);
-}
-
-.poly-account-card.red {
-  border-color: rgba(255, 107, 134, 0.44);
-}
-
-.poly-account-card.blue {
-  border-color: rgba(31, 155, 255, 0.28);
-}
-
-.poly-filter-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.poly-filter-head .route-tabs {
-  flex: 1 1 360px;
-  justify-content: flex-end;
-  max-width: 760px;
-}
-
-.poly-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-start;
-  min-width: 0;
-}
-
-.poly-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.poly-radar-workbench {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 0.7fr);
-  gap: 12px;
-}
-
-.poly-radar-main {
-  min-width: 0;
-}
-
-.poly-radar-main .poly-radar-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.poly-ledger-workbench {
-  display: grid;
-  gap: 14px;
-}
-
-.poly-local-search {
-  flex: 1 1 380px;
-  max-width: 560px;
-}
-
-.qd-poly-grid {
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
 }
 
 .market-browser-grid {
@@ -1846,17 +1681,6 @@ h2 {
   border: 1px solid rgba(31, 155, 255, 0.22);
   border-radius: 999px;
   font-size: 10px;
-}
-
-.poly-side-console,
-.poly-market-console {
-  min-height: 100%;
-}
-
-.poly-score-stack {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 10px;
 }
 
 .score-line {
@@ -2197,12 +2021,6 @@ h2 {
 
 .governance-lane {
   grid-template-columns: 110px minmax(0, 1fr);
-}
-
-.poly-radar-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
 }
 
 .radar-evidence-card {
@@ -3933,47 +3751,6 @@ tbody tr:hover td {
   overflow: visible;
 }
 
-.poly-real-summary,
-.poly-current-real {
-  min-width: 0;
-}
-
-.poly-real-metric-grid,
-.poly-real-inline {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.poly-real-inline {
-  margin-bottom: 10px;
-}
-
-.poly-real-metric {
-  min-height: 70px;
-}
-
-.poly-real-metric.red {
-  border-color: rgba(255, 109, 125, 0.4);
-  background: rgba(255, 109, 125, 0.08);
-}
-
-.poly-real-metric.green {
-  border-color: rgba(88, 219, 150, 0.35);
-  background: rgba(88, 219, 150, 0.07);
-}
-
-.poly-real-metric.amber {
-  border-color: rgba(255, 193, 92, 0.35);
-  background: rgba(255, 193, 92, 0.07);
-}
-
-.poly-current-real {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
 .compact-title {
   margin-bottom: 8px;
 }
@@ -3982,37 +3759,6 @@ tbody tr:hover td {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
-}
-
-.poly-real-list button strong,
-.poly-real-list button span {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
-
-.poly-real-trade-ledger {
-  grid-column: 1 / -1;
-  margin-top: 0;
-}
-
-.poly-real-trade-ledger .table-panel {
-  max-height: 360px;
-  overflow: auto;
-}
-
-.poly-real-trade-ledger .data-table {
-  min-width: 1280px;
-}
-
-.poly-real-trade-ledger .data-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.poly-real-trade-ledger .data-table td span {
-  white-space: normal;
 }
 
 /* Full text mode for workbench evidence: the dashboard is an operations tool,
@@ -4135,13 +3881,6 @@ tbody tr:hover td {
   word-break: break-word;
 }
 
-@media (max-width: 1160px) {
-  .poly-real-metric-grid,
-  .poly-real-inline {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 .status-chip,
 .pill {
   min-width: 0;
@@ -4155,71 +3894,6 @@ tbody tr:hover td {
 .risk-link-row,
 .governance-lane-rich {
   grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
-}
-
-.page-polymarket .governance-lane-rich {
-  grid-template-columns: minmax(220px, 1fr) minmax(0, max-content);
-  align-items: start;
-}
-
-.page-polymarket .compact-governance .governance-lane-rich,
-.page-polymarket .governance-lane-rich.wallet-boundary-row {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.page-polymarket .lane-copy strong,
-.page-polymarket .lane-copy small,
-.page-polymarket .risk-title,
-.page-polymarket .risk-link-row small {
-  display: block;
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.page-polymarket .lane-copy strong,
-.page-polymarket .risk-title {
-  line-height: 1.25;
-}
-
-.page-polymarket .lane-copy small,
-.page-polymarket .risk-link-row small {
-  line-height: 1.35;
-}
-
-.page-polymarket .lane-chipset {
-  align-content: flex-start;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.page-polymarket .compact-governance .lane-chipset,
-.page-polymarket .wallet-boundary-row .lane-chipset,
-.page-polymarket .risk-link-row .lane-chipset {
-  justify-content: flex-start;
-}
-
-.page-polymarket .lane-chipset .status-chip,
-.page-polymarket .risk-link-row .status-chip {
-  flex: 0 1 auto;
-  height: auto;
-  min-height: 28px;
-  max-width: min(100%, 170px);
-  padding: 3px 8px;
-  line-height: 1.2;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.page-polymarket .risk-link-row {
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
 }
 
 .data-table .pill {
@@ -4347,21 +4021,18 @@ tbody tr:hover td {
   }
 
   .metric-grid.four,
-  .card-grid,
-  .section-grid,
-  .viz-grid,
-  .drawer-grid,
-  .workbench-hero,
-  .mt5-command-grid,
-  .poly-cockpit-grid {
+.card-grid,
+.section-grid,
+.viz-grid,
+.drawer-grid,
+.workbench-hero,
+.mt5-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .param-lane-board,
-  .poly-metrics,
-  .poly-radar-grid,
-  .universe-strip,
-  .strategy-card-grid {
+.universe-strip,
+.strategy-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4437,11 +4108,10 @@ tbody tr:hover td {
   }
 
   .workbench-hero,
-  .ai-hero,
-  .paramlab-hero,
-  .poly-hero,
-  .page-mt5[data-focus='trades'] .workbench-hero,
-  .page-mt5[data-focus='trades'] .mt5-trade-workbench {
+.ai-hero,
+.paramlab-hero,
+.page-mt5[data-focus='trades'] .workbench-hero,
+.page-mt5[data-focus='trades'] .mt5-trade-workbench {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -4474,9 +4144,7 @@ tbody tr:hover td {
   }
 
   .metric-grid.four,
-  .drawer-grid,
-  .poly-real-metric-grid,
-  .poly-real-inline {
+.drawer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -4559,19 +4227,16 @@ tbody tr:hover td {
   }
 
   .operator-strip,
-  .metric-grid.four,
-  .metric-grid.three,
-  .card-grid.three,
-  .drawer-grid,
-  .poly-radar-grid,
-  .poly-real-metric-grid,
-  .poly-real-inline,
-  .page-mt5[data-focus='trades'] .card-grid.three,
-  .trade-metric-grid,
-  .strategy-performance-grid,
-  .param-lane-board,
-  .radar-grid,
-  .dense-radar {
+.metric-grid.four,
+.metric-grid.three,
+.card-grid.three,
+.drawer-grid,
+.page-mt5[data-focus='trades'] .card-grid.three,
+.trade-metric-grid,
+.strategy-performance-grid,
+.param-lane-board,
+.radar-grid,
+.dense-radar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4581,24 +4246,17 @@ tbody tr:hover td {
   }
 
   .section-grid,
-  .workspace-layout,
-  .mt5-command-grid,
-  .poly-cockpit-grid,
-  .poly-overview-grid,
-  .poly-radar-workbench,
-  .single-analysis-workspace,
-  .card-grid,
-  .viz-grid,
-  .strategy-card-grid,
-  .page-ai > .card-grid.three {
+.workspace-layout,
+.mt5-command-grid,
+.single-analysis-workspace,
+.card-grid,
+.viz-grid,
+.strategy-card-grid,
+.page-ai > .card-grid.three {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .mt5-radar-board .dense-radar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .poly-account-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4710,20 +4368,8 @@ tbody tr:hover td {
     line-height: 1.15;
   }
 
-  .poly-filter-head,
-  .poly-filter-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .universe-strip {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .poly-filter-head .route-tabs,
-  .poly-filter-row .route-tabs {
-    justify-content: stretch;
-    max-width: 100%;
   }
 
   .workspace-tabs {
@@ -4770,37 +4416,29 @@ tbody tr:hover td {
   }
 
   .operator-strip,
-  .metric-grid,
-  .metric-grid.four,
-  .metric-grid.three,
-  .card-grid,
-  .card-grid.three,
-  .section-grid,
-  .viz-grid,
-  .drawer-grid,
-  .hero-metrics,
-  .mt5-command-grid,
-  .poly-cockpit-grid,
-  .poly-overview-grid,
-  .poly-account-strip,
-  .poly-radar-workbench,
-  .single-analysis-workspace,
-  .market-browser-grid,
-  .canary-contract-grid,
-  .poly-metrics,
-  .poly-radar-grid,
-  .poly-real-metric-grid,
-  .poly-real-inline,
-  .command-rail,
-  .param-lane-board,
-  .radar-grid,
-  .dense-radar,
-  .qd-card-metrics,
-  .trade-metric-grid,
-  .strategy-performance-grid,
-  .tester-guard-grid,
-  .page-mt5[data-focus='trades'] .card-grid.three,
-  .page-mt5[data-focus='trades'] .mt5-trade-workbench .qd-right-rail {
+.metric-grid,
+.metric-grid.four,
+.metric-grid.three,
+.card-grid,
+.card-grid.three,
+.section-grid,
+.viz-grid,
+.drawer-grid,
+.hero-metrics,
+.mt5-command-grid,
+.single-analysis-workspace,
+.market-browser-grid,
+.canary-contract-grid,
+.command-rail,
+.param-lane-board,
+.radar-grid,
+.dense-radar,
+.qd-card-metrics,
+.trade-metric-grid,
+.strategy-performance-grid,
+.tester-guard-grid,
+.page-mt5[data-focus='trades'] .card-grid.three,
+.page-mt5[data-focus='trades'] .mt5-trade-workbench .qd-right-rail {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -4840,35 +4478,12 @@ tbody tr:hover td {
     min-width: 760px;
   }
 
-  .poly-real-trade-ledger .data-table {
-    min-width: 1040px;
-  }
-
   .hero-copy,
   .hero-metrics,
   .panel,
   .hero-panel,
   .data-table-card {
     padding: 12px;
-  }
-}
-
-@media (max-width: 900px) {
-  .page-polymarket .poly-overview-grid,
-  .page-polymarket .governance-lane-rich,
-  .page-polymarket .compact-governance .governance-lane-rich,
-  .page-polymarket .governance-lane-rich.wallet-boundary-row,
-  .page-polymarket .risk-link-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .page-polymarket .governance-lane,
-  .page-polymarket .radar-ticker-item {
-    align-items: start;
-  }
-
-  .page-polymarket .lane-chipset {
-    justify-content: flex-start;
   }
 }
 
@@ -5238,28 +4853,6 @@ tbody tr:hover td {
   font-weight: 650;
 }
 
-.qg-polymarket-tables {
-  grid-template-columns: 1fr;
-}
-
-.qg-polymarket-tables .qg-ledger-table table {
-  min-width: 1120px;
-}
-
-.qg-polymarket-tables .qg-ledger-table th,
-.qg-polymarket-tables .qg-ledger-table td {
-  white-space: nowrap;
-  overflow-wrap: normal;
-}
-
-.qg-polymarket-tables .qg-ledger-table th:first-child,
-.qg-polymarket-tables .qg-ledger-table td:first-child {
-  width: 34%;
-  min-width: 300px;
-  white-space: normal;
-  overflow-wrap: break-word;
-}
-
 .qg-empty {
   padding: 14px;
   color: #94a3b8;
@@ -5277,137 +4870,6 @@ tbody tr:hover td {
   padding: 10px 12px;
   color: #e5e7eb;
   background: rgba(15, 23, 42, 0.68);
-}
-
-.poly-evidence-console {
-  display: grid;
-  gap: 14px;
-  min-width: 0;
-  border: 1px solid rgba(78, 161, 255, 0.2);
-  border-radius: 18px;
-  padding: 16px;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), transparent 46%), rgba(15, 23, 42, 0.62);
-}
-
-.poly-evidence-console__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  min-width: 0;
-}
-
-.poly-evidence-console__header h3 {
-  margin: 0;
-  color: #f8fafc;
-  font-size: 1.05rem;
-}
-
-.poly-evidence-console__header strong {
-  flex: 0 0 auto;
-  color: #dbeafe;
-  font-size: 0.92rem;
-}
-
-.poly-evidence-console__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  min-width: 0;
-}
-
-.poly-evidence-console__tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  flex: 0 1 auto;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 12px;
-  padding: 9px 16px;
-  color: rgba(226, 232, 240, 0.76);
-  background: rgba(15, 23, 42, 0.54);
-  cursor: pointer;
-}
-
-.poly-evidence-console__tabs button.active {
-  color: #bfdbfe;
-  border-color: rgba(56, 189, 248, 0.62);
-  background: rgba(14, 165, 233, 0.14);
-}
-
-.poly-evidence-console__tabs small {
-  display: inline-grid;
-  min-width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 999px;
-  color: rgba(226, 232, 240, 0.82);
-  background: rgba(148, 163, 184, 0.16);
-  font-size: 0.72rem;
-}
-
-.poly-evidence-console__list {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-.poly-evidence-console__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(96px, 0.42fr);
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid rgba(78, 161, 255, 0.14);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: rgba(2, 14, 25, 0.42);
-}
-
-.poly-evidence-console__row strong,
-.poly-evidence-console__row span,
-.poly-evidence-console__row small {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.poly-evidence-console__row strong {
-  color: #f8fafc;
-  font-size: 0.94rem;
-}
-
-.poly-evidence-console__row span,
-.poly-evidence-console__row small {
-  color: rgba(203, 213, 225, 0.72);
-}
-
-.poly-evidence-console__row small {
-  justify-self: end;
-  font-weight: 700;
-}
-
-@media (max-width: 720px) {
-  .poly-evidence-console {
-    padding: 12px;
-  }
-
-  .poly-evidence-console__header {
-    display: grid;
-  }
-
-  .poly-evidence-console__tabs button {
-    flex: 1 1 calc(50% - 4px);
-    justify-content: center;
-  }
-
-  .poly-evidence-console__row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .poly-evidence-console__row small {
-    justify-self: start;
-  }
 }
 
 /* QuantGod dashboard workspace parity */

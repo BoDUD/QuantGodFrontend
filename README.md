@@ -11,7 +11,7 @@ The current UI is centered on QuantGod v2.5:
 ```text
 Live Lane: USDJPYc / RSI_Reversal / LONG / cent account
 MT5 Shadow Lane: USDJPY multi-strategy simulation and ranking
-Polymarket Shadow Lane: simulated ledger and macro/event context
+HFM Crypto CFD Shadow Lane: symbol discovery plus Moss backtest profile import
 Agent: autonomous daily todo, daily review, promotion, demotion, rollback
 ```
 
@@ -22,7 +22,7 @@ The interface is an operator workbench: dense, Chinese-first, evidence-first, an
 | Area             | Path                             | Responsibility                                                                                    |
 | ---------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
 | App shell        | `src/app/`                       | Workspace registry, navigation, command surface                                                   |
-| Workspaces       | `src/workspaces/`                | Dashboard, MT5, Evolution, Polymarket; legacy workspaces are archived outside the main navigation |
+| Workspaces       | `src/workspaces/`                | Dashboard, MT5, Evolution, HFM Crypto; legacy workspaces are archived outside the main navigation |
 | Components       | `src/components/`                | Shared panels, KPI cards, automation and USDJPY Agent panels                                      |
 | Services         | `src/services/`                  | `/api/*` client modules                                                                           |
 | Styling          | `src/styles*.css`, `src/styles/` | Theme tokens, responsive hardening, workbench layout                                              |
@@ -66,7 +66,7 @@ Vite proxies `/api/*` to `QG_BACKEND_URL`, defaulting to `http://127.0.0.1:8080`
 | Dashboard  | System summary, USDJPY live-loop truth, Agent status, automation chain details                    |
 | MT5        | EA recovery state, RSI entry diagnostics, positions, orders, trades, runtime blockers             |
 | Evolution  | Dataset, causal replay, walk-forward, backtest, Strategy JSON, GA, Case Memory, daily todo/review |
-| Polymarket | Shadow ledger, copy strategy quarantine, simulated capital view, event context                    |
+| HFM Crypto | Crypto CFD symbol discovery, Moss backtest profile import, shadow-only risk boundary             |
 
 The main navigation intentionally contains only these four workspaces. Older Phase,
 Governance, ParamLab, Research, and Backtest-AI surfaces remain as archived source
@@ -138,7 +138,7 @@ Frontend may display:
 
 - Live Lane status.
 - MT5 Shadow Lane rankings.
-- Polymarket Shadow Lane status.
+- HFM Crypto CFD Shadow Lane status.
 - Agent patch evidence.
 - Autonomous rollback and daily review results.
 
@@ -148,7 +148,7 @@ Frontend must not:
 - Close or cancel positions.
 - Modify MT5 live presets.
 - Store or reveal credentials.
-- Connect Polymarket real wallets.
+- Add HFM Crypto live execution before a separate design review.
 - Let DeepSeek override hard gates.
 
 ## Design Notes

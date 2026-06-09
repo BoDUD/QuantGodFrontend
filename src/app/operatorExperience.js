@@ -7,7 +7,7 @@ const WORKSPACES = [
   { key: 'dashboard', hotkey: 'd', zh: '总览', en: 'Dashboard' },
   { key: 'mt5', hotkey: 'm', zh: 'MT5 复核', en: 'MT5 Monitor' },
   { key: 'evolution', hotkey: 'e', zh: '自学习', en: 'Evolution' },
-  { key: 'polymarket', hotkey: 'o', zh: '预测市场', en: 'Polymarket' },
+  { key: 'hfm-crypto', hotkey: 'c', zh: 'HFM Crypto', en: 'HFM Crypto' },
 ];
 
 function safeSet(key, value) {

@@ -32,7 +32,7 @@ Not added:
 - `g m`: MT5.
 - `g r`: research.
 - `g p`: ParamLab.
-- `g o`: Polymarket.
+- `g c`: HFM Crypto.
 - `g v`: Phase 3 AI/Vibe.
 
 ## Verification

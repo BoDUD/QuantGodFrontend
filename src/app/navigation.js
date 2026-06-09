@@ -19,9 +19,9 @@ export const WORKSPACE_GROUPS = [
         description: '策略契约、回放、回测、遗传进化、经验记忆和自主代理证据。',
       },
       {
-        key: 'polymarket',
-        label: 'Polymarket',
-        description: '模拟账本、事件风险上下文和 shadow-only 跟单研究。',
+        key: 'hfm-crypto',
+        label: 'HFM Crypto',
+        description: 'HFM crypto CFD symbol 扫描、Moss 回测导入和 shadow-only 跟单研究。',
       },
     ],
   },

@@ -93,7 +93,7 @@ function checkCriticalFileLineCounts() {
     'scripts/frontend_governance_workspace_guard.mjs': 40,
     'scripts/frontend_paramlab_workspace_guard.mjs': 40,
     'scripts/frontend_research_workspace_guard.mjs': 40,
-    'scripts/frontend_polymarket_workspace_guard.mjs': 40,
+    'scripts/frontend_hfm_crypto_workspace_guard.mjs': 40,
     'scripts/frontend_legacy_deprecation_guard.mjs': 40,
     'scripts/frontend_lf_integrity_guard.mjs': 40,
     'tests/frontend_api_contract_guard.test.mjs': 10,
@@ -105,11 +105,10 @@ function checkCriticalFileLineCounts() {
     'tests/frontend_governance_workspace_guard.test.mjs': 10,
     'tests/frontend_paramlab_workspace_guard.test.mjs': 10,
     'tests/frontend_research_workspace_guard.test.mjs': 10,
-    'tests/frontend_polymarket_workspace_guard.test.mjs': 10,
+    'tests/frontend_hfm_crypto_workspace_guard.test.mjs': 10,
     'tests/frontend_legacy_deprecation_guard.test.mjs': 10,
     'tests/frontend_lf_integrity_guard.test.mjs': 10,
     'src/App.vue': 3,
-    'archive/legacy-workbench/LegacyWorkbenchFull.vue': 1000,
   };
   for (const [file, min] of Object.entries(minimums)) {
     if (!exists(file)) continue;

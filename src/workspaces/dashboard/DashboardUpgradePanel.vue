@@ -23,10 +23,10 @@
         detail="来自 MT5 平仓复盘"
       />
       <KpiCard
-        title="预测市场今日盈亏"
-        :value="kpis.polyDailyPnlText"
-        :tone="kpis.polyDailyPnlTone"
-        detail="来自预测市场亏损复盘"
+        title="HFM Crypto 证据"
+        :value="kpis.hfmCryptoEvidence"
+        :tone="kpis.hfmCryptoTone"
+        detail="来自 HFM crypto CFD symbol 扫描"
       />
       <KpiCard :title="labels.kpiSignals" :value="kpis.signals24h" :detail="kpis.signalDetail" badge="AI" />
       <KpiCard
@@ -58,7 +58,7 @@
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.alertTimeline }}</h3>
-            <p>把治理、MT5、预测市场和自动闭环异常合并成可扫描时间线。</p>
+            <p>把治理、MT5、HFM Crypto 和自动闭环异常合并成可扫描时间线。</p>
           </div>
           <span class="qg-ux-pill">{{ alertRows.length }} 条</span>
         </div>
@@ -218,7 +218,7 @@ const kpis = computed(() => {
     countRows([
       'dailyReview.signals',
       'dailyReview.data.signals',
-      'polyRadar.radar',
+      'hfmCrypto.localEvidence.findings',
       'latest.signals',
       'latest.signal_rows',
     ]) || Number(first(['dailyReview.signals_24h', 'dailyReview.signal_count_24h'], 0));
@@ -237,28 +237,26 @@ const kpis = computed(() => {
       null,
     ),
   );
-  const polyPnl = numberOrNull(
-    first(
-      [
-        'dailyReview.polymarket.executedNetUSDC',
-        'dailyReview.summary.polymarketExecutedNetUSDC',
-        'dailyAutopilot.polymarket.executedNetUSDC',
-        'dailyAutopilot.summary.polymarketExecutedNetUSDC',
-      ],
-      null,
-    ),
+  const hfmCryptoEvidence = countRows(
+    [
+      'hfmCryptoRows',
+      'hfmCrypto.localEvidence.findings',
+      'hfmCrypto.brokerSymbolCandidates',
+      'hfmCrypto.detectedRows',
+    ],
   );
+  const hfmCryptoReady = String(first(['hfmCrypto.status'], '')).includes('READY');
   return {
     positions,
     dailyPnl: mt5Pnl ?? 0,
     mt5DailyPnlText: formatSignedAmount(mt5Pnl, 'USC'),
     mt5DailyPnlTone: numberTone(mt5Pnl),
-    polyDailyPnlText: formatSignedAmount(polyPnl, 'USDC'),
-    polyDailyPnlTone: numberTone(polyPnl),
+    hfmCryptoEvidence,
+    hfmCryptoTone: hfmCryptoReady ? 'positive' : 'warning',
     signals24h: Number.isFinite(signals) ? signals : 0,
     alerts,
     positionDetail: positions ? '来自 HFM MT5 实盘快照' : '当前无持仓',
-    signalDetail: 'AI 与市场雷达只做建议',
+    signalDetail: 'AI 与 HFM Crypto 资料只做建议',
     alertDetail: alerts ? 'Agent 已标记异常，硬风控会自动暂停或回滚' : '当前无未读异常',
   };
 });

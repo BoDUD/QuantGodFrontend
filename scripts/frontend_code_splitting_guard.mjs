@@ -38,7 +38,7 @@ export function runCodeSplittingGuard(root = process.cwd()) {
     'GovernanceWorkspace',
     'ParamLabWorkspace',
     'ResearchWorkspace',
-    'PolymarketWorkspace',
+    'HfmCryptoWorkspace',
     'BacktestAiWorkspace',
     'LegacyWorkbench',
     'Phase1Workspace',

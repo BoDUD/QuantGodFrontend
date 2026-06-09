@@ -29,6 +29,63 @@
         <strong>{{ gaSeedCount }} 条</strong>
         <p>所有候选保持 shadow，只进遗传进化种子池，不下单、不改 live preset。</p>
       </article>
+      <article>
+        <span>长期记忆</span>
+        <strong>{{ tradeMemoryCount }} 笔</strong>
+        <p>{{ longTermNextAction }}</p>
+      </article>
+      <article>
+        <span>滚动复盘</span>
+        <strong>{{ rollingStatus }}</strong>
+        <p>{{ rollingSummaryText }}</p>
+      </article>
+      <article>
+        <span>候选扣分</span>
+        <strong>{{ candidatePenaltyCount }} 条</strong>
+        <p>{{ feedbackStatusText }}</p>
+      </article>
+      <article>
+        <span>GA 记忆惩罚</span>
+        <strong>{{ gaMemoryPenaltyText }}</strong>
+        <p>{{ gaMemoryReason }}</p>
+      </article>
+    </div>
+
+    <div class="qg-usdjpy-evolution__mini-list qg-usdjpy-evolution__mini-list--case-memory">
+      <article>
+        <span>亏损形态</span>
+        <strong>{{ topLossPatternText }}</strong>
+        <p>{{ topDataGapText }}</p>
+      </article>
+      <article>
+        <span>防守模式</span>
+        <strong>{{ defenseModeText }}</strong>
+        <p>{{ defenseReason }}</p>
+      </article>
+      <article>
+        <span>TP/SL 记忆建议</span>
+        <strong>{{ tpSlModeText }}</strong>
+        <p>{{ tpSlActionText }}</p>
+      </article>
+    </div>
+
+    <div v-if="candidatePenaltyRows.length" class="qg-usdjpy-evolution__table-wrap">
+      <table class="qg-usdjpy-evolution__table qg-usdjpy-evolution__table--compact">
+        <thead>
+          <tr>
+            <th>记忆规则</th>
+            <th>扣分</th>
+            <th>原因</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in candidatePenaltyRows" :key="penaltyRuleKey(item)">
+            <td>{{ penaltyRuleMatchText(item.match) }}</td>
+            <td>{{ metricText(item.penalty) }}</td>
+            <td>{{ item.reasonZh || '长期记忆扣分规则。' }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div v-if="candidateRows.length" class="qg-usdjpy-evolution__table-wrap">
@@ -99,17 +156,63 @@ const gaSeedRows = computed(() => {
   return Array.isArray(rows) ? rows : [];
 });
 const parityGate = computed(() => report.value?.parityGate || {});
+const longTermMemory = computed(() => report.value?.longTermTradeMemory || {});
+const rollingReview = computed(() => longTermMemory.value?.rollingReview || {});
+const entryFeedbackPolicy = computed(() => longTermMemory.value?.entryFeedbackPolicy || {});
+const defenseMode = computed(() => entryFeedbackPolicy.value?.defenseMode || {});
+const tpSlGuidance = computed(() => entryFeedbackPolicy.value?.tpSlGuidance || {});
+const selectedGASeed = computed(() => {
+  const rows = gaSeedRows.value;
+  return rows.find((row) => row?.fitnessBreakdown?.longTermMemoryFeedback) || rows[0] || {};
+});
+const gaLongTermMemoryFeedback = computed(
+  () => selectedGASeed.value?.fitnessBreakdown?.longTermMemoryFeedback || {},
+);
 const status = computed(() => report.value?.status || report.value?.candidateStatus || 'WAITING_CASE_MEMORY');
 const caseCount = computed(
   () => report.value?.caseSummary?.caseCount || props.fallbackCaseMemory?.caseCount || 0,
 );
 const gaSeedCount = computed(() => report.value?.gaSeedCount || gaSeedRows.value.length || 0);
+const tradeMemoryCount = computed(() => longTermMemory.value?.tradeMemoryCount || 0);
+const rollingStatus = computed(() => rollingReview.value?.status || 'WAITING_TRADE_MEMORY');
+const candidatePenaltyRows = computed(() => {
+  const rows = entryFeedbackPolicy.value?.candidatePenaltyRules || [];
+  return Array.isArray(rows) ? rows.slice(0, 8) : [];
+});
+const candidatePenaltyCount = computed(() => candidatePenaltyRows.value.length);
 const parityStatus = computed(() => parityGate.value?.status || report.value?.parityStatus || 'WAITING_PARITY');
 const parityReason = computed(
   () => parityGate.value?.reasonZh || report.value?.parityReasonZh || '等待 Strategy / Replay / EA 一致性结果。',
 );
 const nextAction = computed(
   () => report.value?.nextActionZh || props.fallbackCaseMemory?.caseMemoryToGA?.nextActionZh || '等待生成候选。',
+);
+const longTermNextAction = computed(
+  () => longTermMemory.value?.nextActionZh || '等待逐笔交易记忆、离场标签和滚动复盘样本。',
+);
+const rollingSummaryText = computed(() => {
+  const samples = rollingReview.value?.sampleCount || 0;
+  const winRate = metricText(rollingReview.value?.winRate);
+  const profit = metricText(rollingReview.value?.totalProfitR);
+  return `有效样本 ${samples} 笔；胜率 ${winRate}；总R ${profit}`;
+});
+const feedbackStatusText = computed(() => {
+  const statusText = entryFeedbackPolicy.value?.status || 'MEMORY_WAITING';
+  const streak = entryFeedbackPolicy.value?.lossStreak || 0;
+  return `${statusText}；连续亏损 ${streak}`;
+});
+const defenseModeText = computed(() => (defenseMode.value?.enabled ? '已开启' : '未开启'));
+const defenseReason = computed(() => defenseMode.value?.reasonZh || '样本未触发防守上限。');
+const tpSlModeText = computed(() => tpSlGuidance.value?.mode || 'KEEP_CURRENT_AND_OBSERVE');
+const tpSlActionText = computed(() => {
+  const rows = tpSlGuidance.value?.actionsZh || [];
+  return Array.isArray(rows) && rows.length ? rows[0] : '继续积累 TP/SL 复盘样本。';
+});
+const topLossPatternText = computed(() => topCounterText(rollingReview.value?.commonLossPatterns));
+const topDataGapText = computed(() => topCounterText(rollingReview.value?.commonDataGaps, '暂无数据缺口模式。'));
+const gaMemoryPenaltyText = computed(() => metricText(gaLongTermMemoryFeedback.value?.penalty));
+const gaMemoryReason = computed(
+  () => gaLongTermMemoryFeedback.value?.reasonZh || '等待 GA fitness 输出长期记忆惩罚。',
 );
 const emptyTitle = computed(() =>
   parityStatus.value === 'PARITY_FAIL' ? 'PARITY_FAIL 已阻断' : '等待候选生成',
@@ -136,5 +239,32 @@ function validationText(item) {
   if (item?.validation?.valid === false) return 'REJECTED';
   if (item?.validation?.valid === true) return 'VALIDATED';
   return 'PENDING';
+}
+
+function metricText(value) {
+  if (value === null || value === undefined || value === '') return '--';
+  const number = Number(value);
+  if (Number.isFinite(number)) return Number(number.toFixed(4)).toString();
+  return String(value);
+}
+
+function topCounterText(rows, fallback = '暂无重复亏损形态。') {
+  if (!Array.isArray(rows) || rows.length === 0) return fallback;
+  const first = rows[0] || {};
+  return `${first.name || first.trigger || 'UNKNOWN'} × ${first.count || 0}`;
+}
+
+function penaltyRuleMatchText(match) {
+  if (!match || typeof match !== 'object') return '全局记忆';
+  const parts = [];
+  if (match.symbol) parts.push(`symbol=${match.symbol}`);
+  if (match.side) parts.push(`side=${match.side}`);
+  if (match.dataGap) parts.push(`gap=${match.dataGap}`);
+  if (match.adverseFactor) parts.push(`factor=${match.adverseFactor}`);
+  return parts.length ? parts.join(' / ') : '全局记忆';
+}
+
+function penaltyRuleKey(item) {
+  return `${penaltyRuleMatchText(item?.match)}-${metricText(item?.penalty)}`;
 }
 </script>

@@ -17,10 +17,10 @@ export const DOMAIN_WORKSPACES = {
   governance: 'GovernanceWorkspace.vue',
   paramlab: 'ParamLabWorkspace.vue',
   research: 'ResearchWorkspace.vue',
-  polymarket: 'PolymarketWorkspace.vue',
+  'hfm-crypto': 'HfmCryptoWorkspace.vue',
 };
 
-const ACTIVE_NAVIGATION_WORKSPACES = ['dashboard', 'mt5', 'evolution', 'polymarket'];
+const ACTIVE_NAVIGATION_WORKSPACES = ['dashboard', 'mt5', 'evolution', 'hfm-crypto'];
 const ARCHIVED_TOOL_WORKSPACES = ['governance', 'paramlab', 'research'];
 
 function existsAsFile(filePath) {
@@ -78,7 +78,11 @@ function checkRegistry(root) {
     if (!registry.includes(`../workspaces/${key}/${entry}`)) {
       errors.push(`${rel(root, registryPath)}: missing ${key} import from src/workspaces/${key}`);
     }
-    if (!registry.includes(`${key}:`)) {
+    const hasComponentKey =
+      registry.includes(`${key}:`) ||
+      registry.includes(`'${key}':`) ||
+      registry.includes(`"${key}":`);
+    if (!hasComponentKey) {
       errors.push(`${rel(root, registryPath)}: WORKSPACE_COMPONENTS missing ${key}`);
     }
   }
@@ -120,7 +124,7 @@ function checkDomainApi(root) {
     'loadGovernanceWorkspace',
     'loadParamLabWorkspace',
     'loadResearchWorkspace',
-    'loadPolymarketWorkspace',
+    'loadHfmCryptoWorkspace',
   ]) {
     if (!service.includes(`function ${name}`)) {
       errors.push(`${rel(root, servicePath)}: missing ${name}`);
@@ -129,6 +133,21 @@ function checkDomainApi(root) {
   const forbiddenLocalRuntimeReads = service.match(/['"]\/QuantGod_[^'"]+\.(json|csv)['"]/gi) || [];
   for (const match of forbiddenLocalRuntimeReads) {
     errors.push(`${rel(root, servicePath)}: forbidden local runtime file read ${match}; use /api/*`);
+  }
+  const dashboardStart = service.indexOf('function loadDashboardWorkspace');
+  const mt5Start = service.indexOf('function loadMt5Workspace');
+  if (dashboardStart >= 0 && mt5Start > dashboardStart) {
+    const dashboardBody = service.slice(dashboardStart, mt5Start);
+    const usesCompactHfmCrypto =
+      dashboardBody.includes('/api/hfm-crypto/status?view=summary') ||
+      (dashboardBody.includes('scopedHfmCryptoPath') &&
+        dashboardBody.includes('/api/hfm-crypto/status') &&
+        dashboardBody.includes("view: 'summary'"));
+    if (dashboardBody.includes('/api/hfm-crypto/status') && !usesCompactHfmCrypto) {
+      errors.push(
+        `${rel(root, servicePath)}: dashboard HFM crypto load must use compact /api/hfm-crypto/status?view=summary`,
+      );
+    }
   }
   return errors;
 }

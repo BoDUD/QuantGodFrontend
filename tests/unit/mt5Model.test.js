@@ -258,6 +258,56 @@ describe('mt5Model ledgers', () => {
     expect(usdItems.find((item) => item.hint === '美分账户用于小仓收集真实执行样本。')).toBeUndefined();
   });
 
+  it('marks MT5 account cards stale when the latest dashboard snapshot is expired', () => {
+    const snapshot = normalizeMt5Snapshot({
+      latest: {
+        _freshness: {
+          status: 'STALE_DASHBOARD_SNAPSHOT',
+          statusZh: 'MT5 dashboard 快照已过期',
+          stale: true,
+          fresh: false,
+          ageSeconds: 7103.2,
+          maxAgeSeconds: 1800,
+          nextActionZh: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+        },
+      },
+      account: {
+        account: {
+          login: '186054398',
+          server: 'HFMarketsGlobal-Live12',
+          currency: 'USC',
+          executionEnabled: true,
+          livePilotMode: true,
+          tradeAllowed: true,
+        },
+      },
+      secondaryAccount: {
+        account: {
+          login: '198135388',
+          server: 'HFMarketsGlobal-Live16',
+          currency: 'USD',
+          executionEnabled: true,
+          livePilotMode: true,
+          tradeAllowed: true,
+        },
+      },
+    });
+
+    const centItems = buildMt5AccountCards(snapshot)[0].items;
+
+    expect(snapshot.latestDashboardStale).toBe(true);
+    expect(centItems.find((item) => item.label === 'EA 自动交易')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+      hint: 'MT5 dashboard 快照已过期',
+    });
+    expect(centItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
+      value: '过期',
+      status: 'warn',
+      hint: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+    });
+  });
+
   it('shows manual non-USDJPY live positions in the realtime positions table', () => {
     const snapshot = normalizeMt5Snapshot({
       positions: {

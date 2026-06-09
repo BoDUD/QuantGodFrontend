@@ -20,14 +20,13 @@ function makeRepo(overrides = {}) {
   write('src/stores/workspaceStore.js', "export const DEFAULT_WORKSPACE = 'dashboard';\n");
   write('src/app/navigation.js', "export const defaultWorkspace = 'dashboard';\n");
   write('src/app/workspaceRegistry.js', "export default { dashboard: {} };\n");
-  write('archive/legacy-workbench/LegacyWorkbenchFull.vue', `${'<template>LegacyWorkbench</template>\n'.repeat(1200)}`);
   for (const rel of [
     'src/workspaces/dashboard/DashboardWorkspace.vue',
     'src/workspaces/mt5/Mt5Workspace.vue',
     'src/workspaces/governance/GovernanceWorkspace.vue',
     'src/workspaces/paramlab/ParamLabWorkspace.vue',
     'src/workspaces/research/ResearchWorkspace.vue',
-    'src/workspaces/polymarket/PolymarketWorkspace.vue',
+    'src/workspaces/hfm-crypto/HfmCryptoWorkspace.vue',
     'src/workspaces/phase1/Phase1Workspace.vue',
     'src/workspaces/phase2/Phase2OperationsWorkspace.vue',
     'src/workspaces/phase3/Phase3Workspace.vue',
@@ -44,7 +43,7 @@ function runGuard(dir) {
   });
 }
 
-test('accepts archive-only legacy source with migrated workspaces', () => {
+test('accepts fully removed legacy source with migrated workspaces', () => {
   const dir = makeRepo();
   const result = runGuard(dir);
   assert.equal(result.status, 0, result.stderr);
@@ -62,6 +61,15 @@ test('rejects legacy source still under src workspaces', () => {
   const result = runGuard(dir);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /src\/workspaces\/legacy must be removed/);
+});
+
+test('rejects archived legacy source after full removal', () => {
+  const dir = makeRepo({
+    'archive/legacy-workbench/LegacyWorkbenchFull.vue': `${'<template>LegacyWorkbench</template>\n'.repeat(1200)}`,
+  });
+  const result = runGuard(dir);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must be removed/);
 });
 
 test('rejects direct imports of LegacyWorkbench from active workspaces', () => {

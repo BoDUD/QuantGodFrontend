@@ -1,5 +1,7 @@
-import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import process from 'node:process';
+
+const failures = [];
 
 const files = [
   'src/components/ExecutionFeedbackCoverageCard.vue',
@@ -7,20 +9,57 @@ const files = [
   'src/services/productionEvidenceApi.js',
 ];
 
-for (const file of files) {
-  const text = readFileSync(file, 'utf8');
+function fail(message) {
+  failures.push(message);
+}
+
+function assertCondition(condition, message) {
+  if (!condition) fail(message);
+}
+
+function readSource(file) {
+  return readFileSync(file, 'utf8');
+}
+
+function assertReadableSource(file, text) {
   const lines = text.split(/\r?\n/);
-  assert.ok(lines.length >= 10, `${file} should be readable multi-line source`);
-  assert.equal(/QuantGod_.*\.(json|csv|jsonl)/.test(text), false, `${file} must not read runtime files directly`);
-  assert.equal(/OrderSend|PositionClose|TRADE_ACTION_DEAL/.test(text), false, `${file} contains trading token`);
+  assertCondition(lines.length >= 10, `${file} should be readable multi-line source`);
 }
 
-const card = readFileSync('src/components/ExecutionFeedbackCoverageCard.vue', 'utf8');
+function assertNoRuntimeReads(file, text) {
+  assertCondition(!/QuantGod_.*\.(json|csv|jsonl)/.test(text), `${file} must not read runtime files directly`);
+}
+
+function assertNoTradingTokens(file, text) {
+  assertCondition(!/OrderSend|PositionClose|TRADE_ACTION_DEAL/.test(text), `${file} contains trading token`);
+}
+
+function assertContainsMarker(file, text, marker) {
+  assertCondition(text.includes(marker), `${file} missing execution feedback coverage marker ${marker}`);
+}
+
+for (const file of files) {
+  const text = readSource(file);
+  assertReadableSource(file, text);
+  assertNoRuntimeReads(file, text);
+  assertNoTradingTokens(file, text);
+}
+
+const card = readSource('src/components/ExecutionFeedbackCoverageCard.vue');
 for (const marker of ['执行反馈样本覆盖率', 'coverageGrade', 'fieldCoverage', 'coreCoverage', 'numericSummary']) {
-  assert.ok(card.includes(marker), `missing execution feedback coverage marker ${marker}`);
+  assertContainsMarker('src/components/ExecutionFeedbackCoverageCard.vue', card, marker);
 }
 
-const panel = readFileSync('src/components/USDJPYEvolutionPanel.vue', 'utf8');
-assert.ok(panel.includes('ExecutionFeedbackCoverageCard'), 'Evolution panel should show execution feedback coverage');
+const panel = readSource('src/components/USDJPYEvolutionPanel.vue');
+assertCondition(
+  panel.includes('ExecutionFeedbackCoverageCard'),
+  'Evolution panel should show execution feedback coverage',
+);
+
+if (failures.length > 0) {
+  console.error('frontend execution feedback coverage guard failed:');
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
 
 console.log('frontend execution feedback coverage guard OK');

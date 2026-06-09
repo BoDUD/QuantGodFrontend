@@ -13,7 +13,7 @@ function makeRepo() {
   mkdirSync(path.join(root, 'scripts'), { recursive: true });
   mkdirSync(path.join(root, 'tests'), { recursive: true });
   mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
-  mkdirSync(path.join(root, 'src', 'workspaces', 'legacy'), { recursive: true });
+  mkdirSync(path.join(root, 'src'), { recursive: true });
   cpSync(guardSource, path.join(root, 'scripts', 'frontend_lf_integrity_guard.mjs'));
   return root;
 }
@@ -77,8 +77,6 @@ function writeBaseline(root) {
     ].join('\n'),
   );
   writeFileSync(path.join(root, 'src/App.vue'), '<template>\n  <AppShell />\n</template>\n<script setup>\nimport AppShell from \'./app/AppShell.vue\';\n</script>\n');
-  mkdirSync(path.join(root, 'archive/legacy-workbench'), { recursive: true });
-  writeFileSync(path.join(root, 'archive/legacy-workbench/LegacyWorkbenchFull.vue'), `${'<template>LegacyWorkbench</template>\n'.repeat(1000)}`);
 }
 
 test('rejects CR-only hashbang files that would become Node no-op scripts', () => {

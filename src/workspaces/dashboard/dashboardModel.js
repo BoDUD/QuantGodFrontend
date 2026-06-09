@@ -87,6 +87,19 @@ function present(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function latestFreshness(raw = {}) {
+  const freshness = raw?.latest?._freshness || raw?._freshness || {};
+  if (!isObject(freshness)) return {};
+  return freshness;
+}
+
+function latestFreshnessLine(freshness = {}) {
+  if (!present(freshness)) return '';
+  const ageSeconds = Number(freshness.ageSeconds);
+  const ageText = Number.isFinite(ageSeconds) ? `${Math.round(ageSeconds)}s` : '未知时长';
+  return freshness.statusZh || (freshness.stale ? `MT5 dashboard 已过期 ${ageText}` : 'MT5 dashboard 新鲜');
+}
+
 function boolStatus(value, truthyLabel = 'active', falseLabel = 'inactive') {
   if (value === true || value === 'true' || value === '1' || value === 1 || value === 'ACTIVE')
     return truthyLabel;
@@ -97,6 +110,10 @@ function boolStatus(value, truthyLabel = 'active', falseLabel = 'inactive') {
 
 function formatCompact(value) {
   return formatDisplayValue(value);
+}
+
+function boolText(value) {
+  return value ? '是' : '否';
 }
 
 function numberValue(value, fallback = 0) {
@@ -141,7 +158,7 @@ function topicLabel(topic) {
     DAILY_AUTOPILOT_V2_REPORT: '日报',
     GA_EVOLUTION_REPORT: 'GA',
     USDJPY_AUTONOMOUS_AGENT_REPORT: 'Agent',
-    POLYMARKET_RETUNE_REPORT: 'Polymarket',
+    HFM_CRYPTO_CFD_REPORT: 'HFM Crypto',
   };
   return mapping[topic] || String(topic || '未知');
 }
@@ -295,10 +312,393 @@ function mt5Positions(raw) {
   return rowsFromObjectList(raw?.mt5Snapshot?.positions);
 }
 
-function polymarketRows(raw) {
-  const radarRows = rowsFromObjectList(raw?.polyRadar?.radar || raw?.polyRadar);
-  if (radarRows.length) return radarRows;
-  return rowsFromObjectList(raw?.polyMarkets?.marketCatalog || raw?.polyMarkets?.markets || raw?.polyMarkets);
+function hfmCryptoRows(raw) {
+  const hfmCrypto = raw?.hfmCrypto || {};
+  const findings = rowsFromObjectList(raw?.hfmCrypto?.localEvidence?.findings);
+  if (findings.length) return findings;
+  const candidates = rowsFromObjectList(raw?.hfmCrypto?.brokerSymbolCandidates);
+  if (candidates.length) return candidates;
+  const diagnostics = hfmCryptoDiagnostics(raw);
+  if (!present(diagnostics)) return [];
+  return [
+    {
+      code: hfmCrypto.blockers?.[0]?.code || hfmCrypto.status || 'HFM_CRYPTO_ACCOUNT_SCAN',
+      status: hfmCrypto.statusZh || hfmCrypto.status || '账号 symbol 探测',
+      reasonZh:
+        hfmCrypto.blockers?.[0]?.reasonZh ||
+        hfmCrypto.nextRequiredActionZh ||
+        '等待 HFM crypto CFD symbol 证据。',
+      brokerSymbolTotalAll: diagnostics.brokerSymbolTotalAll ?? 0,
+      brokerSymbolTotalMarketWatch: diagnostics.brokerSymbolTotalMarketWatch ?? 0,
+      brokerCryptoLikeCountAll: diagnostics.brokerCryptoLikeCountAll ?? 0,
+      brokerCryptoLikeCountMarketWatch: diagnostics.brokerCryptoLikeCountMarketWatch ?? 0,
+      compactView: Boolean(hfmCrypto.compactView),
+    },
+  ];
+}
+
+function hfmCryptoDiagnostics(raw) {
+  const hfmCrypto = raw?.hfmCrypto || {};
+  return (
+    hfmCrypto?.symbolEvidence?.brokerSymbolDiagnostics ||
+    hfmCrypto?.brokerSymbolDiagnostics ||
+    hfmCrypto?.localEvidence?.brokerSymbolDiagnostics ||
+    {}
+  );
+}
+
+function hfmCryptoCountLine(diagnostics = {}) {
+  const total = numberValue(diagnostics.brokerSymbolTotalAll, null);
+  const marketWatch = numberValue(diagnostics.brokerSymbolTotalMarketWatch, null);
+  const cryptoLike = numberValue(diagnostics.brokerCryptoLikeCountAll, null);
+  if (total === null && cryptoLike === null) return '';
+  return `${cryptoLike ?? 0} crypto / ${total ?? 0} broker / ${marketWatch ?? 0} Market Watch`;
+}
+
+function hfmCryptoRuntimeProbeLine(raw = {}) {
+  const bundle = raw?.hfmCrypto?.standaloneExporterBundle || {};
+  if (!present(bundle)) return '';
+  if (bundle.runtimeProbeTickDetected) return `${bundle.startupSymbol || '#BTCUSD'} runtime probe 已输出实时 tick`;
+  if (bundle.runtimeProbeMissingAfterSpecs) {
+    const symbol = bundle.startupSymbol || '#BTCUSD';
+    const status = bundle.statusZh || bundle.status || '等待 runtime probe';
+    const reason = bundle.targetExpertInstalledMatchesBundle === false ? '当前 MT5 Experts 里的 exporter EA 不是最新版' : status;
+    return `${symbol} runtime probe 缺失：${reason}`;
+  }
+  return bundle.statusZh || bundle.status || '';
+}
+
+function profitTargetPayload(raw = {}) {
+  return raw?.profitTarget || {};
+}
+
+function liveExecutionReviewPayload(raw = {}) {
+  return profitTargetPayload(raw)?.liveExecutionReview || {};
+}
+
+function simToLiveDecisionPayload(raw = {}) {
+  return profitTargetPayload(raw)?.simToLiveDecision || {};
+}
+
+function authorizationVsExecutionPayload(raw = {}) {
+  return simToLiveDecisionPayload(raw)?.authorizationVsExecution || {};
+}
+
+function liveAutomationOrchestratorPayload(raw = {}) {
+  return raw?.liveAutomationOrchestrator || raw?.simToLiveOrchestrator || {};
+}
+
+function liveAutomationReleaseReadinessPayload(raw = {}) {
+  return raw?.liveAutomationReleaseReadiness || raw?.releaseReadinessRefresh || {};
+}
+
+function releaseTokenEvidencePayload(raw = {}) {
+  return raw?.releaseTokenEvidenceReview || {};
+}
+
+function releaseTokenSignoffDraftPayload(raw = {}) {
+  return raw?.releaseTokenSignoffDraft || {};
+}
+
+function releaseTokenSignoffInputTemplatePayload(raw = {}) {
+  return raw?.releaseTokenSignoffInputTemplate || {};
+}
+
+function releaseTokenSignoffInputReviewPayload(raw = {}) {
+  return raw?.releaseTokenSignoffInputReview || {};
+}
+
+function releaseTokenSignoffHandoffPayload(raw = {}) {
+  return raw?.releaseTokenSignoffHandoff || {};
+}
+
+function liveExecutionLaneSelectorPayload(raw = {}) {
+  return raw?.liveExecutionLaneSelector || raw?.laneSelector || {};
+}
+
+function forexLive12RuntimeHandoffPayload(raw = {}) {
+  return raw?.forexLive12RuntimeHandoff || {};
+}
+
+function forexLive12CapacityExpansionReviewPayload(raw = {}) {
+  return raw?.forexLive12CapacityExpansionReview || {};
+}
+
+function forexLive12CapacityExpansionRoadmapPayload(raw = {}) {
+  return raw?.forexLive12CapacityExpansionRoadmap || {};
+}
+
+function forexLive12MicroExpansionReviewPayload(raw = {}) {
+  return raw?.forexLive12MicroExpansionReview || {};
+}
+
+function forexLive12RsiRepairPlanPayload(raw = {}) {
+  return raw?.forexLive12RsiRepairPlan || {};
+}
+
+function forexLive12RsiShadowCandidatePayload(raw = {}) {
+  return raw?.forexLive12RsiShadowCandidate || {};
+}
+
+function forexLive12RsiTesterRequestPayload(raw = {}) {
+  return raw?.forexLive12RsiTesterRequest || {};
+}
+
+function profitTargetLane(raw = {}, laneId) {
+  return profitTargetPayload(raw)?.laneTargets?.[laneId] || {};
+}
+
+function formatUsdShort(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '—';
+  return numeric.toFixed(2);
+}
+
+function profitTargetLine(raw = {}) {
+  const forex = profitTargetLane(raw, 'forexMt5');
+  const btc = profitTargetLane(raw, 'btcCryptoCfd');
+  if (!present(forex) && !present(btc)) return '';
+  return `外币 ${formatUsdShort(forex.simulationVerifiedUsdProfit)} / BTC ${formatUsdShort(
+    btc.simulationVerifiedUsdProfit,
+  )} USD`;
+}
+
+function profitTargetStatusLabel(raw = {}) {
+  const payload = profitTargetPayload(raw);
+  if (!present(payload)) return '等待合计 50 USD 目标证据';
+  if (payload.executionTargetReached || payload.dualTargetReached) return '收益目标已达成';
+  return payload.statusZh || payload.status || '等待所有模拟目标';
+}
+
+function profitTargetUiStatus(raw = {}) {
+  const payload = profitTargetPayload(raw);
+  if (payload.executionTargetReached || payload.dualTargetReached) return 'ok';
+  if (payload.status === 'TARGET_REACHED') return 'ok';
+  if (payload.blockers?.length) return 'warn';
+  return present(payload) ? 'warn' : 'blocked';
+}
+
+function profitTargetRows(raw = {}) {
+  const payload = profitTargetPayload(raw);
+  if (!present(payload)) return [];
+  const lanes = payload.laneTargets || {};
+  return Object.entries(lanes).map(([laneId, lane]) => ({
+    laneId,
+    labelZh: lane.labelZh || laneId,
+    status: lane.status || payload.status || 'WAITING',
+    statusZh: lane.statusZh || payload.statusZh || '等待目标',
+    simulationVerifiedUsdProfit: numberValue(lane.simulationVerifiedUsdProfit, 0),
+    targetUsd: numberValue(lane.targetUsd ?? payload.target?.targetUsd, 50),
+    targetReached: Boolean(lane.targetReached),
+  }));
+}
+
+function activationGateRows(raw = {}) {
+  const decision = simToLiveDecisionPayload(raw);
+  const checklist = decision.activationGateChecklist || decision.executionActivationGateChecklist;
+  return rowsFromObjectList(checklist).map((row) => ({
+    闸门: row.field || '执行闸门',
+    层级: row.layer || '—',
+    当前: boolText(Boolean(row.current)),
+    期望: boolText(Boolean(row.expected)),
+    通过: boolText(Boolean(row.passed)),
+    阻塞码: row.blockerCode || '—',
+    原因: row.reasonZh || row.reason || '—',
+    细节: row.detailZh || row.reasonZh || row.reason || '—',
+  }));
+}
+
+function releaseGateSummary(raw = {}) {
+  const tokenEvidence = releaseTokenEvidencePayload(raw);
+  const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
+  const orchestrator = liveAutomationOrchestratorPayload(raw);
+  const decision = simToLiveDecisionPayload(raw);
+  return tokenEvidence.executionReleaseGateSummary || releaseReadiness.executionReleaseGateSummary || orchestrator.executionReleaseGateSummary || decision.executionReleaseGateSummary || {};
+}
+
+function releaseGateRows(raw = {}) {
+  const tokenEvidence = releaseTokenEvidencePayload(raw);
+  const signoffRowsByGate = Object.fromEntries(
+    rowsFromObjectList(tokenEvidence.manualReleaseReviewRows).map((row) => [row.gateId, row]),
+  );
+  const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
+  const orchestrator = liveAutomationOrchestratorPayload(raw);
+  const decision = simToLiveDecisionPayload(raw);
+  const checklist =
+    tokenEvidence.evidenceRows ||
+    releaseReadiness.executionReleaseGateChecklist ||
+    orchestrator.executionReleaseGateChecklist ||
+    decision.executionReleaseGateChecklist;
+  return rowsFromObjectList(checklist).map((row) => ({
+    闸门: row.labelZh || row.gateId || 'Release Token',
+    副作用: row.sideEffectZh || '—',
+    数据面: boolText(Boolean(row.dataPlaneReady)),
+    ReleaseToken: row.tokenRequired === false ? '不需要' : boolText(Boolean(row.tokenProvided)),
+    证据完成: row.evidenceComplete === undefined ? '—' : boolText(Boolean(row.evidenceComplete)),
+    无副作用证据: row.noSideEffectEvidenceComplete === undefined ? '—' : boolText(Boolean(row.noSideEffectEvidenceComplete)),
+    签收评审: signoffRowsByGate[row.gateId]?.statusZh || '—',
+    阻塞码: row.tokenRequired === false || row.tokenProvided ? '—' : row.blockerCode || '—',
+  }));
+}
+
+function releaseReadinessPacket(raw = {}) {
+  const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
+  const orchestrator = liveAutomationOrchestratorPayload(raw);
+  const decision = simToLiveDecisionPayload(raw);
+  return (
+    releaseReadiness.executionReleaseReadinessPacket ||
+    orchestrator.executionReleaseReadinessPacket ||
+    decision.executionReleaseReadinessPacket ||
+    {}
+  );
+}
+
+function releaseTokenEvidenceProgressLine(payload = {}) {
+  if (!present(payload)) return '';
+  const total = Number(payload.releaseTokenCount);
+  if (!Number.isFinite(total) || total <= 0) return payload.statusZh || payload.status || '';
+  const evidenceDone = Number(payload.noSideEffectEvidenceCompleteCount ?? payload.evidenceCompleteCount ?? 0);
+  const tokenDone = Number(payload.tokenProvidedCount ?? 0);
+  const missing = Number(payload.tokenMissingCount ?? Math.max(total - tokenDone, 0));
+  return `无副作用证据 ${evidenceDone}/${total} / Token ${tokenDone}/${total} / 缺 ${missing}`;
+}
+
+function releaseTokenSignoffDraftProgressLine(payload = {}) {
+  if (!present(payload)) return '';
+  const total = Number(payload.releaseTokenCount);
+  const ready = Number(payload.readyForSeparateSignoffCount ?? 0);
+  if (!Number.isFinite(total) || total <= 0) return payload.statusZh || payload.status || '';
+  return `签收草案 ${ready}/${total} / 不能在此签收`;
+}
+
+function releaseTokenSignoffInputTemplateProgressLine(payload = {}) {
+  if (!present(payload)) return '';
+  const total = Number(payload.releaseTokenCount);
+  const ready = Number(payload.readyForInputCount ?? 0);
+  if (!Number.isFinite(total) || total <= 0) return payload.statusZh || payload.status || '';
+  return `签收模板 ${ready}/${total} / 等待外部填写`;
+}
+
+function releaseTokenSignoffInputProgressLine(payload = {}) {
+  if (!present(payload)) return '';
+  const total = Number(payload.releaseTokenCount);
+  const complete = Number(payload.completeSignoffCount ?? 0);
+  if (!Number.isFinite(total) || total <= 0) return payload.statusZh || payload.status || '';
+  return `签收输入 ${complete}/${total} / 当前仍不放行`;
+}
+
+function releaseTokenSignoffHandoffProgressLine(payload = {}) {
+  if (!present(payload)) return '';
+  const total = Number(payload.releaseTokenCount);
+  const complete = Number(payload.completeSignoffCount ?? 0);
+  const missing = Number(payload.missingSignoffCount ?? Math.max(total - complete, 0));
+  if (!Number.isFinite(total) || total <= 0) return payload.statusZh || payload.status || '';
+  return `签收交接 ${complete}/${total} / 缺 ${missing} / 当前仍不放行`;
+}
+
+function codeListLine(codes = []) {
+  const rows = toArray(codes).filter((code) => code !== undefined && code !== null && code !== '');
+  if (!rows.length) return '';
+  if (rows.length <= 3) return rows.join(' / ');
+  return `${rows.slice(0, 3).join(' / ')} +${rows.length - 3}`;
+}
+
+function primaryExecutionBlocker(raw = {}) {
+  const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
+  const decision = simToLiveDecisionPayload(raw);
+  const review = liveExecutionReviewPayload(raw);
+  return (
+    releaseReadiness.primaryActionableBlocker ||
+    toArray(releaseReadiness.fileEvidenceBlockers)[0] ||
+    toArray(releaseReadiness.executionModeFileEvidence?.blockingEvidence)[0] ||
+    decision.primaryActionableBlocker ||
+    review.primaryActionableBlocker ||
+    toArray(decision.fileEvidenceBlockers)[0] ||
+    toArray(review.fileEvidenceBlockers)[0] ||
+    toArray(decision.executionModeBlockers)[0] ||
+    toArray(review.runtimePreflightExecutionModeBlockers)[0] ||
+    (Array.isArray(review.blockers)
+      ? review.blockers.find((row) => String(row?.code || '').startsWith('MT5_SYMBOL_')) || review.blockers[0]
+      : null)
+  );
+}
+
+function liveExecutionBlockerLine(raw = {}) {
+  const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
+  const decision = simToLiveDecisionPayload(raw);
+  const authorization = authorizationVsExecutionPayload(raw);
+  const review = liveExecutionReviewPayload(raw);
+  if (!present(review) && !present(decision) && !present(releaseReadiness)) return '';
+  const intent = review.dryRunIntent || decision.dryRunIntent || {};
+  const symbol = intent.brokerSymbol || intent.canonicalSymbol || 'BTCUSD';
+  if (review.runtimeProbePassed || decision.runtimeProbePassed) return `${symbol} 运行时预检已通过`;
+  const blocker = primaryExecutionBlocker(raw);
+  const blockerReason = blocker?.reasonZh || blocker?.reason || '';
+  if (present(releaseReadiness) && releaseReadiness.canReleaseExecutionNow === false) {
+    const status = String(
+      releaseReadiness.statusZh ||
+        releaseReadiness.executionReleaseReadinessPacket?.statusZh ||
+        '收益达标后仍未释放真实执行',
+    ).replace(/[。；;]+$/u, '');
+    return blockerReason ? `${symbol}：${status}；当前主 blocker：${blockerReason}` : `${symbol}：${status}`;
+  }
+  if (
+    decision.dataPlaneReady &&
+    decision.executionModeOnlyBlocked
+  ) {
+    const status = String(
+      authorization.whyNotLiveNowZh || decision.statusZh || '模拟目标已达成，等待执行模式闸门',
+    ).replace(/[。；;]+$/u, '');
+    return blockerReason ? `${symbol}：${status}；当前主 blocker：${blockerReason}` : `${symbol}：${status}`;
+  }
+  if (review.runtimePreflightDataPlaneReadyForReview && review.runtimePreflightExecutionModeOnlyBlocked) {
+    const status = review.statusZh || '数据面已通过，等待执行模式闸门';
+    return blockerReason ? `${symbol}：${status}；当前主 blocker：${blockerReason}` : `${symbol}：${status}`;
+  }
+  const reason =
+    blockerReason ||
+    decision.nextRequiredActionZh ||
+    decision.statusZh ||
+    review.summaryZh ||
+    review.statusZh ||
+    review.status;
+  return reason ? `${symbol}：${reason}` : '';
+}
+
+function profitExecutionConclusionLine(raw = {}) {
+  const targetReached = Boolean(
+    profitTargetPayload(raw)?.executionTargetReached || profitTargetPayload(raw)?.dualTargetReached,
+  );
+  const blockerLine = liveExecutionBlockerLine(raw);
+  if (targetReached && blockerLine) return `收益已达标，但执行未释放：${blockerLine}`;
+  if (targetReached) return '收益已达标，等待 execution release gate';
+  return blockerLine;
+}
+
+function selectedExecutionLaneLine(raw = {}) {
+  const selector = liveExecutionLaneSelectorPayload(raw);
+  if (!present(selector)) return '';
+  const selectedLaneId = selector.selectedLaneId || '';
+  const selectedLane = toArray(selector.lanes).find((lane) => lane?.laneId === selectedLaneId) || {};
+  const noEntry = selectedLane.noEntryDiagnostics || {};
+  const guards = noEntry.guards || {};
+  const rsi = noEntry.rsi || {};
+  const blocker = selector.selectedLanePrimaryBlocker || {};
+  const reason = blocker.reasonZh || blocker.reason || selector.selectedLaneNearestSafeActionZh || '';
+  const label = selector.selectedLaneLabelZh || selector.selectedLaneId || '最接近车道';
+  const details = [];
+  if (guards.spreadAllowed === false) {
+    const spread = guards.spreadPips ?? '—';
+    const maxSpread = guards.maxSpreadPips ?? guards.hardMaxSpreadPips ?? '—';
+    details.push(`点差 ${spread}/${maxSpread}`);
+  }
+  if (rsi.evalCode && rsi.evalCode !== 'NONE') {
+    const direction = rsi.signalDirection && rsi.signalDirection !== 'NONE' ? ` ${rsi.signalDirection}` : '';
+    details.push(`RSI ${rsi.evalCode}${direction}`);
+  }
+  const detailLine = details.join('；');
+  if (reason && detailLine) return `${label}：${reason}；${detailLine}`;
+  return reason ? `${label}：${reason}` : label;
 }
 
 function chooseRoutes(raw) {
@@ -329,6 +729,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
   const killSwitch = firstValue(raw, PATH_SETS.killSwitch, null);
   const dryRun = firstValue(raw, PATH_SETS.dryRun, null);
   const activeRoute = firstValue(raw, PATH_SETS.activeRoute, '—');
+  const dashboardFreshness = latestFreshness(raw);
   return {
     runtimeState,
     updatedAt: firstValue(raw, PATH_SETS.updatedAt, '—'),
@@ -341,13 +742,59 @@ export function normalizeDashboardSnapshot(raw = {}) {
     backtestAvailable: present(raw.backtest),
     dailyReviewAvailable: present(raw.dailyReview) && reviewFresh,
     dailyAutopilotAvailable: present(raw.dailyAutopilot),
+    latestFreshness: dashboardFreshness,
+    latestFreshnessLine: latestFreshnessLine(dashboardFreshness),
+    latestDashboardFresh: dashboardFreshness.fresh !== false,
+    latestDashboardStale: dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT',
     routes: chooseRoutes(raw),
     account: latestAccount(raw),
     positions: mt5Positions(raw),
     dailySummary: dailySummary(raw),
     dailyPnlEvidence: dailyPnl(raw),
     historyProductionStatus: historyProductionStatus(raw),
-    polymarketRows: polymarketRows(raw),
+    hfmCryptoRows: hfmCryptoRows(raw),
+    hfmCryptoStatus: raw?.hfmCrypto?.status || '',
+    hfmCryptoStatusZh: raw?.hfmCrypto?.statusZh || '',
+    hfmCryptoDiagnostics: hfmCryptoDiagnostics(raw),
+    hfmCryptoRuntimeProbeLine: hfmCryptoRuntimeProbeLine(raw),
+    profitTarget: profitTargetPayload(raw),
+    profitTargetRows: profitTargetRows(raw),
+    profitTargetLine: profitTargetLine(raw),
+    profitTargetStatusLabel: profitTargetStatusLabel(raw),
+    profitTargetStatus: profitTargetUiStatus(raw),
+    dualTargetReached: Boolean(
+      profitTargetPayload(raw)?.executionTargetReached || profitTargetPayload(raw)?.dualTargetReached,
+    ),
+    liveCutoverGate: profitTargetPayload(raw)?.liveCutoverGate || {},
+    liveExecutionReview: liveExecutionReviewPayload(raw),
+    simToLiveDecision: simToLiveDecisionPayload(raw),
+    authorizationVsExecution: authorizationVsExecutionPayload(raw),
+    activationGateRows: activationGateRows(raw),
+    liveAutomationOrchestrator: liveAutomationOrchestratorPayload(raw),
+    liveExecutionLaneSelector: liveExecutionLaneSelectorPayload(raw),
+    releaseTokenEvidenceReview: releaseTokenEvidencePayload(raw),
+    releaseTokenEvidenceProgressLine: releaseTokenEvidenceProgressLine(releaseTokenEvidencePayload(raw)),
+    releaseTokenSignoffDraft: releaseTokenSignoffDraftPayload(raw),
+    releaseTokenSignoffDraftProgressLine: releaseTokenSignoffDraftProgressLine(releaseTokenSignoffDraftPayload(raw)),
+    releaseTokenSignoffInputTemplate: releaseTokenSignoffInputTemplatePayload(raw),
+    releaseTokenSignoffInputTemplateProgressLine: releaseTokenSignoffInputTemplateProgressLine(releaseTokenSignoffInputTemplatePayload(raw)),
+    releaseTokenSignoffInputReview: releaseTokenSignoffInputReviewPayload(raw),
+    releaseTokenSignoffInputProgressLine: releaseTokenSignoffInputProgressLine(releaseTokenSignoffInputReviewPayload(raw)),
+    releaseTokenSignoffHandoff: releaseTokenSignoffHandoffPayload(raw),
+    releaseTokenSignoffHandoffProgressLine: releaseTokenSignoffHandoffProgressLine(releaseTokenSignoffHandoffPayload(raw)),
+    selectedExecutionLaneLine: selectedExecutionLaneLine(raw),
+    forexLive12RuntimeHandoff: forexLive12RuntimeHandoffPayload(raw),
+    forexLive12CapacityExpansionReview: forexLive12CapacityExpansionReviewPayload(raw),
+    forexLive12CapacityExpansionRoadmap: forexLive12CapacityExpansionRoadmapPayload(raw),
+    forexLive12MicroExpansionReview: forexLive12MicroExpansionReviewPayload(raw),
+    forexLive12RsiRepairPlan: forexLive12RsiRepairPlanPayload(raw),
+    forexLive12RsiShadowCandidate: forexLive12RsiShadowCandidatePayload(raw),
+    forexLive12RsiTesterRequest: forexLive12RsiTesterRequestPayload(raw),
+    executionReleaseGateSummary: releaseGateSummary(raw),
+    executionReleaseGateRows: releaseGateRows(raw),
+    executionReleaseReadinessPacket: releaseReadinessPacket(raw),
+    liveExecutionBlockerLine: liveExecutionBlockerLine(raw),
+    profitExecutionConclusionLine: profitExecutionConclusionLine(raw),
     autopilotStatus: raw?.dailyAutopilot?.status || '—',
   };
 }
@@ -356,7 +803,16 @@ export function buildDashboardMetrics(snapshot) {
   const currency = snapshot.account?.currency || 'USC';
   const balance = numberValue(snapshot.account?.balance ?? snapshot.account?.equity, null);
   const equity = numberValue(snapshot.account?.equity, null);
-  const polyCount = snapshot.polymarketRows?.length || 0;
+  const hfmCryptoCount = snapshot.hfmCryptoRows?.length || 0;
+  const hfmCryptoDiagnosticLine = hfmCryptoCountLine(snapshot.hfmCryptoDiagnostics);
+  const hfmCryptoLikeCount = numberValue(snapshot.hfmCryptoDiagnostics?.brokerCryptoLikeCountAll, null);
+  const forexLive12Handoff = snapshot.forexLive12RuntimeHandoff || {};
+  const forexCapacityReview = snapshot.forexLive12CapacityExpansionReview || {};
+  const forexCapacityRoadmap = snapshot.forexLive12CapacityExpansionRoadmap || {};
+  const forexMicroReview = snapshot.forexLive12MicroExpansionReview || {};
+  const forexRsiRepair = snapshot.forexLive12RsiRepairPlan || {};
+  const forexRsiCandidate = snapshot.forexLive12RsiShadowCandidate || {};
+  const forexRsiTester = snapshot.forexLive12RsiTesterRequest || {};
   return [
     {
       label: '账户净值',
@@ -368,6 +824,14 @@ export function buildDashboardMetrics(snapshot) {
       value: balance === null ? '—' : formatMoney(balance, currency),
       hint: snapshot.account?.number || snapshot.account?.login || '实时快照',
     },
+    {
+      label: 'MT5 快照新鲜度',
+      value: snapshot.latestDashboardStale ? '过期' : snapshot.latestDashboardFresh ? '新鲜' : '待确认',
+      hint:
+        snapshot.latestFreshnessLine ||
+        snapshot.latestFreshness?.nextActionZh ||
+        '按 /api/latest dashboard mtime 判定',
+    },
     { label: '当前持仓', value: snapshot.positions?.length || 0, hint: 'MT5 实盘快照' },
     {
       label: '今日净值',
@@ -377,46 +841,437 @@ export function buildDashboardMetrics(snapshot) {
     {
       label: '今日待办',
       value: snapshot.dailySummary?.todayTodoStatus === 'DONE_OR_NO_ACTIONS' ? '已完成' : '待处理',
-      hint: `${snapshot.dailySummary?.paramReadyToRunCount || 0} 可运行 / ${snapshot.dailySummary?.polymarketTodoCount || 0} 预测市场`,
+      hint: `${snapshot.dailySummary?.paramReadyToRunCount || 0} 可运行 / HFM Crypto ${
+        hfmCryptoDiagnosticLine || `${hfmCryptoCount} 条证据`
+      }`,
     },
-    { label: '市场雷达', value: polyCount, hint: '预测市场研究候选' },
+    {
+      label: '合计模拟目标',
+      value: snapshot.dualTargetReached ? '达标' : '等待',
+      hint:
+        snapshot.profitExecutionConclusionLine ||
+        snapshot.liveExecutionBlockerLine ||
+        snapshot.profitTargetLine ||
+        snapshot.profitTargetStatusLabel ||
+        '外币或 BTC 任一 lane 达标，或多 lane 净合计 50 USD',
+    },
+    {
+      label: '最接近实盘车道',
+      value: snapshot.liveExecutionLaneSelector?.selectedLaneLabelZh || snapshot.liveExecutionLaneSelector?.selectedLaneId || '等待',
+      hint: snapshot.selectedExecutionLaneLine || '等待双车道择优证据',
+    },
+    ...(present(forexLive12Handoff)
+      ? [
+          {
+            label: '外币 Live12 实盘',
+            value: forexLive12Handoff.statusZh || forexLive12Handoff.status || '等待 Live12 交接',
+            hint:
+              forexLive12Handoff.capacityReleaseWatch?.capacityLineZh ||
+              forexLive12Handoff.nextRequiredActionZh ||
+              `${forexLive12Handoff.positionSummary?.openPositionCount ?? 0}/${
+                forexLive12Handoff.positionSummary?.maxTotalTrades ?? 0
+              } 仓位`,
+          },
+        ]
+      : []),
+    ...(present(forexCapacityReview)
+      ? [
+          {
+            label: '扩仓请求',
+            value: forexCapacityReview.statusZh || forexCapacityReview.status || '等待扩仓评审',
+            hint:
+              forexCapacityReview.decision?.nextRequiredActionZh ||
+              `请求 ${forexCapacityReview.request?.requestedMaxTotalTrades ?? 10} / 当前 ${
+                forexCapacityReview.request?.currentMaxTotalTrades ?? '—'
+              }`,
+          },
+        ]
+      : []),
+    ...(present(forexCapacityRoadmap)
+      ? [
+          {
+            label: '扩仓路线',
+            value: forexCapacityRoadmap.statusZh || forexCapacityRoadmap.status || '等待扩仓路线',
+            hint:
+              forexCapacityRoadmap.decision?.nextRequiredActionZh ||
+              `下一档 ${forexCapacityRoadmap.nextPhase?.toMaxTotalTrades ?? '—'} / 目标 ${
+                forexCapacityRoadmap.request?.requestedMaxTotalTrades ?? 10
+              }`,
+          },
+        ]
+      : []),
+    ...(present(forexMicroReview)
+      ? [
+          {
+            label: '2→3 微仓评审',
+            value: forexMicroReview.statusZh || forexMicroReview.status || '等待微仓评审',
+            hint:
+              forexMicroReview.decision?.nextRequiredActionZh ||
+              `${forexMicroReview.evidence?.metrics?.naturalClosedTrades ?? 0}/${
+                forexMicroReview.evidence?.required?.minNaturalClosedTrades ?? 5
+              } 自然平仓样本`,
+          },
+        ]
+      : []),
+    ...(present(forexRsiRepair)
+      ? [
+          {
+            label: 'RSI 修复计划',
+            value: forexRsiRepair.statusZh || forexRsiRepair.status || '等待 RSI 修复计划',
+            hint:
+              forexRsiRepair.decision?.nextRequiredActionZh ||
+              forexRsiRepair.repairActions?.[0]?.reasonZh ||
+              '等待 RSI_Reversal 亏损聚类分析',
+          },
+        ]
+      : []),
+    ...(present(forexRsiCandidate)
+      ? [
+          {
+            label: 'RSI 影子候选',
+            value: forexRsiCandidate.statusZh || forexRsiCandidate.status || '等待 RSI 影子候选',
+            hint:
+              forexRsiCandidate.decision?.nextRequiredActionZh ||
+              `${forexRsiCandidate.proxyReplay?.keptTradeCount ?? 0} 保留 / ${
+                forexRsiCandidate.proxyReplay?.blockedTradeCount ?? 0
+              } 过滤`,
+          },
+        ]
+      : []),
+    ...(present(forexRsiTester)
+      ? [
+          {
+            label: 'RSI Tester 请求',
+            value: forexRsiTester.statusZh || forexRsiTester.status || '等待 Tester 请求',
+            hint:
+              forexRsiTester.materializationStatus?.statusZh ||
+              forexRsiTester.decision?.nextRequiredActionZh ||
+              `${forexRsiTester.summary?.queueCount ?? 0} 个 tester-only 任务`,
+          },
+        ]
+      : []),
+    {
+      label: 'HFM Crypto',
+      value: hfmCryptoLikeCount ?? hfmCryptoCount,
+      hint: snapshot.hfmCryptoRuntimeProbeLine || hfmCryptoDiagnosticLine || snapshot.hfmCryptoStatusZh || 'Crypto CFD symbol 与 Moss 资料',
+    },
   ];
 }
 
 export function buildEndpointHealth(raw = {}) {
+  const freshness = latestFreshness(raw);
   const endpoints = [
     ['MT5 实时快照', '/api/latest', raw.latest, '账户、行情、策略运行状态'],
-    ['每日复盘', '/api/daily-review', raw.dailyReview, 'MT5 与 Polymarket 的日终结论'],
+    ['每日复盘', '/api/daily-review', raw.dailyReview, 'MT5 与 HFM Crypto 的日终结论'],
     ['今日自动闭环', '/api/daily-autopilot', raw.dailyAutopilot, '今日待办执行、报告回灌和复盘'],
     [
       'Agent 日报 v2',
-      '/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2',
+      '/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2?scope=secondary',
       raw.dailyAutopilotV2,
       'GA 历史样本与三车道 Agent 日报',
     ],
     [
       'Agent 自动化健康',
-      '/api/usdjpy-strategy-lab/agent-ops-health/status',
+      '/api/usdjpy-strategy-lab/agent-ops-health/status?scope=secondary',
       raw.agentOpsHealth,
-      'Daily Autopilot、Polymarket retune 和 Telegram Gateway',
+      'Daily Autopilot、HFM Crypto shadow 和 Telegram Gateway',
     ],
     [
       'Telegram Gateway',
       '/api/usdjpy-strategy-lab/telegram-gateway/status',
       raw.telegramGateway,
-      '日报、GA、回滚和 Polymarket retune 的 push-only 投递状态',
+      '日报、GA、回滚和 HFM Crypto shadow 的 push-only 投递状态',
     ],
     ['MT5 只读桥', '/api/mt5-readonly/snapshot', raw.mt5Snapshot, '持仓、报价、账户只读快照'],
-    ['预测市场雷达', '/api/polymarket/radar', raw.polyRadar, '公开市场雷达与流动性证据'],
+    ['HFM Crypto CFD', '/api/hfm-crypto/status?view=summary&scope=secondary', raw.hfmCrypto, 'Crypto CFD symbol 与 Moss 回测资料'],
+    ['合计 50 USD 目标', '/api/profit-target/status?scope=secondary&targetUsd=50', raw.profitTarget, '外币 MT5 与 BTC crypto CFD 正收益且合计达标证据'],
+    ['Sim-to-live 编排器', '/api/live-automation/orchestrator?scope=secondary', raw.liveAutomationOrchestrator, '执行模式、release token 和订单副作用总闸门'],
+    [
+      '冠军长期记忆晋级闸',
+      '/api/live-automation/champion-promotion-gate?scope=secondary',
+      raw.championPromotionGate,
+      'longTermMemoryPromotionReview、memoryBlocksLivePromotion 和 tester-only 下一步',
+    ],
+    [
+      '执行释放包',
+      '/api/live-automation/release-readiness-refresh?scope=secondary',
+      raw.liveAutomationReleaseReadiness,
+      '轻量读取 execution release token 与 MT5 执行闸门状态',
+    ],
+    [
+      'Release Token 证据',
+      '/api/live-automation/release-token-evidence-review?scope=secondary',
+      raw.releaseTokenEvidenceReview,
+      '逐项展示 release token 的无副作用证据与 token 缺口',
+    ],
+    [
+      'Release Token 签收草案',
+      '/api/live-automation/release-token-signoff-draft?scope=secondary',
+      raw.releaseTokenSignoffDraft,
+      '把 release token 缺口转换成单独签收输入模板，但不在此处放行',
+    ],
+    [
+      'Release Token 签收模板',
+      '/api/live-automation/release-token-signoff-input-template?scope=secondary',
+      raw.releaseTokenSignoffInputTemplate,
+      '导出可填写的签收输入模板；不签收、不铸 token、不下单',
+    ],
+    [
+      'Release Token 签收输入',
+      '/api/live-automation/release-token-signoff-input-review?scope=secondary',
+      raw.releaseTokenSignoffInputReview,
+      '校验外部签收输入是否完整；当前页不签收、不铸 token、不下单',
+    ],
+    [
+      'Release Token 签收交接',
+      '/api/live-automation/release-token-signoff-handoff?scope=secondary',
+      raw.releaseTokenSignoffHandoff,
+      '汇总证据、模板、签收输入和缺失项；只能交给独立 release lane 复核',
+    ],
+    [
+      '双车道择优',
+      '/api/live-automation/lane-selector?scope=secondary',
+      raw.liveExecutionLaneSelector,
+      '外币 Live12 与 BTC Live16 哪条最接近执行',
+    ],
+    [
+      '外币 Live12 实盘交接',
+      '/api/live-automation/forex-live12-runtime-handoff?scope=secondary',
+      raw.forexLive12RuntimeHandoff,
+      '只读展示 Live12 EA pilot、当前仓位容量和为何不再进场',
+    ],
     ['策略回测摘要', '/api/dashboard/backtest-summary', raw.backtest, '候选策略研究结果'],
   ];
-  return endpoints.map(([label, endpoint, payload, description]) => ({
-    label,
-    endpoint,
-    description,
-    status: present(payload) ? 'ok' : 'warn',
-    statusLabel: present(payload) ? '正常' : '缺失',
-  }));
+  return endpoints.map(([label, endpoint, payload, description]) => {
+    const staleLatest = endpoint === '/api/latest' && (freshness.stale === true || freshness.status === 'STALE_DASHBOARD_SNAPSHOT');
+    return {
+      label,
+      endpoint,
+      description: staleLatest ? freshness.nextActionZh || description : description,
+      status: staleLatest ? 'warn' : present(payload) ? 'ok' : 'warn',
+      statusLabel: staleLatest ? '快照过期' : present(payload) ? '正常' : '缺失',
+    };
+  });
+}
+
+export function buildChampionMemoryItems(raw = {}) {
+  const gate = raw?.championPromotionGate || {};
+  const review = gate.longTermMemoryPromotionReview || {};
+  if (!present(gate) && !present(review)) return [];
+  const decision = gate.promotionDecision || {};
+  const selected = gate.selectedChampion || review.candidate || {};
+  const route = review.matchedRoute || {};
+  const profile = review.qualityProfile || {};
+  const dataGaps = toArray(profile.dataGaps);
+  const appliedRules = toArray(review.appliedRules);
+  const blockers = toArray(gate.blockers);
+  const firstGap = dataGaps[0] || {};
+  const firstRule = appliedRules[0] || {};
+  const sampleCount = profile.sampleCount ?? review.sampleCount ?? route.sampleCount ?? '—';
+  const gapValue = firstGap.gap
+    ? `${firstGap.gap} ${firstGap.count ?? 0}/${sampleCount}`
+    : profile.status || '等待画像';
+  const memoryPenalty = Number(route.memoryPenalty);
+  const blocksLivePromotion = Boolean(review.blocksLivePromotion || decision.memoryBlocksLivePromotion);
+  const rawAvg = formatCompact(route.rawAvgScoreR);
+  const avg = formatCompact(route.avgScoreR);
+  const nextBlocker =
+    blockers[0]?.reasonZh ||
+    blockers[0]?.code ||
+    decision.reasonZh ||
+    gate.statusZh ||
+    '只允许继续 tester-only/forward 证据';
+  return [
+    {
+      label: '冠军候选',
+      value: selected.seedId || selected.strategyId || gate.statusZh || '等待王牌',
+      hint: gate.statusZh || gate.status || 'champion-promotion-gate',
+      status: selected.seedId || selected.strategyId ? 'warn' : 'blocked',
+    },
+    {
+      label: '长期记忆晋级闸',
+      value: review.status || '等待 longTermMemoryPromotionReview',
+      hint: review.reasonZh || '读取 longTermMemoryPromotionReview / memoryBlocksLivePromotion',
+      status: blocksLivePromotion ? 'blocked' : present(review) ? 'warn' : 'blocked',
+    },
+    {
+      label: '记忆扣分',
+      value: Number.isFinite(memoryPenalty) ? memoryPenalty.toFixed(2) : formatCompact(route.memoryPenalty),
+      hint: `${route.state || 'route'} · ${rawAvg} → ${avg}`,
+      status: memoryPenalty >= 0.15 ? 'blocked' : memoryPenalty > 0 ? 'warn' : 'ok',
+    },
+    {
+      label: '低覆盖/逆风证据',
+      value: gapValue,
+      hint: firstRule.reasonZh || firstGap.reasonZh || 'dataGap/adverseFactor 会进入晋级闸',
+      status: firstGap.count ? 'blocked' : 'warn',
+    },
+    {
+      label: '下一步',
+      value: decision.canRunIsolatedTesterForwardNext ? 'tester/forward' : '等待证据',
+      hint: nextBlocker,
+      status: decision.canRunIsolatedTesterForwardNext ? 'warn' : 'blocked',
+    },
+  ];
+}
+
+export function buildProfitTargetItems(snapshot = {}) {
+  const decision = snapshot.simToLiveDecision || {};
+  const authorization = snapshot.authorizationVsExecution || {};
+  const gates = snapshot.activationGateRows || [];
+  const releaseSummary = snapshot.executionReleaseGateSummary || {};
+  const releaseRows = snapshot.executionReleaseGateRows || [];
+  const releaseEvidence = snapshot.releaseTokenEvidenceReview || {};
+  const releaseEvidenceProgress = snapshot.releaseTokenEvidenceProgressLine || '';
+  const releaseSignoffDraft = snapshot.releaseTokenSignoffDraft || {};
+  const releaseSignoffDraftProgress = snapshot.releaseTokenSignoffDraftProgressLine || '';
+  const releaseSignoffInputTemplate = snapshot.releaseTokenSignoffInputTemplate || {};
+  const releaseSignoffInputTemplateProgress = snapshot.releaseTokenSignoffInputTemplateProgressLine || '';
+  const releaseSignoffInput = snapshot.releaseTokenSignoffInputReview || {};
+  const releaseSignoffInputProgress = snapshot.releaseTokenSignoffInputProgressLine || '';
+  const releaseSignoffHandoff = snapshot.releaseTokenSignoffHandoff || {};
+  const releaseSignoffHandoffProgress = snapshot.releaseTokenSignoffHandoffProgressLine || '';
+  const releasePacket = snapshot.executionReleaseReadinessPacket || {};
+  const failedGateCount = gates.filter((row) => row.通过 !== '是').length;
+  const gateSummary = gates.length
+    ? failedGateCount
+      ? `${failedGateCount}/${gates.length} 个执行闸门未通过`
+      : '执行闸门全部通过'
+    : '等待执行闸门清单';
+  const releaseBlocked = Number(releaseSummary.blocked ?? releaseRows.filter((row) => row.ReleaseToken === '否').length);
+  const releaseTotal = Number(releaseSummary.total ?? releaseRows.length);
+  const releaseGateLabel = releaseTotal
+    ? releaseBlocked
+      ? `${releaseBlocked}/${releaseTotal} 个 release token 未提供`
+      : 'Release token 已齐'
+    : '等待 release token 清单';
+  const releaseCodes = codeListLine(releaseSummary.blockerCodes || releaseRows.map((row) => row.阻塞码).filter((code) => code && code !== '—'));
+  const packetBlocked = Number(releasePacket.blockedGateCount ?? releaseBlocked);
+  const packetActivationBlocked = Number(releasePacket.activationGateSummary?.blocked ?? failedGateCount);
+  const packetCodes = codeListLine(releasePacket.blockedReleaseTokenCodes || releaseSummary.blockerCodes || []);
+  const remainingGateFields = toArray(authorization.remainingGateFields).join(' / ');
+  if (!present(snapshot.profitTarget) && !present(decision)) return [];
+  return [
+    {
+      label: '合计模拟目标',
+      value: snapshot.dualTargetReached ? '已达成' : snapshot.profitTargetStatusLabel,
+      hint: snapshot.profitTargetLine || '外币或 BTC 任一 lane 达标，或多 lane 净合计 50 USD',
+      status: snapshot.dualTargetReached ? 'ok' : 'warn',
+    },
+    {
+      label: 'Sim-to-live 决策',
+      value: decision.statusZh || decision.status || snapshot.profitTargetStatusLabel,
+      hint:
+        snapshot.profitExecutionConclusionLine ||
+        snapshot.liveExecutionBlockerLine ||
+        decision.nextRequiredActionZh ||
+        '数据面通过后检查 MT5 执行模式闸门',
+      status: decision.allActivationGatesPassed ? 'ok' : 'warn',
+    },
+    {
+      label: '授权证据',
+      value: boolText(Boolean(authorization.chatAuthorizationAcknowledged || authorization.operatorApprovalEvidenceAccepted)),
+      hint: authorization.whyNotLiveNowZh || '等待操作员授权证据与执行闸门拆分状态',
+      status: authorization.chatAuthorizationAcknowledged || authorization.operatorApprovalEvidenceAccepted ? 'ok' : 'warn',
+    },
+    {
+      label: '可开始执行',
+      value: boolText(Boolean(authorization.executionCanStartNow)),
+      hint: remainingGateFields || '真实执行必须由独立 execution lane 证明',
+      status: authorization.executionCanStartNow ? 'ok' : 'blocked',
+    },
+    {
+      label: '数据面',
+      value: boolText(Boolean(decision.dataPlaneReady)),
+      hint: decision.executionModeOnlyBlocked ? '数据面已通过；当前只剩执行模式闸门' : '等待数据面预检证据',
+      status: decision.dataPlaneReady ? 'ok' : 'warn',
+    },
+    {
+      label: '执行模式闸门',
+      value: gateSummary,
+      hint: gates[0]?.原因 || 'livePilotMode / readOnlyMode / executionEnabled / tradeAllowed',
+      status: decision.allActivationGatesPassed ? 'ok' : 'blocked',
+    },
+    {
+      label: 'Release Tokens',
+      value: releaseEvidence.statusZh || releaseSummary.statusZh || releaseGateLabel,
+      hint: releaseEvidenceProgress || releaseCodes || 'request writer / EA reader / broker send / receipt / rollback',
+      status: releaseBlocked ? 'blocked' : releaseTotal ? 'warn' : 'warn',
+    },
+    ...(present(releaseSignoffDraft)
+      ? [
+          {
+            label: 'Release Token 签收草案',
+            value: releaseSignoffDraft.statusZh || releaseSignoffDraft.status || '等待签收草案',
+            hint: releaseSignoffDraftProgress || releaseSignoffDraft.nextRequiredActionZh || '草案不可作为 release token 使用',
+            status: releaseSignoffDraft.canReleaseExecutionNow ? 'warn' : 'blocked',
+          },
+        ]
+      : []),
+    ...(present(releaseSignoffInputTemplate)
+      ? [
+          {
+            label: 'Release Token 签收模板',
+            value: releaseSignoffInputTemplate.statusZh || releaseSignoffInputTemplate.status || '等待签收模板',
+            hint:
+              releaseSignoffInputTemplateProgress ||
+              releaseSignoffInputTemplate.nextRequiredActionZh ||
+              '模板不可作为 release token 使用',
+            status: releaseSignoffInputTemplate.canReleaseExecutionNow ? 'warn' : 'blocked',
+          },
+        ]
+      : []),
+    ...(present(releaseSignoffInput)
+      ? [
+          {
+            label: 'Release Token 签收输入',
+            value: releaseSignoffInput.statusZh || releaseSignoffInput.status || '等待签收输入校验',
+            hint: releaseSignoffInputProgress || releaseSignoffInput.nextRequiredActionZh || '当前校验器不放行真实执行',
+            status: releaseSignoffInput.canReleaseExecutionNow ? 'warn' : 'blocked',
+          },
+        ]
+      : []),
+    ...(present(releaseSignoffHandoff)
+      ? [
+          {
+            label: 'Release Token 签收交接',
+            value: releaseSignoffHandoff.statusZh || releaseSignoffHandoff.status || '等待签收交接包',
+            hint: releaseSignoffHandoffProgress || releaseSignoffHandoff.nextRequiredActionZh || '交接包不放行真实执行',
+            status: releaseSignoffHandoff.canReleaseExecutionNow ? 'warn' : 'blocked',
+          },
+        ]
+      : []),
+    {
+      label: '执行释放包',
+      value: releasePacket.statusZh || releasePacket.status || '等待执行释放包',
+      hint:
+        packetCodes ||
+        (packetBlocked || packetActivationBlocked
+          ? `${packetBlocked} release / ${packetActivationBlocked} MT5 gates`
+          : releasePacket.nextRequiredActionZh || '只读展示 release 前置证据'),
+      status: releasePacket.canReleaseExecutionNow ? 'ok' : 'blocked',
+    },
+    {
+      label: 'MT5订单写入',
+      value: boolText(Boolean(decision.writesMt5OrderRequest || decision.orderSendAllowed)),
+      hint: '保持否；总览页只读展示，不触发订单',
+      status: 'blocked',
+    },
+    {
+      label: 'Broker调用',
+      value: boolText(Boolean(decision.brokerCallsMade)),
+      hint: '没有真实 broker order_send 调用',
+      status: 'blocked',
+    },
+  ];
+}
+
+export function buildActivationGateRows(snapshot = {}) {
+  return snapshot.activationGateRows || [];
+}
+
+export function buildReleaseGateRows(snapshot = {}) {
+  return snapshot.executionReleaseGateRows || [];
 }
 
 export function buildRuntimeItems(snapshot) {
@@ -481,7 +1336,7 @@ function formatAgeSeconds(value) {
 export function buildAgentOpsItems(raw = {}) {
   const health = raw.agentOpsHealth || {};
   const daily = health.dailyAutopilot || {};
-  const poly = health.polymarketRetune || {};
+  const hfmCrypto = raw.hfmCrypto || health.hfmCrypto || {};
   const telegram = raw.telegramGateway || health.telegramGateway || {};
   return [
     {
@@ -500,7 +1355,7 @@ export function buildAgentOpsItems(raw = {}) {
       hint:
         health.strategyBlockers?.[0] ||
         health.strategyWarnings?.[0] ||
-        'Polymarket / MT5 shadow 的亏损或隔离只作为策略观察，不染黄系统自动化。',
+        'HFM Crypto / MT5 shadow 的阻塞或隔离只作为策略观察，不染黄系统自动化。',
     },
     {
       label: 'Daily Autopilot',
@@ -509,10 +1364,12 @@ export function buildAgentOpsItems(raw = {}) {
       hint: `最近运行 ${formatAgeSeconds(daily.lastRunAgeSeconds)}；失败步骤 ${daily.failedStepCount || 0}`,
     },
     {
-      label: 'Polymarket 跟单重调',
-      value: poly.retunePlanReady ? 'retune plan 已生成' : '等待 retune plan',
-      status: statusToUi(poly.status),
-      hint: `红 ${poly.retuneRed || 0} / 黄 ${poly.retuneYellow || 0} / 待办 ${poly.todoCount || 0}；真钱钱包仍隔离`,
+      label: 'HFM Crypto shadow',
+      value: hfmCrypto.statusZh || hfmCrypto.status || '等待 crypto CFD symbol',
+      status: statusToUi(hfmCrypto.status),
+      hint:
+        hfmCrypto.blockers?.[0]?.reasonZh ||
+        '只读扫描 HFM crypto CFD 与 Moss backtest 资料，执行权限保持关闭。',
     },
     {
       label: 'Telegram Gateway',
@@ -560,7 +1417,7 @@ export function buildTelegramGatewayItems(raw = {}) {
       label: '后台循环',
       value: loop.statusZh || loop.status || '等待心跳',
       status: statusToUi(loop.status),
-      hint: loop.detailZh || 'Agent v2.5 loop 负责定时收集日报、GA、回滚和 Polymarket retune。',
+      hint: loop.detailZh || 'Agent v2.5 loop 负责定时收集日报、GA、回滚和 HFM Crypto shadow。',
     },
     {
       label: '推送通道',
@@ -628,7 +1485,7 @@ export function buildAgentOpsRows(raw = {}) {
       {
         检查: 'Agent Ops Health',
         状态: '等待同步',
-        说明: '等待后端聚合 Daily Autopilot、Polymarket retune 和 Telegram Gateway。',
+        说明: '等待后端聚合 Daily Autopilot、HFM Crypto shadow 和 Telegram Gateway。',
       },
     ];
   }
@@ -666,7 +1523,11 @@ export function buildDailyTodoRows(raw = {}) {
   const queue = focusScopedRows(raw?.dailyReview?.actionQueue);
   const completed = focusScopedRows(raw?.dailyReview?.completedActionQueue);
   const researchBacklog = focusScopedRows(raw?.dailyReview?.researchBacklogQueue);
-  const polyRows = polymarketRows(raw);
+  const hfmRows = hfmCryptoRows(raw);
+  const hfmDiagnosticLine = hfmCryptoCountLine(hfmCryptoDiagnostics(raw));
+  const hfmProbeLine = hfmCryptoRuntimeProbeLine(raw);
+  const profitRows = profitTargetRows(raw);
+  const profitLine = profitTargetLine(raw);
   const rows = [];
 
   queue.slice(0, 8).forEach((item) => {
@@ -698,20 +1559,26 @@ export function buildDailyTodoRows(raw = {}) {
     });
   }
 
-  if (Number(summary.polymarketTodoCount || 0) > 0 || summary.polymarketLossQuarantine) {
+  if (hfmRows.length) {
     rows.push({
-      领域: '预测市场',
-      任务: Number(summary.polymarketTodoCount || 0) > 0 ? '研究待办与亏损来源复查' : '亏损隔离保持',
-      状态:
-        Number(summary.polymarketTodoCount || 0) > 0 ? `${summary.polymarketTodoCount} 项待处理` : '已隔离',
-      结论: `实盘 PF ${formatCompact(summary.polymarketExecutedPF)} / 模拟 PF ${formatCompact(summary.polymarketShadowPF)}`,
+      领域: 'HFM Crypto',
+      任务: hfmProbeLine ? 'BTC runtime probe' : hfmDiagnosticLine ? '账号 symbol 探测' : 'Crypto CFD symbol 与 Moss 资料',
+      状态: hfmDiagnosticLine || `已同步 ${hfmRows.length} 条候选或证据`,
+      结论: hfmProbeLine || raw?.hfmCrypto?.blockers?.[0]?.reasonZh || '只读研究，不自动下单',
     });
-  } else if (polyRows.length) {
+  }
+
+  if (profitRows.length) {
+    const executionLine = profitExecutionConclusionLine(raw);
     rows.push({
-      领域: '预测市场',
-      任务: '市场雷达与亏损来源观察',
-      状态: `已同步 ${polyRows.length} 个候选`,
-      结论: '只读研究，不自动下注',
+      领域: '合计模拟目标',
+      任务: '外币或 BTC 任一 lane 达标，或多 lane 净合计达到 50 USD',
+      状态: profitTargetStatusLabel(raw),
+      结论:
+        executionLine ||
+        raw?.profitTarget?.liveCutoverGate?.statusZh ||
+        profitLine ||
+        '达到模拟目标后仍需单独 execution lane 评审',
     });
   }
 
@@ -720,7 +1587,7 @@ export function buildDailyTodoRows(raw = {}) {
       领域: '全系统',
       任务: '今日待办',
       状态: summary.todayTodoStatus === 'DONE_OR_NO_ACTIONS' ? '已完成' : '暂无动作',
-      结论: 'MT5 与预测市场今日没有未处理阻塞项',
+      结论: 'MT5 与 HFM Crypto 今日没有未处理阻塞项',
     });
   }
   return rows.slice(0, 10);
@@ -744,10 +1611,13 @@ export function buildDailyReviewRows(raw = {}) {
   const strategyQueue = focusScopedRows(iteration.strategyIterationQueue);
   const evidenceQueue = focusScopedRows(iteration.evidenceIterationQueue);
   const noTradeFinding = findings.find((item) => item.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
-  const polyFinding = findings.find((item) => item.code === 'POLYMARKET_LOSS_QUARANTINE_ACTIVE');
   const steps = rowsFromObjectList(raw?.dailyAutopilot?.steps);
-  const polyRows = polymarketRows(raw);
-  const polyStep = steps.find((step) => step.name === 'polymarket_readonly_cycle');
+  const hfmRows = hfmCryptoRows(raw);
+  const hfmDiagnosticLine = hfmCryptoCountLine(hfmCryptoDiagnostics(raw));
+  const hfmProbeLine = hfmCryptoRuntimeProbeLine(raw);
+  const profitLine = profitTargetLine(raw);
+  const executionLine = profitExecutionConclusionLine(raw);
+  const hfmStep = steps.find((step) => step.name === 'hfm_crypto_shadow_cycle');
   const testerTimeout = steps.find(
     (step) => step.name === 'auto_tester_guarded_run' && step.status === 'TIMEOUT',
   );
@@ -769,17 +1639,22 @@ export function buildDailyReviewRows(raw = {}) {
           : '暂无可自动升实盘项',
     },
     {
-      领域: '预测市场',
-      复盘: polyStep?.status === 'OK' ? '研究循环已执行' : '研究循环待确认',
-      结果:
-        summary.polymarketExecutedPF || summary.polymarketShadowPF
-          ? `实盘 PF ${formatCompact(summary.polymarketExecutedPF)} / 模拟 PF ${formatCompact(summary.polymarketShadowPF)}`
-          : `雷达候选 ${polyRows.length} 条`,
-      建议: polyFinding
-        ? '亏损来源仍未修复，必须继续 shadow-only 重调'
-        : summary.polymarketLossQuarantine
-          ? '保持亏损隔离，不自动下注'
-          : '继续只读研究',
+      领域: 'HFM Crypto',
+      复盘: hfmStep?.status === 'OK' ? '研究循环已执行' : '研究循环待确认',
+      结果: hfmDiagnosticLine || `Crypto CFD 候选/证据 ${hfmRows.length} 条`,
+      建议: hfmProbeLine
+        ? hfmProbeLine
+        : raw?.hfmCrypto?.symbolEvidence?.found || raw?.hfmCrypto?.localEvidence?.found
+          ? '可以继续做 shadow-only 策略映射'
+          : raw?.hfmCrypto?.blockers?.[0]?.reasonZh
+            ? raw.hfmCrypto.blockers[0].reasonZh
+            : '先在 HFM MT5 下载 crypto 历史，再进入下一阶段设计',
+    },
+    {
+      领域: '合计模拟目标',
+      复盘: profitTargetStatusLabel(raw),
+      结果: profitLine || '等待证据',
+      建议: executionLine || raw?.profitTarget?.liveCutoverGate?.reasonZh || '实盘前继续保持订单写入关闭。',
     },
     {
       领域: '自动闭环',

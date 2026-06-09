@@ -39,6 +39,12 @@
             <button type="button" :disabled="loading" @click="runEvidenceOS">生成证据系统</button>
             <button type="button" :disabled="loading" @click="runCaseMemoryBuild">生成经验候选</button>
             <button type="button" :disabled="loading" @click="runGAFactoryBuild">生成 GA 工厂</button>
+            <button type="button" :disabled="loading" @click="runStrategyFactoryIntentPlan()">
+              生成大白话策略
+            </button>
+            <button type="button" :disabled="loading" @click="runHyperliquidShadowLane()">
+              建立 Hyperliquid 影子
+            </button>
             <button type="button" :disabled="loading" @click="runTelegramGatewayOpsCollect">
               收集通知报告
             </button>
@@ -178,9 +184,9 @@
           <p>模拟池包含 RSI、MA、BB、MACD、S/R、东京突破、夜盘回归和 H4 回调。</p>
         </article>
         <article>
-          <span>Polymarket 模拟车道</span>
-          <strong>{{ polymarketShadow.stageZh || polymarketShadow.stage || '模拟观察' }}</strong>
-          <p>{{ polymarketShadow.reasonZh || '只做模拟账本、跟单研究和事件风险上下文。' }}</p>
+          <span>HFM Crypto 模拟车道</span>
+          <strong>{{ hfmCryptoShadow.statusZh || hfmCryptoShadow.status || '等待 symbol' }}</strong>
+          <p>{{ hfmCryptoShadow.blockers?.[0]?.reasonZh || '只做 HFM crypto CFD symbol 与 Moss 回测资料观察。' }}</p>
         </article>
         <article>
           <span>自动回滚</span>
@@ -193,7 +199,7 @@
         </article>
       </div>
       <p class="qg-usdjpy-evolution__note">
-        MT5 Shadow 第一名不会抢实盘路线；Polymarket 永远不接真钱钱包；DeepSeek 只解释，不批准越权。
+        MT5 Shadow 第一名不会抢实盘路线；HFM Crypto 当前只做只读资料映射；DeepSeek 只解释，不批准越权。
       </p>
     </section>
 
@@ -318,9 +324,9 @@
           </p>
         </article>
         <article>
-          <span>Polymarket 日报</span>
-          <strong>{{ dailyAutopilot.morningPlan?.polymarketShadowLane?.stageZh || '模拟观察' }}</strong>
-          <p>只做模拟账本和事件风险；不连接真钱钱包。</p>
+          <span>HFM Crypto 日报</span>
+          <strong>{{ hfmCryptoShadow.statusZh || dailyAutopilot.morningPlan?.hfmCryptoLane?.stageZh || '等待 symbol' }}</strong>
+          <p>只做 crypto CFD symbol、Moss 回测资料和风控边界观察。</p>
         </article>
         <article>
           <span>今日硬禁止</span>
@@ -557,8 +563,12 @@
         <USDJPYGAFactoryPanel
           :payload="gaFactoryPayload"
           :ga-status="gaStatus"
+          :intent-plan="strategyIntentPlanPayload"
+          :hyperliquid-shadow="hyperliquidShadowPayload"
           :loading="loading"
           @build="runGAFactoryBuild"
+          @build-intent="runStrategyFactoryIntentPlan"
+          @build-hyperliquid="runHyperliquidShadowLane"
         />
 
         <TelegramGatewayOpsPanel
@@ -1105,7 +1115,14 @@
 <script setup>
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { buildCaseMemoryCandidates, fetchCaseMemoryStatus } from '../services/caseMemoryApi.js';
-import { buildStrategyGaFactory, fetchStrategyGaFactoryStatus } from '../services/strategyGaFactoryApi.js';
+import {
+  buildHyperliquidShadowLane,
+  buildStrategyFactoryIntentPlan,
+  buildStrategyGaFactory,
+  fetchHyperliquidShadowLane,
+  fetchStrategyFactoryIntentPlan,
+  fetchStrategyGaFactoryStatus,
+} from '../services/strategyGaFactoryApi.js';
 import {
   collectTelegramGatewayOps,
   fetchTelegramGatewayOpsStatus,
@@ -1127,7 +1144,7 @@ import {
   fetchUSDJPYGAEvolutionPath,
   fetchUSDJPYGAStatus,
   fetchUSDJPYMt5ShadowLane,
-  fetchUSDJPYPolymarketShadowLane,
+  fetchUSDJPYHfmCryptoShadowLane,
   fetchUSDJPYStrategyBacktestProductionStatus,
   fetchUSDJPYStrategyBacktestStatus,
   fetchUSDJPYStrategyContractStatus,
@@ -1170,7 +1187,7 @@ const autonomousAgent = shallowRef(null);
 const lifecyclePayload = shallowRef(null);
 const lanesPayload = shallowRef(null);
 const mt5ShadowPayload = shallowRef(null);
-const polymarketShadowPayload = shallowRef(null);
+const hfmCryptoShadowPayload = shallowRef(null);
 const eaReproPayload = shallowRef(null);
 const dailyAutopilot = shallowRef(null);
 const agentDailyTodo = shallowRef(null);
@@ -1180,6 +1197,8 @@ const gaCandidatesPayload = shallowRef(null);
 const gaPathPayload = shallowRef(null);
 const gaBlockersPayload = shallowRef(null);
 const gaFactoryPayload = shallowRef(null);
+const strategyIntentPlanPayload = shallowRef(null);
+const hyperliquidShadowPayload = shallowRef(null);
 const strategyBacktestPayload = shallowRef(null);
 const historyProductionPayload = shallowRef(null);
 const evidenceOSPayload = shallowRef(null);
@@ -1235,9 +1254,8 @@ const lanes = computed(
 );
 const liveLane = computed(() => lanes.value?.live || {});
 const mt5Shadow = computed(() => mt5ShadowPayload.value || lanes.value?.mt5Shadow || {});
-const polymarketShadow = computed(() => polymarketShadowPayload.value || lanes.value?.polymarketShadow || {});
+const hfmCryptoShadow = computed(() => hfmCryptoShadowPayload.value || lanes.value?.hfmCryptoShadow || {});
 const mt5ShadowSummary = computed(() => mt5Shadow.value?.summary || {});
-const polymarketSummary = computed(() => polymarketShadow.value?.summary || {});
 const newsGate = computed(
   () => dailyAutopilot.value?.newsGate || payload.value?.policy?.newsGate || barReplay.value?.newsGate || {},
 );
@@ -2027,7 +2045,20 @@ function gaSummary() {
 
 function gaFactorySummary() {
   const state = gaFactoryPayload.value?.state || gaFactoryPayload.value || {};
-  return `GA 工厂已生成：候选 ${state.candidateCount || 0}；elite ${state.eliteCount || 0}；墓园 ${state.graveyardCount || 0}；lineage ${state.lineageNodeCount || 0}。`;
+  const lock = state.evolutionLockPolicy?.personalityLocked ? '性格锁已启用' : '等待性格锁';
+  return `GA 工厂已生成：候选 ${state.candidateCount || 0}；elite ${state.eliteCount || 0}；墓园 ${state.graveyardCount || 0}；lineage ${state.lineageNodeCount || 0}；${lock}。`;
+}
+
+function strategyFactoryIntentSummary() {
+  const state = strategyIntentPlanPayload.value?.plan || strategyIntentPlanPayload.value || {};
+  const personality = state.inferredPersonality || {};
+  const seedCount = state.validation?.validSeedCount || 0;
+  return `大白话策略已生成：${personality.strategyFamily || 'UNKNOWN'}；方向 ${(personality.directions || []).join('/') || 'UNKNOWN'}；有效 seed ${seedCount}；只进 shadow。`;
+}
+
+function hyperliquidShadowSummary() {
+  const state = hyperliquidShadowPayload.value?.report || hyperliquidShadowPayload.value || {};
+  return `Hyperliquid 影子车道已刷新：${state.statusZh || state.status || 'WAITING'}；目标 ${state.targetAgent?.agentId || '未设置'}；不授权钱包、不下单。`;
 }
 
 function telegramGatewayOpsSummary() {
@@ -2155,7 +2186,7 @@ function assignLoaded(results) {
   lifecyclePayload.value = results.lifecycle;
   lanesPayload.value = results.lanesState;
   mt5ShadowPayload.value = results.mt5ShadowState;
-  polymarketShadowPayload.value = results.polymarketShadowState;
+  hfmCryptoShadowPayload.value = results.hfmCryptoShadowState;
   eaReproPayload.value = results.eaReproState;
   dailyAutopilot.value = results.dailyState;
   agentDailyTodo.value = results.dailyTodoState || results.dailyState?.dailyTodo || null;
@@ -2165,6 +2196,8 @@ function assignLoaded(results) {
   gaPathPayload.value = results.gaPath;
   gaBlockersPayload.value = results.gaBlockers;
   gaFactoryPayload.value = results.gaFactoryState;
+  strategyIntentPlanPayload.value = results.strategyIntentPlanState;
+  hyperliquidShadowPayload.value = results.hyperliquidShadowState;
   strategyBacktestPayload.value = results.strategyBacktestState;
   historyProductionPayload.value = results.historyProductionState;
   evidenceOSPayload.value = results.evidenceOSState;
@@ -2201,7 +2234,7 @@ async function loadAll(options = {}) {
       ['lifecycle', () => fetchUSDJPYAutonomousLifecycle({}, options)],
       ['lanesState', () => fetchUSDJPYAutonomousLanes({}, options)],
       ['mt5ShadowState', () => fetchUSDJPYMt5ShadowLane({}, options)],
-      ['polymarketShadowState', () => fetchUSDJPYPolymarketShadowLane({}, options)],
+      ['hfmCryptoShadowState', () => fetchUSDJPYHfmCryptoShadowLane({}, options)],
       ['eaReproState', () => fetchUSDJPYEaReproducibility({}, options)],
       ['dailyState', () => fetchUSDJPYDailyAutopilotV2({}, options)],
       ['dailyTodoState', () => fetchUSDJPYAgentDailyTodo({}, options)],
@@ -2211,6 +2244,8 @@ async function loadAll(options = {}) {
       ['gaPath', () => fetchUSDJPYGAEvolutionPath(options)],
       ['gaBlockers', () => fetchUSDJPYGABlockers(options)],
       ['gaFactoryState', () => fetchStrategyGaFactoryStatus(options)],
+      ['strategyIntentPlanState', () => fetchStrategyFactoryIntentPlan(options)],
+      ['hyperliquidShadowState', () => fetchHyperliquidShadowLane(options)],
       ['strategyBacktestState', () => fetchUSDJPYStrategyBacktestStatus(options)],
       ['historyProductionState', () => fetchUSDJPYStrategyBacktestProductionStatus(options)],
       ['evidenceOSState', () => fetchUSDJPYEvidenceOSStatus(options)],
@@ -2335,12 +2370,56 @@ async function runGAFactoryBuild() {
   }
 }
 
+async function runStrategyFactoryIntentPlan(prompt = '') {
+  loading.value = true;
+  error.value = '';
+  setActionRunning(
+    '自主代理正在生成大白话策略',
+    '正在把自然语言意图转成 shadow-only Strategy JSON seed 和性格锁进化计划。',
+  );
+  try {
+    strategyIntentPlanPayload.value = await buildStrategyFactoryIntentPlan({ prompt });
+    await loadAll();
+    setActionSuccess('大白话策略已生成', strategyFactoryIntentSummary());
+  } catch (err) {
+    error.value = err?.message || 'Strategy Factory intent plan 生成失败';
+    setActionError('大白话策略失败', err, 'Strategy Factory intent plan 生成失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function runHyperliquidShadowLane(targetAgentInput = '') {
+  const targetAgentUrl = typeof targetAgentInput === 'object'
+    ? targetAgentInput.targetAgentUrl || ''
+    : targetAgentInput;
+  const targetAgentProfileJson = typeof targetAgentInput === 'object'
+    ? targetAgentInput.targetAgentProfileJson || ''
+    : '';
+  loading.value = true;
+  error.value = '';
+  setActionRunning(
+    '自主代理正在建立 Hyperliquid 影子车道',
+    '正在写入 Moss agent 只读映射；不会授权钱包，也不会下单。',
+  );
+  try {
+    hyperliquidShadowPayload.value = await buildHyperliquidShadowLane({ targetAgentUrl, targetAgentProfileJson });
+    await loadAll();
+    setActionSuccess('Hyperliquid 影子车道已刷新', hyperliquidShadowSummary());
+  } catch (err) {
+    error.value = err?.message || 'Hyperliquid 影子车道生成失败';
+    setActionError('Hyperliquid shadow 失败', err, 'Hyperliquid 影子车道生成失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function runTelegramGatewayOpsCollect() {
   loading.value = true;
   error.value = '';
   setActionRunning(
     '自主代理正在收集通知报告',
-    '正在把日报、GA、Agent 和 Polymarket 报告送入 push-only Gateway 队列。',
+    '正在把日报、GA、Agent 和 HFM Crypto 报告送入 push-only Gateway 队列。',
   );
   try {
     telegramGatewayOpsPayload.value = await collectTelegramGatewayOps();

@@ -7,15 +7,18 @@ import assert from 'node:assert/strict';
 
 const guardPath = path.resolve('scripts/frontend_legacy_slim_guard.mjs');
 
-function makeRepo({ includeSrcLegacy = false, archiveLines = 1200 } = {}) {
+function makeRepo({ includeSrcLegacy = false, includeArchiveLegacy = false } = {}) {
   const root = path.join(tmpdir(), `qg-legacy-slim-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  const dirs = ['src/app', 'archive/legacy-workbench', 'scripts', 'tests', '.github/workflows'];
+  const dirs = ['src/app', 'scripts', 'tests', '.github/workflows'];
   for (const dir of dirs) mkdirSync(path.join(root, dir), { recursive: true });
 
-  writeFileSync(
-    path.join(root, 'archive/legacy-workbench/LegacyWorkbenchFull.vue'),
-    Array.from({ length: archiveLines }, (_, i) => `<div>LegacyWorkbench ${i}</div>`).join('\n'),
-  );
+  if (includeArchiveLegacy) {
+    mkdirSync(path.join(root, 'archive/legacy-workbench'), { recursive: true });
+    writeFileSync(
+      path.join(root, 'archive/legacy-workbench/LegacyWorkbenchFull.vue'),
+      '<template>LegacyWorkbench</template>\n',
+    );
+  }
   if (includeSrcLegacy) {
     mkdirSync(path.join(root, 'src/workspaces/legacy'), { recursive: true });
     writeFileSync(path.join(root, 'src/workspaces/legacy/LegacyWorkbench.vue'), '<template>legacy</template>\n');
@@ -33,7 +36,7 @@ function runGuard(root) {
   return spawnSync(process.execPath, [guardPath], { cwd: root, encoding: 'utf8' });
 }
 
-test('legacy slim guard accepts archive-only legacy source', () => {
+test('legacy slim guard accepts fully removed legacy source', () => {
   const root = makeRepo();
   const result = runGuard(root);
   assert.equal(result.status, 0, result.stderr);
@@ -47,9 +50,9 @@ test('legacy slim guard rejects legacy source under src', () => {
   assert.match(result.stderr, /src\/workspaces\/legacy must not exist/);
 });
 
-test('legacy slim guard rejects missing full archive', () => {
-  const root = makeRepo({ archiveLines: 10 });
+test('legacy slim guard rejects archived legacy source', () => {
+  const root = makeRepo({ includeArchiveLegacy: true });
   const result = runGuard(root);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /full legacy source/);
+  assert.match(result.stderr, /must not exist/);
 });

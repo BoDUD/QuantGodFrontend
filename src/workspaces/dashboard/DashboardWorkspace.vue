@@ -2,7 +2,7 @@
   <WorkspaceFrame
     eyebrow="全局总览"
     title="今日运营总览"
-    description="把 MT5、Evolution、Polymarket、每日待办和每日复盘合在一张 Agent 自主运营看板里。无需人工审批，硬风控会自动暂停或回滚。"
+    description="把 MT5、Evolution、HFM Crypto、每日待办和每日复盘合在一张 Agent 自主运营看板里。自动化继续运行，真实执行释放状态在首页直接可见。"
     :loading="loading"
     :error="error"
     @refresh="load"
@@ -50,11 +50,27 @@
           <p class="qg-eyebrow">每日闭环</p>
           <h2>今日待办与每日复盘</h2>
         </div>
-        <span class="qg-muted">MT5 + Polymarket + GA + Daily Autopilot 自主闭环</span>
+        <span class="qg-muted">MT5 + HFM Crypto + GA + Daily Autopilot 自主闭环</span>
       </div>
       <div class="qg-domain-grid qg-domain-grid--two">
         <LedgerTable title="今日待办" :rows="todoRows" :limit="10" />
         <LedgerTable title="每日复盘" :rows="reviewRows" :limit="10" />
+      </div>
+    </section>
+
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
+          <p class="qg-eyebrow">合计 50 USD 目标</p>
+          <h2>Sim-to-live 执行闸门</h2>
+        </div>
+        <StatusPill :status="snapshot.profitTargetStatus" :label="snapshot.profitTargetStatusLabel" />
+      </div>
+      <div class="qg-domain-grid qg-domain-grid--two">
+        <KeyValueList :items="profitTargetItems" />
+        <KeyValueList :items="championMemoryItems" />
+        <LedgerTable title="执行模式闸门" :rows="activationGateRows" :limit="8" />
+        <LedgerTable title="Release token 闸门" :rows="releaseGateRows" :limit="8" />
       </div>
     </section>
 
@@ -131,10 +147,10 @@
           <strong>回测 / GA / Case Memory</strong>
           <small>完整 Strategy JSON、GA 候选详情和证据链审计。</small>
         </a>
-        <a class="qg-dashboard-fast-lanes__card" href="/vue/?workspace=polymarket">
-          <span>Polymarket</span>
-          <strong>模拟账本与事件风险</strong>
-          <small>只做 shadow 和事件上下文，不连接真钱钱包。</small>
+        <a class="qg-dashboard-fast-lanes__card" href="/vue/?workspace=hfm-crypto">
+          <span>HFM Crypto</span>
+          <strong>Crypto CFD symbol 与 Moss 回测</strong>
+          <small>扫描 HFM crypto CFD，本地导入 Moss backtest 指标，只做 shadow 研究。</small>
         </a>
       </div>
     </section>
@@ -158,12 +174,12 @@
         <JsonPreview title="今日自动闭环" source="/api/daily-autopilot" :payload="state.dailyAutopilot" />
         <JsonPreview
           title="Agent 日报 v2"
-          source="/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2"
+          source="/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2?scope=secondary"
           :payload="state.dailyAutopilotV2"
         />
         <JsonPreview
           title="Agent 自动化健康"
-          source="/api/usdjpy-strategy-lab/agent-ops-health/status"
+          source="/api/usdjpy-strategy-lab/agent-ops-health/status?scope=secondary"
           :payload="state.agentOpsHealth"
         />
         <JsonPreview
@@ -172,7 +188,99 @@
           :payload="state.telegramGateway"
         />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
-        <JsonPreview title="Polymarket 雷达" source="/api/polymarket/radar" :payload="state.polyRadar" />
+        <JsonPreview title="HFM Crypto CFD" source="/api/hfm-crypto/status?view=summary&scope=secondary" :payload="state.hfmCrypto" />
+        <JsonPreview title="合计 50 USD 目标" source="/api/profit-target/status?scope=secondary&targetUsd=50" :payload="state.profitTarget" />
+        <JsonPreview title="Sim-to-live 编排器" source="/api/live-automation/orchestrator?scope=secondary" :payload="state.liveAutomationOrchestrator" />
+        <JsonPreview
+          title="冠军长期记忆晋级闸"
+          source="/api/live-automation/champion-promotion-gate?scope=secondary"
+          :payload="state.championPromotionGate"
+        />
+        <JsonPreview
+          title="执行释放包"
+          source="/api/live-automation/release-readiness-refresh?scope=secondary"
+          :payload="state.liveAutomationReleaseReadiness"
+        />
+        <JsonPreview
+          title="Release Token 证据"
+          source="/api/live-automation/release-token-evidence-review?scope=secondary"
+          :payload="state.releaseTokenEvidenceReview"
+        />
+        <JsonPreview
+          title="Release Token 签收草案"
+          source="/api/live-automation/release-token-signoff-draft?scope=secondary"
+          :payload="state.releaseTokenSignoffDraft"
+        />
+        <JsonPreview
+          title="Release Token 签收模板"
+          source="/api/live-automation/release-token-signoff-input-template?scope=secondary"
+          :payload="state.releaseTokenSignoffInputTemplate"
+        />
+        <JsonPreview
+          title="Release Token 签收输入"
+          source="/api/live-automation/release-token-signoff-input-review?scope=secondary"
+          :payload="state.releaseTokenSignoffInputReview"
+        />
+        <JsonPreview
+          title="Release Token 签收交接"
+          source="/api/live-automation/release-token-signoff-handoff?scope=secondary"
+          :payload="state.releaseTokenSignoffHandoff"
+        />
+        <JsonPreview
+          title="外币 Live12 实盘交接"
+          source="/api/live-automation/forex-live12-runtime-handoff?scope=secondary"
+          :payload="state.forexLive12RuntimeHandoff"
+        />
+        <JsonPreview
+          title="外币 Live12 扩仓评审"
+          source="/api/live-automation/forex-live12-capacity-expansion-review?scope=secondary"
+          :payload="state.forexLive12CapacityExpansionReview"
+        />
+        <JsonPreview
+          title="外币 Live12 扩仓路线"
+          source="/api/live-automation/forex-live12-capacity-expansion-roadmap?scope=secondary"
+          :payload="state.forexLive12CapacityExpansionRoadmap"
+        />
+        <JsonPreview
+          title="外币 Live12 2→3 微仓评审"
+          source="/api/live-automation/forex-live12-micro-expansion-review?scope=secondary"
+          :payload="state.forexLive12MicroExpansionReview"
+        />
+        <JsonPreview
+          title="外币 Live12 RSI 修复计划"
+          source="/api/live-automation/forex-live12-rsi-repair-plan?scope=secondary"
+          :payload="state.forexLive12RsiRepairPlan"
+        />
+        <JsonPreview
+          title="外币 Live12 RSI 影子候选"
+          source="/api/live-automation/forex-live12-rsi-shadow-candidate?scope=secondary"
+          :payload="state.forexLive12RsiShadowCandidate"
+        />
+        <JsonPreview
+          title="外币 Live12 RSI Tester 请求"
+          source="/api/live-automation/forex-live12-rsi-tester-request?scope=secondary"
+          :payload="state.forexLive12RsiTesterRequest"
+        />
+        <JsonPreview
+          title="外币 Live12 RSI Tester 启动闸门"
+          source="/api/live-automation/forex-live12-rsi-tester-run-gate?scope=secondary"
+          :payload="state.forexLive12RsiTesterRunGate"
+        />
+        <JsonPreview
+          title="外币 Live12 RSI 候选晋级闸门"
+          source="/api/live-automation/forex-live12-rsi-candidate-promotion-gate?scope=secondary"
+          :payload="state.forexLive12RsiCandidatePromotionGate"
+        />
+        <JsonPreview
+          title="外币 Live12 RSI Tester Lock 草案"
+          source="/api/live-automation/forex-live12-rsi-tester-lock-draft?scope=secondary"
+          :payload="state.forexLive12RsiTesterLockDraft"
+        />
+        <JsonPreview
+          title="模拟目标→实盘执行摘要"
+          source="/api/live-automation/sim-target-execution-review-summary?scope=secondary"
+          :payload="state.simTargetExecutionReviewSummary"
+        />
       </div>
     </details>
   </WorkspaceFrame>
@@ -198,6 +306,10 @@ import {
   buildAgentOpsItems,
   buildAgentOpsRows,
   buildTelegramGatewayItems,
+  buildProfitTargetItems,
+  buildChampionMemoryItems,
+  buildActivationGateRows,
+  buildReleaseGateRows,
   telegramGatewayStatus as resolveTelegramGatewayStatus,
   telegramGatewayStatusLabel as resolveTelegramGatewayStatusLabel,
   buildRouteRows,
@@ -221,8 +333,28 @@ const state = shallowReactive({
   agentOpsHealth: null,
   telegramGateway: null,
   mt5Snapshot: null,
-  polyRadar: null,
-  polyMarkets: null,
+  hfmCrypto: null,
+  profitTarget: null,
+  liveAutomationOrchestrator: null,
+  championPromotionGate: null,
+  liveAutomationReleaseReadiness: null,
+  releaseTokenEvidenceReview: null,
+  releaseTokenSignoffDraft: null,
+  releaseTokenSignoffInputTemplate: null,
+  releaseTokenSignoffInputReview: null,
+  releaseTokenSignoffHandoff: null,
+  liveExecutionLaneSelector: null,
+  forexLive12RuntimeHandoff: null,
+  forexLive12CapacityExpansionReview: null,
+  forexLive12CapacityExpansionRoadmap: null,
+  forexLive12MicroExpansionReview: null,
+  forexLive12RsiRepairPlan: null,
+  forexLive12RsiShadowCandidate: null,
+  forexLive12RsiTesterRequest: null,
+  forexLive12RsiTesterRunGate: null,
+  forexLive12RsiCandidatePromotionGate: null,
+  forexLive12RsiTesterLockDraft: null,
+  simTargetExecutionReviewSummary: null,
 });
 
 const snapshot = computed(() => normalizeDashboardSnapshot(state));
@@ -233,6 +365,10 @@ const dailyItems = computed(() => buildDailyItems(snapshot.value));
 const agentOpsItems = computed(() => buildAgentOpsItems(state));
 const agentOpsRows = computed(() => buildAgentOpsRows(state));
 const telegramGatewayItems = computed(() => buildTelegramGatewayItems(state));
+const profitTargetItems = computed(() => buildProfitTargetItems(snapshot.value));
+const championMemoryItems = computed(() => buildChampionMemoryItems(state));
+const activationGateRows = computed(() => buildActivationGateRows(snapshot.value));
+const releaseGateRows = computed(() => buildReleaseGateRows(snapshot.value));
 const telegramGatewayStatus = computed(() => resolveTelegramGatewayStatus(state));
 const telegramGatewayStatusLabel = computed(() => resolveTelegramGatewayStatusLabel(state));
 const agentOpsOverallStatus = computed(() => {

@@ -35,7 +35,7 @@ npm run mt5-workspace
 npm run governance-workspace
 npm run paramlab-workspace
 npm run research-workspace
-npm run polymarket-workspace
+npm run hfm-crypto-workspace
 npm run legacy-deprecation
 npm test
 npm run build

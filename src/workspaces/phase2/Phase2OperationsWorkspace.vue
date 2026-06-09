@@ -81,7 +81,7 @@
         <a-card title="AI 运维推送" :bordered="false" class="phase2-card">
           <div class="phase2-notify">
             <p class="phase2-card-note">
-              读取 MT5、Polymarket、治理和每日复盘证据，生成中文建议后只推送到 Telegram；不会接收命令，也不会触发交易。
+              读取 MT5、HFM Crypto、治理和每日复盘证据，生成中文建议后只推送到 Telegram；不会接收命令，也不会触发交易。
             </p>
             <div class="phase2-loop-tags">
               <span>只读证据</span>

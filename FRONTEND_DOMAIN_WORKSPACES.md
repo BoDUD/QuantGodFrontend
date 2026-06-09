@@ -7,7 +7,7 @@
 - `src/workspaces/governance/GovernanceWorkspace.vue`
 - `src/workspaces/paramlab/ParamLabWorkspace.vue`
 - `src/workspaces/research/ResearchWorkspace.vue`
-- `src/workspaces/polymarket/PolymarketWorkspace.vue`
+- `src/workspaces/hfm-crypto/HfmCryptoWorkspace.vue`
 
 这不是一次高风险的模板抽取；`src/workspaces/legacy/LegacyWorkbench.vue` 仍然保留完整回退。新 workspace 使用 `src/services/domainApi.js` 通过 `/api/*` 拉取数据，避免前端直接读取 `QuantGod_*.json` 或 `QuantGod_*.csv`。
 

@@ -53,6 +53,13 @@ function present(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function freshnessLine(freshness = {}) {
+  if (!present(freshness)) return '';
+  const ageSeconds = Number(freshness.ageSeconds);
+  const ageText = Number.isFinite(ageSeconds) ? `${Math.round(ageSeconds)}s` : '未知时长';
+  return freshness.statusZh || (freshness.stale ? `MT5 dashboard 已过期 ${ageText}` : 'MT5 dashboard 新鲜');
+}
+
 function format(value) {
   return formatDisplayValue(value);
 }
@@ -682,6 +689,8 @@ function accountCard(account = {}, fallback = {}) {
   const lane = present(fallback.lane) ? fallback.lane : null;
   const spreadGate = present(fallback.spreadGate) ? fallback.spreadGate : null;
   const usdDeploymentGate = present(fallback.usdDeploymentGate) ? fallback.usdDeploymentGate : null;
+  const latestFreshness = present(fallback.latestFreshness) ? fallback.latestFreshness : null;
+  const latestStale = Boolean(latestFreshness?.stale || latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT');
   const positions = Array.isArray(fallback.positions) ? fallback.positions : [];
   const positionHint = positions.length
     ? positions
@@ -723,12 +732,22 @@ function accountCard(account = {}, fallback = {}) {
       { label: '交易品种', value: accountSymbolLabel(account), hint: accountMarketHint(account) },
       {
         label: 'EA 自动交易',
-        value: accountAutoTradingEnabled(account) ? '已开启' : '未完全开启',
-        status: accountAutoTradingEnabled(account) ? 'ok' : 'warn',
-        hint: `执行 ${onOffText(account.executionEnabled)} / 实盘 ${onOffText(
+        value: latestStale ? '快照过期' : accountAutoTradingEnabled(account) ? '已开启' : '未完全开启',
+        status: latestStale ? 'warn' : accountAutoTradingEnabled(account) ? 'ok' : 'warn',
+        hint: latestStale ? freshnessLine(latestFreshness) : `执行 ${onOffText(account.executionEnabled)} / 实盘 ${onOffText(
           account.livePilotMode,
         )} / 交易权限 ${onOffText(account.tradeAllowed)}`,
       },
+      ...(latestFreshness
+        ? [
+            {
+              label: '快照新鲜度',
+              value: latestStale ? '过期' : '新鲜',
+              status: latestStale ? 'warn' : 'ok',
+              hint: latestFreshness.nextActionZh || freshnessLine(latestFreshness),
+            },
+          ]
+        : []),
       {
         label: '守门状态',
         value: humanizeStatus(account.tradeStatus || (account.startupGuardActive ? 'STARTUP_GUARD' : '—')),
@@ -955,6 +974,9 @@ export function normalizeMt5Snapshot(raw = {}) {
 
   return {
     latest,
+    latestFreshness: isObject(latest._freshness) ? latest._freshness : {},
+    latestDashboardStale: Boolean(latest._freshness?.stale || latest._freshness?.status === 'STALE_DASHBOARD_SNAPSHOT'),
+    latestFreshnessLine: freshnessLine(latest._freshness || {}),
     runtime,
     bridgeStatus,
     terminal: pick(
@@ -2020,6 +2042,7 @@ export function buildMt5AccountCards(snapshot) {
       title: centLane.laneZh || '美分账户学习',
       lane: centLane,
       spreadGate: snapshot.spreadGate,
+      latestFreshness: snapshot.latestFreshness,
       positions: primaryPositions,
     }),
     accountCard(snapshot.secondaryConnection || {}, {
@@ -2029,6 +2052,7 @@ export function buildMt5AccountCards(snapshot) {
       lane: usdLane,
       spreadGate: snapshot.spreadGate,
       usdDeploymentGate: snapshot.usdDeploymentGate,
+      latestFreshness: snapshot.latestFreshness,
       positions: secondaryPositions,
     }),
   ];

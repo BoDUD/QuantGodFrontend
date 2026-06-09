@@ -44,13 +44,8 @@ if (exists(legacyDir) && statSync(rel(legacyDir)).isDirectory()) {
   fail(`${legacyDir} must not exist; legacy UI belongs only in archive/ and must not be routable source`);
 }
 
-if (!exists(archivePath)) {
-  fail(`${archivePath} should keep the full archived legacy source outside src/`);
-} else {
-  const archived = read(archivePath);
-  if (lineCount(archived) < 1000) {
-    fail(`${archivePath} should contain the full legacy source, not the slim routed component`);
-  }
+if (exists(archivePath)) {
+  fail(`${archivePath} must not exist after full legacy source removal`);
 }
 
 if (exists('src/workspaces/legacy/archive/LegacyWorkbenchFull.vue')) {

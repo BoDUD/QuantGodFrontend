@@ -22,13 +22,13 @@ import EvolutionWorkspace from '../workspaces/evolution/EvolutionWorkspace.vue';
 import GovernanceWorkspace from '../workspaces/governance/GovernanceWorkspace.vue';
 import ParamLabWorkspace from '../workspaces/paramlab/ParamLabWorkspace.vue';
 import ResearchWorkspace from '../workspaces/research/ResearchWorkspace.vue';
-import PolymarketWorkspace from '../workspaces/polymarket/PolymarketWorkspace.vue';
-export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, evolution: EvolutionWorkspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, polymarket: PolymarketWorkspace };
+import HfmCryptoWorkspace from '../workspaces/hfm-crypto/HfmCryptoWorkspace.vue';
+export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, evolution: EvolutionWorkspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, 'hfm-crypto': HfmCryptoWorkspace };
 `);
   write(path.join(root, 'src', 'app', 'navigation.js'), `
 export const DEFAULT_WORKSPACE = 'dashboard';
 export const WORKSPACE_GROUPS = [{ items: [
-  { key: 'dashboard' }, { key: 'mt5' }, { key: 'evolution' }, { key: 'polymarket' }
+  { key: 'dashboard' }, { key: 'mt5' }, { key: 'evolution' }, { key: 'hfm-crypto' }
 ] }];
 `);
   write(path.join(root, 'src', 'services', 'domainApi.js'), `
@@ -37,7 +37,7 @@ export async function loadMt5Workspace() { return fetch('/api/mt5-readonly/statu
 export async function loadGovernanceWorkspace() { return fetch('/api/governance/advisor'); }
 export async function loadParamLabWorkspace() { return fetch('/api/paramlab/status'); }
 export async function loadResearchWorkspace() { return fetch('/api/research/stats'); }
-export async function loadPolymarketWorkspace() { return fetch('/api/polymarket/radar'); }
+export async function loadHfmCryptoWorkspace() { return fetch('/api/hfm-crypto/status?view=summary'); }
 `);
   return root;
 }
@@ -61,9 +61,22 @@ export async function loadMt5Workspace() { return fetch('/api/mt5-readonly/statu
 export async function loadGovernanceWorkspace() { return fetch('/api/governance/advisor'); }
 export async function loadParamLabWorkspace() { return fetch('/api/paramlab/status'); }
 export async function loadResearchWorkspace() { return fetch('/api/research/stats'); }
-export async function loadPolymarketWorkspace() { return fetch('/api/polymarket/radar'); }
+export async function loadHfmCryptoWorkspace() { return fetch('/api/hfm-crypto/status?view=summary'); }
 `);
   assert.match(checkProject(root).join('\n'), /QuantGod runtime file path|non-\/api fetch/);
+});
+
+test('rejects full HFM crypto status in dashboard first load', () => {
+  const root = makeFixture();
+  write(path.join(root, 'src', 'services', 'domainApi.js'), `
+export async function loadDashboardWorkspace() { return fetch('/api/hfm-crypto/status'); }
+export async function loadMt5Workspace() { return fetch('/api/mt5-readonly/status'); }
+export async function loadGovernanceWorkspace() { return fetch('/api/governance/advisor'); }
+export async function loadParamLabWorkspace() { return fetch('/api/paramlab/status'); }
+export async function loadResearchWorkspace() { return fetch('/api/research/stats'); }
+export async function loadHfmCryptoWorkspace() { return fetch('/api/hfm-crypto/status?view=summary'); }
+`);
+  assert.match(checkProject(root).join('\n'), /dashboard HFM crypto load must use compact/);
 });
 
 test('rejects domain directories under generic components', () => {

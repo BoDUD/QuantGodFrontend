@@ -10,7 +10,7 @@
 /?workspace=governance
 /?workspace=paramlab
 /?workspace=research
-/?workspace=polymarket
+/?workspace=hfm-crypto
 /?workspace=phase1
 /?workspace=phase2
 /?workspace=phase3
@@ -58,7 +58,7 @@ npm run mt5-workspace
 npm run governance-workspace
 npm run paramlab-workspace
 npm run research-workspace
-npm run polymarket-workspace
+npm run hfm-crypto-workspace
 npm run legacy-deprecation
 npm run legacy-slim
 npm test

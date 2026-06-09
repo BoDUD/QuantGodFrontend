@@ -126,10 +126,7 @@ async function postJson(url, payload, fallback = null) {
 }
 
 export async function loadDashboardState(query = '') {
-  const search = new URLSearchParams({
-    q: query || '',
-    limit: '12'
-  });
+  void query;
 
   const [
     latest,
@@ -146,19 +143,8 @@ export async function loadDashboardState(query = '') {
     dailyAutopilot,
     mt5ResearchStats,
     strategyRegistry,
-    polySearch,
-    polyRadar,
-    polyWorker,
-    polyAiScore,
-    polyHistory,
-    polyAutoGov,
-    polyCanary,
-    polyCanaryRun,
-    polyRealTrades,
-    polyCross,
-    polyMarkets,
-    polyAssets,
-    polySingleAnalysis,
+    hfmCrypto,
+    profitTarget,
     shadowSignalRows,
     shadowOutcomeRows,
     shadowCandidateRows,
@@ -174,17 +160,7 @@ export async function loadDashboardState(query = '') {
     strategyEvaluationRows,
     regimeEvaluationRows,
     tradingAuditRows,
-    manualAlphaRows,
-    polyRadarRows,
-    polyAiScoreRows,
-    polyCanaryRows,
-    polyCanaryPositionRows,
-    polyCanaryOrderAuditRows,
-    polyCanaryExitRows,
-    polyAutoGovRows,
-    polyCrossRows,
-    polySingleAnalysisRows,
-    polyWorkerRows
+    manualAlphaRows
   ] = await Promise.all([
     fetchJson('/api/latest'),
     fetchJson('/api/mt5-readonly/snapshot'),
@@ -200,19 +176,8 @@ export async function loadDashboardState(query = '') {
     fetchJson('/api/daily-autopilot'),
     fetchJson('/api/research/stats'),
     fetchJson('/api/governance/version-registry'),
-    fetchJson(`/api/polymarket/search?${search.toString()}`),
-    fetchJson('/api/polymarket/radar?limit=12'),
-    fetchJson('/api/polymarket/radar-worker'),
-    fetchJson('/api/polymarket/ai-score'),
-    fetchJson('/api/polymarket/history?table=all&limit=8'),
-    fetchJson('/api/polymarket/auto-governance'),
-    fetchJson('/api/polymarket/canary-executor-contract'),
-    fetchJson('/api/polymarket/canary-executor-run'),
-    fetchJson('/api/polymarket/real-trades'),
-    fetchJson('/api/polymarket/cross-linkage'),
-    fetchJson('/api/polymarket/markets?limit=10&sort=volume'),
-    fetchJson('/api/polymarket/asset-opportunities?limit=10'),
-    fetchJson('/api/polymarket/single-market-analysis'),
+    fetchJson('/api/hfm-crypto/status?view=summary&scope=secondary'),
+    fetchJson('/api/profit-target/status?scope=secondary'),
     fetchRowsJson('/api/shadow/signals?limit=500'),
     fetchRowsJson('/api/shadow/outcomes?limit=500'),
     fetchRowsJson('/api/shadow/candidates?limit=500'),
@@ -228,17 +193,7 @@ export async function loadDashboardState(query = '') {
     fetchRowsJson('/api/research/strategy-evaluation?limit=500'),
     fetchRowsJson('/api/research/regime-evaluation?limit=500'),
     fetchRowsJson('/api/trades/trading-audit?limit=500'),
-    fetchRowsJson('/api/research/manual-alpha?limit=500'),
-    fetchRowsJson('/api/polymarket/radar-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/ai-score-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/canary-executor-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/canary-position-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/canary-order-audit-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/canary-exit-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/auto-governance-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/cross-market-linkage-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/single-market-analysis-ledger?limit=500'),
-    fetchRowsJson('/api/polymarket/radar-worker-ledger?limit=500')
+    fetchRowsJson('/api/research/manual-alpha?limit=500')
   ]);
 
   return {
@@ -276,41 +231,9 @@ export async function loadDashboardState(query = '') {
         manualAlpha: manualAlphaRows
       }
     },
-    polymarket: {
-      search: polySearch,
-      radar: polyRadar,
-      worker: polyWorker,
-      aiScore: polyAiScore,
-      history: polyHistory,
-      autoGovernance: polyAutoGov,
-      canary: polyCanary,
-      canaryRun: polyCanaryRun,
-      realTrades: polyRealTrades,
-      cross: polyCross,
-      markets: polyMarkets,
-      assets: polyAssets,
-      singleAnalysis: polySingleAnalysis,
-      ledgers: {
-        radar: polyRadarRows,
-        aiScores: polyAiScoreRows,
-        canary: polyCanaryRows,
-        canaryPositions: polyCanaryPositionRows,
-        canaryOrderAudit: polyCanaryOrderAuditRows,
-        canaryExits: polyCanaryExitRows,
-        autoGovernance: polyAutoGovRows,
-        cross: polyCrossRows,
-        singleAnalysis: polySingleAnalysisRows,
-        worker: polyWorkerRows
-      }
-    }
+    hfmCrypto,
+    profitTarget
   };
-}
-
-export async function submitPolymarketRequest(payload) {
-  return postJson('/api/polymarket/single-market-request', payload, {
-    ok: false,
-    error: 'request_failed'
-  });
 }
 
 export async function evaluateAutoTesterWindow(payload = {}) {

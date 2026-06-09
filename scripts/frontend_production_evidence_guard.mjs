@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
-import assert from 'node:assert/strict';
+import process from 'node:process';
+
+const failures = [];
 
 const files = [
   'src/services/productionEvidenceApi.js',
@@ -15,23 +17,49 @@ function readSource(file) {
   return readFileSync(file, 'utf8');
 }
 
+function fail(message) {
+  failures.push(message);
+}
+
+function assertCondition(condition, message) {
+  if (!condition) fail(message);
+}
+
+function assertReadableSource(file, text) {
+  const lineCount = text.split(/\r?\n/).length;
+  assertCondition(lineCount >= 10, `${file} should be readable multi-line source`);
+}
+
 function assertNoRuntimeArtifactReferences(file, text) {
-  assert.equal(forbiddenRuntimeArtifactPattern.test(text), false, `${file} must not directly reference runtime files`);
-  assert.equal(forbiddenRuntimeFetchPattern.test(text), false, `${file} must not directly fetch runtime files`);
+  assertCondition(!forbiddenRuntimeArtifactPattern.test(text), `${file} must not directly reference runtime files`);
+  assertCondition(!forbiddenRuntimeFetchPattern.test(text), `${file} must not directly fetch runtime files`);
 }
 
 function assertNoTradingControls(file, text) {
-  assert.equal(forbiddenTradingTokenPattern.test(text), false, `${file} contains forbidden trading token`);
+  assertCondition(!forbiddenTradingTokenPattern.test(text), `${file} contains forbidden trading token`);
 }
 
 for (const file of files) {
   const text = readSource(file);
+  assertReadableSource(file, text);
   assertNoRuntimeArtifactReferences(file, text);
   assertNoTradingControls(file, text);
 }
 
 const service = readSource('src/services/productionEvidenceApi.js');
-assert.match(service, /\/api\/production-evidence-validation\/status/);
-assert.match(service, /\/api\/production-evidence-validation\/run/);
+assertCondition(
+  /\/api\/production-evidence-validation\/status/.test(service),
+  'production evidence API must expose the status endpoint',
+);
+assertCondition(
+  /\/api\/production-evidence-validation\/run/.test(service),
+  'production evidence API must expose the run endpoint',
+);
+
+if (failures.length > 0) {
+  console.error('frontend production evidence guard failed:');
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
 
 console.log('frontend production evidence guard OK');

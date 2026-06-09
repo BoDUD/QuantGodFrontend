@@ -129,7 +129,7 @@ function assertWorkflowShape(label, rel, buffer) {
     'governance-workspace',
     'paramlab-workspace',
     'research-workspace',
-    'polymarket-workspace',
+    'hfm-crypto-workspace',
     'legacy-deprecation',
     'legacy-slim',
   ];
@@ -182,11 +182,6 @@ const criticalFiles = [
     minLines: 3,
     maxLines: 80,
     mustContain: ["import AppShell from './app/AppShell.vue'"],
-  },
-  {
-    rel: relPath('archive', 'legacy-workbench', 'LegacyWorkbenchFull.vue'),
-    minLines: 1000,
-    mustContain: ['LegacyDeprecationBanner'],
   },
 ];
 

@@ -54,8 +54,17 @@ for (const marker of [
   '只读',
   '不下单',
   '不改 live preset',
+  '长期记忆',
+  '滚动复盘',
+  '候选扣分',
+  'GA 记忆惩罚',
+  'longTermTradeMemory',
+  'rollingReview',
+  'candidatePenaltyRules',
+  'longTermMemoryFeedback',
   'defineEmits',
   'candidateRows',
+  'candidatePenaltyRows',
   'parityGate',
 ]) {
   if (!component.includes(marker)) errors.push(`case memory panel missing marker: ${marker}`);

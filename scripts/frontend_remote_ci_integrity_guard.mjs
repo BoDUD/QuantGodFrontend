@@ -90,7 +90,7 @@ function checkPackageShape() {
     'governance-workspace',
     'paramlab-workspace',
     'research-workspace',
-    'polymarket-workspace',
+    'hfm-crypto-workspace',
     'legacy-deprecation',
     'lf-integrity',
     'legacy-slim',
@@ -140,12 +140,9 @@ function checkSourceStillModular() {
   }
 
   const legacyPath = 'src/workspaces/legacy';
-  assert(!exists(legacyPath), `${legacyPath} must not exist after archive-only migration`);
+  assert(!exists(legacyPath), `${legacyPath} must not exist after legacy source removal`);
   const archivePath = 'archive/legacy-workbench/LegacyWorkbenchFull.vue';
-  assert(exists(archivePath), `${archivePath} must keep the historical legacy source outside src/`);
-  if (exists(archivePath)) {
-    assert(lineCount(read(archivePath)) >= 1000, `${archivePath} should contain the full archived legacy source`);
-  }
+  assert(!exists(archivePath), `${archivePath} must not exist after full legacy source removal`);
 }
 
 checkWorkflowShape();
