@@ -180,6 +180,16 @@ function formatCount(value) {
   return hasNumericValue(value) ? Number(value) : WAITING;
 }
 
+function evidenceSymbolCount(payload = {}) {
+  const evidence = payload.symbolEvidence || {};
+  return Math.max(
+    toArray(evidence.canonicalSymbols).length,
+    toArray(evidence.brokerSymbols).length,
+    toArray(payload.brokerSymbolCandidates).length,
+    toArray(payload.localEvidence?.findings).length,
+  );
+}
+
 function brokerSymbolSampleRows(payload) {
   const diagnostics = brokerSymbolDiagnostics(payload);
   return toArray(diagnostics.brokerSymbolSamples).map((row) => ({
@@ -1458,6 +1468,7 @@ export function buildHfmCryptoModel(state = {}) {
     hasNumericValue(brokerSymbolTotalAll) || hasNumericValue(brokerSymbolTotalMarketWatch);
   const brokerHasCrypto =
     Number(brokerCryptoLikeCountAll || 0) > 0 || Number(brokerCryptoLikeCountMarketWatch || 0) > 0;
+  const symbolEvidenceCount = evidenceSymbolCount(payload);
   const specRows = executionSpecRows(executionSpec);
   const specBlockers = executionSpecBlockerRows(executionSpec);
   const evidenceInputs = evidenceInputRows(liveEvidenceIntake);
@@ -1565,6 +1576,9 @@ export function buildHfmCryptoModel(state = {}) {
     symbolEvidenceCanonical.length ||
     symbolEvidenceBroker.length,
   );
+  const independentCryptoEvidenceReady = Boolean(
+    specsEvidenceReady || symbolEvidence.found || symbolEvidenceCount > 0,
+  );
   const standaloneExporterNextAction =
     standaloneExporterBundle.nextRequiredActionZh ||
     standaloneExporterBundle.output?.expectedSpecsPath ||
@@ -1572,12 +1586,18 @@ export function buildHfmCryptoModel(state = {}) {
   const accountCryptoAvailabilityStatus = brokerDiagnosticsKnown
     ? brokerHasCrypto
       ? '账号已下发 HFM crypto CFD symbol'
-      : '账号已连接，但未下发 HFM crypto CFD symbol'
-    : '等待 MT5 broker symbol 探测';
+      : independentCryptoEvidenceReady
+        ? `账号列表未显示 crypto；specs 已发现 ${symbolEvidenceCount || WAITING} 个 HFM crypto CFD`
+        : '账号已连接，但未下发 HFM crypto CFD symbol'
+    : independentCryptoEvidenceReady
+      ? `等待账号 symbol 探测；specs 已发现 ${symbolEvidenceCount || WAITING} 个 HFM crypto CFD`
+      : '等待 MT5 broker symbol 探测';
   const accountCryptoAvailabilityTone = brokerDiagnosticsKnown
     ? brokerHasCrypto
       ? 'ok'
-      : 'blocked'
+      : independentCryptoEvidenceReady
+        ? 'warn'
+        : 'blocked'
     : 'warn';
   const cryptoExporterReady = Boolean(
     specsEvidenceReady || standaloneExporterReadyToRun || mt5ExporterReview.exporterReadyForEvidenceIntake,
@@ -1669,29 +1689,33 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'Crypto 接入卡点',
         value:
-          brokerDiagnosticsKnown && !brokerHasCrypto
-            ? '当前账号无 crypto CFD'
-            : specsEvidenceReady
-              ? 'Live16 specs 证据已生成'
-              : standaloneExporterOutput.expectedSpecsRowCount > 0
-                ? 'Specs 文件已生成'
-                : standaloneExporterReadyToRun
-                  ? 'Specs 导出 EA 已安装编译'
-                  : cryptoExporterReady
-                    ? 'EA exporter 已安装'
-                    : '等待 exporter 详情',
+          brokerDiagnosticsKnown && !brokerHasCrypto && independentCryptoEvidenceReady
+            ? 'Specs 已发现 crypto，Market Watch 未显示'
+            : brokerDiagnosticsKnown && !brokerHasCrypto
+              ? '当前账号无 crypto CFD'
+              : specsEvidenceReady
+                ? 'Live16 specs 证据已生成'
+                : standaloneExporterOutput.expectedSpecsRowCount > 0
+                  ? 'Specs 文件已生成'
+                  : standaloneExporterReadyToRun
+                    ? 'Specs 导出 EA 已安装编译'
+                    : cryptoExporterReady
+                      ? 'EA exporter 已安装'
+                      : '等待 exporter 详情',
         hint:
-          brokerDiagnosticsKnown && !brokerHasCrypto
-            ? `${formatCount(brokerSymbolTotalAll)} 个 broker symbol，crypto-like ${formatCount(brokerCryptoLikeCountAll)} 个；不是账号没登录，是这个 HFM 账号/服务器没给 crypto CFD。`
-            : specsEvidenceReady
-              ? sourceFileHint(payload, 'contractSpecExport', 'Live16 已提供 HFM crypto symbol/spec 证据')
-              : standaloneExporterOutput.expectedSpecsRowCount > 0
-                ? '下一步刷新合约规格审查与实盘准入档案'
-                : standaloneExporterReadyToRun
-                  ? '只差用 Expert 启动一次 QuantGod_HFMCryptoSpecExporterEA'
-                  : cryptoExporterReady
-                    ? '可以继续采集 HFM crypto specs'
-                    : cryptoExporterBlocker,
+          brokerDiagnosticsKnown && !brokerHasCrypto && independentCryptoEvidenceReady
+            ? `本机/EA specs 已发现 ${symbolEvidenceCount || WAITING} 个 HFM crypto symbol；当前账号 inventory ${formatCount(brokerSymbolTotalAll)} 个、Market Watch ${formatCount(brokerSymbolTotalMarketWatch)} 个、crypto-like ${formatCount(brokerCryptoLikeCountAll)} 个。`
+            : brokerDiagnosticsKnown && !brokerHasCrypto
+              ? `${formatCount(brokerSymbolTotalAll)} 个 broker symbol，crypto-like ${formatCount(brokerCryptoLikeCountAll)} 个；不是账号没登录，是这个 HFM 账号/服务器没给 crypto CFD。`
+              : specsEvidenceReady
+                ? sourceFileHint(payload, 'contractSpecExport', 'Live16 已提供 HFM crypto symbol/spec 证据')
+                : standaloneExporterOutput.expectedSpecsRowCount > 0
+                  ? '下一步刷新合约规格审查与实盘准入档案'
+                  : standaloneExporterReadyToRun
+                    ? '只差用 Expert 启动一次 QuantGod_HFMCryptoSpecExporterEA'
+                    : cryptoExporterReady
+                      ? '可以继续采集 HFM crypto specs'
+                      : cryptoExporterBlocker,
       },
       {
         label: '车道状态',

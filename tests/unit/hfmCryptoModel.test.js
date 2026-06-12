@@ -177,6 +177,61 @@ describe('hfmCryptoModel', () => {
     });
   });
 
+  it('distinguishes local/spec crypto evidence from an empty live Market Watch inventory', () => {
+    const model = buildHfmCryptoModel({
+      status: {
+        ok: true,
+        status: 'READY_FOR_SHADOW_RESEARCH',
+        statusZh: 'HFM Crypto CFD 影子研究就绪',
+        symbolEvidence: {
+          found: true,
+          contractSpecExportReady: true,
+          executionSpecReady: true,
+          canonicalSymbols: ['BTCUSD', 'ETHUSD'],
+          brokerSymbols: ['#BTCUSD', '#ETHUSD'],
+          brokerSymbolDiagnostics: {
+            brokerSymbolTotalAll: 0,
+            brokerSymbolTotalMarketWatch: 0,
+            brokerCryptoLikeCountAll: 0,
+            brokerCryptoLikeCountMarketWatch: 0,
+            brokerSymbolSampleCount: 0,
+            brokerSymbolSamples: [],
+          },
+        },
+      },
+    });
+
+    const metric = model.metrics.find((item) => item.label === 'Crypto 接入卡点');
+    const conclusion = model.accountCryptoAvailabilityItems.find((item) => item.label === '结论');
+    const readiness = model.readinessItems.find((item) => item.label === '账号 Crypto 可用性');
+    const accountLane = model.accountItems.find((item) => item.label === 'HFM Crypto CFD');
+    const cryptoCount = model.accountCryptoAvailabilityItems.find(
+      (item) => item.label === 'Crypto-like symbols',
+    );
+
+    expect(metric).toMatchObject({
+      value: 'Specs 已发现 crypto，Market Watch 未显示',
+    });
+    expect(metric.hint).toContain('已发现 2 个 HFM crypto symbol');
+    expect(metric.hint).toContain('当前账号 inventory 0 个');
+    expect(conclusion).toMatchObject({
+      value: '账号列表未显示 crypto；specs 已发现 2 个 HFM crypto CFD',
+      status: 'warn',
+    });
+    expect(readiness).toMatchObject({
+      value: '账号列表未显示 crypto；specs 已发现 2 个 HFM crypto CFD',
+      status: 'warn',
+    });
+    expect(accountLane).toMatchObject({
+      value: '账号列表未显示 crypto；specs 已发现 2 个 HFM crypto CFD',
+      status: 'warn',
+    });
+    expect(cryptoCount).toMatchObject({
+      value: 0,
+      status: 'blocked',
+    });
+  });
+
   it('marks HFM crypto availability as ok when broker diagnostics include crypto-like symbols', () => {
     const model = buildHfmCryptoModel({
       status: {
