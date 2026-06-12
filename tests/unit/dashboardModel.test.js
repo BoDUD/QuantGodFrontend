@@ -94,6 +94,22 @@ describe('dashboardModel', () => {
     expect(row.结果).not.toBe('闭环完成');
   });
 
+  it('does not mark ok false endpoint envelopes as normal health', () => {
+    const health = buildEndpointHealth({
+      hfmCrypto: {
+        ok: false,
+        status: 'UNAVAILABLE',
+        error: 'MetaTrader5 Python package is unavailable',
+      },
+    }).find((item) => item.label === 'HFM Crypto CFD');
+
+    expect(health).toMatchObject({
+      status: 'warn',
+      statusLabel: '不可用',
+      description: 'MetaTrader5 Python package is unavailable',
+    });
+  });
+
   it('surfaces compact HFM crypto account diagnostics instead of empty evidence', () => {
     const raw = {
       hfmCrypto: {

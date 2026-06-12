@@ -92,6 +92,20 @@ function present(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function endpointUnavailable(payload) {
+  return isObject(payload) && payload.ok === false;
+}
+
+function endpointUnavailableDescription(payload, fallback) {
+  if (!endpointUnavailable(payload)) return fallback;
+  const error = payload.error;
+  if (typeof error === 'string' && error.trim()) return error;
+  if (typeof error?.message === 'string' && error.message.trim()) return error.message;
+  if (typeof payload.statusZh === 'string' && payload.statusZh.trim()) return payload.statusZh;
+  if (typeof payload.status === 'string' && payload.status.trim()) return humanizeStatus(payload.status);
+  return '后端返回 ok=false，当前证据不可用。';
+}
+
 function latestFreshness(raw = {}) {
   const freshness = raw?.latest?._freshness || raw?.state?._freshness || raw?.state?.data?._freshness || raw?._freshness || {};
   if (!isObject(freshness)) return {};
@@ -1105,12 +1119,18 @@ export function buildEndpointHealth(raw = {}) {
   ];
   return endpoints.map(([label, endpoint, payload, description]) => {
     const staleLatest = endpoint === '/api/latest' && (freshness.stale === true || freshness.status === 'STALE_DASHBOARD_SNAPSHOT');
+    const hasPayload = present(payload);
+    const unavailable = endpointUnavailable(payload);
     return {
       label,
       endpoint,
-      description: staleLatest ? freshness.nextActionZh || description : description,
-      status: staleLatest ? 'warn' : present(payload) ? 'ok' : 'warn',
-      statusLabel: staleLatest ? '快照过期' : present(payload) ? '正常' : '缺失',
+      description: staleLatest
+        ? freshness.nextActionZh || description
+        : unavailable
+          ? endpointUnavailableDescription(payload, description)
+          : description,
+      status: staleLatest ? 'warn' : hasPayload && !unavailable ? 'ok' : 'warn',
+      statusLabel: staleLatest ? '快照过期' : unavailable ? '不可用' : hasPayload ? '正常' : '缺失',
     };
   });
 }
