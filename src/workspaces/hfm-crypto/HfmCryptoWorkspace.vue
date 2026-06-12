@@ -9,7 +9,9 @@
   >
     <div class="qg-readonly-banner">
       <StatusPill :status="model.status" :label="model.statusLabel" />
-      <span>当前页面不下单、不授权钱包、不改实盘预设；只判断 HFM crypto CFD 是否具备进入下一阶段的证据。</span>
+      <span
+        >当前页面不下单、不授权钱包、不改实盘预设；只判断 HFM crypto CFD 是否具备进入下一阶段的证据。</span
+      >
     </div>
 
     <div class="hfm-crypto-controls">
@@ -57,7 +59,12 @@
         <RefreshCw :size="16" aria-hidden="true" />
         快速刷新接入
       </button>
-      <button type="button" class="qg-button qg-button--secondary" :disabled="loading" @click="buildFullReview">
+      <button
+        type="button"
+        class="qg-button qg-button--secondary"
+        :disabled="loading"
+        @click="buildFullReview"
+      >
         <RefreshCw :size="16" aria-hidden="true" />
         完整状态刷新
       </button>
@@ -187,28 +194,76 @@
       <LedgerTable title="Adapter 沙盒校验" :rows="model.tables.adapterSandboxValidations" :limit="8" />
       <LedgerTable title="Adapter 合同验证" :rows="model.tables.adapterContractValidations" :limit="8" />
       <LedgerTable title="Pipeline 阻塞诊断" :rows="model.tables.simToLivePipelineBlockerRows" :limit="10" />
-      <LedgerTable title="Sim-to-live 总控阶段" :rows="model.tables.simToLiveOrchestratorStages" :limit="12" />
+      <LedgerTable
+        title="Sim-to-live 总控阶段"
+        :rows="model.tables.simToLiveOrchestratorStages"
+        :limit="12"
+      />
       <LedgerTable title="执行 Release Token 清单" :rows="model.tables.executionReleaseGateRows" :limit="8" />
       <LedgerTable title="实盘释放最小 Diff" :rows="model.tables.releaseMinimalDiffChanges" :limit="8" />
       <LedgerTable title="实盘释放 Token 缺口" :rows="model.tables.releaseMinimalDiffTokens" :limit="8" />
       <LedgerTable title="Release Token 证据包" :rows="model.tables.releaseTokenEvidence" :limit="8" />
-      <LedgerTable title="Release Token 签收草案" :rows="model.tables.releaseTokenSignoffDraftRows" :limit="8" />
-      <LedgerTable title="Release Token 签收模板" :rows="model.tables.releaseTokenSignoffInputTemplateRows" :limit="8" />
-      <LedgerTable title="Release Token 签收输入" :rows="model.tables.releaseTokenSignoffInputRows" :limit="8" />
-      <LedgerTable title="Release Token 签收交接包" :rows="model.tables.releaseTokenSignoffHandoffRows" :limit="8" />
-      <LedgerTable title="Adapter Harness 写入计划" :rows="model.tables.executionAdapterHarnessPlans" :limit="8" />
+      <LedgerTable
+        title="Release Token 签收草案"
+        :rows="model.tables.releaseTokenSignoffDraftRows"
+        :limit="8"
+      />
+      <LedgerTable
+        title="Release Token 签收模板"
+        :rows="model.tables.releaseTokenSignoffInputTemplateRows"
+        :limit="8"
+      />
+      <LedgerTable
+        title="Release Token 签收输入"
+        :rows="model.tables.releaseTokenSignoffInputRows"
+        :limit="8"
+      />
+      <LedgerTable
+        title="Release Token 签收交接包"
+        :rows="model.tables.releaseTokenSignoffHandoffRows"
+        :limit="8"
+      />
+      <LedgerTable
+        title="Adapter Harness 写入计划"
+        :rows="model.tables.executionAdapterHarnessPlans"
+        :limit="8"
+      />
       <LedgerTable title="Live Pilot 激活审查" :rows="model.tables.livePilotActivationChecks" :limit="8" />
-      <LedgerTable title="Live Pilot Preset 激活包" :rows="model.tables.livePilotPresetActivationRows" :limit="10" />
-      <LedgerTable title="Live Pilot 候选配置" :rows="model.tables.livePilotPresetCandidateRows" :limit="18" />
+      <LedgerTable
+        title="Live Pilot Preset 激活包"
+        :rows="model.tables.livePilotPresetActivationRows"
+        :limit="10"
+      />
+      <LedgerTable
+        title="Live Pilot 候选配置"
+        :rows="model.tables.livePilotPresetCandidateRows"
+        :limit="18"
+      />
       <LedgerTable title="Live Pilot 候选文件包" :rows="model.tables.livePilotCandidateFileRows" :limit="6" />
       <LedgerTable title="Receipt 对账审查" :rows="model.tables.receiptReconciliationRows" :limit="8" />
       <LedgerTable title="EA Request Reader 审查" :rows="model.tables.eaRequestReaderRows" :limit="8" />
       <LedgerTable title="Live Cutover 审查" :rows="model.tables.liveExecutionCutoverRows" :limit="8" />
       <LedgerTable title="Live 实现规格" :rows="model.tables.liveExecutionImplementationRows" :limit="8" />
-      <LedgerTable title="执行安全追踪矩阵" :rows="model.tables.liveExecutionSafetyTraceabilityRows" :limit="6" />
-      <LedgerTable title="Live Pilot 闸门切换计划" :rows="model.tables.livePilotGateTransitionRows" :limit="8" />
-      <LedgerTable title="Adapter Writer 审查" :rows="model.tables.liveExecutionAdapterWriteRows" :limit="8" />
-      <LedgerTable title="EA Request Consumption 审查" :rows="model.tables.eaRequestConsumptionRows" :limit="8" />
+      <LedgerTable
+        title="执行安全追踪矩阵"
+        :rows="model.tables.liveExecutionSafetyTraceabilityRows"
+        :limit="6"
+      />
+      <LedgerTable
+        title="Live Pilot 闸门切换计划"
+        :rows="model.tables.livePilotGateTransitionRows"
+        :limit="8"
+      />
+      <LedgerTable
+        title="Adapter Writer 审查"
+        :rows="model.tables.liveExecutionAdapterWriteRows"
+        :limit="8"
+      />
+      <LedgerTable
+        title="EA Request Consumption 审查"
+        :rows="model.tables.eaRequestConsumptionRows"
+        :limit="8"
+      />
       <LedgerTable title="Broker Order Send 审查" :rows="model.tables.brokerOrderSendRows" :limit="8" />
       <LedgerTable title="合计 50 USD Lane" :rows="model.tables.profitTargetLanes" :limit="4" />
       <LedgerTable title="执行模式闸门清单" :rows="model.tables.activationGateChecklist" :limit="8" />
@@ -218,62 +273,259 @@
 
     <details class="qg-domain-panel qg-domain-panel--details" @toggle="revealTechnicalEvidence">
       <summary>技术证据</summary>
-      <p v-if="technicalEvidenceDetailsLoading" class="hfm-crypto-detail-status">
-        正在加载完整状态证据...
-      </p>
-      <p v-else-if="technicalEvidenceDetailsError" class="hfm-crypto-detail-status hfm-crypto-detail-status--error">
+      <p v-if="technicalEvidenceDetailsLoading" class="hfm-crypto-detail-status">正在加载完整状态证据...</p>
+      <p
+        v-else-if="technicalEvidenceDetailsError"
+        class="hfm-crypto-detail-status hfm-crypto-detail-status--error"
+      >
         {{ technicalEvidenceDetailsError }}
       </p>
       <div v-if="technicalEvidenceVisible" class="qg-domain-grid qg-domain-grid--compact">
-        <JsonPreview title="MT5 账号快照" source="/api/mt5-readonly-secondary/snapshot" :payload="state.mt5Snapshot" />
-        <JsonPreview title="HFM Crypto 状态" source="/api/hfm-crypto/status?view=summary&scope=secondary" :payload="state.status" />
-        <JsonPreview title="HFM Symbol 扫描" source="/api/hfm-crypto/symbols?scope=secondary" :payload="state.symbols" />
-        <JsonPreview title="HFM 合约规格导出" source="/api/hfm-crypto/contract-spec-export?scope=secondary" :payload="state.contractSpecExport" />
-        <JsonPreview title="HFM 合约规格审查" source="/api/hfm-crypto/execution-spec?scope=secondary" :payload="state.executionSpec" />
-        <JsonPreview title="HFM 模拟表现审查" source="/api/hfm-crypto/simulation-profile?scope=secondary" :payload="state.simulationProfile" />
-        <JsonPreview title="HFM 证据采集包" source="/api/hfm-crypto/evidence-kit?scope=secondary" :payload="state.evidenceKit" />
-        <JsonPreview title="HFM 证据Bootstrap" source="/api/hfm-crypto/evidence-bootstrap?scope=secondary" :payload="state.evidenceBootstrap" />
-        <JsonPreview title="MT5 EA导出器" source="/api/hfm-crypto/mt5-exporter-review?scope=secondary" :payload="state.mt5ExporterReview" />
-        <JsonPreview title="EA升级包" source="/api/hfm-crypto/mt5-upgrade-bundle?scope=secondary" :payload="state.mt5UpgradeBundle" />
-        <JsonPreview title="EA部署/回滚计划" source="/api/hfm-crypto/mt5-exporter-deploy-plan?scope=secondary" :payload="state.mt5ExporterDeployPlan" />
-        <JsonPreview title="独立Specs导出" source="/api/hfm-crypto/standalone-exporter-bundle?scope=secondary" :payload="state.standaloneExporterBundle" />
-        <JsonPreview title="升级后复核" source="/api/hfm-crypto/mt5-post-upgrade-verify?scope=secondary" :payload="state.mt5PostUpgradeVerify" />
-        <JsonPreview title="升级总控" source="/api/hfm-crypto/post-upgrade-controller?scope=secondary" :payload="state.postUpgradeController" />
-        <JsonPreview title="Filled输入校验" source="/api/hfm-crypto/filled-input-validator?scope=secondary" :payload="state.filledInputValidator" />
-        <JsonPreview title="实盘准入档案" source="/api/live-automation/status?scope=secondary" :payload="state.liveReadiness" />
-        <JsonPreview title="执行审查包" source="/api/live-automation/review-packet?scope=secondary" :payload="state.liveReviewPacket" />
-        <JsonPreview title="审批草案（非当前卡点）" source="/api/live-automation/approval-draft?scope=secondary" :payload="state.liveApprovalDraft" />
-        <JsonPreview title="审批证据（已验收则不再等用户）" source="/api/live-automation/approval-evidence?scope=secondary" :payload="state.liveApprovalEvidence" />
-        <JsonPreview title="Dry-run 实盘计划" source="/api/live-automation/dry-run-plan?scope=secondary" :payload="state.dryRunPlan" />
-        <JsonPreview title="执行通道规格" source="/api/live-automation/execution-lane-spec?scope=secondary" :payload="state.executionLaneSpec" />
-        <JsonPreview title="Dry-run 回放审查" source="/api/live-automation/dry-run-replay?scope=secondary" :payload="state.dryRunReplay" />
-        <JsonPreview title="运行时预检" source="/api/live-automation/runtime-preflight?scope=secondary" :payload="state.runtimePreflight" />
-        <JsonPreview title="MT5请求合约" source="/api/live-automation/order-request-contract?scope=secondary" :payload="state.orderRequestContract" />
-        <JsonPreview title="自动化流水线" source="/api/live-automation/pipeline?scope=secondary" :payload="state.simToLivePipeline" />
-        <JsonPreview title="Adapter评审" source="/api/live-automation/adapter-review?scope=secondary" :payload="state.executionAdapterReview" />
-        <JsonPreview title="证据接入" source="/api/live-automation/evidence-intake?scope=secondary" :payload="state.liveEvidenceIntake" />
-        <JsonPreview title="实盘评审候选" source="/api/live-automation/promotion-candidates?scope=secondary" :payload="state.livePromotionCandidates" />
-        <JsonPreview title="自动晋级控制器" source="/api/live-automation/promotion-controller?scope=secondary" :payload="state.livePromotionController" />
-        <JsonPreview title="Adapter沙盒" source="/api/live-automation/adapter-sandbox?scope=secondary" :payload="state.adapterSandbox" />
-        <JsonPreview title="Adapter合同验证" source="/api/live-automation/adapter-contract-validator?scope=secondary" :payload="state.adapterContractValidator" />
-        <JsonPreview title="Sim-to-live总控" source="/api/live-automation/orchestrator?scope=secondary" :payload="state.simToLiveOrchestrator" />
-        <JsonPreview title="执行释放包" source="/api/live-automation/release-readiness-refresh?scope=secondary" :payload="state.releaseReadinessRefresh" />
-        <JsonPreview title="实盘释放最小Diff审查" source="/api/live-automation/release-minimal-diff-review?scope=secondary" :payload="state.releaseMinimalDiffReview" />
-        <JsonPreview title="Release Token证据审查" source="/api/live-automation/release-token-evidence-review?scope=secondary" :payload="state.releaseTokenEvidenceReview" />
-        <JsonPreview title="Release Token签收草案" source="/api/live-automation/release-token-signoff-draft?scope=secondary" :payload="state.releaseTokenSignoffDraft" />
-        <JsonPreview title="Release Token签收模板" source="/api/live-automation/release-token-signoff-input-template?scope=secondary" :payload="state.releaseTokenSignoffInputTemplate" />
-        <JsonPreview title="Release Token签收输入" source="/api/live-automation/release-token-signoff-input-review?scope=secondary" :payload="state.releaseTokenSignoffInputReview" />
-        <JsonPreview title="Release Token签收交接" source="/api/live-automation/release-token-signoff-handoff?scope=secondary" :payload="state.releaseTokenSignoffHandoff" />
-        <JsonPreview title="Adapter Harness" source="/api/live-automation/adapter-harness?scope=secondary" :payload="state.executionAdapterHarness" />
-        <JsonPreview title="Live Pilot激活审查" source="/api/live-automation/live-pilot-activation-review?scope=secondary" :payload="state.livePilotActivationReview" />
-        <JsonPreview title="Receipt对账审查" source="/api/live-automation/receipt-reconciliation-review?scope=secondary" :payload="state.receiptReconciliationReview" />
-        <JsonPreview title="EA Request Reader审查" source="/api/live-automation/ea-request-reader-review?scope=secondary" :payload="state.eaRequestReaderReview" />
-        <JsonPreview title="Live Cutover审查" source="/api/live-automation/live-execution-cutover-review?scope=secondary" :payload="state.liveExecutionCutoverReview" />
-        <JsonPreview title="Live 实现规格" source="/api/live-automation/live-execution-implementation-spec?scope=secondary" :payload="state.liveExecutionImplementationSpec" />
-        <JsonPreview title="Adapter Writer审查" source="/api/live-automation/live-execution-adapter-write-review?scope=secondary" :payload="state.liveExecutionAdapterWriteReview" />
-        <JsonPreview title="EA Request Consumption审查" source="/api/live-automation/ea-request-consumption-review?scope=secondary" :payload="state.eaRequestConsumptionReview" />
-        <JsonPreview title="Broker Order Send审查" source="/api/live-automation/broker-order-send-review?scope=secondary" :payload="state.brokerOrderSendReview" />
-        <JsonPreview title="合计50 USD目标" source="/api/profit-target/status?scope=secondary&targetUsd=50" :payload="state.profitTarget" />
+        <JsonPreview
+          title="MT5 账号快照"
+          source="/api/mt5-readonly-secondary/snapshot"
+          :payload="state.mt5Snapshot"
+        />
+        <JsonPreview
+          title="HFM Crypto 状态"
+          source="/api/hfm-crypto/status?view=summary&scope=secondary"
+          :payload="state.status"
+        />
+        <JsonPreview
+          title="HFM Symbol 扫描"
+          source="/api/hfm-crypto/symbols?scope=secondary"
+          :payload="state.symbols"
+        />
+        <JsonPreview
+          title="HFM 合约规格导出"
+          source="/api/hfm-crypto/contract-spec-export?scope=secondary"
+          :payload="state.contractSpecExport"
+        />
+        <JsonPreview
+          title="HFM 合约规格审查"
+          source="/api/hfm-crypto/execution-spec?scope=secondary"
+          :payload="state.executionSpec"
+        />
+        <JsonPreview
+          title="HFM 模拟表现审查"
+          source="/api/hfm-crypto/simulation-profile?scope=secondary"
+          :payload="state.simulationProfile"
+        />
+        <JsonPreview
+          title="HFM 证据采集包"
+          source="/api/hfm-crypto/evidence-kit?scope=secondary"
+          :payload="state.evidenceKit"
+        />
+        <JsonPreview
+          title="HFM 证据Bootstrap"
+          source="/api/hfm-crypto/evidence-bootstrap?scope=secondary"
+          :payload="state.evidenceBootstrap"
+        />
+        <JsonPreview
+          title="MT5 EA导出器"
+          source="/api/hfm-crypto/mt5-exporter-review?scope=secondary"
+          :payload="state.mt5ExporterReview"
+        />
+        <JsonPreview
+          title="EA升级包"
+          source="/api/hfm-crypto/mt5-upgrade-bundle?scope=secondary"
+          :payload="state.mt5UpgradeBundle"
+        />
+        <JsonPreview
+          title="EA部署/回滚计划"
+          source="/api/hfm-crypto/mt5-exporter-deploy-plan?scope=secondary"
+          :payload="state.mt5ExporterDeployPlan"
+        />
+        <JsonPreview
+          title="独立Specs导出"
+          source="/api/hfm-crypto/standalone-exporter-bundle?scope=secondary"
+          :payload="state.standaloneExporterBundle"
+        />
+        <JsonPreview
+          title="升级后复核"
+          source="/api/hfm-crypto/mt5-post-upgrade-verify?scope=secondary"
+          :payload="state.mt5PostUpgradeVerify"
+        />
+        <JsonPreview
+          title="升级总控"
+          source="/api/hfm-crypto/post-upgrade-controller?scope=secondary"
+          :payload="state.postUpgradeController"
+        />
+        <JsonPreview
+          title="Filled输入校验"
+          source="/api/hfm-crypto/filled-input-validator?scope=secondary"
+          :payload="state.filledInputValidator"
+        />
+        <JsonPreview
+          title="实盘准入档案"
+          source="/api/live-automation/status?scope=secondary"
+          :payload="state.liveReadiness"
+        />
+        <JsonPreview
+          title="执行审查包"
+          source="/api/live-automation/review-packet?scope=secondary"
+          :payload="state.liveReviewPacket"
+        />
+        <JsonPreview
+          title="审批草案（非当前卡点）"
+          source="/api/live-automation/approval-draft?scope=secondary"
+          :payload="state.liveApprovalDraft"
+        />
+        <JsonPreview
+          title="审批证据（已验收则不再等用户）"
+          source="/api/live-automation/approval-evidence?scope=secondary"
+          :payload="state.liveApprovalEvidence"
+        />
+        <JsonPreview
+          title="Dry-run 实盘计划"
+          source="/api/live-automation/dry-run-plan?scope=secondary"
+          :payload="state.dryRunPlan"
+        />
+        <JsonPreview
+          title="执行通道规格"
+          source="/api/live-automation/execution-lane-spec?scope=secondary"
+          :payload="state.executionLaneSpec"
+        />
+        <JsonPreview
+          title="Dry-run 回放审查"
+          source="/api/live-automation/dry-run-replay?scope=secondary"
+          :payload="state.dryRunReplay"
+        />
+        <JsonPreview
+          title="运行时预检"
+          source="/api/live-automation/runtime-preflight?scope=secondary"
+          :payload="state.runtimePreflight"
+        />
+        <JsonPreview
+          title="MT5请求合约"
+          source="/api/live-automation/order-request-contract?scope=secondary"
+          :payload="state.orderRequestContract"
+        />
+        <JsonPreview
+          title="自动化流水线"
+          source="/api/live-automation/pipeline?scope=secondary"
+          :payload="state.simToLivePipeline"
+        />
+        <JsonPreview
+          title="Adapter评审"
+          source="/api/live-automation/adapter-review?scope=secondary"
+          :payload="state.executionAdapterReview"
+        />
+        <JsonPreview
+          title="证据接入"
+          source="/api/live-automation/evidence-intake?scope=secondary"
+          :payload="state.liveEvidenceIntake"
+        />
+        <JsonPreview
+          title="实盘评审候选"
+          source="/api/live-automation/promotion-candidates?scope=secondary"
+          :payload="state.livePromotionCandidates"
+        />
+        <JsonPreview
+          title="自动晋级控制器"
+          source="/api/live-automation/promotion-controller?scope=secondary"
+          :payload="state.livePromotionController"
+        />
+        <JsonPreview
+          title="Adapter沙盒"
+          source="/api/live-automation/adapter-sandbox?scope=secondary"
+          :payload="state.adapterSandbox"
+        />
+        <JsonPreview
+          title="Adapter合同验证"
+          source="/api/live-automation/adapter-contract-validator?scope=secondary"
+          :payload="state.adapterContractValidator"
+        />
+        <JsonPreview
+          title="Sim-to-live总控"
+          source="/api/live-automation/orchestrator?scope=secondary"
+          :payload="state.simToLiveOrchestrator"
+        />
+        <JsonPreview
+          title="执行释放包"
+          source="/api/live-automation/release-readiness-refresh?scope=secondary"
+          :payload="state.releaseReadinessRefresh"
+        />
+        <JsonPreview
+          title="实盘释放最小Diff审查"
+          source="/api/live-automation/release-minimal-diff-review?scope=secondary"
+          :payload="state.releaseMinimalDiffReview"
+        />
+        <JsonPreview
+          title="Release Token证据审查"
+          source="/api/live-automation/release-token-evidence-review?scope=secondary"
+          :payload="state.releaseTokenEvidenceReview"
+        />
+        <JsonPreview
+          title="Release Token签收草案"
+          source="/api/live-automation/release-token-signoff-draft?scope=secondary"
+          :payload="state.releaseTokenSignoffDraft"
+        />
+        <JsonPreview
+          title="Release Token签收模板"
+          source="/api/live-automation/release-token-signoff-input-template?scope=secondary"
+          :payload="state.releaseTokenSignoffInputTemplate"
+        />
+        <JsonPreview
+          title="Release Token签收输入"
+          source="/api/live-automation/release-token-signoff-input-review?scope=secondary"
+          :payload="state.releaseTokenSignoffInputReview"
+        />
+        <JsonPreview
+          title="Release Token签收交接"
+          source="/api/live-automation/release-token-signoff-handoff?scope=secondary"
+          :payload="state.releaseTokenSignoffHandoff"
+        />
+        <JsonPreview
+          title="Adapter Harness"
+          source="/api/live-automation/adapter-harness?scope=secondary"
+          :payload="state.executionAdapterHarness"
+        />
+        <JsonPreview
+          title="Live Pilot激活审查"
+          source="/api/live-automation/live-pilot-activation-review?scope=secondary"
+          :payload="state.livePilotActivationReview"
+        />
+        <JsonPreview
+          title="Receipt对账审查"
+          source="/api/live-automation/receipt-reconciliation-review?scope=secondary"
+          :payload="state.receiptReconciliationReview"
+        />
+        <JsonPreview
+          title="EA Request Reader审查"
+          source="/api/live-automation/ea-request-reader-review?scope=secondary"
+          :payload="state.eaRequestReaderReview"
+        />
+        <JsonPreview
+          title="Live Cutover审查"
+          source="/api/live-automation/live-execution-cutover-review?scope=secondary"
+          :payload="state.liveExecutionCutoverReview"
+        />
+        <JsonPreview
+          title="Live 实现规格"
+          source="/api/live-automation/live-execution-implementation-spec?scope=secondary"
+          :payload="state.liveExecutionImplementationSpec"
+        />
+        <JsonPreview
+          title="Adapter Writer审查"
+          source="/api/live-automation/live-execution-adapter-write-review?scope=secondary"
+          :payload="state.liveExecutionAdapterWriteReview"
+        />
+        <JsonPreview
+          title="EA Request Consumption审查"
+          source="/api/live-automation/ea-request-consumption-review?scope=secondary"
+          :payload="state.eaRequestConsumptionReview"
+        />
+        <JsonPreview
+          title="Broker Order Send审查"
+          source="/api/live-automation/broker-order-send-review?scope=secondary"
+          :payload="state.brokerOrderSendReview"
+        />
+        <JsonPreview
+          title="合计50 USD目标"
+          source="/api/profit-target/status?scope=secondary&targetUsd=50"
+          :payload="state.profitTarget"
+        />
       </div>
     </details>
   </WorkspaceFrame>
@@ -505,10 +757,7 @@ async function withLoading(action, fallbackMessage) {
 
 async function load() {
   technicalEvidenceDetailsLoaded.value = false;
-  await withLoading(
-    (signal) => loadHfmCryptoWorkspace({ signal }),
-    'HFM Crypto CFD 状态加载失败',
-  );
+  await withLoading((signal) => loadHfmCryptoWorkspace({ signal }), 'HFM Crypto CFD 状态加载失败');
   void loadTechnicalEvidenceDetails();
 }
 
@@ -542,12 +791,7 @@ async function build() {
       { signal, timeoutMs: 30000 },
     );
     const contractSpecJson = hfmContractSpecJson.value || contractSpecExportBuild?.contractSpecJsonPath || '';
-    const [
-      buildState,
-      standaloneExporterBundleBuild,
-      liveBuild,
-      loaded,
-    ] = await Promise.all([
+    const [buildState, standaloneExporterBundleBuild, liveBuild, loaded] = await Promise.all([
       buildHfmCryptoWorkspace(
         { mossBacktestJson: mossBacktestJson.value, hfmContractSpecJson: contractSpecJson },
         { signal, timeoutMs: 30000 },
@@ -595,10 +839,19 @@ async function buildFullReview() {
     const evidenceBootstrapBuild = await buildHfmCryptoEvidenceBootstrap({}, { signal, timeoutMs: 60000 });
     const mt5ExporterReviewBuild = await buildHfmCryptoMt5ExporterReview({ signal, timeoutMs: 30000 });
     const mt5UpgradeBundleBuild = await buildHfmCryptoMt5UpgradeBundle({ signal, timeoutMs: 30000 });
-    const mt5ExporterDeployPlanBuild = await buildHfmCryptoMt5ExporterDeployPlan({ signal, timeoutMs: 30000 });
-    const standaloneExporterBundleBuild = await buildHfmCryptoStandaloneExporterBundle({ signal, timeoutMs: 30000 });
+    const mt5ExporterDeployPlanBuild = await buildHfmCryptoMt5ExporterDeployPlan({
+      signal,
+      timeoutMs: 30000,
+    });
+    const standaloneExporterBundleBuild = await buildHfmCryptoStandaloneExporterBundle({
+      signal,
+      timeoutMs: 30000,
+    });
     const mt5PostUpgradeVerifyBuild = await buildHfmCryptoMt5PostUpgradeVerify({ signal, timeoutMs: 30000 });
-    const postUpgradeControllerBuild = await buildHfmCryptoPostUpgradeController({ signal, timeoutMs: 45000 });
+    const postUpgradeControllerBuild = await buildHfmCryptoPostUpgradeController({
+      signal,
+      timeoutMs: 45000,
+    });
     const filledInputValidatorBuild = await buildHfmCryptoFilledInputValidator({ signal, timeoutMs: 30000 });
     const liveBuild = await buildLiveAutomationReadiness(
       { mossBacktestJson: mossBacktestJson.value, hfmContractSpecJson: contractSpecJson },
@@ -754,10 +1007,7 @@ async function buildFullReview() {
       },
       { signal, timeoutMs: 120000 },
     );
-    const eaRequestReaderReviewBuild = await buildEaRequestReaderReview(
-      {},
-      { signal, timeoutMs: 120000 },
-    );
+    const eaRequestReaderReviewBuild = await buildEaRequestReaderReview({}, { signal, timeoutMs: 120000 });
     const liveExecutionCutoverReviewBuild = await buildLiveExecutionCutoverReview(
       {
         operatorApprovalJson: operatorApprovalJson.value,
@@ -951,7 +1201,7 @@ onBeforeUnmount(() => {
   color: var(--qg-danger);
 }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .hfm-crypto-controls {
     grid-template-columns: 1fr;
   }

@@ -121,11 +121,15 @@ describe('hfmCryptoModel', () => {
 
     const conclusion = model.accountCryptoAvailabilityItems.find((item) => item.label === '结论');
     const mt5Account = model.accountCryptoAvailabilityItems.find((item) => item.label === 'MT5 账号');
-    const cryptoCount = model.accountCryptoAvailabilityItems.find((item) => item.label === 'Crypto-like symbols');
+    const cryptoCount = model.accountCryptoAvailabilityItems.find(
+      (item) => item.label === 'Crypto-like symbols',
+    );
     const metric = model.metrics.find((item) => item.label === 'Crypto 接入卡点');
     const readiness = model.readinessItems.find((item) => item.label === '账号 Crypto 可用性');
     const accountLane = model.accountItems.find((item) => item.label === 'HFM Crypto CFD');
-    const checklistBlocker = model.operatorChecklistItems.find((item) => item.label === 'HFM 账号/服务器下发 crypto CFD symbols');
+    const checklistBlocker = model.operatorChecklistItems.find(
+      (item) => item.label === 'HFM 账号/服务器下发 crypto CFD symbols',
+    );
     const liveReadiness = model.liveReadinessItems.find((item) => item.label === 'HFM Crypto');
 
     expect(conclusion).toMatchObject({
@@ -202,7 +206,9 @@ describe('hfmCryptoModel', () => {
     });
 
     const conclusion = model.accountCryptoAvailabilityItems.find((item) => item.label === '结论');
-    const cryptoCount = model.accountCryptoAvailabilityItems.find((item) => item.label === 'Crypto-like symbols');
+    const cryptoCount = model.accountCryptoAvailabilityItems.find(
+      (item) => item.label === 'Crypto-like symbols',
+    );
 
     expect(conclusion).toMatchObject({
       value: '账号已下发 HFM crypto CFD symbol',
@@ -398,7 +404,8 @@ describe('hfmCryptoModel', () => {
           reviewOnlyCandidateFilePackage: {
             schema: 'quantgod.review_only_live_pilot_activation_candidate_files.v1',
             packageMode: 'REVIEW_ONLY_ACTIVATION_CANDIDATE_FILES_NO_MT5_MUTATION',
-            manifestPath: '/tmp/qg/agent/review_only_activation_candidates/QuantGod_LivePilotActivationCandidateManifest.json',
+            manifestPath:
+              '/tmp/qg/agent/review_only_activation_candidates/QuantGod_LivePilotActivationCandidateManifest.json',
             reviewArtifactFilesWritten: true,
             files: [
               {
@@ -476,7 +483,8 @@ describe('hfmCryptoModel', () => {
         Lane: 'forexMt5',
         Route: 'USDJPY_RSI_REVERSAL_H1_MICRO_PILOT',
         Preview: '/tmp/qg/agent/review_only_activation_candidates/forex.review-only.txt',
-        Manifest: '/tmp/qg/agent/review_only_activation_candidates/QuantGod_LivePilotActivationCandidateManifest.json',
+        Manifest:
+          '/tmp/qg/agent/review_only_activation_candidates/QuantGod_LivePilotActivationCandidateManifest.json',
         已写审查文件: '是',
         写MT5预设: '否',
         写订单请求: '否',
@@ -503,7 +511,8 @@ describe('hfmCryptoModel', () => {
           scope: 'secondary',
           requestedScope: 'secondary',
           accountLabel: 'HFM Live16 crypto CFD',
-          runtimeDir: '/Users/bowen/Library/Application Support/net.metaquotes.wine.metatrader5-live16/drive_c/Program Files/MetaTrader 5/MQL5/Files',
+          runtimeDir:
+            '/Users/bowen/Library/Application Support/net.metaquotes.wine.metatrader5-live16/drive_c/Program Files/MetaTrader 5/MQL5/Files',
         },
       },
       releaseReadinessRefresh: {
@@ -527,7 +536,8 @@ describe('hfmCryptoModel', () => {
         },
         primaryActionableBlocker: {
           code: 'STARTUP_CONFIG_ALLOW_LIVE_TRADING_OFF',
-          reasonZh: 'Live16 启动 ini 的 [Experts] AllowLiveTrading=0；重新启动时仍会保持终端级 live trading 关闭。',
+          reasonZh:
+            'Live16 启动 ini 的 [Experts] AllowLiveTrading=0；重新启动时仍会保持终端级 live trading 关闭。',
         },
         fileEvidenceBlockers: [
           {
@@ -546,7 +556,8 @@ describe('hfmCryptoModel', () => {
           canReleaseExecutionNow: false,
           orderSendAllowed: false,
           mt5OrderSendAllowed: false,
-          nextSafeActionZh: '生成审查用最小 diff 和 release-token 证据清单；未通过单独执行 lane 评审前保持只读。',
+          nextSafeActionZh:
+            '生成审查用最小 diff 和 release-token 证据清单；未通过单独执行 lane 评审前保持只读。',
         },
       },
       executionLaneSpec: {
@@ -580,7 +591,8 @@ describe('hfmCryptoModel', () => {
         status: 'TARGET_REACHED_MINIMAL_DIFF_READY_FOR_SEPARATE_REVIEW',
         statusZh: '收益已达标；最小 diff 审查包已生成，仍待 5 个 release token 和 4 个执行模式闸门',
         canReleaseExecutionNow: false,
-        nextRequiredActionZh: '把本审查包作为单独 execution release 评审输入；通过前不得改 ini/preset、写 request 或调用 broker。',
+        nextRequiredActionZh:
+          '把本审查包作为单独 execution release 评审输入；通过前不得改 ini/preset、写 request 或调用 broker。',
         reviewPackage: {
           proposedChanges: [
             {
@@ -613,7 +625,8 @@ describe('hfmCryptoModel', () => {
               tokenProvided: false,
               canMintNow: false,
               blockerCode: 'BROKER_ORDER_SEND_RELEASE_TOKEN_MISSING',
-              requiredEvidenceZh: '需要单独审查的 release token、no-side-effect 测试和 kill-switch 探针证据。',
+              requiredEvidenceZh:
+                '需要单独审查的 release token、no-side-effect 测试和 kill-switch 探针证据。',
             },
           ],
         },
@@ -633,8 +646,10 @@ describe('hfmCryptoModel', () => {
         releaseBlockerClass: 'TOKEN_MISSING_ONLY_AFTER_NO_SIDE_EFFECT_EVIDENCE',
         manualReleaseReviewReadyCount: 1,
         manualReleaseReviewStatus: 'READY_FOR_SEPARATE_SIGNOFF_REVIEW',
-        manualReleaseReviewStatusZh: '1/1 个 release token 可进入单独签收评审；本 artifact 不签收、不铸造 token',
-        nextRequiredActionZh: '按 evidenceRows 逐项补单独 release token 审查证据；通过前不得写 request、消费 request、调用 broker、写 receipt 或自动改 preset。',
+        manualReleaseReviewStatusZh:
+          '1/1 个 release token 可进入单独签收评审；本 artifact 不签收、不铸造 token',
+        nextRequiredActionZh:
+          '按 evidenceRows 逐项补单独 release token 审查证据；通过前不得写 request、消费 request、调用 broker、写 receipt 或自动改 preset。',
         evidenceRows: [
           {
             gateId: 'broker_order_send_release',
@@ -1180,7 +1195,8 @@ describe('hfmCryptoModel', () => {
             statusZh: '等待有效人工审批证据',
             passed: false,
             blockerCodes: ['OPERATOR_APPROVAL_JSON_MISSING'],
-            nextRequiredActionZh: '按 approval draft 填写本地 JSON，并确保 reviewPacketHash 与当前审查包一致。',
+            nextRequiredActionZh:
+              '按 approval draft 填写本地 JSON，并确保 reviewPacketHash 与当前审查包一致。',
           },
         ],
       },
@@ -1231,7 +1247,8 @@ describe('hfmCryptoModel', () => {
               {
                 lane: 'btcCryptoCfd',
                 canAttachNow: false,
-                preferredFirstLivePilot: 'BTC has profit evidence, but needs broker-send lane review before attach',
+                preferredFirstLivePilot:
+                  'BTC has profit evidence, but needs broker-send lane review before attach',
                 changes: [
                   {
                     key: 'ReadOnlyMode',
@@ -1538,7 +1555,8 @@ describe('hfmCryptoModel', () => {
           statusZh: '可继续 disabled-first 实现，但真实订单仍禁止',
           allowedWorkType: 'CODE_AND_REVIEW_ARTIFACTS_ONLY',
           forbiddenWorkType: 'LIVE_ORDER_EXECUTION',
-          nextRequiredActionZh: '继续实现 request writer/EA reader/broker wrapper 的禁用态代码和审查 artifact。',
+          nextRequiredActionZh:
+            '继续实现 request writer/EA reader/broker wrapper 的禁用态代码和审查 artifact。',
         },
         executionSafetyTraceabilityMatrix: [
           {
@@ -1672,7 +1690,8 @@ describe('hfmCryptoModel', () => {
         warnings: [
           {
             code: 'INSTALLED_MT5_EA_EXPORTER_MISSING',
-            reasonZh: '当前 MT5 安装目录里的 EA 源码还没有 hfmCryptoSymbolSpecs exporter；已由独立只读 exporter/specs 输出接管证据。',
+            reasonZh:
+              '当前 MT5 安装目录里的 EA 源码还没有 hfmCryptoSymbolSpecs exporter；已由独立只读 exporter/specs 输出接管证据。',
           },
         ],
       },

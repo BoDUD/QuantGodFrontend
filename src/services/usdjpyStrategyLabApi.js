@@ -10,7 +10,8 @@ function getJson(path, options = {}) {
 function hfmCryptoScopedQuery(query = {}) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null && value !== false && value !== '') params.set(key, String(value));
+    if (value !== undefined && value !== null && value !== false && value !== '')
+      params.set(key, String(value));
   }
   params.set('scope', query.scope || HFM_CRYPTO_ACCOUNT_SCOPE);
   const text = params.toString();
@@ -225,7 +226,9 @@ export function fetchUSDJPYDailyAutopilotV2({ refresh = false } = {}, options = 
 }
 
 export function runUSDJPYDailyAutopilotV2() {
-  return postJson(`${BASE}/autonomous-agent/daily-autopilot-v2/run${hfmCryptoScopedQuery()}`, { focusSymbol: 'USDJPYc' });
+  return postJson(`${BASE}/autonomous-agent/daily-autopilot-v2/run${hfmCryptoScopedQuery()}`, {
+    focusSymbol: 'USDJPYc',
+  });
 }
 
 export function fetchUSDJPYDailyAutopilotV2TelegramText({ refresh = false } = {}) {

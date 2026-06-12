@@ -64,7 +64,8 @@ function statusTone(status) {
 function checklistTone(row = {}) {
   const text = String(row.status || '').toUpperCase();
   if (row.passed || text.includes('PASS') || text.includes('READY')) return 'ok';
-  if (row.blocking || text.includes('BLOCK') || text.includes('LOCK') || text.includes('FAIL')) return 'blocked';
+  if (row.blocking || text.includes('BLOCK') || text.includes('LOCK') || text.includes('FAIL'))
+    return 'blocked';
   return 'warn';
 }
 
@@ -81,13 +82,19 @@ function boolText(value) {
 function compactList(values, fallback = WAITING) {
   const rows = toArray(values);
   if (!rows.length) return fallback;
-  return rows.slice(0, 6).map((item) => formatDisplayValue(item)).join(' / ');
+  return rows
+    .slice(0, 6)
+    .map((item) => formatDisplayValue(item))
+    .join(' / ');
 }
 
 function compactCodeList(values, fallback = WAITING) {
   const rows = toArray(values);
   if (!rows.length) return fallback;
-  return rows.slice(0, 6).map((item) => String(item)).join(' / ');
+  return rows
+    .slice(0, 6)
+    .map((item) => String(item))
+    .join(' / ');
 }
 
 function safetyValue(safety, key) {
@@ -160,7 +167,8 @@ function operatorChecklistRows(payload) {
 }
 
 function brokerSymbolDiagnostics(payload) {
-  const diagnostics = payload?.symbolEvidence?.brokerSymbolDiagnostics || payload?.brokerSymbolDiagnostics || {};
+  const diagnostics =
+    payload?.symbolEvidence?.brokerSymbolDiagnostics || payload?.brokerSymbolDiagnostics || {};
   return isObject(diagnostics) ? diagnostics : {};
 }
 
@@ -278,7 +286,7 @@ function executionReleaseGateRows(payload) {
     副作用: row.sideEffectZh || WAITING,
     数据面: boolText(row.dataPlaneReady),
     ReleaseToken: row.tokenRequired ? boolText(Boolean(row.tokenProvided)) : '不需要',
-    阻断: row.tokenRequired && !row.tokenProvided ? (row.blockerCode || WAITING) : WAITING,
+    阻断: row.tokenRequired && !row.tokenProvided ? row.blockerCode || WAITING : WAITING,
     来源: row.sourceArtifact || row.source || WAITING,
   }));
 }
@@ -337,7 +345,9 @@ function releaseTokenEvidenceProgress(payload = {}) {
   if (!Number.isFinite(total) || total <= 0) {
     return payload.nextRequiredActionZh || compactList(payload.blockedReleaseTokenCodes);
   }
-  const evidenceDone = Number(payload.noSideEffectEvidenceCompleteCount ?? payload.evidenceCompleteCount ?? 0);
+  const evidenceDone = Number(
+    payload.noSideEffectEvidenceCompleteCount ?? payload.evidenceCompleteCount ?? 0,
+  );
   const tokenDone = Number(payload.tokenProvidedCount ?? 0);
   const missing = Number(payload.tokenMissingCount ?? Math.max(total - tokenDone, 0));
   return `无副作用证据 ${evidenceDone}/${total} / Token ${tokenDone}/${total} / 缺 ${missing}`;
@@ -360,7 +370,8 @@ function releaseTokenSignoffDraftRows(payload = {}) {
 function releaseTokenSignoffDraftProgress(payload = {}) {
   const total = Number(payload.releaseTokenCount);
   const ready = Number(payload.readyForSeparateSignoffCount ?? 0);
-  if (!Number.isFinite(total) || total <= 0) return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
+  if (!Number.isFinite(total) || total <= 0)
+    return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
   return `签收草案 ${ready}/${total} / 不能在此签收`;
 }
 
@@ -382,7 +393,8 @@ function releaseTokenSignoffInputTemplateRows(payload = {}) {
 function releaseTokenSignoffInputTemplateProgress(payload = {}) {
   const total = Number(payload.releaseTokenCount);
   const ready = Number(payload.readyForInputCount ?? 0);
-  if (!Number.isFinite(total) || total <= 0) return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
+  if (!Number.isFinite(total) || total <= 0)
+    return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
   return `签收模板 ${ready}/${total} / 等待外部填写`;
 }
 
@@ -404,7 +416,8 @@ function releaseTokenSignoffInputRows(payload = {}) {
 function releaseTokenSignoffInputProgress(payload = {}) {
   const total = Number(payload.releaseTokenCount);
   const complete = Number(payload.completeSignoffCount ?? 0);
-  if (!Number.isFinite(total) || total <= 0) return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
+  if (!Number.isFinite(total) || total <= 0)
+    return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
   return `签收输入 ${complete}/${total} / 当前仍不放行`;
 }
 
@@ -425,7 +438,8 @@ function releaseTokenSignoffHandoffProgress(payload = {}) {
   const total = Number(payload.releaseTokenCount);
   const complete = Number(payload.completeSignoffCount ?? 0);
   const missing = Number(payload.missingSignoffCount ?? Math.max(total - complete, 0));
-  if (!Number.isFinite(total) || total <= 0) return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
+  if (!Number.isFinite(total) || total <= 0)
+    return payload.nextRequiredActionZh || payload.statusZh || payload.status || WAITING;
   return `签收交接 ${complete}/${total} / 缺 ${missing} / 当前仍不放行`;
 }
 
@@ -459,7 +473,9 @@ function pipelineStageReason(payload = {}, stage = {}) {
 function simToLivePipelineHint(payload = {}) {
   const stage = firstBlockingPipelineStage(payload);
   if (!stage) {
-    return payload.readyForSeparateExecutionAdapterReview ? '可进入单独 execution adapter 评审' : '等待证据链';
+    return payload.readyForSeparateExecutionAdapterReview
+      ? '可进入单独 execution adapter 评审'
+      : '等待证据链';
   }
   const blockerCodes = compactCodeList(stage.blockerCodes, stage.status || WAITING);
   return `停在 ${stage.stageId || payload.autoStage || 'pipeline'}：${blockerCodes}`;
@@ -516,40 +532,46 @@ function livePilotPresetActivationRows(payload) {
   const diffPackage = packagePayload.reviewOnlyPresetDiffPackage || {};
   const laneDiffs = toArray(diffPackage.laneDiffs);
   if (laneDiffs.length) {
-    return laneDiffs.flatMap((plan) => toArray(plan.changes).map((change) => ({
-      Lane: plan.lane || WAITING,
-      Route: plan.route || plan.preferredFirstLivePilot || WAITING,
-      Key: change.key || WAITING,
-      From: change.current ?? WAITING,
-      To: change.candidate ?? WAITING,
-      原因: change.reasonZh || diffPackage.statusZh || WAITING,
-      可执行: boolText(plan.canAttachNow),
-    })));
+    return laneDiffs.flatMap((plan) =>
+      toArray(plan.changes).map((change) => ({
+        Lane: plan.lane || WAITING,
+        Route: plan.route || plan.preferredFirstLivePilot || WAITING,
+        Key: change.key || WAITING,
+        From: change.current ?? WAITING,
+        To: change.candidate ?? WAITING,
+        原因: change.reasonZh || diffPackage.statusZh || WAITING,
+        可执行: boolText(plan.canAttachNow),
+      })),
+    );
   }
   const plans = toArray(packagePayload.reviewedPresetChangePlan);
-  return plans.flatMap((plan) => toArray(plan.changes).map((change) => ({
-    Lane: plan.lane || WAITING,
-    Route: plan.route || WAITING,
-    Key: change.key || WAITING,
-    From: change.from ?? WAITING,
-    To: change.to ?? WAITING,
-    原因: change.whyZh || packagePayload.statusZh || WAITING,
-    可执行: boolText(false),
-  })));
+  return plans.flatMap((plan) =>
+    toArray(plan.changes).map((change) => ({
+      Lane: plan.lane || WAITING,
+      Route: plan.route || WAITING,
+      Key: change.key || WAITING,
+      From: change.from ?? WAITING,
+      To: change.to ?? WAITING,
+      原因: change.whyZh || packagePayload.statusZh || WAITING,
+      可执行: boolText(false),
+    })),
+  );
 }
 
 function livePilotPresetCandidateRows(payload) {
   const packagePayload = payload?.presetActivationPackage || {};
   const candidates = toArray(packagePayload.reviewOnlyPresetCandidates);
-  return candidates.flatMap((candidate) => toArray(candidate.candidateSettings).map((setting) => ({
-    Lane: candidate.lane || WAITING,
-    Candidate: candidate.candidateId || WAITING,
-    Key: setting.key || WAITING,
-    Current: setting.currentValue ?? WAITING,
-    CandidateValue: setting.candidateValue ?? WAITING,
-    原因: setting.reasonZh || candidate.statusZh || WAITING,
-    可挂载: boolText(candidate.canAttachNow),
-  })));
+  return candidates.flatMap((candidate) =>
+    toArray(candidate.candidateSettings).map((setting) => ({
+      Lane: candidate.lane || WAITING,
+      Candidate: candidate.candidateId || WAITING,
+      Key: setting.key || WAITING,
+      Current: setting.currentValue ?? WAITING,
+      CandidateValue: setting.candidateValue ?? WAITING,
+      原因: setting.reasonZh || candidate.statusZh || WAITING,
+      可挂载: boolText(candidate.canAttachNow),
+    })),
+  );
 }
 
 function livePilotCandidateFileRows(payload) {
@@ -638,9 +660,9 @@ function liveExecutionSafetyTraceabilityRows(payload) {
 
 function livePilotGateTransitionRows(payload) {
   const plan =
-    payload?.livePilotGateTransitionPlan
-    || payload?.executionActivationGapAudit?.livePilotGateTransitionPlan
-    || {};
+    payload?.livePilotGateTransitionPlan ||
+    payload?.executionActivationGapAudit?.livePilotGateTransitionPlan ||
+    {};
   return toArray(plan.transitionSteps).map((row) => ({
     步骤: row.labelZh || row.stepId || WAITING,
     状态: row.status || WAITING,
@@ -655,7 +677,8 @@ function liveExecutionAdapterWriteRows(payload) {
   const releaseGate = payload?.disabledWriterImplementationContract?.releaseGate || {};
   const writerPreflight = payload?.writerRuntimePreflight || {};
   const releaseTokenRequired = releaseGate.tokenRequired ?? writerPreflight.releaseTokenRequired;
-  const releaseTokenProvided = releaseGate.tokenProvidedInThisArtifact ?? writerPreflight.releaseTokenProvided;
+  const releaseTokenProvided =
+    releaseGate.tokenProvidedInThisArtifact ?? writerPreflight.releaseTokenProvided;
   const releaseBlocker = releaseGate.blockerCode || writerPreflight.releaseTokenBlockerCode || WAITING;
   return toArray(payload?.writePlans).map((row) => ({
     Request: row.requestId || WAITING,
@@ -696,10 +719,13 @@ function brokerOrderSendRows(payload) {
     方向: row.side || WAITING,
     手数: row.volumeLots ?? WAITING,
     Broker调用: boolText(row.wouldCallBroker || row.brokerCallsMade),
-    ReleaseToken: releaseTokenRequired ? boolText(Boolean(releaseTokenProvided || row.releaseTokenProvided)) : '不需要',
-    Release阻断: releaseTokenRequired && !(releaseTokenProvided || row.releaseTokenProvided)
-      ? (row.releaseTokenBlockerCode || releaseBlocker)
-      : WAITING,
+    ReleaseToken: releaseTokenRequired
+      ? boolText(Boolean(releaseTokenProvided || row.releaseTokenProvided))
+      : '不需要',
+    Release阻断:
+      releaseTokenRequired && !(releaseTokenProvided || row.releaseTokenProvided)
+        ? row.releaseTokenBlockerCode || releaseBlocker
+        : WAITING,
     Fuse: boolText(row.requestFusesOk),
   }));
 }
@@ -716,9 +742,10 @@ function executionModeActivationGateChecklist(review = {}) {
   const candidateFields = failedFields.length
     ? failedFields
     : ['livePilotMode', 'readOnlyMode', 'executionEnabled', 'tradeAllowed'].filter(
-      (field) => Object.prototype.hasOwnProperty.call(dashboard, field)
-        || Object.prototype.hasOwnProperty.call(diagnostics, field),
-    );
+        (field) =>
+          Object.prototype.hasOwnProperty.call(dashboard, field) ||
+          Object.prototype.hasOwnProperty.call(diagnostics, field),
+      );
   const blockerByField = {
     livePilotMode: 'MT5_LIVE_PILOT_MODE_NOT_CONFIRMED',
     readOnlyMode: 'MT5_READ_ONLY_MODE_STILL_ACTIVE',
@@ -749,41 +776,51 @@ function simToLiveDecisionPayload(profitTarget = {}) {
   const cutoverGate = profitTarget.liveCutoverGate || {};
   if (!Object.keys(review).length && !Object.keys(cutoverGate).length) return decision;
 
-  const activationGateChecklist = decision.activationGateChecklist
-    || decision.executionActivationGateChecklist
-    || review.activationGateChecklist
-    || review.executionActivationGateChecklist
-    || executionModeActivationGateChecklist(review);
+  const activationGateChecklist =
+    decision.activationGateChecklist ||
+    decision.executionActivationGateChecklist ||
+    review.activationGateChecklist ||
+    review.executionActivationGateChecklist ||
+    executionModeActivationGateChecklist(review);
 
   return {
     ...review,
     ...decision,
     status: decision.status || review.status || review.liveExecutionReviewStatus || cutoverGate.status,
     statusZh: decision.statusZh || review.statusZh || cutoverGate.statusZh,
-    targetReached: decision.targetReached ?? review.targetReached ?? profitTarget.targetReached
-      ?? profitTarget.dualTargetReached ?? cutoverGate.combinedTargetReached,
-    dataPlaneReady: decision.dataPlaneReady ?? review.dataPlaneCutoverReady
-      ?? review.executionReleaseReadinessPacket?.safeAutomationCanContinue,
+    targetReached:
+      decision.targetReached ??
+      review.targetReached ??
+      profitTarget.targetReached ??
+      profitTarget.dualTargetReached ??
+      cutoverGate.combinedTargetReached,
+    dataPlaneReady:
+      decision.dataPlaneReady ??
+      review.dataPlaneCutoverReady ??
+      review.executionReleaseReadinessPacket?.safeAutomationCanContinue,
     executionModeOnlyBlocked: decision.executionModeOnlyBlocked ?? review.cutoverExecutionModeOnlyBlocked,
-    allActivationGatesPassed: decision.allActivationGatesPassed
-      ?? review.executionReleaseReadinessPacket?.activationGateSummary?.allPassed
-      ?? false,
+    allActivationGatesPassed:
+      decision.allActivationGatesPassed ??
+      review.executionReleaseReadinessPacket?.activationGateSummary?.allPassed ??
+      false,
     primaryActionableBlocker: decision.primaryActionableBlocker || review.primaryActionableBlocker,
     activationGateChecklist,
     executionActivationGateChecklist: decision.executionActivationGateChecklist || activationGateChecklist,
-    executionReleaseGateChecklist: decision.executionReleaseGateChecklist || review.executionReleaseGateChecklist,
+    executionReleaseGateChecklist:
+      decision.executionReleaseGateChecklist || review.executionReleaseGateChecklist,
     requiredLaneSummaries: decision.requiredLaneSummaries || review.requiredLaneSummaries,
     orderSendAllowed: decision.orderSendAllowed ?? review.orderSendAllowed ?? cutoverGate.orderSendAllowed,
     mt5OrderSendAllowed: decision.mt5OrderSendAllowed ?? review.mt5OrderSendAllowed,
     writesMt5OrderRequest: decision.writesMt5OrderRequest ?? review.writesMt5OrderRequest,
     brokerCallsMade: decision.brokerCallsMade ?? review.brokerCallsMade,
-    nextRequiredActionZh: decision.nextRequiredActionZh || review.nextRequiredActionZh || cutoverGate.reasonZh,
-    implementationReadinessSummary: decision.implementationReadinessSummary
-      || review.implementationReadinessSummary,
-    disabledFirstImplementationWorkReady: decision.disabledFirstImplementationWorkReady
-      ?? review.disabledFirstImplementationWorkReady,
-    nextCodeWorkAllowedInReviewOnly: decision.nextCodeWorkAllowedInReviewOnly
-      ?? review.nextCodeWorkAllowedInReviewOnly,
+    nextRequiredActionZh:
+      decision.nextRequiredActionZh || review.nextRequiredActionZh || cutoverGate.reasonZh,
+    implementationReadinessSummary:
+      decision.implementationReadinessSummary || review.implementationReadinessSummary,
+    disabledFirstImplementationWorkReady:
+      decision.disabledFirstImplementationWorkReady ?? review.disabledFirstImplementationWorkReady,
+    nextCodeWorkAllowedInReviewOnly:
+      decision.nextCodeWorkAllowedInReviewOnly ?? review.nextCodeWorkAllowedInReviewOnly,
     liveExecutionStillForbidden: decision.liveExecutionStillForbidden ?? review.liveExecutionStillForbidden,
   };
 }
@@ -875,7 +912,11 @@ function executionGateHint(profitTarget = {}, fallback = WAITING, releaseReadine
   return decision.nextRequiredActionZh || profitTarget.liveCutoverGate?.reasonZh || fallback;
 }
 
-function profitExecutionConclusionLine(profitTarget = {}, targetLaneLine = WAITING, releaseReadinessRefresh = {}) {
+function profitExecutionConclusionLine(
+  profitTarget = {},
+  targetLaneLine = WAITING,
+  releaseReadinessRefresh = {},
+) {
   const decision = simToLiveDecisionPayload(profitTarget);
   const targetReached = Boolean(profitTarget.dualTargetReached || decision.targetReached);
   if (!targetReached) return targetLaneLine;
@@ -886,26 +927,28 @@ function profitExecutionConclusionLine(profitTarget = {}, targetLaneLine = WAITI
 function implementationReadinessPayload(profitTarget = {}, implementationSpec = {}) {
   const decision = simToLiveDecisionPayload(profitTarget);
   const review = profitTarget.liveExecutionReview || {};
-  const summary = decision.implementationReadinessSummary
-    || review.implementationReadinessSummary
-    || implementationSpec.implementationReadinessSummary
-    || {};
+  const summary =
+    decision.implementationReadinessSummary ||
+    review.implementationReadinessSummary ||
+    implementationSpec.implementationReadinessSummary ||
+    {};
   return {
     summary,
     disabledFirstImplementationWorkReady: Boolean(
-      decision.disabledFirstImplementationWorkReady
-      || review.disabledFirstImplementationWorkReady
-      || implementationSpec.disabledFirstImplementationWorkReady,
+      decision.disabledFirstImplementationWorkReady ||
+      review.disabledFirstImplementationWorkReady ||
+      implementationSpec.disabledFirstImplementationWorkReady,
     ),
     nextCodeWorkAllowedInReviewOnly: Boolean(
-      decision.nextCodeWorkAllowedInReviewOnly
-      || review.nextCodeWorkAllowedInReviewOnly
-      || implementationSpec.nextCodeWorkAllowedInReviewOnly,
+      decision.nextCodeWorkAllowedInReviewOnly ||
+      review.nextCodeWorkAllowedInReviewOnly ||
+      implementationSpec.nextCodeWorkAllowedInReviewOnly,
     ),
-    liveExecutionStillForbidden: decision.liveExecutionStillForbidden
-      ?? review.liveExecutionStillForbidden
-      ?? implementationSpec.liveExecutionStillForbidden
-      ?? true,
+    liveExecutionStillForbidden:
+      decision.liveExecutionStillForbidden ??
+      review.liveExecutionStillForbidden ??
+      implementationSpec.liveExecutionStillForbidden ??
+      true,
   };
 }
 
@@ -917,9 +960,11 @@ function implementationReadinessSummaryText(readiness = {}) {
 
 function implementationReadinessHint(readiness = {}) {
   const summary = readiness.summary || {};
-  return summary.nextRequiredActionZh
-    || summary.allowedWorkType
-    || (readiness.nextCodeWorkAllowedInReviewOnly ? '只允许代码和 review artifact，真实订单仍禁止' : WAITING);
+  return (
+    summary.nextRequiredActionZh ||
+    summary.allowedWorkType ||
+    (readiness.nextCodeWorkAllowedInReviewOnly ? '只允许代码和 review artifact，真实订单仍禁止' : WAITING)
+  );
 }
 
 function mt5ExporterRows(payload) {
@@ -1233,9 +1278,11 @@ function executionReviewSummaryTone(summary = {}) {
 }
 
 function executionReviewSummaryHint(summary = {}) {
-  return summary.nextRequiredActionZh
-    || compactCodeList(summary.primaryBlockerCodes)
-    || compactCodeList(Object.values(summary.blockerCodesByLane || {}).flat());
+  return (
+    summary.nextRequiredActionZh ||
+    compactCodeList(summary.primaryBlockerCodes) ||
+    compactCodeList(Object.values(summary.blockerCodesByLane || {}).flat())
+  );
 }
 
 function executionReviewBlockerRows(summary = {}) {
@@ -1253,7 +1300,9 @@ function runtimePreflightDataPlaneReady(payload = {}) {
 }
 
 function orderContractDataPlaneReady(payload = {}) {
-  return Boolean(payload.runtimePreflightDataPlaneReadyForReview && payload.runtimePreflightExecutionModeOnlyBlocked);
+  return Boolean(
+    payload.runtimePreflightDataPlaneReadyForReview && payload.runtimePreflightExecutionModeOnlyBlocked,
+  );
 }
 
 function runtimePreflightSummary(payload = {}) {
@@ -1405,7 +1454,8 @@ export function buildHfmCryptoModel(state = {}) {
   const brokerSymbolTotalMarketWatch = brokerDiagnostics.brokerSymbolTotalMarketWatch;
   const brokerCryptoLikeCountAll = brokerDiagnostics.brokerCryptoLikeCountAll;
   const brokerCryptoLikeCountMarketWatch = brokerDiagnostics.brokerCryptoLikeCountMarketWatch;
-  const brokerDiagnosticsKnown = hasNumericValue(brokerSymbolTotalAll) || hasNumericValue(brokerSymbolTotalMarketWatch);
+  const brokerDiagnosticsKnown =
+    hasNumericValue(brokerSymbolTotalAll) || hasNumericValue(brokerSymbolTotalMarketWatch);
   const brokerHasCrypto =
     Number(brokerCryptoLikeCountAll || 0) > 0 || Number(brokerCryptoLikeCountMarketWatch || 0) > 0;
   const specRows = executionSpecRows(executionSpec);
@@ -1433,18 +1483,25 @@ export function buildHfmCryptoModel(state = {}) {
   const releaseMinimalDiffTokens = releaseMinimalDiffTokenRows(releaseMinimalDiffReview);
   const releaseTokenEvidence = releaseTokenEvidenceRows(releaseTokenEvidenceReview);
   const releaseTokenSignoffDraftRowsData = releaseTokenSignoffDraftRows(releaseTokenSignoffDraft);
-  const releaseTokenSignoffInputTemplateRowsData = releaseTokenSignoffInputTemplateRows(releaseTokenSignoffInputTemplate);
+  const releaseTokenSignoffInputTemplateRowsData = releaseTokenSignoffInputTemplateRows(
+    releaseTokenSignoffInputTemplate,
+  );
   const releaseTokenSignoffInputRowsData = releaseTokenSignoffInputRows(releaseTokenSignoffInputReview);
   const releaseTokenSignoffHandoffRowsData = releaseTokenSignoffHandoffRows(releaseTokenSignoffHandoff);
   const postTargetReleaseAudit = executionLaneSpec.postTargetReleaseAudit || {};
-  const authorizationBoundary = executionLaneSpec.authorizationBoundary || approvalEvidence.authorizationBoundary || {};
+  const authorizationBoundary =
+    executionLaneSpec.authorizationBoundary || approvalEvidence.authorizationBoundary || {};
   const laneSelector = state.laneSelector || {};
   const laneSelectorBlocker = laneSelector.selectedLanePrimaryBlocker || {};
-  const laneSelectorLine = laneSelector.selectedLaneLabelZh || laneSelector.selectedLaneId
-    ? `${laneSelector.selectedLaneLabelZh || laneSelector.selectedLaneId}：${
-        laneSelectorBlocker.reasonZh || laneSelectorBlocker.reason || laneSelector.selectedLaneNearestSafeActionZh || WAITING
-      }`
-    : WAITING;
+  const laneSelectorLine =
+    laneSelector.selectedLaneLabelZh || laneSelector.selectedLaneId
+      ? `${laneSelector.selectedLaneLabelZh || laneSelector.selectedLaneId}：${
+          laneSelectorBlocker.reasonZh ||
+          laneSelectorBlocker.reason ||
+          laneSelector.selectedLaneNearestSafeActionZh ||
+          WAITING
+        }`
+      : WAITING;
   const simToLiveOrchestratorStages = simToLiveOrchestratorRows(simToLiveOrchestrator);
   const executionReleaseGateRowsData = executionReleaseGateRows(
     releaseReadinessRefresh.executionReleaseGateChecklist ? releaseReadinessRefresh : simToLiveOrchestrator,
@@ -1457,8 +1514,12 @@ export function buildHfmCryptoModel(state = {}) {
   const receiptReconciliationRowsData = receiptReconciliationRows(receiptReconciliationReview);
   const eaRequestReaderRowsData = eaRequestReaderRows(eaRequestReaderReview);
   const liveExecutionCutoverRowsData = liveExecutionCutoverRows(liveExecutionCutoverReview);
-  const liveExecutionImplementationRowsData = liveExecutionImplementationRows(liveExecutionImplementationSpec);
-  const liveExecutionSafetyTraceabilityRowsData = liveExecutionSafetyTraceabilityRows(liveExecutionImplementationSpec);
+  const liveExecutionImplementationRowsData = liveExecutionImplementationRows(
+    liveExecutionImplementationSpec,
+  );
+  const liveExecutionSafetyTraceabilityRowsData = liveExecutionSafetyTraceabilityRows(
+    liveExecutionImplementationSpec,
+  );
   const livePilotGateTransitionRowsData = livePilotGateTransitionRows(liveExecutionImplementationSpec);
   const liveExecutionAdapterWriteRowsData = liveExecutionAdapterWriteRows(liveExecutionAdapterWriteReview);
   const eaRequestConsumptionRowsData = eaRequestConsumptionRows(eaRequestConsumptionReview);
@@ -1475,7 +1536,9 @@ export function buildHfmCryptoModel(state = {}) {
   const filledInputChecks = filledInputCheckRows(filledInputValidator);
   const evidenceBootstrapDrafts = evidenceBootstrapDraftRows(evidenceBootstrap);
   const executionSpecReady = Boolean(executionSpec.readyForExecutionSpecReview || hfmLive.executionSpecReady);
-  const simulationQualified = Boolean(simulationProfile.simulationQualified || hfmLive.simulationProfileQualified);
+  const simulationQualified = Boolean(
+    simulationProfile.simulationQualified || hfmLive.simulationProfileQualified,
+  );
   const protection = payload.shadowPlan?.priceDiffProtectionPct;
   const mt5Account = mt5Snapshot.account || {};
   const mt5Runtime = mt5Snapshot.runtime || {};
@@ -1489,47 +1552,56 @@ export function buildHfmCryptoModel(state = {}) {
   const mt5ExporterReviewLoaded = endpointLoaded(mt5ExporterReview);
   const standaloneExporterBundleLoaded = endpointLoaded(standaloneExporterBundle);
   const standaloneExporterReadyToRun = Boolean(
-    standaloneExporterBundle.targetExpertInstalledAndCompiled
-    || standaloneExporterBundle.targetInstalledAndCompiled
-    || standaloneExporterOutput.expectedSpecsExists,
+    standaloneExporterBundle.targetExpertInstalledAndCompiled ||
+    standaloneExporterBundle.targetInstalledAndCompiled ||
+    standaloneExporterOutput.expectedSpecsExists,
   );
   const specsEvidenceReady = Boolean(
-    standaloneExporterOutput.expectedSpecsRowCount > 0
-    || standaloneExporterOutput.expectedSpecsExists
-    || symbolEvidence.contractSpecExportReady
-    || symbolEvidence.executionSpecReady
-    || executionSpecReady
-    || symbolEvidenceCanonical.length
-    || symbolEvidenceBroker.length
+    standaloneExporterOutput.expectedSpecsRowCount > 0 ||
+    standaloneExporterOutput.expectedSpecsExists ||
+    symbolEvidence.contractSpecExportReady ||
+    symbolEvidence.executionSpecReady ||
+    executionSpecReady ||
+    symbolEvidenceCanonical.length ||
+    symbolEvidenceBroker.length,
   );
   const standaloneExporterNextAction =
-    standaloneExporterBundle.nextRequiredActionZh
-    || standaloneExporterBundle.output?.expectedSpecsPath
-    || sourceFileHint(payload, 'contractSpecExport', '规格证据已由 Live16 runtime 提供');
+    standaloneExporterBundle.nextRequiredActionZh ||
+    standaloneExporterBundle.output?.expectedSpecsPath ||
+    sourceFileHint(payload, 'contractSpecExport', '规格证据已由 Live16 runtime 提供');
   const accountCryptoAvailabilityStatus = brokerDiagnosticsKnown
     ? brokerHasCrypto
       ? '账号已下发 HFM crypto CFD symbol'
       : '账号已连接，但未下发 HFM crypto CFD symbol'
     : '等待 MT5 broker symbol 探测';
   const accountCryptoAvailabilityTone = brokerDiagnosticsKnown
-    ? brokerHasCrypto ? 'ok' : 'blocked'
+    ? brokerHasCrypto
+      ? 'ok'
+      : 'blocked'
     : 'warn';
   const cryptoExporterReady = Boolean(
     specsEvidenceReady || standaloneExporterReadyToRun || mt5ExporterReview.exporterReadyForEvidenceIntake,
   );
-  const cryptoExporterBlocker =
-    mt5ExporterReviewLoaded
-      ? firstBlockerReason(mt5ExporterReview.blockers) || mt5ExporterReview.nextRequiredActionZh || WAITING
-      : 'EA exporter 详情后台加载中，当前已使用 Live16 specs/runtime 证据。';
+  const cryptoExporterBlocker = mt5ExporterReviewLoaded
+    ? firstBlockerReason(mt5ExporterReview.blockers) || mt5ExporterReview.nextRequiredActionZh || WAITING
+    : 'EA exporter 详情后台加载中，当前已使用 Live16 specs/runtime 证据。';
   const profitTargetLoaded = isObject(profitTarget) && Object.keys(profitTarget).length > 0;
   const targetDecisionTone = profitTargetTone(profitTarget, simToLiveDecision, activationGateChecklistRows);
   const targetDecisionStatus =
-    simToLiveDecision.statusZh || simToLiveDecision.status || profitTarget.statusZh || profitTarget.status || 'profit-target 未载入';
-  const targetLaneLine = profitTargetLoaded ? profitTargetLaneLine(profitTargetLaneRowsData) : 'profit-target 未载入';
+    simToLiveDecision.statusZh ||
+    simToLiveDecision.status ||
+    profitTarget.statusZh ||
+    profitTarget.status ||
+    'profit-target 未载入';
+  const targetLaneLine = profitTargetLoaded
+    ? profitTargetLaneLine(profitTargetLaneRowsData)
+    : 'profit-target 未载入';
   const targetExecutionConclusion = profitTargetLoaded
     ? profitExecutionConclusionLine(profitTarget, targetLaneLine, releaseReadinessRefresh)
     : 'profit-target 未载入';
-  const gateSummary = profitTargetLoaded ? activationGateSummary(activationGateChecklistRows) : 'profit-target 未载入';
+  const gateSummary = profitTargetLoaded
+    ? activationGateSummary(activationGateChecklistRows)
+    : 'profit-target 未载入';
   const livePilotActivationSummary = executionReviewSummary(
     livePilotActivationReview,
     'readyForLivePilotActivationReview',
@@ -1560,7 +1632,10 @@ export function buildHfmCryptoModel(state = {}) {
     'dataPlaneImplementationSpecReady',
     '实现合同可评审',
   );
-  const implementationReadiness = implementationReadinessPayload(profitTarget, liveExecutionImplementationSpec);
+  const implementationReadiness = implementationReadinessPayload(
+    profitTarget,
+    liveExecutionImplementationSpec,
+  );
   const adapterWriterSummary = executionReviewSummary(
     liveExecutionAdapterWriteReview,
     'readyForLiveExecutionAdapterWriteReview',
@@ -1593,48 +1668,74 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: 'Crypto 接入卡点',
-        value: brokerDiagnosticsKnown && !brokerHasCrypto
-          ? '当前账号无 crypto CFD'
-          : specsEvidenceReady
-          ? 'Live16 specs 证据已生成'
-          : standaloneExporterOutput.expectedSpecsRowCount > 0
-          ? 'Specs 文件已生成'
-          : standaloneExporterReadyToRun
-          ? 'Specs 导出 EA 已安装编译'
-          : cryptoExporterReady ? 'EA exporter 已安装' : '等待 exporter 详情',
-        hint: brokerDiagnosticsKnown && !brokerHasCrypto
-          ? `${formatCount(brokerSymbolTotalAll)} 个 broker symbol，crypto-like ${formatCount(brokerCryptoLikeCountAll)} 个；不是账号没登录，是这个 HFM 账号/服务器没给 crypto CFD。`
-          : specsEvidenceReady
-          ? sourceFileHint(payload, 'contractSpecExport', 'Live16 已提供 HFM crypto symbol/spec 证据')
-          : standaloneExporterOutput.expectedSpecsRowCount > 0
-          ? '下一步刷新合约规格审查与实盘准入档案'
-          : standaloneExporterReadyToRun
-          ? '只差用 Expert 启动一次 QuantGod_HFMCryptoSpecExporterEA'
-          : cryptoExporterReady ? '可以继续采集 HFM crypto specs' : cryptoExporterBlocker,
+        value:
+          brokerDiagnosticsKnown && !brokerHasCrypto
+            ? '当前账号无 crypto CFD'
+            : specsEvidenceReady
+              ? 'Live16 specs 证据已生成'
+              : standaloneExporterOutput.expectedSpecsRowCount > 0
+                ? 'Specs 文件已生成'
+                : standaloneExporterReadyToRun
+                  ? 'Specs 导出 EA 已安装编译'
+                  : cryptoExporterReady
+                    ? 'EA exporter 已安装'
+                    : '等待 exporter 详情',
+        hint:
+          brokerDiagnosticsKnown && !brokerHasCrypto
+            ? `${formatCount(brokerSymbolTotalAll)} 个 broker symbol，crypto-like ${formatCount(brokerCryptoLikeCountAll)} 个；不是账号没登录，是这个 HFM 账号/服务器没给 crypto CFD。`
+            : specsEvidenceReady
+              ? sourceFileHint(payload, 'contractSpecExport', 'Live16 已提供 HFM crypto symbol/spec 证据')
+              : standaloneExporterOutput.expectedSpecsRowCount > 0
+                ? '下一步刷新合约规格审查与实盘准入档案'
+                : standaloneExporterReadyToRun
+                  ? '只差用 Expert 启动一次 QuantGod_HFMCryptoSpecExporterEA'
+                  : cryptoExporterReady
+                    ? '可以继续采集 HFM crypto specs'
+                    : cryptoExporterBlocker,
       },
-      { label: '车道状态', value: payload.statusZh || payload.status || WAITING, hint: payload.schema || payload.runtimeScope?.accountLabel || 'Live16 HFM crypto shadow-only' },
-      { label: '已发现 Symbol', value: symbolEvidenceCanonical.length || findings.length, hint: compactList(symbolEvidenceBroker.length ? symbolEvidenceBroker : payload.localEvidence?.brokerSymbols) },
+      {
+        label: '车道状态',
+        value: payload.statusZh || payload.status || WAITING,
+        hint: payload.schema || payload.runtimeScope?.accountLabel || 'Live16 HFM crypto shadow-only',
+      },
+      {
+        label: '已发现 Symbol',
+        value: symbolEvidenceCanonical.length || findings.length,
+        hint: compactList(
+          symbolEvidenceBroker.length ? symbolEvidenceBroker : payload.localEvidence?.brokerSymbols,
+        ),
+      },
       { label: '候选 Symbol', value: candidates.length, hint: compactList(targets) },
       { label: '价差保护', value: formatPercent(protection), hint: 'Moss 跟随资料按 3% 价差保护建模' },
       {
         label: 'Moss 回测',
         value: payload.mossBacktestProfile?.profileFound ? '已导入' : '未导入',
-        hint: moss.agentId || payload.mossBacktestProfile?.profileJsonPath || '可选：导入 Moss/backtest profile 后再做跟随评审',
+        hint:
+          moss.agentId ||
+          payload.mossBacktestProfile?.profileJsonPath ||
+          '可选：导入 Moss/backtest profile 后再做跟随评审',
       },
       {
         label: '模拟验收',
         value: simulationProfile.statusZh || simulationProfile.status || WAITING,
-        hint: simulationQualified ? `达到候选门槛 / ${simulationProfile.sourceSelection?.source || '显式输入'}` : '等待 ROI/Sharpe/回撤/样本',
+        hint: simulationQualified
+          ? `达到候选门槛 / ${simulationProfile.sourceSelection?.source || '显式输入'}`
+          : '等待 ROI/Sharpe/回撤/样本',
       },
       {
         label: '合计 50 USD 目标',
-        value: profitTarget.dualTargetReached || simToLiveDecision.targetReached ? '已达标' : targetDecisionStatus,
+        value:
+          profitTarget.dualTargetReached || simToLiveDecision.targetReached ? '已达标' : targetDecisionStatus,
         hint: targetExecutionConclusion,
       },
       {
         label: '执行闸门',
         value: gateSummary,
-        hint: executionGateHint(profitTarget, '目标达成后只展示闸门状态，不写 MT5 request 文件', releaseReadinessRefresh),
+        hint: executionGateHint(
+          profitTarget,
+          '目标达成后只展示闸门状态，不写 MT5 request 文件',
+          releaseReadinessRefresh,
+        ),
       },
       {
         label: '真实执行',
@@ -1669,7 +1770,10 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: 'MT5 EA导出器',
-        value: mt5ExporterReview.statusZh || mt5ExporterReview.status || (specsEvidenceReady ? 'Live16 specs 证据已可用' : WAITING),
+        value:
+          mt5ExporterReview.statusZh ||
+          mt5ExporterReview.status ||
+          (specsEvidenceReady ? 'Live16 specs 证据已可用' : WAITING),
         hint: mt5ExporterReview.mt5EaUpgradeRequired
           ? '当前 MultiStrategy EA 可后续升级；Live16 独立 exporter/specs 已先接通'
           : mt5ExporterReview.dashboard?.path || sourceFileHint(payload, 'contractSpecExport'),
@@ -1688,31 +1792,42 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: '独立 Specs 导出',
-        value: standaloneExporterBundle.statusZh || standaloneExporterBundle.status || (specsEvidenceReady ? 'Live16 specs 证据已生成' : WAITING),
+        value:
+          standaloneExporterBundle.statusZh ||
+          standaloneExporterBundle.status ||
+          (specsEvidenceReady ? 'Live16 specs 证据已生成' : WAITING),
         hint: standaloneExporterBundle.targetExpertInstalledAndCompiled
           ? 'EA 已安装并编译，等待用 Expert 启动一次'
           : standaloneExporterBundle.targetInstalledAndCompiled
-          ? '脚本已安装并编译，等待在 MT5 Scripts 运行一次'
-          : standaloneExporterBundle.standaloneExporterReady
-          ? standaloneExporterBundle.bundle?.stagedExpertPath || standaloneExporterBundle.bundle?.stagedScriptPath || '可人工安装运行，不替换当前 EA'
-          : specsEvidenceReady
-          ? sourceFileHint(payload, 'contractSpecExport')
-          : firstBlockerReason(standaloneExporterBundle.blockers),
+            ? '脚本已安装并编译，等待在 MT5 Scripts 运行一次'
+            : standaloneExporterBundle.standaloneExporterReady
+              ? standaloneExporterBundle.bundle?.stagedExpertPath ||
+                standaloneExporterBundle.bundle?.stagedScriptPath ||
+                '可人工安装运行，不替换当前 EA'
+              : specsEvidenceReady
+                ? sourceFileHint(payload, 'contractSpecExport')
+                : firstBlockerReason(standaloneExporterBundle.blockers),
       },
       {
         label: '升级后复核',
         value: mt5PostUpgradeVerify.statusZh || mt5PostUpgradeVerify.status || WAITING,
-        hint: mt5PostUpgradeVerify.postUpgradeVerified ? '可继续模拟转实盘证据链' : firstBlockerReason(mt5PostUpgradeVerify.blockers),
+        hint: mt5PostUpgradeVerify.postUpgradeVerified
+          ? '可继续模拟转实盘证据链'
+          : firstBlockerReason(mt5PostUpgradeVerify.blockers),
       },
       {
         label: '升级总控',
         value: postUpgradeController.statusZh || postUpgradeController.status || WAITING,
-        hint: postUpgradeController.postUpgradeReviewAutomated ? '已自动刷新 specs 审查' : firstBlockerReason(postUpgradeController.blockers),
+        hint: postUpgradeController.postUpgradeReviewAutomated
+          ? '已自动刷新 specs 审查'
+          : firstBlockerReason(postUpgradeController.blockers),
       },
       {
         label: '评审输入校验',
         value: filledInputValidator.statusZh || filledInputValidator.status || WAITING,
-        hint: filledInputValidator.reviewInputsValid ? `可刷新实盘评审候选 / ${filledInputValidator.inputSources?.contractSpecSource || WAITING}` : firstBlockerReason(filledInputValidator.blockers),
+        hint: filledInputValidator.reviewInputsValid
+          ? `可刷新实盘评审候选 / ${filledInputValidator.inputSources?.contractSpecSource || WAITING}`
+          : firstBlockerReason(filledInputValidator.blockers),
       },
       {
         label: '实盘准入',
@@ -1726,7 +1841,12 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: '审批证据',
-        value: approvalEvidence.statusZh || approvalEvidence.status || approval.statusZh || approval.status || WAITING,
+        value:
+          approvalEvidence.statusZh ||
+          approvalEvidence.status ||
+          approval.statusZh ||
+          approval.status ||
+          WAITING,
         hint: approvalEvidence.operatorApprovalProvided ? '证据已验收；不再等待用户确认' : '缺审批证据 JSON',
       },
       {
@@ -1737,7 +1857,9 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: '执行通道规格',
         value: executionLaneSpec.statusZh || executionLaneSpec.status || WAITING,
-        hint: executionLaneSpec.readyForImplementationReview ? '可进入实现评审' : '等待审批证据与 dry-run intent',
+        hint: executionLaneSpec.readyForImplementationReview
+          ? '可进入实现评审'
+          : '等待审批证据与 dry-run intent',
       },
       {
         label: 'Dry-run 回放',
@@ -1762,7 +1884,9 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'Adapter评审',
         value: executionAdapterReview.statusZh || executionAdapterReview.status || WAITING,
-        hint: executionAdapterReview.readyForExecutionAdapterCodeReview ? '可进入代码评审' : '等待 pipeline / request contract',
+        hint: executionAdapterReview.readyForExecutionAdapterCodeReview
+          ? '可进入代码评审'
+          : '等待 pipeline / request contract',
       },
       {
         label: '证据接入',
@@ -1825,8 +1949,8 @@ export function buildHfmCryptoModel(state = {}) {
         hint: liveExecutionSafetyTraceabilityRowsData.length
           ? `${liveExecutionSafetyTraceabilityRowsData.length} 个执行安全缺口待单独评审：broker send / receipt / rollback`
           : liveExecutionImplementationSpec.readyForLiveExecutionImplementationSpecReview
-          ? `${toArray(liveExecutionImplementationSpec.implementationSteps).length} 个实现 PR 合同`
-          : liveImplementationSummary.hint,
+            ? `${toArray(liveExecutionImplementationSpec.implementationSteps).length} 个实现 PR 合同`
+            : liveImplementationSummary.hint,
       },
       {
         label: '实现工作包',
@@ -2063,7 +2187,8 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'Live Cutover审查',
         endpoint: '/api/live-automation/live-execution-cutover-review',
-        description: '汇总总控、activation、receipt、EA reader、preflight 和人工审批，作为单独实盘切换实现评审入口',
+        description:
+          '汇总总控、activation、receipt、EA reader、preflight 和人工审批，作为单独实盘切换实现评审入口',
         status: endpointStatus(state.liveExecutionCutoverReview),
       },
       {
@@ -2092,7 +2217,11 @@ export function buildHfmCryptoModel(state = {}) {
       },
     ].filter(visibleKeyValueRow),
     readinessItems: [
-      { label: '状态', value: payload.statusZh || payload.status || WAITING, status: statusTone(payload.status) },
+      {
+        label: '状态',
+        value: payload.statusZh || payload.status || WAITING,
+        status: statusTone(payload.status),
+      },
       {
         label: '账号 Crypto 可用性',
         value: accountCryptoAvailabilityStatus,
@@ -2118,7 +2247,9 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: '规格导出',
-        value: contractSpecExport.readyForContractSpecReviewInput ? 'MT5 registry 已转成规格输入' : firstBlockerReason(contractSpecExport.blockers),
+        value: contractSpecExport.readyForContractSpecReviewInput
+          ? 'MT5 registry 已转成规格输入'
+          : firstBlockerReason(contractSpecExport.blockers),
         status: contractSpecExport.readyForContractSpecReviewInput ? 'warn' : 'blocked',
       },
       {
@@ -2131,52 +2262,76 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: 'EA升级包',
-        value: mt5UpgradeBundle.bundleReadyForManualUpgrade ? '已生成，可人工升级' : firstBlockerReason(mt5UpgradeBundle.blockers),
+        value: mt5UpgradeBundle.bundleReadyForManualUpgrade
+          ? '已生成，可人工升级'
+          : firstBlockerReason(mt5UpgradeBundle.blockers),
         status: mt5UpgradeBundle.bundleReadyForManualUpgrade ? 'warn' : 'blocked',
       },
       {
         label: '部署/回滚计划',
-        value: mt5ExporterDeployPlan.deployPlanReady ? '已生成，等待人工执行' : firstBlockerReason(mt5ExporterDeployPlan.blockers),
+        value: mt5ExporterDeployPlan.deployPlanReady
+          ? '已生成，等待人工执行'
+          : firstBlockerReason(mt5ExporterDeployPlan.blockers),
         hint: mt5ExporterDeployPlan.rollbackPlanReady ? '回滚路径已规划' : '回滚路径未就绪',
-        status: mt5ExporterDeployPlan.deployPlanReady && mt5ExporterDeployPlan.rollbackPlanReady ? 'warn' : 'blocked',
+        status:
+          mt5ExporterDeployPlan.deployPlanReady && mt5ExporterDeployPlan.rollbackPlanReady
+            ? 'warn'
+            : 'blocked',
       },
       {
         label: '独立 Specs 导出',
         value: specsEvidenceReady
           ? 'Specs 文件/审查证据已生成'
           : standaloneExporterBundle.output?.expectedSpecsRowCount > 0
-          ? 'Specs 文件已生成，等待刷新审查'
-          : standaloneExporterBundle.targetExpertInstalledAndCompiled
-          ? 'EA 已安装并编译，等待运行'
-          : standaloneExporterBundle.targetInstalledAndCompiled
-          ? '脚本已安装并编译，等待运行'
-          : standaloneExporterBundle.standaloneExporterReady ? '已生成，可人工运行' : firstBlockerReason(standaloneExporterBundle.blockers),
-        hint: standaloneExporterBundle.output?.expectedSpecsPath || sourceFileHint(payload, 'contractSpecExport'),
-        status: specsEvidenceReady ? 'ok' : standaloneExporterBundle.standaloneExporterReady ? 'warn' : standaloneExporterBundleLoaded ? 'blocked' : 'warn',
+            ? 'Specs 文件已生成，等待刷新审查'
+            : standaloneExporterBundle.targetExpertInstalledAndCompiled
+              ? 'EA 已安装并编译，等待运行'
+              : standaloneExporterBundle.targetInstalledAndCompiled
+                ? '脚本已安装并编译，等待运行'
+                : standaloneExporterBundle.standaloneExporterReady
+                  ? '已生成，可人工运行'
+                  : firstBlockerReason(standaloneExporterBundle.blockers),
+        hint:
+          standaloneExporterBundle.output?.expectedSpecsPath || sourceFileHint(payload, 'contractSpecExport'),
+        status: specsEvidenceReady
+          ? 'ok'
+          : standaloneExporterBundle.standaloneExporterReady
+            ? 'warn'
+            : standaloneExporterBundleLoaded
+              ? 'blocked'
+              : 'warn',
       },
       {
         label: '升级后复核',
-        value: mt5PostUpgradeVerify.postUpgradeVerified ? '已通过' : firstBlockerReason(mt5PostUpgradeVerify.blockers),
+        value: mt5PostUpgradeVerify.postUpgradeVerified
+          ? '已通过'
+          : firstBlockerReason(mt5PostUpgradeVerify.blockers),
         status: mt5PostUpgradeVerify.postUpgradeVerified ? 'warn' : 'blocked',
       },
       {
         label: '升级总控',
-        value: postUpgradeController.postUpgradeReviewAutomated ? '已自动推进审查' : firstBlockerReason(postUpgradeController.blockers),
+        value: postUpgradeController.postUpgradeReviewAutomated
+          ? '已自动推进审查'
+          : firstBlockerReason(postUpgradeController.blockers),
         status: postUpgradeController.postUpgradeReviewAutomated ? 'warn' : 'blocked',
       },
       {
         label: '评审输入校验',
-        value: filledInputValidator.filledInputsValid ? 'specs/profile 评审输入已通过' : firstBlockerReason(filledInputValidator.blockers),
+        value: filledInputValidator.filledInputsValid
+          ? 'specs/profile 评审输入已通过'
+          : firstBlockerReason(filledInputValidator.blockers),
         status: filledInputValidator.filledInputsValid ? 'warn' : 'blocked',
       },
       {
         label: '证据Bootstrap',
-        value: evidenceBootstrap.filledInputsValid ? 'filled 输入已通过' : firstBlockerReason(evidenceBootstrap.blockers),
+        value: evidenceBootstrap.filledInputsValid
+          ? 'filled 输入已通过'
+          : firstBlockerReason(evidenceBootstrap.blockers),
         status: evidenceBootstrap.filledInputsValid ? 'warn' : 'blocked',
       },
       {
         label: '合约规格',
-        value: executionSpecReady ? '已有可审查规格' : (specBlockers[0]?.原因 || '等待导入'),
+        value: executionSpecReady ? '已有可审查规格' : specBlockers[0]?.原因 || '等待导入',
         status: executionSpecReady ? 'warn' : 'blocked',
       },
       {
@@ -2220,7 +2375,12 @@ export function buildHfmCryptoModel(state = {}) {
         label: 'Market Watch crypto-like',
         value: formatCount(brokerCryptoLikeCountMarketWatch),
         hint: '已选 symbol 里匹配到的 crypto CFD 数',
-        status: Number(brokerCryptoLikeCountMarketWatch || 0) > 0 ? 'ok' : brokerDiagnosticsKnown ? 'blocked' : 'warn',
+        status:
+          Number(brokerCryptoLikeCountMarketWatch || 0) > 0
+            ? 'ok'
+            : brokerDiagnosticsKnown
+              ? 'blocked'
+              : 'warn',
       },
       {
         label: '样本数量',
@@ -2287,97 +2447,127 @@ export function buildHfmCryptoModel(state = {}) {
         status: accountCryptoAvailabilityTone,
       },
     ],
-    mossItems: payload.mossBacktestProfile?.profileFound ? [
-      { label: 'Agent ID', value: moss.agentId || WAITING },
-      { label: '策略名', value: moss.strategyName || WAITING },
-      { label: 'ROI', value: formatPercent(moss.roiPct) },
-      { label: 'Sharpe', value: moss.sharpe ?? WAITING },
-      { label: '最大回撤', value: formatPercent(moss.maxDrawdownPct) },
-      { label: '爆仓次数', value: moss.liquidationCount ?? WAITING },
-      { label: '交易笔数', value: moss.tradeCount ?? WAITING },
-      { label: '回测区间', value: moss.backtestDateRange || WAITING },
-    ].filter(visibleKeyValueRow) : [
-      {
-        label: '资料状态',
-        value: '未导入 Moss/backtest profile',
-        hint: '可选：导入 ROI、Sharpe、最大回撤、交易笔数后再做跟随评审。',
-        status: 'warn',
-      },
-    ],
-    profitTargetItems: (profitTargetLoaded ? [
-      {
-        label: '合计模拟目标',
-        value: profitTarget.dualTargetReached || simToLiveDecision.targetReached ? '已达成' : targetDecisionStatus,
-        hint: targetExecutionConclusion,
-        status: targetDecisionTone,
-      },
-      {
-        label: 'Sim-to-live 决策',
-        value: targetDecisionStatus,
-        hint: executionGateHint(profitTarget, WAITING, releaseReadinessRefresh),
-        status: targetDecisionTone,
-      },
-      {
-        label: '实现工作包',
-        value: implementationReadinessSummaryText(implementationReadiness),
-        hint: implementationReadinessHint(implementationReadiness),
-        status: implementationReadiness.disabledFirstImplementationWorkReady ? 'warn' : 'blocked',
-      },
-      {
-        label: '数据面',
-        value: boolText(Boolean(simToLiveDecision.dataPlaneReady)),
-        hint: simToLiveDecision.executionModeOnlyBlocked
-          ? 'HFM/BTC 数据、账号、dry-run 与预检已通过，只剩执行模式闸门'
-          : '等待 profit-target tracker 回灌 sim-to-live decision',
-        status: simToLiveDecision.dataPlaneReady ? 'ok' : 'warn',
-      },
-      {
-        label: '执行模式闸门',
-        value: gateSummary,
-        hint: activationGateChecklistRows[0]?.原因 || WAITING,
-        status: simToLiveDecision.allActivationGatesPassed ? 'ok' : 'blocked',
-      },
-      {
-        label: 'MT5 orderSendAllowed',
-        value: boolText(Boolean(simToLiveDecision.orderSendAllowed || simToLiveDecision.mt5OrderSendAllowed)),
-        hint: '这里必须保持否，直到另有已审查 execution lane',
-        status: 'blocked',
-      },
-      {
-        label: '写 MT5 request',
-        value: boolText(Boolean(simToLiveDecision.writesMt5OrderRequest)),
-        hint: '当前只展示禁用态合约和审查结果',
-        status: 'blocked',
-      },
-      {
-        label: 'Broker 调用',
-        value: boolText(Boolean(simToLiveDecision.brokerCallsMade)),
-        hint: '没有真实 broker order_send 调用',
-        status: 'blocked',
-      },
-    ] : []).filter(visibleKeyValueRow),
+    mossItems: payload.mossBacktestProfile?.profileFound
+      ? [
+          { label: 'Agent ID', value: moss.agentId || WAITING },
+          { label: '策略名', value: moss.strategyName || WAITING },
+          { label: 'ROI', value: formatPercent(moss.roiPct) },
+          { label: 'Sharpe', value: moss.sharpe ?? WAITING },
+          { label: '最大回撤', value: formatPercent(moss.maxDrawdownPct) },
+          { label: '爆仓次数', value: moss.liquidationCount ?? WAITING },
+          { label: '交易笔数', value: moss.tradeCount ?? WAITING },
+          { label: '回测区间', value: moss.backtestDateRange || WAITING },
+        ].filter(visibleKeyValueRow)
+      : [
+          {
+            label: '资料状态',
+            value: '未导入 Moss/backtest profile',
+            hint: '可选：导入 ROI、Sharpe、最大回撤、交易笔数后再做跟随评审。',
+            status: 'warn',
+          },
+        ],
+    profitTargetItems: (profitTargetLoaded
+      ? [
+          {
+            label: '合计模拟目标',
+            value:
+              profitTarget.dualTargetReached || simToLiveDecision.targetReached
+                ? '已达成'
+                : targetDecisionStatus,
+            hint: targetExecutionConclusion,
+            status: targetDecisionTone,
+          },
+          {
+            label: 'Sim-to-live 决策',
+            value: targetDecisionStatus,
+            hint: executionGateHint(profitTarget, WAITING, releaseReadinessRefresh),
+            status: targetDecisionTone,
+          },
+          {
+            label: '实现工作包',
+            value: implementationReadinessSummaryText(implementationReadiness),
+            hint: implementationReadinessHint(implementationReadiness),
+            status: implementationReadiness.disabledFirstImplementationWorkReady ? 'warn' : 'blocked',
+          },
+          {
+            label: '数据面',
+            value: boolText(Boolean(simToLiveDecision.dataPlaneReady)),
+            hint: simToLiveDecision.executionModeOnlyBlocked
+              ? 'HFM/BTC 数据、账号、dry-run 与预检已通过，只剩执行模式闸门'
+              : '等待 profit-target tracker 回灌 sim-to-live decision',
+            status: simToLiveDecision.dataPlaneReady ? 'ok' : 'warn',
+          },
+          {
+            label: '执行模式闸门',
+            value: gateSummary,
+            hint: activationGateChecklistRows[0]?.原因 || WAITING,
+            status: simToLiveDecision.allActivationGatesPassed ? 'ok' : 'blocked',
+          },
+          {
+            label: 'MT5 orderSendAllowed',
+            value: boolText(
+              Boolean(simToLiveDecision.orderSendAllowed || simToLiveDecision.mt5OrderSendAllowed),
+            ),
+            hint: '这里必须保持否，直到另有已审查 execution lane',
+            status: 'blocked',
+          },
+          {
+            label: '写 MT5 request',
+            value: boolText(Boolean(simToLiveDecision.writesMt5OrderRequest)),
+            hint: '当前只展示禁用态合约和审查结果',
+            status: 'blocked',
+          },
+          {
+            label: 'Broker 调用',
+            value: boolText(Boolean(simToLiveDecision.brokerCallsMade)),
+            hint: '没有真实 broker order_send 调用',
+            status: 'blocked',
+          },
+        ]
+      : []
+    ).filter(visibleKeyValueRow),
     safetyItems: [
       { label: '只读模式', value: boolText(safetyValue(safety, 'readOnly')), status: 'ok' },
       { label: 'Shadow-only', value: boolText(safetyValue(safety, 'shadowOnly')), status: 'ok' },
       { label: 'MT5 下单', value: boolText(safetyValue(safety, 'mt5OrderSendAllowed')), status: 'blocked' },
       { label: 'Moss 执行', value: boolText(safetyValue(safety, 'mossExecutionAllowed')), status: 'blocked' },
-      { label: '钱包授权', value: boolText(safetyValue(safety, 'walletAuthorizationAllowed')), status: 'blocked' },
-      { label: '实盘预设改写', value: boolText(safetyValue(safety, 'livePresetMutationAllowed')), status: 'blocked' },
-      { label: 'Receipt写入', value: boolText(safetyValue(safety, 'receiptWritesAllowed')), status: 'blocked' },
-      { label: '自动暂停改写', value: boolText(safetyValue(safety, 'autoDisableMutationAllowed')), status: 'blocked' },
-      { label: 'EA读取Request', value: boolText(safetyValue(safety, 'eaRequestFilesRead')), status: 'blocked' },
+      {
+        label: '钱包授权',
+        value: boolText(safetyValue(safety, 'walletAuthorizationAllowed')),
+        status: 'blocked',
+      },
+      {
+        label: '实盘预设改写',
+        value: boolText(safetyValue(safety, 'livePresetMutationAllowed')),
+        status: 'blocked',
+      },
+      {
+        label: 'Receipt写入',
+        value: boolText(safetyValue(safety, 'receiptWritesAllowed')),
+        status: 'blocked',
+      },
+      {
+        label: '自动暂停改写',
+        value: boolText(safetyValue(safety, 'autoDisableMutationAllowed')),
+        status: 'blocked',
+      },
+      {
+        label: 'EA读取Request',
+        value: boolText(safetyValue(safety, 'eaRequestFilesRead')),
+        status: 'blocked',
+      },
     ].filter(visibleKeyValueRow),
     liveReadinessItems: [
       { label: '准入状态', value: live.statusZh || live.status || WAITING, status: statusTone(live.status) },
       ...(Object.keys(executionSummary).length
         ? [
-          {
-            label: '执行评审摘要',
-            value: executionSummary.statusZh || executionSummary.status || WAITING,
-            hint: executionSummaryHint,
-            status: executionReviewSummaryTone(executionSummary),
-          },
-        ]
+            {
+              label: '执行评审摘要',
+              value: executionSummary.statusZh || executionSummary.status || WAITING,
+              hint: executionSummaryHint,
+              status: executionReviewSummaryTone(executionSummary),
+            },
+          ]
         : []),
       {
         label: '审查账号',
@@ -2387,111 +2577,122 @@ export function buildHfmCryptoModel(state = {}) {
       },
       ...(Object.keys(postTargetExecutionSummary).length
         ? [
-          {
-            label: '达标后执行摘要',
-            value: postTargetExecutionSummary.statusZh || postTargetExecutionSummary.status || WAITING,
-            hint: postTargetExecutionSummary.primaryActionableBlocker?.reasonZh
-              || compactList(postTargetExecutionSummary.blockedReleaseTokenCodes),
-            status: postTargetExecutionSummary.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: '达标后执行摘要',
+              value: postTargetExecutionSummary.statusZh || postTargetExecutionSummary.status || WAITING,
+              hint:
+                postTargetExecutionSummary.primaryActionableBlocker?.reasonZh ||
+                compactList(postTargetExecutionSummary.blockedReleaseTokenCodes),
+              status: postTargetExecutionSummary.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(releaseDiffReviewSummary).length
         ? [
-          {
-            label: '实盘释放计划',
-            value: releaseDiffReviewSummary.statusZh || releaseDiffReviewSummary.status || WAITING,
-            hint: releaseDiffReviewSummary.nextRequiredActionZh
-              || releaseDiffReviewSummary.nextSafeActionZh
-              || compactList(releaseDiffReviewSummary.forbiddenUntilSeparateReleaseReview),
-            status: releaseDiffReviewSummary.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: '实盘释放计划',
+              value: releaseDiffReviewSummary.statusZh || releaseDiffReviewSummary.status || WAITING,
+              hint:
+                releaseDiffReviewSummary.nextRequiredActionZh ||
+                releaseDiffReviewSummary.nextSafeActionZh ||
+                compactList(releaseDiffReviewSummary.forbiddenUntilSeparateReleaseReview),
+              status: releaseDiffReviewSummary.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(releaseTokenEvidenceReview).length
         ? [
-          {
-            label: 'Release Token 证据',
-            value: releaseTokenEvidenceReview.statusZh || releaseTokenEvidenceReview.status || WAITING,
-            hint: releaseTokenEvidenceProgress(releaseTokenEvidenceReview),
-            status: releaseTokenEvidenceReview.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: 'Release Token 证据',
+              value: releaseTokenEvidenceReview.statusZh || releaseTokenEvidenceReview.status || WAITING,
+              hint: releaseTokenEvidenceProgress(releaseTokenEvidenceReview),
+              status: releaseTokenEvidenceReview.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(releaseTokenSignoffDraft).length
         ? [
-          {
-            label: 'Release Token 签收草案',
-            value: releaseTokenSignoffDraft.statusZh || releaseTokenSignoffDraft.status || WAITING,
-            hint: releaseTokenSignoffDraftProgress(releaseTokenSignoffDraft),
-            status: releaseTokenSignoffDraft.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: 'Release Token 签收草案',
+              value: releaseTokenSignoffDraft.statusZh || releaseTokenSignoffDraft.status || WAITING,
+              hint: releaseTokenSignoffDraftProgress(releaseTokenSignoffDraft),
+              status: releaseTokenSignoffDraft.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(releaseTokenSignoffInputTemplate).length
         ? [
-          {
-            label: 'Release Token 签收模板',
-            value: releaseTokenSignoffInputTemplate.statusZh || releaseTokenSignoffInputTemplate.status || WAITING,
-            hint: releaseTokenSignoffInputTemplateProgress(releaseTokenSignoffInputTemplate),
-            status: releaseTokenSignoffInputTemplate.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: 'Release Token 签收模板',
+              value:
+                releaseTokenSignoffInputTemplate.statusZh ||
+                releaseTokenSignoffInputTemplate.status ||
+                WAITING,
+              hint: releaseTokenSignoffInputTemplateProgress(releaseTokenSignoffInputTemplate),
+              status: releaseTokenSignoffInputTemplate.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(releaseTokenSignoffInputReview).length
         ? [
-          {
-            label: 'Release Token 签收输入',
-            value: releaseTokenSignoffInputReview.statusZh || releaseTokenSignoffInputReview.status || WAITING,
-            hint: releaseTokenSignoffInputProgress(releaseTokenSignoffInputReview),
-            status: releaseTokenSignoffInputReview.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: 'Release Token 签收输入',
+              value:
+                releaseTokenSignoffInputReview.statusZh || releaseTokenSignoffInputReview.status || WAITING,
+              hint: releaseTokenSignoffInputProgress(releaseTokenSignoffInputReview),
+              status: releaseTokenSignoffInputReview.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(releaseTokenSignoffHandoff).length
         ? [
-          {
-            label: 'Release Token 签收交接',
-            value: releaseTokenSignoffHandoff.statusZh || releaseTokenSignoffHandoff.status || WAITING,
-            hint: releaseTokenSignoffHandoffProgress(releaseTokenSignoffHandoff),
-            status: releaseTokenSignoffHandoff.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: 'Release Token 签收交接',
+              value: releaseTokenSignoffHandoff.statusZh || releaseTokenSignoffHandoff.status || WAITING,
+              hint: releaseTokenSignoffHandoffProgress(releaseTokenSignoffHandoff),
+              status: releaseTokenSignoffHandoff.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(postTargetReleaseAudit).length
         ? [
-          {
-            label: 'Execution release 审计',
-            value: postTargetReleaseAudit.statusZh || postTargetReleaseAudit.status || WAITING,
-            hint: postTargetReleaseAudit.primaryActionableBlocker?.reasonZh
-              || compactList(postTargetReleaseAudit.blockedReleaseTokenCodes)
-              || compactList(postTargetReleaseAudit.executionModeBlockerCodes),
-            status: postTargetReleaseAudit.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: 'Execution release 审计',
+              value: postTargetReleaseAudit.statusZh || postTargetReleaseAudit.status || WAITING,
+              hint:
+                postTargetReleaseAudit.primaryActionableBlocker?.reasonZh ||
+                compactList(postTargetReleaseAudit.blockedReleaseTokenCodes) ||
+                compactList(postTargetReleaseAudit.executionModeBlockerCodes),
+              status: postTargetReleaseAudit.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(Object.keys(authorizationBoundary).length
         ? [
-          {
-            label: '授权边界',
-            value: authorizationBoundary.chatAuthorizationAcknowledged
-              ? '聊天授权已记录，执行 release 未释放'
-              : '等待授权边界证据',
-            hint: authorizationBoundary.reasonZh || '聊天授权不能单独打开真实下单。',
-            status: authorizationBoundary.canReleaseExecutionNow ? 'warn' : 'blocked',
-          },
-        ]
+            {
+              label: '授权边界',
+              value: authorizationBoundary.chatAuthorizationAcknowledged
+                ? '聊天授权已记录，执行 release 未释放'
+                : '等待授权边界证据',
+              hint: authorizationBoundary.reasonZh || '聊天授权不能单独打开真实下单。',
+              status: authorizationBoundary.canReleaseExecutionNow ? 'warn' : 'blocked',
+            },
+          ]
         : []),
       ...(profitTargetLoaded
         ? [
-          { label: '合计目标决策', value: targetDecisionStatus, status: targetDecisionTone },
-          {
-            label: '执行闸门清单',
-            value: gateSummary,
-            hint: executionGateHint(profitTarget, 'livePilotMode / readOnlyMode / executionEnabled / tradeAllowed', releaseReadinessRefresh),
-            status: simToLiveDecision.allActivationGatesPassed ? 'ok' : 'blocked',
-          },
-        ]
+            { label: '合计目标决策', value: targetDecisionStatus, status: targetDecisionTone },
+            {
+              label: '执行闸门清单',
+              value: gateSummary,
+              hint: executionGateHint(
+                profitTarget,
+                'livePilotMode / readOnlyMode / executionEnabled / tradeAllowed',
+                releaseReadinessRefresh,
+              ),
+              status: simToLiveDecision.allActivationGatesPassed ? 'ok' : 'blocked',
+            },
+          ]
         : []),
       {
         label: '可直接实盘',
@@ -2505,13 +2706,19 @@ export function buildHfmCryptoModel(state = {}) {
         label: 'HFM Crypto',
         value: hfmLive.accountNoCryptoSymbols
           ? hfmLiveAvailability.statusZh || '当前账号/服务器没有 crypto CFD symbols'
-          : hfmLive.reviewCandidate && !liveExecutionAllowed ? '可评审，不能下单'
-          : hfmLive.reviewCandidate ? '可进入执行审查' : '继续补证据',
+          : hfmLive.reviewCandidate && !liveExecutionAllowed
+            ? '可评审，不能下单'
+            : hfmLive.reviewCandidate
+              ? '可进入执行审查'
+              : '继续补证据',
         hint: hfmLive.accountNoCryptoSymbols
           ? hfmLiveAvailability.nextRequiredActionZh || firstBlockerReason(hfmLive.reviewBlockers)
           : hfmLive.reviewCandidate
-          ? compactCodeList(hfmExecutionBlockers, hfmLiveAvailability.statusZh || 'HFM crypto CFD 证据链已进入评审候选')
-          : firstBlockerReason(hfmLive.reviewBlockers),
+            ? compactCodeList(
+                hfmExecutionBlockers,
+                hfmLiveAvailability.statusZh || 'HFM crypto CFD 证据链已进入评审候选',
+              )
+            : firstBlockerReason(hfmLive.reviewBlockers),
         status: hfmLive.reviewCandidate ? 'warn' : 'blocked',
       },
       {
@@ -2521,11 +2728,12 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: '主要缺口',
-        value: review.nextRequiredActionZh
-          || executionSummary.nextRequiredActionZh
-          || compactCodeList(globalExecutionBlockers)
-          || firstBlockerReason(hfmLive.reviewBlockers)
-          || firstBlockerReason(live.globalBlockers),
+        value:
+          review.nextRequiredActionZh ||
+          executionSummary.nextRequiredActionZh ||
+          compactCodeList(globalExecutionBlockers) ||
+          firstBlockerReason(hfmLive.reviewBlockers) ||
+          firstBlockerReason(live.globalBlockers),
         status: 'warn',
       },
       {
@@ -2567,7 +2775,9 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: 'Adapter评审',
-        value: executionAdapterReview.readyForExecutionAdapterCodeReview ? '可评审' : firstBlockerReason(executionAdapterReview.blockers),
+        value: executionAdapterReview.readyForExecutionAdapterCodeReview
+          ? '可评审'
+          : firstBlockerReason(executionAdapterReview.blockers),
         status: executionAdapterReview.readyForExecutionAdapterCodeReview ? 'warn' : 'blocked',
       },
       {
@@ -2577,38 +2787,62 @@ export function buildHfmCryptoModel(state = {}) {
       },
       {
         label: '候选选择',
-        value: livePromotionCandidates.readyForOperatorReviewPacket ? '可生成实盘评审包' : firstBlockerReason(livePromotionCandidates.blockers),
+        value: livePromotionCandidates.readyForOperatorReviewPacket
+          ? '可生成实盘评审包'
+          : firstBlockerReason(livePromotionCandidates.blockers),
         status: livePromotionCandidates.readyForOperatorReviewPacket ? 'warn' : 'blocked',
       },
       {
         label: '自动晋级',
-        value: livePromotionController.reviewAutomationRequested ? '审查包自动生成' : firstBlockerReason(livePromotionController.blockers),
+        value: livePromotionController.reviewAutomationRequested
+          ? '审查包自动生成'
+          : firstBlockerReason(livePromotionController.blockers),
         status: livePromotionController.reviewAutomationRequested ? 'warn' : 'blocked',
       },
       {
         label: 'Adapter沙盒',
-        value: adapterSandbox.sandboxReadyForCodeReview ? '沙盒校验通过' : firstBlockerReason(adapterSandbox.blockers),
+        value: adapterSandbox.sandboxReadyForCodeReview
+          ? '沙盒校验通过'
+          : firstBlockerReason(adapterSandbox.blockers),
         status: adapterSandbox.sandboxReadyForCodeReview ? 'warn' : 'blocked',
       },
       {
         label: 'Adapter合同验证',
-        value: adapterContractValidator.validationPassed ? 'request 合同验证通过' : firstBlockerReason(adapterContractValidator.blockers),
+        value: adapterContractValidator.validationPassed
+          ? 'request 合同验证通过'
+          : firstBlockerReason(adapterContractValidator.blockers),
         status: adapterContractValidator.validationPassed ? 'warn' : 'blocked',
       },
       {
         label: '总控状态机',
-        value: simToLiveOrchestrator.readyForLiveExecutionImplementationReview ? '可进入 live execution 实现评审' : (simToLiveOrchestrator.currentLiveExecutionStageZh || simToLiveOrchestrator.currentStageZh || firstBlockerReason(simToLiveOrchestrator.blockers)),
+        value: simToLiveOrchestrator.readyForLiveExecutionImplementationReview
+          ? '可进入 live execution 实现评审'
+          : simToLiveOrchestrator.currentLiveExecutionStageZh ||
+            simToLiveOrchestrator.currentStageZh ||
+            firstBlockerReason(simToLiveOrchestrator.blockers),
         status: simToLiveOrchestrator.readyForLiveExecutionImplementationReview ? 'warn' : 'blocked',
       },
       {
         label: 'Release Tokens',
-        value: releaseReadinessRefresh.executionReleaseGateSummary?.statusZh || simToLiveOrchestrator.executionReleaseGateSummary?.statusZh || WAITING,
-        hint: compactList(releaseReadinessRefresh.executionReleaseGateSummary?.blockerCodes || simToLiveOrchestrator.executionReleaseGateSummary?.blockerCodes),
-        status: releaseReadinessRefresh.canReleaseExecutionNow || simToLiveOrchestrator.allExecutionReleaseTokensProvided ? 'warn' : 'blocked',
+        value:
+          releaseReadinessRefresh.executionReleaseGateSummary?.statusZh ||
+          simToLiveOrchestrator.executionReleaseGateSummary?.statusZh ||
+          WAITING,
+        hint: compactList(
+          releaseReadinessRefresh.executionReleaseGateSummary?.blockerCodes ||
+            simToLiveOrchestrator.executionReleaseGateSummary?.blockerCodes,
+        ),
+        status:
+          releaseReadinessRefresh.canReleaseExecutionNow ||
+          simToLiveOrchestrator.allExecutionReleaseTokensProvided
+            ? 'warn'
+            : 'blocked',
       },
       {
         label: 'Adapter Harness',
-        value: executionAdapterHarness.readyForDisabledAdapterImplementationReview ? '禁用态 harness 可评审' : firstBlockerReason(executionAdapterHarness.blockers),
+        value: executionAdapterHarness.readyForDisabledAdapterImplementationReview
+          ? '禁用态 harness 可评审'
+          : firstBlockerReason(executionAdapterHarness.blockers),
         status: executionAdapterHarness.readyForDisabledAdapterImplementationReview ? 'warn' : 'blocked',
       },
       {

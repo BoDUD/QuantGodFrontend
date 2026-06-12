@@ -429,10 +429,18 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const targetMetric = buildDashboardMetrics(snapshot).find((item) => item.label === '合计模拟目标');
     const targetEndpoint = buildEndpointHealth(raw).find((item) => item.label === '合计 50 USD 目标');
-    const releaseEvidenceEndpoint = buildEndpointHealth(raw).find((item) => item.label === 'Release Token 证据');
-    const releaseSignoffEndpoint = buildEndpointHealth(raw).find((item) => item.label === 'Release Token 签收草案');
-    const releaseSignoffTemplateEndpoint = buildEndpointHealth(raw).find((item) => item.label === 'Release Token 签收模板');
-    const releaseSignoffInputEndpoint = buildEndpointHealth(raw).find((item) => item.label === 'Release Token 签收输入');
+    const releaseEvidenceEndpoint = buildEndpointHealth(raw).find(
+      (item) => item.label === 'Release Token 证据',
+    );
+    const releaseSignoffEndpoint = buildEndpointHealth(raw).find(
+      (item) => item.label === 'Release Token 签收草案',
+    );
+    const releaseSignoffTemplateEndpoint = buildEndpointHealth(raw).find(
+      (item) => item.label === 'Release Token 签收模板',
+    );
+    const releaseSignoffInputEndpoint = buildEndpointHealth(raw).find(
+      (item) => item.label === 'Release Token 签收输入',
+    );
     const targetTodo = buildDailyTodoRows(raw).find((row) => row.领域 === '合计模拟目标');
     const targetReview = buildDailyReviewRows(raw).find((row) => row.领域 === '合计模拟目标');
     const targetItems = buildProfitTargetItems(snapshot);
@@ -584,7 +592,8 @@ describe('dashboardModel', () => {
         fileEvidenceBlockers: [
           {
             code: 'STARTUP_CONFIG_ALLOW_LIVE_TRADING_OFF',
-            reasonZh: 'Live16 启动 ini 的 [Experts] AllowLiveTrading=0；重新启动时仍会保持终端级 live trading 关闭。',
+            reasonZh:
+              'Live16 启动 ini 的 [Experts] AllowLiveTrading=0；重新启动时仍会保持终端级 live trading 关闭。',
           },
         ],
       },
@@ -670,7 +679,9 @@ describe('dashboardModel', () => {
     const hfmTodo = buildDailyTodoRows(raw).find((row) => row.领域 === 'HFM Crypto');
     const hfmReview = buildDailyReviewRows(raw).find((row) => row.领域 === 'HFM Crypto');
 
-    expect(snapshot.hfmCryptoRuntimeProbeLine).toBe('#BTCUSD runtime probe 缺失：当前 MT5 Experts 里的 exporter EA 不是最新版');
+    expect(snapshot.hfmCryptoRuntimeProbeLine).toBe(
+      '#BTCUSD runtime probe 缺失：当前 MT5 Experts 里的 exporter EA 不是最新版',
+    );
     expect(hfmMetric).toMatchObject({
       value: 39,
       hint: '#BTCUSD runtime probe 缺失：当前 MT5 Experts 里的 exporter EA 不是最新版',

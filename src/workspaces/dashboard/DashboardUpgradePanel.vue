@@ -237,14 +237,12 @@ const kpis = computed(() => {
       null,
     ),
   );
-  const hfmCryptoEvidence = countRows(
-    [
-      'hfmCryptoRows',
-      'hfmCrypto.localEvidence.findings',
-      'hfmCrypto.brokerSymbolCandidates',
-      'hfmCrypto.detectedRows',
-    ],
-  );
+  const hfmCryptoEvidence = countRows([
+    'hfmCryptoRows',
+    'hfmCrypto.localEvidence.findings',
+    'hfmCrypto.brokerSymbolCandidates',
+    'hfmCrypto.detectedRows',
+  ]);
   const hfmCryptoReady = String(first(['hfmCrypto.status'], '')).includes('READY');
   return {
     positions,

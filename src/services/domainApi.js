@@ -57,12 +57,20 @@ export async function loadDashboardWorkspace(options = {}) {
       [
         'dailyAutopilotV2',
         (requestOptions) =>
-          fetchJson(scopedUSDJPYStrategyPath('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2'), null, requestOptions),
+          fetchJson(
+            scopedUSDJPYStrategyPath('/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'agentOpsHealth',
         (requestOptions) =>
-          fetchJson(scopedUSDJPYStrategyPath('/api/usdjpy-strategy-lab/agent-ops-health/status'), null, requestOptions),
+          fetchJson(
+            scopedUSDJPYStrategyPath('/api/usdjpy-strategy-lab/agent-ops-health/status'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'telegramGateway',
@@ -72,15 +80,18 @@ export async function loadDashboardWorkspace(options = {}) {
       ['mt5Snapshot', (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions)],
       [
         'hfmCrypto',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, requestOptions),
       ],
       [
         'profitTarget',
-        (requestOptions) => fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, requestOptions),
       ],
       [
         'liveAutomationOrchestrator',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/orchestrator'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/orchestrator'), null, requestOptions),
       ],
       [
         'championPromotionGate',
@@ -117,18 +128,26 @@ export async function loadDashboardWorkspace(options = {}) {
       [
         'releaseTokenSignoffInputTemplate',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-template'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-template'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'releaseTokenSignoffInputReview',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-review'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-review'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'releaseTokenSignoffHandoff',
@@ -157,26 +176,38 @@ export async function loadDashboardWorkspace(options = {}) {
       [
         'forexLive12CapacityExpansionReview',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/forex-live12-capacity-expansion-review'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/forex-live12-capacity-expansion-review'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'forexLive12CapacityExpansionRoadmap',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/forex-live12-capacity-expansion-roadmap'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/forex-live12-capacity-expansion-roadmap'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'forexLive12MicroExpansionReview',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/forex-live12-micro-expansion-review'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/forex-live12-micro-expansion-review'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'forexLive12RsiRepairPlan',
@@ -189,10 +220,14 @@ export async function loadDashboardWorkspace(options = {}) {
       [
         'forexLive12RsiShadowCandidate',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/forex-live12-rsi-shadow-candidate'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/forex-live12-rsi-shadow-candidate'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'forexLive12RsiTesterRequest',
@@ -213,26 +248,38 @@ export async function loadDashboardWorkspace(options = {}) {
       [
         'forexLive12RsiCandidatePromotionGate',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/forex-live12-rsi-candidate-promotion-gate'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/forex-live12-rsi-candidate-promotion-gate'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'forexLive12RsiTesterLockDraft',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/forex-live12-rsi-tester-lock-draft'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/forex-live12-rsi-tester-lock-draft'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'simTargetExecutionReviewSummary',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/sim-target-execution-review-summary'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/sim-target-execution-review-summary'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
     ],
     options,
@@ -257,19 +304,10 @@ export async function loadMt5Workspace(options = {}) {
             timeoutMs: 10000,
           }),
       ],
-      [
-        'positions',
-        (requestOptions) => fetchJson('/api/mt5-readonly/positions', null, requestOptions),
-      ],
-      [
-        'orders',
-        (requestOptions) => fetchJson('/api/mt5-readonly/orders', null, requestOptions),
-      ],
+      ['positions', (requestOptions) => fetchJson('/api/mt5-readonly/positions', null, requestOptions)],
+      ['orders', (requestOptions) => fetchJson('/api/mt5-readonly/orders', null, requestOptions)],
       ['symbols', (requestOptions) => fetchJson('/api/mt5-symbol-registry/symbols', null, requestOptions)],
-      [
-        'snapshot',
-        (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions),
-      ],
+      ['snapshot', (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions)],
       [
         'secondarySnapshot',
         (requestOptions) =>
@@ -448,26 +486,34 @@ export async function loadResearchWorkspace(query = {}) {
 export async function loadHfmCryptoWorkspace(options = {}) {
   return loadNamedEntries(
     [
-      ['mt5Snapshot', (requestOptions) => fetchJson('/api/mt5-readonly-secondary/snapshot', null, requestOptions)],
+      [
+        'mt5Snapshot',
+        (requestOptions) => fetchJson('/api/mt5-readonly-secondary/snapshot', null, requestOptions),
+      ],
       [
         'status',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, requestOptions),
       ],
       [
         'contractSpecExport',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/contract-spec-export'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/contract-spec-export'), null, requestOptions),
       ],
       [
         'executionSpec',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/execution-spec'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/execution-spec'), null, requestOptions),
       ],
       [
         'liveReadiness',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/status'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/status'), null, requestOptions),
       ],
       [
         'profitTarget',
-        (requestOptions) => fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, requestOptions),
       ],
       [
         'releaseReadinessRefresh',
@@ -504,18 +550,26 @@ export async function loadHfmCryptoWorkspace(options = {}) {
       [
         'releaseTokenSignoffInputTemplate',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-template'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-template'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'releaseTokenSignoffInputReview',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-review'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-review'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'releaseTokenSignoffHandoff',
@@ -534,18 +588,24 @@ export async function loadHfmCryptoWorkspace(options = {}) {
 export async function loadHfmCryptoWorkspaceDetails(options = {}) {
   return loadNamedEntries(
     [
-      ['symbols', (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/symbols'), null, requestOptions)],
+      [
+        'symbols',
+        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/symbols'), null, requestOptions),
+      ],
       [
         'simulationProfile',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/simulation-profile'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/simulation-profile'), null, requestOptions),
       ],
       [
         'mt5ExporterReview',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/mt5-exporter-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/mt5-exporter-review'), null, requestOptions),
       ],
       [
         'mt5UpgradeBundle',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/mt5-upgrade-bundle'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/mt5-upgrade-bundle'), null, requestOptions),
       ],
       [
         'mt5ExporterDeployPlan',
@@ -559,79 +619,118 @@ export async function loadHfmCryptoWorkspaceDetails(options = {}) {
       ],
       [
         'mt5PostUpgradeVerify',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/mt5-post-upgrade-verify'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/mt5-post-upgrade-verify'), null, requestOptions),
       ],
       [
         'postUpgradeController',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/post-upgrade-controller'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/post-upgrade-controller'), null, requestOptions),
       ],
       [
         'filledInputValidator',
-        (requestOptions) => fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/filled-input-validator'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/filled-input-validator'), null, requestOptions),
       ],
       [
         'liveReviewPacket',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/review-packet'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/review-packet'), null, requestOptions),
       ],
       [
         'liveApprovalDraft',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/approval-draft'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/approval-draft'), null, requestOptions),
       ],
       [
         'liveApprovalEvidence',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/approval-evidence'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/approval-evidence'), null, requestOptions),
       ],
       [
         'dryRunPlan',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/dry-run-plan'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/dry-run-plan'), null, requestOptions),
       ],
       [
         'executionLaneSpec',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/execution-lane-spec'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/execution-lane-spec'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'dryRunReplay',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/dry-run-replay'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/dry-run-replay'), null, requestOptions),
       ],
       [
         'runtimePreflight',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/runtime-preflight'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/runtime-preflight'), null, requestOptions),
       ],
       [
         'orderRequestContract',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/order-request-contract'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/order-request-contract'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'simToLivePipeline',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/pipeline'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/pipeline'), null, requestOptions),
       ],
       [
         'executionAdapterReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-review'), null, requestOptions),
       ],
       [
         'liveEvidenceIntake',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/evidence-intake'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/evidence-intake'), null, requestOptions),
       ],
       [
         'livePromotionCandidates',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/promotion-candidates'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/promotion-candidates'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'livePromotionController',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/promotion-controller'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/promotion-controller'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'adapterSandbox',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-sandbox'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-sandbox'), null, requestOptions),
       ],
       [
         'adapterContractValidator',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-contract-validator'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/adapter-contract-validator'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'simToLiveOrchestrator',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/orchestrator'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/orchestrator'), null, requestOptions),
       ],
       [
         'releaseReadinessRefresh',
@@ -668,18 +767,26 @@ export async function loadHfmCryptoWorkspaceDetails(options = {}) {
       [
         'releaseTokenSignoffInputTemplate',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-template'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-template'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'releaseTokenSignoffInputReview',
         (requestOptions) =>
-          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-review'), null, {
-            ...requestOptions,
-            timeoutMs: 10000,
-          }),
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/release-token-signoff-input-review'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
       ],
       [
         'releaseTokenSignoffHandoff',
@@ -699,39 +806,80 @@ export async function loadHfmCryptoWorkspaceDetails(options = {}) {
       ],
       [
         'executionAdapterHarness',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-harness'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/adapter-harness'), null, requestOptions),
       ],
       [
         'livePilotActivationReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/live-pilot-activation-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/live-pilot-activation-review'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'receiptReconciliationReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/receipt-reconciliation-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/receipt-reconciliation-review'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'eaRequestReaderReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/ea-request-reader-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/ea-request-reader-review'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'liveExecutionCutoverReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/live-execution-cutover-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/live-execution-cutover-review'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'liveExecutionImplementationSpec',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/live-execution-implementation-spec'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/live-execution-implementation-spec'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'liveExecutionAdapterWriteReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/live-execution-adapter-write-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/live-execution-adapter-write-review'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'eaRequestConsumptionReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/ea-request-consumption-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/ea-request-consumption-review'),
+            null,
+            requestOptions,
+          ),
       ],
       [
         'brokerOrderSendReview',
-        (requestOptions) => fetchJson(scopedLiveAutomationPath('/api/live-automation/broker-order-send-review'), null, requestOptions),
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/broker-order-send-review'),
+            null,
+            requestOptions,
+          ),
       ],
     ],
     options,
@@ -844,7 +992,8 @@ function liveAutomationBuildQuery(query = {}) {
     eaSourcePath: query.eaSourcePath,
     eaStatusJson: query.eaStatusJson,
     mossBacktestJson: query.mossBacktestJson,
-    hfmSimulationProfileJson: query.hfmSimulationProfileJson || query.simulationProfileJson || query.mossBacktestJson,
+    hfmSimulationProfileJson:
+      query.hfmSimulationProfileJson || query.simulationProfileJson || query.mossBacktestJson,
     hfmContractSpecJson: query.hfmContractSpecJson,
     extraBasesRoot: query.extraBasesRoot,
     refreshSources: query.refreshSources,
@@ -949,11 +1098,19 @@ export async function buildLiveExecutionCutoverReview(query = {}, options = {}) 
 }
 
 export async function buildLiveExecutionImplementationSpec(query = {}, options = {}) {
-  return postLiveAutomationBuild('/api/live-automation/live-execution-implementation-spec/build', query, options);
+  return postLiveAutomationBuild(
+    '/api/live-automation/live-execution-implementation-spec/build',
+    query,
+    options,
+  );
 }
 
 export async function buildLiveExecutionAdapterWriteReview(query = {}, options = {}) {
-  return postLiveAutomationBuild('/api/live-automation/live-execution-adapter-write-review/build', query, options);
+  return postLiveAutomationBuild(
+    '/api/live-automation/live-execution-adapter-write-review/build',
+    query,
+    options,
+  );
 }
 
 export async function buildEaRequestConsumptionReview(query = {}, options = {}) {
@@ -971,7 +1128,12 @@ export async function buildReleaseTokenSignoffInputReview(query = {}, signoffInp
       : signoffInput && typeof signoffInput === 'object'
         ? signoffInput
         : {};
-  return postLiveAutomationBodyBuild('/api/live-automation/release-token-signoff-input-review/build', query, body, options);
+  return postLiveAutomationBodyBuild(
+    '/api/live-automation/release-token-signoff-input-review/build',
+    query,
+    body,
+    options,
+  );
 }
 
 export async function buildReleaseTokenSignoffHandoff(query = {}, options = {}) {

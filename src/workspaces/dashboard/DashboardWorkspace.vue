@@ -188,9 +188,21 @@
           :payload="state.telegramGateway"
         />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
-        <JsonPreview title="HFM Crypto CFD" source="/api/hfm-crypto/status?view=summary&scope=secondary" :payload="state.hfmCrypto" />
-        <JsonPreview title="合计 50 USD 目标" source="/api/profit-target/status?scope=secondary&targetUsd=50" :payload="state.profitTarget" />
-        <JsonPreview title="Sim-to-live 编排器" source="/api/live-automation/orchestrator?scope=secondary" :payload="state.liveAutomationOrchestrator" />
+        <JsonPreview
+          title="HFM Crypto CFD"
+          source="/api/hfm-crypto/status?view=summary&scope=secondary"
+          :payload="state.hfmCrypto"
+        />
+        <JsonPreview
+          title="合计 50 USD 目标"
+          source="/api/profit-target/status?scope=secondary&targetUsd=50"
+          :payload="state.profitTarget"
+        />
+        <JsonPreview
+          title="Sim-to-live 编排器"
+          source="/api/live-automation/orchestrator?scope=secondary"
+          :payload="state.liveAutomationOrchestrator"
+        />
         <JsonPreview
           title="冠军长期记忆晋级闸"
           source="/api/live-automation/champion-promotion-gate?scope=secondary"

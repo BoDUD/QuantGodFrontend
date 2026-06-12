@@ -693,14 +693,19 @@ function accountCard(account = {}, fallback = {}) {
   const spreadGate = present(fallback.spreadGate) ? fallback.spreadGate : null;
   const usdDeploymentGate = present(fallback.usdDeploymentGate) ? fallback.usdDeploymentGate : null;
   const latestFreshness = present(fallback.latestFreshness) ? fallback.latestFreshness : null;
-  const latestStale = Boolean(latestFreshness?.stale || latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT');
+  const latestStale = Boolean(
+    latestFreshness?.stale || latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT',
+  );
   const latestFresh = latestFreshness?.fresh === true;
   const latestUnconfirmed = Boolean(latestFreshness && !latestStale && !latestFresh);
   const positions = Array.isArray(fallback.positions) ? fallback.positions : [];
   const positionHint = positions.length
     ? positions
         .slice(0, 3)
-        .map((row) => `${row.symbol || '未知品种'} ${humanizeStatus(row.type || row.side || '')} ${format(row.volume || row.lots || 0)}`)
+        .map(
+          (row) =>
+            `${row.symbol || '未知品种'} ${humanizeStatus(row.type || row.side || '')} ${format(row.volume || row.lots || 0)}`,
+        )
         .join('；')
     : '该账号实时快照当前无持仓';
   const isUsdLane =
@@ -737,8 +742,15 @@ function accountCard(account = {}, fallback = {}) {
       { label: '交易品种', value: accountSymbolLabel(account), hint: accountMarketHint(account) },
       {
         label: 'EA 自动交易',
-        value: latestStale ? '快照过期' : latestUnconfirmed ? '快照待确认' : accountAutoTradingEnabled(account) ? '已开启' : '未完全开启',
-        status: latestStale || latestUnconfirmed ? 'warn' : accountAutoTradingEnabled(account) ? 'ok' : 'warn',
+        value: latestStale
+          ? '快照过期'
+          : latestUnconfirmed
+            ? '快照待确认'
+            : accountAutoTradingEnabled(account)
+              ? '已开启'
+              : '未完全开启',
+        status:
+          latestStale || latestUnconfirmed ? 'warn' : accountAutoTradingEnabled(account) ? 'ok' : 'warn',
         hint:
           latestStale || latestUnconfirmed
             ? freshnessLine(latestFreshness)
@@ -983,7 +995,9 @@ export function normalizeMt5Snapshot(raw = {}) {
   return {
     latest,
     latestFreshness: isObject(latest._freshness) ? latest._freshness : {},
-    latestDashboardStale: Boolean(latest._freshness?.stale || latest._freshness?.status === 'STALE_DASHBOARD_SNAPSHOT'),
+    latestDashboardStale: Boolean(
+      latest._freshness?.stale || latest._freshness?.status === 'STALE_DASHBOARD_SNAPSHOT',
+    ),
     latestFreshnessLine: freshnessLine(latest._freshness || {}),
     runtime,
     bridgeStatus,

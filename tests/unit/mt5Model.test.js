@@ -99,7 +99,9 @@ describe('mt5Model ledgers', () => {
   it('labels MT5 account cards as cent learning and USD deployment lanes', () => {
     const snapshot = normalizeMt5Snapshot({
       account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
-      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      secondaryAccount: {
+        account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' },
+      },
       dailyAutopilot: {
         accountRegistry: {
           accounts: [
@@ -146,7 +148,8 @@ describe('mt5Model ledgers', () => {
             liveAllowed: false,
             action: 'PAPER_MIRROR',
             targetStage: 'USD_PAPER_MIRROR',
-            reasonZh: '美元账户继续 mirror；只有美分账户验证和严格 STANDARD_ENTRY 条件全部通过后才切 USD_MICRO_LIVE。',
+            reasonZh:
+              '美元账户继续 mirror；只有美分账户验证和严格 STANDARD_ENTRY 条件全部通过后才切 USD_MICRO_LIVE。',
           },
         },
       },
@@ -172,7 +175,9 @@ describe('mt5Model ledgers', () => {
   it('prefers latest live spread gate over stale daily autopilot spread snapshot', () => {
     const snapshot = normalizeMt5Snapshot({
       account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
-      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      secondaryAccount: {
+        account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' },
+      },
       dailyAutopilot: {
         morningPlan: {
           spreadGate: {
@@ -249,7 +254,9 @@ describe('mt5Model ledgers', () => {
   it('does not render cent lane hints on an empty USD lane fallback', () => {
     const snapshot = normalizeMt5Snapshot({
       account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
-      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      secondaryAccount: {
+        account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' },
+      },
     });
 
     const usdItems = buildMt5AccountCards(snapshot)[1].items;
@@ -385,7 +392,9 @@ describe('mt5Model ledgers', () => {
   it('merges secondary USD account live positions into the realtime positions table', () => {
     const snapshot = normalizeMt5Snapshot({
       account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
-      secondaryAccount: { account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' } },
+      secondaryAccount: {
+        account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' },
+      },
       positions: {
         items: [
           {
