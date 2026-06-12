@@ -96,6 +96,10 @@ function endpointUnavailable(payload) {
   return isObject(payload) && payload.ok === false;
 }
 
+function endpointAvailable(payload) {
+  return present(payload) && !endpointUnavailable(payload);
+}
+
 function endpointUnavailableDescription(payload, fallback) {
   if (!endpointUnavailable(payload)) return fallback;
   const error = payload.error;
@@ -796,7 +800,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
     dailyPnl: firstValue(raw, PATH_SETS.dailyPnl, '—'),
     backtestAvailable: present(raw.backtest),
     dailyReviewAvailable: present(raw.dailyReview) && reviewFresh,
-    dailyAutopilotAvailable: present(raw.dailyAutopilot),
+    dailyAutopilotAvailable: endpointAvailable(raw.dailyAutopilot),
     latestFreshness: dashboardFreshness,
     latestFreshnessLine: latestFreshnessLine(dashboardFreshness),
     latestDashboardFresh: dashboardFreshness.fresh === true,
@@ -1713,7 +1717,7 @@ export function buildDailyReviewRows(raw = {}) {
   const hfmProbeLine = hfmCryptoRuntimeProbeLine(raw);
   const profitLine = profitTargetLine(raw);
   const executionLine = profitExecutionConclusionLine(raw);
-  const dailyAutopilotPresent = present(raw?.dailyAutopilot);
+  const dailyAutopilotPresent = endpointAvailable(raw?.dailyAutopilot);
   const hfmStep = steps.find((step) => step.name === 'hfm_crypto_shadow_cycle');
   const testerTimeout = steps.find(
     (step) => step.name === 'auto_tester_guarded_run' && step.status === 'TIMEOUT',

@@ -5,6 +5,7 @@ import {
   buildDailyTodoRows,
   buildActivationGateRows,
   buildDashboardMetrics,
+  buildDailyItems,
   buildEndpointHealth,
   buildRuntimeItems,
   buildProfitTargetItems,
@@ -90,6 +91,30 @@ describe('dashboardModel', () => {
       复盘: '缺失',
       结果: '等待 /api/daily-autopilot',
       建议: '先恢复 /api/daily-autopilot 或等待今日自动闭环生成后再判定完成',
+    });
+    expect(row.结果).not.toBe('闭环完成');
+  });
+
+  it('does not mark ok false daily autopilot envelopes as generated', () => {
+    const raw = {
+      dailyAutopilot: {
+        ok: false,
+        status: 'MISSING',
+        reasonZh: 'QuantGod_DailyAutopilot.json 尚未由本地自动化生成',
+      },
+    };
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const item = buildDailyItems(snapshot).find((entry) => entry.label === '今日自动闭环');
+    const row = buildDailyReviewRows(raw).find((entry) => entry.领域 === '自动闭环');
+
+    expect(snapshot.dailyAutopilotAvailable).toBe(false);
+    expect(item).toMatchObject({
+      value: '缺失',
+      status: 'warn',
+    });
+    expect(row).toMatchObject({
+      复盘: '缺失',
+      结果: '等待 /api/daily-autopilot',
     });
     expect(row.结果).not.toBe('闭环完成');
   });
