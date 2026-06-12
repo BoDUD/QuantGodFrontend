@@ -57,7 +57,10 @@ function freshnessLine(freshness = {}) {
   if (!present(freshness)) return '';
   const ageSeconds = Number(freshness.ageSeconds);
   const ageText = Number.isFinite(ageSeconds) ? `${Math.round(ageSeconds)}s` : '未知时长';
-  return freshness.statusZh || (freshness.stale ? `MT5 dashboard 已过期 ${ageText}` : 'MT5 dashboard 新鲜');
+  if (freshness.statusZh) return freshness.statusZh;
+  if (freshness.stale === true) return `MT5 dashboard 已过期 ${ageText}`;
+  if (freshness.fresh === true) return 'MT5 dashboard 新鲜';
+  return 'MT5 dashboard 新鲜度待确认';
 }
 
 function format(value) {
@@ -691,6 +694,8 @@ function accountCard(account = {}, fallback = {}) {
   const usdDeploymentGate = present(fallback.usdDeploymentGate) ? fallback.usdDeploymentGate : null;
   const latestFreshness = present(fallback.latestFreshness) ? fallback.latestFreshness : null;
   const latestStale = Boolean(latestFreshness?.stale || latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT');
+  const latestFresh = latestFreshness?.fresh === true;
+  const latestUnconfirmed = Boolean(latestFreshness && !latestStale && !latestFresh);
   const positions = Array.isArray(fallback.positions) ? fallback.positions : [];
   const positionHint = positions.length
     ? positions
@@ -732,18 +737,21 @@ function accountCard(account = {}, fallback = {}) {
       { label: '交易品种', value: accountSymbolLabel(account), hint: accountMarketHint(account) },
       {
         label: 'EA 自动交易',
-        value: latestStale ? '快照过期' : accountAutoTradingEnabled(account) ? '已开启' : '未完全开启',
-        status: latestStale ? 'warn' : accountAutoTradingEnabled(account) ? 'ok' : 'warn',
-        hint: latestStale ? freshnessLine(latestFreshness) : `执行 ${onOffText(account.executionEnabled)} / 实盘 ${onOffText(
-          account.livePilotMode,
-        )} / 交易权限 ${onOffText(account.tradeAllowed)}`,
+        value: latestStale ? '快照过期' : latestUnconfirmed ? '快照待确认' : accountAutoTradingEnabled(account) ? '已开启' : '未完全开启',
+        status: latestStale || latestUnconfirmed ? 'warn' : accountAutoTradingEnabled(account) ? 'ok' : 'warn',
+        hint:
+          latestStale || latestUnconfirmed
+            ? freshnessLine(latestFreshness)
+            : `执行 ${onOffText(account.executionEnabled)} / 实盘 ${onOffText(
+                account.livePilotMode,
+              )} / 交易权限 ${onOffText(account.tradeAllowed)}`,
       },
       ...(latestFreshness
         ? [
             {
               label: '快照新鲜度',
-              value: latestStale ? '过期' : '新鲜',
-              status: latestStale ? 'warn' : 'ok',
+              value: latestStale ? '过期' : latestFresh ? '新鲜' : '待确认',
+              status: latestStale || !latestFresh ? 'warn' : 'ok',
               hint: latestFreshness.nextActionZh || freshnessLine(latestFreshness),
             },
           ]

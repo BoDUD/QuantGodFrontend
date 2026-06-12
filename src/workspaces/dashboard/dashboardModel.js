@@ -15,8 +15,13 @@ const PATH_SETS = {
   updatedAt: [
     'latest.timestamp',
     'latest.updated_at',
+    'latest._file.mtimeIso',
+    'latest._freshness.checkedAtIso',
     'state.timestamp',
     'state.updated_at',
+    'state.source.mtimeIso',
+    'state._freshness.checkedAtIso',
+    'state.data._file.mtimeIso',
     'state.data.timestamp',
     'state.data.updated_at',
   ],
@@ -88,7 +93,7 @@ function present(value) {
 }
 
 function latestFreshness(raw = {}) {
-  const freshness = raw?.latest?._freshness || raw?._freshness || {};
+  const freshness = raw?.latest?._freshness || raw?.state?._freshness || raw?.state?.data?._freshness || raw?._freshness || {};
   if (!isObject(freshness)) return {};
   return freshness;
 }
@@ -98,6 +103,14 @@ function latestFreshnessLine(freshness = {}) {
   const ageSeconds = Number(freshness.ageSeconds);
   const ageText = Number.isFinite(ageSeconds) ? `${Math.round(ageSeconds)}s` : '未知时长';
   return freshness.statusZh || (freshness.stale ? `MT5 dashboard 已过期 ${ageText}` : 'MT5 dashboard 新鲜');
+}
+
+function dashboardFreshnessHint(snapshot = {}) {
+  return (
+    snapshot.latestFreshnessLine ||
+    snapshot.latestFreshness?.nextActionZh ||
+    '按 /api/latest dashboard mtime 判定'
+  );
 }
 
 function boolStatus(value, truthyLabel = 'active', falseLabel = 'inactive') {
@@ -721,15 +734,18 @@ function chooseRoutes(raw) {
 
 export function normalizeDashboardSnapshot(raw = {}) {
   const reviewFresh = dailyReviewIsFresh(raw.dailyReview);
-  const runtimeState = firstValue(
-    raw,
-    PATH_SETS.runtimeState,
-    present(raw.latest) || present(raw.state) ? 'available' : 'missing',
-  );
+  const dashboardFreshness = latestFreshness(raw);
+  const dashboardStale = dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT';
+  const runtimeState = dashboardStale
+    ? 'STALE_DASHBOARD_SNAPSHOT'
+    : firstValue(
+        raw,
+        PATH_SETS.runtimeState,
+        present(raw.latest) || present(raw.state) ? 'available' : 'missing',
+      );
   const killSwitch = firstValue(raw, PATH_SETS.killSwitch, null);
   const dryRun = firstValue(raw, PATH_SETS.dryRun, null);
   const activeRoute = firstValue(raw, PATH_SETS.activeRoute, '—');
-  const dashboardFreshness = latestFreshness(raw);
   return {
     runtimeState,
     updatedAt: firstValue(raw, PATH_SETS.updatedAt, '—'),
@@ -744,8 +760,8 @@ export function normalizeDashboardSnapshot(raw = {}) {
     dailyAutopilotAvailable: present(raw.dailyAutopilot),
     latestFreshness: dashboardFreshness,
     latestFreshnessLine: latestFreshnessLine(dashboardFreshness),
-    latestDashboardFresh: dashboardFreshness.fresh !== false,
-    latestDashboardStale: dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT',
+    latestDashboardFresh: dashboardFreshness.fresh === true,
+    latestDashboardStale: dashboardStale,
     routes: chooseRoutes(raw),
     account: latestAccount(raw),
     positions: mt5Positions(raw),
@@ -803,6 +819,7 @@ export function buildDashboardMetrics(snapshot) {
   const currency = snapshot.account?.currency || 'USC';
   const balance = numberValue(snapshot.account?.balance ?? snapshot.account?.equity, null);
   const equity = numberValue(snapshot.account?.equity, null);
+  const staleDashboardHint = snapshot.latestDashboardStale ? dashboardFreshnessHint(snapshot) : '';
   const hfmCryptoCount = snapshot.hfmCryptoRows?.length || 0;
   const hfmCryptoDiagnosticLine = hfmCryptoCountLine(snapshot.hfmCryptoDiagnostics);
   const hfmCryptoLikeCount = numberValue(snapshot.hfmCryptoDiagnostics?.brokerCryptoLikeCountAll, null);
@@ -815,14 +832,16 @@ export function buildDashboardMetrics(snapshot) {
   const forexRsiTester = snapshot.forexLive12RsiTesterRequest || {};
   return [
     {
-      label: '账户净值',
+      label: snapshot.latestDashboardStale ? '账户净值（历史）' : '账户净值',
       value: equity === null ? '—' : formatMoney(equity, currency),
-      hint: snapshot.account?.server || 'HFM MT5',
+      hint: staleDashboardHint || snapshot.account?.server || 'HFM MT5',
+      status: snapshot.latestDashboardStale ? 'warn' : undefined,
     },
     {
-      label: '账户余额',
+      label: snapshot.latestDashboardStale ? '账户余额（历史）' : '账户余额',
       value: balance === null ? '—' : formatMoney(balance, currency),
-      hint: snapshot.account?.number || snapshot.account?.login || '实时快照',
+      hint: staleDashboardHint || snapshot.account?.number || snapshot.account?.login || '实时快照',
+      status: snapshot.latestDashboardStale ? 'warn' : undefined,
     },
     {
       label: 'MT5 快照新鲜度',
@@ -832,7 +851,12 @@ export function buildDashboardMetrics(snapshot) {
         snapshot.latestFreshness?.nextActionZh ||
         '按 /api/latest dashboard mtime 判定',
     },
-    { label: '当前持仓', value: snapshot.positions?.length || 0, hint: 'MT5 实盘快照' },
+    {
+      label: '当前持仓',
+      value: snapshot.positions?.length || 0,
+      hint: snapshot.latestDashboardStale ? '过期 MT5 快照，不能当当前持仓' : 'MT5 实盘快照',
+      status: snapshot.latestDashboardStale ? 'warn' : undefined,
+    },
     {
       label: '今日净值',
       value: formatMoney(snapshot.dailyPnlEvidence?.netUSC ?? snapshot.dailyPnl, 'USC'),
@@ -1275,6 +1299,21 @@ export function buildReleaseGateRows(snapshot = {}) {
 }
 
 export function buildRuntimeItems(snapshot) {
+  if (snapshot.latestDashboardStale) {
+    const hint = dashboardFreshnessHint(snapshot);
+    return [
+      {
+        label: '运行状态',
+        value: '快照过期',
+        status: 'warn',
+        hint,
+      },
+      { label: '更新时间', value: snapshot.updatedAt, hint: 'MT5 dashboard 文件 mtime' },
+      { label: '熔断保护', value: '不可判定', status: 'warn', hint: '等待新鲜 MT5 快照' },
+      { label: '模拟保护', value: '不可判定', status: 'warn', hint: '等待新鲜 MT5 快照' },
+      { label: '当前路线', value: '历史快照', hint },
+    ];
+  }
   return [
     {
       label: '运行状态',

@@ -6,6 +6,7 @@ import {
   buildActivationGateRows,
   buildDashboardMetrics,
   buildEndpointHealth,
+  buildRuntimeItems,
   buildProfitTargetItems,
   normalizeDashboardSnapshot,
   buildReleaseGateRows,
@@ -32,17 +33,53 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const metrics = buildDashboardMetrics(snapshot);
     const freshnessMetric = metrics.find((item) => item.label === 'MT5 快照新鲜度');
+    const equityMetric = metrics.find((item) => item.label === '账户净值（历史）');
+    const positionsMetric = metrics.find((item) => item.label === '当前持仓');
+    const runtimeItems = buildRuntimeItems(snapshot);
     const latestHealth = buildEndpointHealth(raw).find((item) => item.endpoint === '/api/latest');
 
     expect(snapshot.latestDashboardStale).toBe(true);
+    expect(snapshot.runtimeState).toBe('STALE_DASHBOARD_SNAPSHOT');
+    expect(equityMetric).toMatchObject({
+      value: '10220.35 USC',
+      hint: 'MT5 dashboard 快照已过期',
+      status: 'warn',
+    });
     expect(freshnessMetric).toMatchObject({
       value: '过期',
+      hint: 'MT5 dashboard 快照已过期',
+    });
+    expect(positionsMetric).toMatchObject({
+      hint: '过期 MT5 快照，不能当当前持仓',
+      status: 'warn',
+    });
+    expect(runtimeItems[0]).toMatchObject({
+      label: '运行状态',
+      value: '快照过期',
+      status: 'warn',
       hint: 'MT5 dashboard 快照已过期',
     });
     expect(latestHealth).toMatchObject({
       status: 'warn',
       statusLabel: '快照过期',
       description: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+    });
+  });
+
+  it('does not treat missing /api/latest freshness as a fresh MT5 snapshot', () => {
+    const raw = {
+      latest: null,
+      state: null,
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const freshnessMetric = buildDashboardMetrics(snapshot).find((item) => item.label === 'MT5 快照新鲜度');
+
+    expect(snapshot.latestDashboardFresh).toBe(false);
+    expect(snapshot.latestDashboardStale).toBe(false);
+    expect(freshnessMetric).toMatchObject({
+      value: '待确认',
+      hint: '按 /api/latest dashboard mtime 判定',
     });
   });
 

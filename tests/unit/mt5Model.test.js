@@ -308,6 +308,51 @@ describe('mt5Model ledgers', () => {
     });
   });
 
+  it('does not mark MT5 account cards fresh when freshness is present but unconfirmed', () => {
+    const snapshot = normalizeMt5Snapshot({
+      latest: {
+        _freshness: {
+          status: 'WAITING_DASHBOARD_FRESHNESS',
+          nextActionZh: '等待 /api/latest 返回 mtime 新鲜度。',
+        },
+      },
+      account: {
+        account: {
+          login: '186054398',
+          server: 'HFMarketsGlobal-Live12',
+          currency: 'USC',
+          executionEnabled: true,
+          livePilotMode: true,
+          tradeAllowed: true,
+        },
+      },
+      secondaryAccount: {
+        account: {
+          login: '198135388',
+          server: 'HFMarketsGlobal-Live16',
+          currency: 'USD',
+          executionEnabled: true,
+          livePilotMode: true,
+          tradeAllowed: true,
+        },
+      },
+    });
+
+    const centItems = buildMt5AccountCards(snapshot)[0].items;
+
+    expect(snapshot.latestDashboardStale).toBe(false);
+    expect(centItems.find((item) => item.label === 'EA 自动交易')).toMatchObject({
+      value: '快照待确认',
+      status: 'warn',
+      hint: 'MT5 dashboard 新鲜度待确认',
+    });
+    expect(centItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
+      value: '待确认',
+      status: 'warn',
+      hint: '等待 /api/latest 返回 mtime 新鲜度。',
+    });
+  });
+
   it('shows manual non-USDJPY live positions in the realtime positions table', () => {
     const snapshot = normalizeMt5Snapshot({
       positions: {
