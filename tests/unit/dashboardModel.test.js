@@ -185,6 +185,50 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('uses HFM crypto specs evidence when live broker inventory reports zero crypto symbols', () => {
+    const raw = {
+      hfmCrypto: {
+        compactView: true,
+        status: 'READY_FOR_SHADOW_RESEARCH',
+        statusZh: 'HFM Crypto CFD 影子研究就绪',
+        symbolEvidence: {
+          found: true,
+          canonicalSymbols: ['BTCUSD', 'ETHUSD'],
+          brokerSymbols: ['#BTCUSD', '#ETHUSD'],
+          brokerSymbolDiagnostics: {
+            brokerSymbolTotalAll: 0,
+            brokerSymbolTotalMarketWatch: 0,
+            brokerCryptoLikeCountAll: 0,
+            brokerCryptoLikeCountMarketWatch: 0,
+          },
+        },
+        standaloneExporterBundle: {
+          runtimeProbeTickDetected: true,
+          startupSymbol: '#BTCUSD',
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const hfmMetric = buildDashboardMetrics(snapshot).find((item) => item.label === 'HFM Crypto');
+    const hfmTodo = buildDailyTodoRows(raw).find((row) => row.领域 === 'HFM Crypto');
+    const hfmReview = buildDailyReviewRows(raw).find((row) => row.领域 === 'HFM Crypto');
+
+    expect(hfmMetric).toMatchObject({
+      value: 2,
+      hint: '#BTCUSD runtime probe 已输出实时 tick',
+    });
+    expect(hfmTodo).toMatchObject({
+      任务: 'BTC runtime probe',
+      状态: '2 specs crypto / 0 broker / 0 Market Watch',
+      结论: '#BTCUSD runtime probe 已输出实时 tick',
+    });
+    expect(hfmReview).toMatchObject({
+      结果: '2 specs crypto / 0 broker / 0 Market Watch',
+      建议: '#BTCUSD runtime probe 已输出实时 tick',
+    });
+  });
+
   it('surfaces combined 50 USD simulation target progress from profit target tracker', () => {
     const raw = {
       profitTarget: {

@@ -360,12 +360,37 @@ function hfmCryptoDiagnostics(raw) {
   );
 }
 
+function hfmCryptoEvidenceSymbolCount(raw = {}) {
+  const hfmCrypto = raw?.hfmCrypto || {};
+  const symbolEvidence = hfmCrypto.symbolEvidence || {};
+  return Math.max(
+    toArray(symbolEvidence.canonicalSymbols).length,
+    toArray(symbolEvidence.brokerSymbols).length,
+    toArray(hfmCrypto.brokerSymbolCandidates).length,
+    toArray(hfmCrypto.localEvidence?.findings).length,
+  );
+}
+
 function hfmCryptoCountLine(diagnostics = {}) {
   const total = numberValue(diagnostics.brokerSymbolTotalAll, null);
   const marketWatch = numberValue(diagnostics.brokerSymbolTotalMarketWatch, null);
   const cryptoLike = numberValue(diagnostics.brokerCryptoLikeCountAll, null);
   if (total === null && cryptoLike === null) return '';
   return `${cryptoLike ?? 0} crypto / ${total ?? 0} broker / ${marketWatch ?? 0} Market Watch`;
+}
+
+function hfmCryptoSummaryLine(raw = {}) {
+  const diagnostics = hfmCryptoDiagnostics(raw);
+  const diagnosticLine = hfmCryptoCountLine(diagnostics);
+  const cryptoLike = numberValue(diagnostics.brokerCryptoLikeCountAll, null);
+  const evidenceCount = hfmCryptoEvidenceSymbolCount(raw);
+  const symbolEvidenceFound = Boolean(raw?.hfmCrypto?.symbolEvidence?.found);
+  if ((cryptoLike === null || cryptoLike === 0) && symbolEvidenceFound && evidenceCount > 0) {
+    const total = numberValue(diagnostics.brokerSymbolTotalAll, 0);
+    const marketWatch = numberValue(diagnostics.brokerSymbolTotalMarketWatch, 0);
+    return `${evidenceCount} specs crypto / ${total} broker / ${marketWatch} Market Watch`;
+  }
+  return diagnosticLine;
 }
 
 function hfmCryptoRuntimeProbeLine(raw = {}) {
@@ -768,6 +793,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
     dailySummary: dailySummary(raw),
     dailyPnlEvidence: dailyPnl(raw),
     historyProductionStatus: historyProductionStatus(raw),
+    hfmCrypto: raw?.hfmCrypto || {},
     hfmCryptoRows: hfmCryptoRows(raw),
     hfmCryptoStatus: raw?.hfmCrypto?.status || '',
     hfmCryptoStatusZh: raw?.hfmCrypto?.statusZh || '',
@@ -821,8 +847,15 @@ export function buildDashboardMetrics(snapshot) {
   const equity = numberValue(snapshot.account?.equity, null);
   const staleDashboardHint = snapshot.latestDashboardStale ? dashboardFreshnessHint(snapshot) : '';
   const hfmCryptoCount = snapshot.hfmCryptoRows?.length || 0;
-  const hfmCryptoDiagnosticLine = hfmCryptoCountLine(snapshot.hfmCryptoDiagnostics);
+  const hfmCryptoDiagnosticLine = hfmCryptoSummaryLine(snapshot);
   const hfmCryptoLikeCount = numberValue(snapshot.hfmCryptoDiagnostics?.brokerCryptoLikeCountAll, null);
+  const hfmCryptoEvidenceCount = hfmCryptoEvidenceSymbolCount(snapshot);
+  const hfmCryptoMetricCount =
+    hfmCryptoLikeCount && hfmCryptoLikeCount > 0
+      ? hfmCryptoLikeCount
+      : hfmCryptoEvidenceCount > 0
+        ? hfmCryptoEvidenceCount
+        : (hfmCryptoLikeCount ?? hfmCryptoCount);
   const forexLive12Handoff = snapshot.forexLive12RuntimeHandoff || {};
   const forexCapacityReview = snapshot.forexLive12CapacityExpansionReview || {};
   const forexCapacityRoadmap = snapshot.forexLive12CapacityExpansionRoadmap || {};
@@ -976,8 +1009,12 @@ export function buildDashboardMetrics(snapshot) {
       : []),
     {
       label: 'HFM Crypto',
-      value: hfmCryptoLikeCount ?? hfmCryptoCount,
-      hint: snapshot.hfmCryptoRuntimeProbeLine || hfmCryptoDiagnosticLine || snapshot.hfmCryptoStatusZh || 'Crypto CFD symbol 与 Moss 资料',
+      value: hfmCryptoMetricCount,
+      hint:
+        snapshot.hfmCryptoRuntimeProbeLine ||
+        hfmCryptoDiagnosticLine ||
+        snapshot.hfmCryptoStatusZh ||
+        'Crypto CFD symbol 与 Moss 资料',
     },
   ];
 }
@@ -1563,7 +1600,7 @@ export function buildDailyTodoRows(raw = {}) {
   const completed = focusScopedRows(raw?.dailyReview?.completedActionQueue);
   const researchBacklog = focusScopedRows(raw?.dailyReview?.researchBacklogQueue);
   const hfmRows = hfmCryptoRows(raw);
-  const hfmDiagnosticLine = hfmCryptoCountLine(hfmCryptoDiagnostics(raw));
+  const hfmDiagnosticLine = hfmCryptoSummaryLine(raw);
   const hfmProbeLine = hfmCryptoRuntimeProbeLine(raw);
   const profitRows = profitTargetRows(raw);
   const profitLine = profitTargetLine(raw);
@@ -1652,7 +1689,7 @@ export function buildDailyReviewRows(raw = {}) {
   const noTradeFinding = findings.find((item) => item.code === 'PARAMLAB_NO_TRADE_TESTER_WINDOWS');
   const steps = rowsFromObjectList(raw?.dailyAutopilot?.steps);
   const hfmRows = hfmCryptoRows(raw);
-  const hfmDiagnosticLine = hfmCryptoCountLine(hfmCryptoDiagnostics(raw));
+  const hfmDiagnosticLine = hfmCryptoSummaryLine(raw);
   const hfmProbeLine = hfmCryptoRuntimeProbeLine(raw);
   const profitLine = profitTargetLine(raw);
   const executionLine = profitExecutionConclusionLine(raw);
