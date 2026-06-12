@@ -83,6 +83,17 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('does not mark daily autopilot complete when the endpoint payload is missing', () => {
+    const row = buildDailyReviewRows({ dailyAutopilot: null }).find((item) => item.领域 === '自动闭环');
+
+    expect(row).toMatchObject({
+      复盘: '缺失',
+      结果: '等待 /api/daily-autopilot',
+      建议: '先恢复 /api/daily-autopilot 或等待今日自动闭环生成后再判定完成',
+    });
+    expect(row.结果).not.toBe('闭环完成');
+  });
+
   it('surfaces compact HFM crypto account diagnostics instead of empty evidence', () => {
     const raw = {
       hfmCrypto: {

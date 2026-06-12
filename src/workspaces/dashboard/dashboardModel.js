@@ -1693,6 +1693,7 @@ export function buildDailyReviewRows(raw = {}) {
   const hfmProbeLine = hfmCryptoRuntimeProbeLine(raw);
   const profitLine = profitTargetLine(raw);
   const executionLine = profitExecutionConclusionLine(raw);
+  const dailyAutopilotPresent = present(raw?.dailyAutopilot);
   const hfmStep = steps.find((step) => step.name === 'hfm_crypto_shadow_cycle');
   const testerTimeout = steps.find(
     (step) => step.name === 'auto_tester_guarded_run' && step.status === 'TIMEOUT',
@@ -1734,11 +1735,17 @@ export function buildDailyReviewRows(raw = {}) {
     },
     {
       领域: '自动闭环',
-      复盘: raw?.dailyAutopilot?.status || '—',
-      结果: testerTimeout ? '测试器运行超时但后续报告已回灌' : '闭环完成',
-      建议: summary.dailyIterationRequired
-        ? `需要迭代：策略 ${strategyQueue.length} 项 / 证据 ${evidenceQueue.length} 项`
-        : '今日无需代码变更',
+      复盘: dailyAutopilotPresent ? raw.dailyAutopilot.status || '已生成' : '缺失',
+      结果: dailyAutopilotPresent
+        ? testerTimeout
+          ? '测试器运行超时但后续报告已回灌'
+          : '闭环完成'
+        : '等待 /api/daily-autopilot',
+      建议: dailyAutopilotPresent
+        ? summary.dailyIterationRequired
+          ? `需要迭代：策略 ${strategyQueue.length} 项 / 证据 ${evidenceQueue.length} 项`
+          : '今日无需代码变更'
+        : '先恢复 /api/daily-autopilot 或等待今日自动闭环生成后再判定完成',
     },
   ];
 }
