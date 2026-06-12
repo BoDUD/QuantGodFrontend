@@ -29,12 +29,12 @@ function makeFixture() {
 
   write(
     'src/app/navigation.js',
-    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'evolution'},{key:'hfm-crypto'}]}]; export const HIDDEN_WORKSPACES = []; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
+    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'evolution'},{key:'hfm-crypto'}]}]; export const HIDDEN_WORKSPACES = [{key:'governance'},{key:'paramlab'},{key:'research'},{key:'backtest-ai'},{key:'phase1'},{key:'phase2'},{key:'phase3'}]; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
     root,
   );
   write(
     'src/app/workspaceRegistry.js',
-    'export function workspaceExists(){} export function resolveWorkspaceComponent(){} export function workspaceMeta(){}',
+    "export const WORKSPACE_COMPONENTS = { dashboard: {}, mt5: {}, evolution: {}, governance: {}, paramlab: {}, research: {}, 'hfm-crypto': {}, 'backtest-ai': {}, phase1: {}, phase2: {}, phase3: {} }; export function workspaceExists(){} export function resolveWorkspaceComponent(){} export function workspaceMeta(){}",
     root,
   );
   write(
@@ -125,4 +125,20 @@ test('deep-link guard rejects any legacy archive navigation', () => {
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /legacy workspace route|visible navigation/);
+});
+
+test('deep-link guard rejects registered workspaces without navigation metadata', () => {
+  const root = makeFixture();
+  write(
+    'src/app/navigation.js',
+    "export const DEFAULT_WORKSPACE = 'dashboard'; export const WORKSPACE_GROUPS = [{items:[{key:'dashboard'},{key:'mt5'},{key:'evolution'},{key:'hfm-crypto'}]}]; export const HIDDEN_WORKSPACES = [{key:'governance'}]; export const FLAT_WORKSPACES = WORKSPACE_GROUPS.flatMap((g)=>g.items).concat(HIDDEN_WORKSPACES);",
+    root,
+  );
+  const result = spawnSync(process.execPath, [guardPath], {
+    cwd: repoRoot,
+    env: { ...process.env, QG_FRONTEND_ROOT: root },
+    encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /registered workspace paramlab/);
 });

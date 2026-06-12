@@ -97,14 +97,18 @@ function checkNavigation(root) {
   const navigationPath = path.join(root, 'src', 'app', 'navigation.js');
   if (!existsAsFile(navigationPath)) return [`${rel(root, navigationPath)}: missing navigation config`];
   const navigation = readText(navigationPath);
+  const visibleNavigation = navigation.split('export const HIDDEN_WORKSPACES')[0] || navigation;
   for (const key of ACTIVE_NAVIGATION_WORKSPACES) {
-    if (!navigation.includes(`key: '${key}'`) && !navigation.includes(`key: \"${key}\"`)) {
+    if (!visibleNavigation.includes(`key: '${key}'`) && !visibleNavigation.includes(`key: \"${key}\"`)) {
       errors.push(`${rel(root, navigationPath)}: navigation missing ${key}`);
     }
   }
   for (const key of ARCHIVED_TOOL_WORKSPACES) {
-    if (navigation.includes(`key: '${key}'`) || navigation.includes(`key: \"${key}\"`)) {
+    if (visibleNavigation.includes(`key: '${key}'`) || visibleNavigation.includes(`key: \"${key}\"`)) {
       errors.push(`${rel(root, navigationPath)}: archived tool workspace ${key} must not be in primary navigation`);
+    }
+    if (!navigation.includes(`key: '${key}'`) && !navigation.includes(`key: \"${key}\"`)) {
+      errors.push(`${rel(root, navigationPath)}: archived tool workspace ${key} must remain available as a hidden deep-link`);
     }
   }
   if (!navigation.includes("DEFAULT_WORKSPACE = 'dashboard'") && !navigation.includes('DEFAULT_WORKSPACE = "dashboard"')) {

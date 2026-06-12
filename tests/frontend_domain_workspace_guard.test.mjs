@@ -25,11 +25,12 @@ import ResearchWorkspace from '../workspaces/research/ResearchWorkspace.vue';
 import HfmCryptoWorkspace from '../workspaces/hfm-crypto/HfmCryptoWorkspace.vue';
 export const WORKSPACE_COMPONENTS = { dashboard: DashboardWorkspace, mt5: Mt5Workspace, evolution: EvolutionWorkspace, governance: GovernanceWorkspace, paramlab: ParamLabWorkspace, research: ResearchWorkspace, 'hfm-crypto': HfmCryptoWorkspace };
 `);
-  write(path.join(root, 'src', 'app', 'navigation.js'), `
+write(path.join(root, 'src', 'app', 'navigation.js'), `
 export const DEFAULT_WORKSPACE = 'dashboard';
 export const WORKSPACE_GROUPS = [{ items: [
   { key: 'dashboard' }, { key: 'mt5' }, { key: 'evolution' }, { key: 'hfm-crypto' }
 ] }];
+export const HIDDEN_WORKSPACES = [{ key: 'governance' }, { key: 'paramlab' }, { key: 'research' }];
 `);
   write(path.join(root, 'src', 'services', 'domainApi.js'), `
 export async function loadDashboardWorkspace() { return fetch('/api/latest'); }
@@ -83,4 +84,28 @@ test('rejects domain directories under generic components', () => {
   const root = makeFixture();
   write(path.join(root, 'src', 'components', 'mt5', 'Mt5Workspace.vue'), '<template><div /></template>');
   assert.match(checkProject(root).join('\n'), /components\/mt5/);
+});
+
+test('rejects archived tool workspaces in primary navigation', () => {
+  const root = makeFixture();
+  write(path.join(root, 'src', 'app', 'navigation.js'), `
+export const DEFAULT_WORKSPACE = 'dashboard';
+export const WORKSPACE_GROUPS = [{ items: [
+  { key: 'dashboard' }, { key: 'mt5' }, { key: 'evolution' }, { key: 'hfm-crypto' }, { key: 'governance' }
+] }];
+export const HIDDEN_WORKSPACES = [{ key: 'paramlab' }, { key: 'research' }];
+`);
+  assert.match(checkProject(root).join('\n'), /governance must not be in primary navigation/);
+});
+
+test('rejects archived tool workspaces without hidden deep-link metadata', () => {
+  const root = makeFixture();
+  write(path.join(root, 'src', 'app', 'navigation.js'), `
+export const DEFAULT_WORKSPACE = 'dashboard';
+export const WORKSPACE_GROUPS = [{ items: [
+  { key: 'dashboard' }, { key: 'mt5' }, { key: 'evolution' }, { key: 'hfm-crypto' }
+] }];
+export const HIDDEN_WORKSPACES = [{ key: 'governance' }, { key: 'research' }];
+`);
+  assert.match(checkProject(root).join('\n'), /paramlab must remain available as a hidden deep-link/);
 });

@@ -31,6 +31,32 @@ function assertNotIncludes(content, needle, relPath) {
   }
 }
 
+function extractWorkspaceComponentKeys(content) {
+  const match = content.match(/WORKSPACE_COMPONENTS\s*=\s*{([\s\S]*?)};/);
+  if (!match) {
+    fail('src/app/workspaceRegistry.js must export WORKSPACE_COMPONENTS');
+    return [];
+  }
+  const body = match[1];
+  const keys = [];
+  const keyPattern = /(?:^|,)\s*(?:(['"])([^'"]+)\1|([A-Za-z_$][\w$-]*))\s*:/g;
+  let keyMatch;
+  while ((keyMatch = keyPattern.exec(body))) {
+    keys.push(keyMatch[2] || keyMatch[3]);
+  }
+  return [...new Set(keys)];
+}
+
+function extractNavigationKeys(content) {
+  const keys = [];
+  const keyPattern = /key\s*:\s*['"]([^'"]+)['"]/g;
+  let keyMatch;
+  while ((keyMatch = keyPattern.exec(content))) {
+    keys.push(keyMatch[1]);
+  }
+  return new Set(keys);
+}
+
 const appShell = read('src/app/AppShell.vue');
 const store = read('src/stores/workspaceStore.js');
 const workspaceUrl = read('src/app/workspaceUrl.js');
@@ -72,6 +98,14 @@ assertNotIncludes(visibleNavigation, '旧版归档', 'src/app/navigation.js visi
 
 for (const key of ['dashboard', 'mt5', 'evolution', 'hfm-crypto']) {
   assertIncludes(navigation, `'${key}'`, 'src/app/navigation.js');
+}
+
+const componentWorkspaceKeys = extractWorkspaceComponentKeys(registry);
+const navigationWorkspaceKeys = extractNavigationKeys(navigation);
+for (const key of componentWorkspaceKeys) {
+  if (!navigationWorkspaceKeys.has(key)) {
+    fail(`src/app/navigation.js must include registered workspace ${key} in WORKSPACE_GROUPS or HIDDEN_WORKSPACES`);
+  }
 }
 
 const retiredWorkspaceKeys = [
