@@ -62,6 +62,8 @@ function mt5SnapshotFreshness(payload = {}) {
     const fresh = payload._freshness.fresh === true;
     return {
       ...payload._freshness,
+      sourceFile: payload._freshness.sourceFile || payload.source?.file || '',
+      mtimeIso: payload._freshness.mtimeIso || payload.source?.mtimeIso || '',
       statusZh:
         payload._freshness.statusZh ||
         (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
@@ -96,10 +98,20 @@ function mt5SnapshotFreshness(payload = {}) {
     ageSeconds: source.ageSeconds,
     maxAgeSeconds: source.maxAgeSeconds,
     sourceFile: source.file || '',
+    mtimeIso: source.mtimeIso || '',
     nextActionZh: stale
       ? '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
       : '',
   };
+}
+
+function formatAgeSeconds(value) {
+  const ageSeconds = Number(value);
+  if (!Number.isFinite(ageSeconds)) return WAITING;
+  if (ageSeconds < 60) return `${Math.round(ageSeconds)} 秒`;
+  if (ageSeconds < 3600) return `${Math.round(ageSeconds / 60)} 分钟`;
+  if (ageSeconds < 86400) return `${(ageSeconds / 3600).toFixed(1)} 小时`;
+  return `${(ageSeconds / 86400).toFixed(1)} 天`;
 }
 
 function mt5FreshnessLine(freshness = {}) {
@@ -111,6 +123,29 @@ function mt5FreshnessLine(freshness = {}) {
   if (freshness.stale) return `MT5 dashboard 快照已过期 ${ageText}`;
   if (freshness.fresh) return 'MT5 dashboard 新鲜';
   return 'MT5 dashboard 新鲜度待确认';
+}
+
+function mt5FreshnessRows(freshness = {}, payload = {}) {
+  const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
+  const fresh = freshness.fresh === true;
+  return [
+    {
+      来源: 'Live16 MT5 dashboard',
+      端点: '/api/mt5-readonly-secondary/snapshot',
+      状态: stale ? '快照过期' : fresh ? '新鲜' : '待确认',
+      年龄: formatAgeSeconds(freshness.ageSeconds),
+      阈值: formatAgeSeconds(freshness.maxAgeSeconds),
+      源文件: freshness.sourceFile || payload.source?.file || WAITING,
+      动作:
+        freshness.nextActionZh ||
+        freshness.nextAction ||
+        (stale
+          ? '恢复 Live16 MT5/EA dashboard writer，再判断 HFM Crypto 当前账号与 BTC/crypto 执行准备度。'
+          : fresh
+            ? 'Live16 EA 快照新鲜，可继续 shadow-only 研究验证。'
+            : '等待只读桥返回新鲜度证据。'),
+    },
+  ];
 }
 
 function statusTone(status) {
@@ -2985,6 +3020,7 @@ export function buildHfmCryptoModel(state = {}) {
       },
     ].filter(visibleKeyValueRow),
     tables: {
+      mt5FreshnessRows: mt5FreshnessRows(mt5Freshness, mt5Snapshot),
       findings,
       symbolEvidenceSources,
       operatorChecklist,

@@ -73,6 +73,17 @@
     <MetricGrid :items="model.metrics" />
     <EndpointHealthGrid :items="loadedEndpoints.slice(0, 12)" />
 
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
+          <p class="qg-eyebrow">Live16 数据源</p>
+          <h2>EA 快照新鲜度</h2>
+        </div>
+        <span class="qg-muted">Crypto READY 不能替代实时账号快照</span>
+      </div>
+      <LedgerTable title="Live16 快照" :rows="model.tables.mt5FreshnessRows" :limit="1" />
+    </section>
+
     <div class="qg-domain-grid qg-domain-grid--two">
       <section class="qg-domain-panel qg-domain-panel--primary">
         <div class="qg-domain-panel__header">

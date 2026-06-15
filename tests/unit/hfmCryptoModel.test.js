@@ -48,6 +48,12 @@ describe('hfmCryptoModel', () => {
     ).toMatchObject({
       status: 'blocked',
     });
+    expect(model.tables.mt5FreshnessRows[0]).toMatchObject({
+      来源: 'Live16 MT5 dashboard',
+      状态: '快照过期',
+      年龄: '10.1 天',
+      动作: '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。',
+    });
   });
 
   it('surfaces an authorized HFM account with zero crypto CFD symbols as an account blocker', () => {

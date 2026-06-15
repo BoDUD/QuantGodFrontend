@@ -10,6 +10,17 @@
     <MetricGrid :items="metrics" />
     <EndpointHealthGrid :items="endpointHealth" />
 
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
+          <p class="qg-eyebrow">数据源诊断</p>
+          <h2>运行快照恢复优先级</h2>
+        </div>
+        <span class="qg-muted">主账号、Live16 与 HFM Crypto 一起判定</span>
+      </div>
+      <LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="4" />
+    </section>
+
     <DashboardUpgradePanel :state="state" :snapshot="snapshot" :metrics="metrics" />
 
     <section class="qg-domain-panel qg-domain-panel--primary">
@@ -305,7 +316,7 @@
 
 <script setup>
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowReactive } from 'vue';
-import { loadDashboardWorkspace } from '../../services/domainApi.js';
+import { loadDashboardWorkspace, loadDashboardWorkspaceCore } from '../../services/domainApi.js';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
 import MetricGrid from '../shared/MetricGrid.vue';
 import JsonPreview from '../shared/JsonPreview.vue';
@@ -319,6 +330,7 @@ import {
   normalizeDashboardSnapshot,
   buildDashboardMetrics,
   buildEndpointHealth,
+  buildRuntimeSourceDiagnosticRows,
   buildRuntimeItems,
   buildDailyItems,
   buildAgentOpsItems,
@@ -379,6 +391,7 @@ const state = shallowReactive({
 const snapshot = computed(() => normalizeDashboardSnapshot(state));
 const metrics = computed(() => buildDashboardMetrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
+const runtimeSourceRows = computed(() => buildRuntimeSourceDiagnosticRows(state));
 const runtimeItems = computed(() => buildRuntimeItems(snapshot.value));
 const dailyItems = computed(() => buildDailyItems(snapshot.value));
 const agentOpsItems = computed(() => buildAgentOpsItems(state));
@@ -417,13 +430,22 @@ async function load() {
   loadController = controller;
   loading.value = true;
   error.value = '';
+  let coreLoaded = false;
   try {
+    const coreState = await loadDashboardWorkspaceCore({ signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, coreState);
+    coreLoaded = true;
+    loading.value = false;
+
     const nextState = await loadDashboardWorkspace({ signal: controller.signal });
     if (controller.signal.aborted || runId !== loadRunId) return;
     Object.assign(state, nextState);
   } catch (exc) {
     if (controller.signal.aborted || runId !== loadRunId) return;
-    error.value = exc?.message || '全局总览加载失败';
+    if (!coreLoaded) {
+      error.value = exc?.message || '全局总览加载失败';
+    }
   } finally {
     if (runId === loadRunId) {
       loading.value = false;

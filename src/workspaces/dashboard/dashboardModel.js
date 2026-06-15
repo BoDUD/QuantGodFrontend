@@ -117,8 +117,14 @@ function latestFreshness(raw = {}) {
     raw?.state?.data?._freshness ||
     raw?._freshness ||
     {};
-  if (!isObject(freshness)) return {};
-  return freshness;
+  if (!isObject(freshness) || !present(freshness)) return {};
+  const latestSource = isObject(raw?.latest?.source) ? raw.latest.source : {};
+  const stateSource = isObject(raw?.state?.source) ? raw.state.source : {};
+  return {
+    ...freshness,
+    sourceFile: freshness.sourceFile || latestSource.file || stateSource.filePath || stateSource.file || '',
+    mtimeIso: freshness.mtimeIso || latestSource.mtimeIso || stateSource.mtimeIso || '',
+  };
 }
 
 function latestFreshnessLine(freshness = {}) {
@@ -130,6 +136,15 @@ function latestFreshnessLine(freshness = {}) {
     freshness.nextActionZh ||
     (freshness.stale ? `MT5 dashboard 已过期 ${ageText}` : 'MT5 dashboard 新鲜')
   );
+}
+
+function formatFreshnessAgeSeconds(value) {
+  const ageSeconds = Number(value);
+  if (!Number.isFinite(ageSeconds)) return '待确认';
+  if (ageSeconds < 60) return `${Math.round(ageSeconds)} 秒`;
+  if (ageSeconds < 3600) return `${Math.round(ageSeconds / 60)} 分钟`;
+  if (ageSeconds < 86400) return `${(ageSeconds / 3600).toFixed(1)} 小时`;
+  return `${(ageSeconds / 86400).toFixed(1)} 天`;
 }
 
 function dashboardFreshnessHint(snapshot = {}) {
@@ -149,6 +164,8 @@ function readonlyFreshness(payload = {}) {
     const fresh = payload._freshness.fresh === true;
     return {
       ...payload._freshness,
+      sourceFile: payload._freshness.sourceFile || payload.source?.file || '',
+      mtimeIso: payload._freshness.mtimeIso || payload.source?.mtimeIso || '',
       statusZh:
         payload._freshness.statusZh ||
         (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
@@ -182,10 +199,43 @@ function readonlyFreshness(payload = {}) {
     ageSeconds: source.ageSeconds,
     maxAgeSeconds: source.maxAgeSeconds,
     sourceFile: source.file || '',
+    mtimeIso: source.mtimeIso || '',
     blockers: stale ? ['live_dashboard_snapshot_stale'] : [],
     nextActionZh: stale
       ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
       : '',
+  };
+}
+
+function freshnessStatusValue(freshness = {}) {
+  if (freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT') return '快照过期';
+  if (freshness.status === 'STALE_DASHBOARD_SNAPSHOT') return '快照过期';
+  if (freshness.fresh === true) return '新鲜';
+  return '待确认';
+}
+
+function freshnessRow(label, endpoint, freshness = {}, fallbackAction = '') {
+  const stale =
+    freshness.stale === true ||
+    freshness.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+    freshness.status === 'STALE_EA_SNAPSHOT';
+  const fresh = freshness.fresh === true;
+  return {
+    数据源: label,
+    端点: endpoint,
+    状态: freshnessStatusValue(freshness),
+    年龄: formatFreshnessAgeSeconds(freshness.ageSeconds),
+    阈值: formatFreshnessAgeSeconds(freshness.maxAgeSeconds),
+    源文件: freshness.sourceFile || freshness.mtimeIso || '等待源文件',
+    动作:
+      freshness.nextActionZh ||
+      freshness.nextAction ||
+      fallbackAction ||
+      (stale
+        ? '恢复对应 MT5/EA dashboard writer 后再把账户、持仓或执行状态当成当前值。'
+        : fresh
+          ? '数据源新鲜，可以继续只读观察。'
+          : '等待后端返回新鲜度证据。'),
   };
 }
 
@@ -1318,6 +1368,47 @@ export function buildEndpointHealth(raw = {}) {
         staleLatest || staleReadonly ? '快照过期' : unavailable ? '不可用' : hasPayload ? '正常' : '缺失',
     };
   });
+}
+
+export function buildRuntimeSourceDiagnosticRows(raw = {}) {
+  const latest = latestFreshness(raw);
+  const primary = readonlyFreshness(raw.mt5Snapshot);
+  const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const hfmCrypto = raw.hfmCrypto || {};
+  const secondaryStale = secondary.stale === true || secondary.status === 'STALE_EA_SNAPSHOT';
+  const hfmStatus = hfmCrypto.statusZh || humanizeStatus(hfmCrypto.status, '等待 HFM Crypto CFD 状态');
+  return [
+    freshnessRow(
+      '总览 MT5 dashboard',
+      '/api/latest',
+      latest,
+      '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+    ),
+    freshnessRow(
+      '主账号只读桥',
+      '/api/mt5-readonly/snapshot',
+      primary,
+      '恢复主账号 MT5/EA dashboard writer。',
+    ),
+    freshnessRow(
+      'Live16 只读桥',
+      '/api/mt5-readonly-secondary/snapshot',
+      secondary,
+      '恢复 Live16 MT5/EA dashboard writer，HFM Crypto 当前状态才可作为实时账号证据。',
+    ),
+    {
+      数据源: 'HFM Crypto CFD',
+      端点: '/api/hfm-crypto/status?view=summary&scope=secondary',
+      状态: secondaryStale ? '依赖快照过期' : hfmStatus,
+      年龄: secondaryStale ? formatFreshnessAgeSeconds(secondary.ageSeconds) : '见状态文件',
+      阈值: secondaryStale ? formatFreshnessAgeSeconds(secondary.maxAgeSeconds) : 'shadow 证据',
+      源文件:
+        hfmCrypto.sourceFiles?.state || hfmCrypto.sourceFiles?.contractSpecExport || '等待 HFM Crypto 源文件',
+      动作: secondaryStale
+        ? 'HFM Crypto shadow 资料可读，但 Live16 EA 快照过期；先恢复 Live16 dashboard writer，再判断当前账号与 BTC/crypto 执行准备度。'
+        : hfmStatus,
+    },
+  ];
 }
 
 export function buildChampionMemoryItems(raw = {}) {

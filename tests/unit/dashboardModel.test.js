@@ -7,6 +7,7 @@ import {
   buildDashboardMetrics,
   buildDailyItems,
   buildEndpointHealth,
+  buildRuntimeSourceDiagnosticRows,
   buildRuntimeItems,
   buildProfitTargetItems,
   normalizeDashboardSnapshot,
@@ -37,6 +38,7 @@ describe('dashboardModel', () => {
     const equityMetric = metrics.find((item) => item.label === '账户净值');
     const positionsMetric = metrics.find((item) => item.label === '当前持仓');
     const runtimeItems = buildRuntimeItems(snapshot);
+    const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
     const latestHealth = buildEndpointHealth(raw).find((item) => item.endpoint === '/api/latest');
 
     expect(snapshot.latestDashboardStale).toBe(true);
@@ -66,6 +68,11 @@ describe('dashboardModel', () => {
       status: 'warn',
       statusLabel: '快照过期',
       description: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+    });
+    expect(sourceRows.find((row) => row.数据源 === '总览 MT5 dashboard')).toMatchObject({
+      状态: '快照过期',
+      年龄: '2.0 小时',
+      动作: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
     });
   });
 
@@ -110,6 +117,7 @@ describe('dashboardModel', () => {
 
     const snapshot = normalizeDashboardSnapshot(raw);
     const live16Metric = buildDashboardMetrics(snapshot).find((item) => item.label === 'Live16 快照');
+    const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
     const live16Health = buildEndpointHealth(raw).find(
       (item) => item.endpoint === '/api/mt5-readonly-secondary/snapshot',
     );
@@ -127,6 +135,14 @@ describe('dashboardModel', () => {
     expect(runtimeItems.find((item) => item.label === 'Live16 只读桥')).toMatchObject({
       value: '快照过期',
       status: 'warn',
+    });
+    expect(sourceRows.find((row) => row.数据源 === 'Live16 只读桥')).toMatchObject({
+      状态: '快照过期',
+      年龄: '10.1 天',
+      源文件: '/tmp/live16/MQL5/Files/QuantGod_Dashboard.json',
+    });
+    expect(sourceRows.find((row) => row.数据源 === 'HFM Crypto CFD')).toMatchObject({
+      状态: '依赖快照过期',
     });
   });
 
