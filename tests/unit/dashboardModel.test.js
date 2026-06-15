@@ -8,6 +8,8 @@ import {
   buildDailyItems,
   buildEndpointHealth,
   buildRuntimeSourceDiagnosticRows,
+  buildSnapshotRecoveryItems,
+  buildSnapshotRecoveryRows,
   buildRuntimeItems,
   buildProfitTargetItems,
   normalizeDashboardSnapshot,
@@ -143,6 +145,103 @@ describe('dashboardModel', () => {
     });
     expect(sourceRows.find((row) => row.数据源 === 'HFM Crypto CFD')).toMatchObject({
       状态: '依赖快照过期',
+    });
+  });
+
+  it('summarizes stale MT5 snapshots across the whole dashboard without hiding fresh research evidence', () => {
+    const raw = {
+      latest: {
+        _freshness: {
+          status: 'STALE_DASHBOARD_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 542273,
+          nextActionZh: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+        },
+      },
+      mt5Snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        hostProcess: {
+          status: 'MISSING',
+          terminalProcessDetected: false,
+          matchingProcessCount: 0,
+        },
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 542273,
+          nextAction: 'Restore the MT5 terminal/EA dashboard writer process.',
+          blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
+        },
+      },
+      secondaryMt5Snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        hostProcess: {
+          status: 'MISSING',
+          terminalProcessDetected: false,
+          matchingProcessCount: 0,
+        },
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 878748,
+          nextAction: 'Restore the Live16 MT5 terminal/EA dashboard writer process.',
+          blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
+        },
+      },
+      hfmCrypto: {
+        ok: true,
+        status: 'READY_FOR_SHADOW_RESEARCH',
+        statusZh: 'HFM Crypto CFD 影子研究就绪',
+        symbolEvidence: {
+          canonicalSymbols: ['BTCUSD', 'ETHUSD'],
+          brokerSymbols: ['#BTCUSD', '#ETHUSD'],
+        },
+      },
+      profitTarget: {
+        ok: true,
+        executionTargetReached: true,
+        laneTargets: {
+          forexMt5: { simulationVerifiedUsdProfit: 20.5 },
+          btcCryptoCfd: { simulationVerifiedUsdProfit: 38.2 },
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const items = buildSnapshotRecoveryItems(snapshot);
+    const rows = buildSnapshotRecoveryRows(snapshot);
+
+    expect(snapshot.snapshotRecovery).toMatchObject({
+      status: 'blocked',
+      label: 'MT5/EA dashboard writer 未运行',
+      realtimeUsable: false,
+      hfmShadowUsable: true,
+    });
+    expect(items.find((item) => item.label === '实时账号状态')).toMatchObject({
+      value: '不可作为当前状态',
+      status: 'blocked',
+    });
+    expect(items.find((item) => item.label === '主账号进程')).toMatchObject({
+      value: '未检测到 terminal64/wine 进程',
+      status: 'blocked',
+    });
+    expect(items.find((item) => item.label === 'HFM Crypto 研究证据')).toMatchObject({
+      value: '仍可用于 shadow 研究',
+      status: 'ok',
+    });
+    expect(rows.find((row) => row.区域 === 'Live16 / HFM Crypto')).toMatchObject({
+      状态: '依赖快照过期',
+      影响: 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认',
+    });
+    expect(rows.find((row) => row.区域 === 'HFM Crypto shadow')).toMatchObject({
+      状态: '研究证据可用',
     });
   });
 

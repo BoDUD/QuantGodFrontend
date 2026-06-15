@@ -13,6 +13,20 @@
     <section class="qg-domain-panel qg-domain-panel--primary">
       <div class="qg-domain-panel__header">
         <div>
+          <p class="qg-eyebrow">实时快照恢复</p>
+          <h2>当前账号数据是否可信</h2>
+        </div>
+        <StatusPill :status="snapshot.snapshotRecovery.status" :label="snapshot.snapshotRecovery.label" />
+      </div>
+      <div class="qg-domain-grid qg-domain-grid--two">
+        <KeyValueList :items="snapshotRecoveryItems" />
+        <LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="4" />
+      </div>
+    </section>
+
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
           <p class="qg-eyebrow">数据源诊断</p>
           <h2>运行快照恢复优先级</h2>
         </div>
@@ -331,6 +345,8 @@ import {
   buildDashboardMetrics,
   buildEndpointHealth,
   buildRuntimeSourceDiagnosticRows,
+  buildSnapshotRecoveryItems,
+  buildSnapshotRecoveryRows,
   buildRuntimeItems,
   buildDailyItems,
   buildAgentOpsItems,
@@ -392,6 +408,8 @@ const snapshot = computed(() => normalizeDashboardSnapshot(state));
 const metrics = computed(() => buildDashboardMetrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
 const runtimeSourceRows = computed(() => buildRuntimeSourceDiagnosticRows(state));
+const snapshotRecoveryItems = computed(() => buildSnapshotRecoveryItems(snapshot.value));
+const snapshotRecoveryRows = computed(() => buildSnapshotRecoveryRows(snapshot.value));
 const runtimeItems = computed(() => buildRuntimeItems(snapshot.value));
 const dailyItems = computed(() => buildDailyItems(snapshot.value));
 const agentOpsItems = computed(() => buildAgentOpsItems(state));

@@ -239,6 +239,106 @@ function freshnessRow(label, endpoint, freshness = {}, fallbackAction = '') {
   };
 }
 
+function freshnessIsStale(freshness = {}) {
+  return (
+    freshness.stale === true ||
+    freshness.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+    freshness.status === 'STALE_EA_SNAPSHOT'
+  );
+}
+
+function hostProcess(payload = {}) {
+  const terminal = isObject(payload.terminal) ? payload.terminal : {};
+  const process = isObject(payload.hostProcess) ? payload.hostProcess : {};
+  return {
+    status: process.status || terminal.hostProcessStatus || '',
+    terminalProcessDetected:
+      process.terminalProcessDetected ??
+      terminal.hostProcessDetected ??
+      terminal.terminalProcessDetected ??
+      null,
+    targetProcessDetected:
+      process.targetProcessDetected ??
+      terminal.targetHostProcessDetected ??
+      terminal.targetProcessDetected ??
+      null,
+    matchingProcessCount: numberValue(process.matchingProcessCount, null),
+  };
+}
+
+function hostProcessMissing(payload = {}) {
+  const process = hostProcess(payload);
+  return process.terminalProcessDetected === false || String(process.status).toUpperCase() === 'MISSING';
+}
+
+function hostProcessLine(payload = {}) {
+  const process = hostProcess(payload);
+  if (process.terminalProcessDetected === true) {
+    const count = process.matchingProcessCount === null ? '' : ` ${process.matchingProcessCount} 个`;
+    return `检测到 MT5/Wine 进程${count}`;
+  }
+  if (process.terminalProcessDetected === false || String(process.status).toUpperCase() === 'MISSING') {
+    return '未检测到 terminal64/wine 进程';
+  }
+  if (process.status) return humanizeStatus(process.status);
+  return '进程状态待确认';
+}
+
+function snapshotRecovery(raw = {}) {
+  const latest = latestFreshness(raw);
+  const primary = readonlyFreshness(raw.mt5Snapshot);
+  const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const staleLatest = freshnessIsStale(latest);
+  const stalePrimary = freshnessIsStale(primary);
+  const staleSecondary = freshnessIsStale(secondary);
+  const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
+  const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
+  const staleSources = [
+    staleLatest ? '总览 MT5 dashboard' : '',
+    stalePrimary ? '主账号只读桥' : '',
+    staleSecondary ? 'Live16 只读桥' : '',
+  ].filter(Boolean);
+  const hfmCryptoReady = endpointAvailable(raw.hfmCrypto);
+  const hfmStatus = raw.hfmCrypto?.statusZh || humanizeStatus(raw.hfmCrypto?.status, '等待 HFM Crypto CFD');
+  const hfmEvidenceCount = hfmCryptoEvidenceSymbolCount(raw);
+  const hfmLine = hfmCryptoReady
+    ? `${hfmStatus}${hfmEvidenceCount ? ` / ${hfmEvidenceCount} 条 crypto/spec 证据` : ''}`
+    : '等待 HFM Crypto shadow 证据';
+  const profitTargetReady = endpointAvailable(raw.profitTarget);
+  const processMissing = primaryProcessMissing || secondaryProcessMissing;
+  const status = processMissing ? 'blocked' : staleSources.length ? 'warn' : 'ok';
+  const label = processMissing
+    ? 'MT5/EA dashboard writer 未运行'
+    : staleSources.length
+      ? '实时快照过期'
+      : '实时快照新鲜';
+  const nextAction = processMissing
+    ? '先恢复对应 MT5 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入；恢复前不要把账户、持仓或执行状态当成当前实盘。'
+    : staleSources.length
+      ? latest.nextActionZh ||
+        primary.nextActionZh ||
+        primary.nextAction ||
+        secondary.nextActionZh ||
+        secondary.nextAction ||
+        '刷新 MT5/EA dashboard writer 后再读取实时账户状态。'
+      : '运行快照可用于只读观察。';
+  return {
+    status,
+    label,
+    staleSources,
+    processMissing,
+    primaryProcessLine: hostProcessLine(raw.mt5Snapshot),
+    secondaryProcessLine: hostProcessLine(raw.secondaryMt5Snapshot),
+    realtimeUsable: !staleSources.length && !processMissing,
+    hfmShadowUsable: hfmCryptoReady,
+    hfmLine,
+    profitTargetLine: profitTargetReady
+      ? profitTargetLine(raw) || profitTargetStatusLabel(raw)
+      : '等待合计目标证据',
+    nextAction,
+  };
+}
+
 function boolStatus(value, truthyLabel = 'active', falseLabel = 'inactive') {
   if (value === true || value === 'true' || value === '1' || value === 1 || value === 'ACTIVE')
     return truthyLabel;
@@ -916,6 +1016,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
   const secondaryMt5SnapshotFreshness = readonlyFreshness(raw.secondaryMt5Snapshot);
   const dashboardStale =
     dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT';
+  const recovery = snapshotRecovery(raw);
   const runtimeState = dashboardStale
     ? 'STALE_DASHBOARD_SNAPSHOT'
     : firstValue(
@@ -951,6 +1052,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
     secondaryMt5SnapshotStale:
       secondaryMt5SnapshotFreshness.stale === true ||
       secondaryMt5SnapshotFreshness.status === 'STALE_EA_SNAPSHOT',
+    snapshotRecovery: recovery,
     routes: chooseRoutes(raw),
     account: latestAccount(raw),
     positions: mt5Positions(raw),
@@ -1656,6 +1758,96 @@ export function buildActivationGateRows(snapshot = {}) {
 
 export function buildReleaseGateRows(snapshot = {}) {
   return snapshot.executionReleaseGateRows || [];
+}
+
+export function buildSnapshotRecoveryItems(snapshot = {}) {
+  const recovery = snapshot.snapshotRecovery || {};
+  return [
+    {
+      label: '当前结论',
+      value: recovery.label || '等待快照诊断',
+      status: recovery.status || 'warn',
+      hint: recovery.nextAction || '等待 /api/latest 与 MT5 只读桥返回 freshness。',
+    },
+    {
+      label: '实时账号状态',
+      value: recovery.realtimeUsable ? '可作为当前状态' : '不可作为当前状态',
+      status: recovery.realtimeUsable ? 'ok' : 'blocked',
+      hint: recovery.staleSources?.length
+        ? `${recovery.staleSources.join(' / ')} 已过期`
+        : '账户、持仓与执行状态必须依赖新鲜 MT5/EA 快照。',
+    },
+    {
+      label: '主账号进程',
+      value: recovery.primaryProcessLine || '待确认',
+      status: recovery.primaryProcessLine?.includes('未检测到') ? 'blocked' : 'warn',
+    },
+    {
+      label: 'Live16 进程',
+      value: recovery.secondaryProcessLine || '待确认',
+      status: recovery.secondaryProcessLine?.includes('未检测到') ? 'blocked' : 'warn',
+    },
+    {
+      label: 'HFM Crypto 研究证据',
+      value: recovery.hfmShadowUsable ? '仍可用于 shadow 研究' : '等待证据',
+      status: recovery.hfmShadowUsable ? 'ok' : 'warn',
+      hint: recovery.hfmLine,
+    },
+    {
+      label: '合计模拟目标',
+      value: snapshot.dualTargetReached ? '达标证据已读到' : '继续等待/复核',
+      status: snapshot.dualTargetReached ? 'ok' : snapshot.profitTargetStatus || 'warn',
+      hint: recovery.profitTargetLine || snapshot.profitTargetStatusLabel,
+    },
+  ];
+}
+
+export function buildSnapshotRecoveryRows(snapshot = {}) {
+  const recovery = snapshot.snapshotRecovery || {};
+  return [
+    {
+      区域: '总览账户/持仓',
+      状态: recovery.realtimeUsable ? '可读当前状态' : '实时状态不可确认',
+      影响: recovery.realtimeUsable
+        ? '净值、持仓、执行状态可以按当前快照展示'
+        : '净值、持仓、执行状态只能作为历史参考',
+      下一步: recovery.nextAction || '等待新鲜 MT5 dashboard',
+    },
+    {
+      区域: '主 MT5 Live12',
+      状态: snapshot.mt5SnapshotStale ? '快照过期' : snapshot.mt5SnapshotFreshness?.fresh ? '新鲜' : '待确认',
+      影响: snapshot.mt5SnapshotStale ? '外币/RSI 当前执行状态不可确认' : '可继续只读观察',
+      下一步:
+        snapshot.mt5SnapshotFreshness?.nextActionZh ||
+        snapshot.mt5SnapshotFreshness?.nextAction ||
+        recovery.primaryProcessLine ||
+        '等待主账号只读桥',
+    },
+    {
+      区域: 'Live16 / HFM Crypto',
+      状态: snapshot.secondaryMt5SnapshotStale
+        ? '依赖快照过期'
+        : snapshot.secondaryMt5SnapshotFreshness?.fresh
+          ? '新鲜'
+          : '待确认',
+      影响: snapshot.secondaryMt5SnapshotStale
+        ? 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认'
+        : '可把 Live16 快照作为当前账号证据',
+      下一步:
+        snapshot.secondaryMt5SnapshotFreshness?.nextActionZh ||
+        snapshot.secondaryMt5SnapshotFreshness?.nextAction ||
+        recovery.secondaryProcessLine ||
+        '等待 Live16 只读桥',
+    },
+    {
+      区域: 'HFM Crypto shadow',
+      状态: recovery.hfmShadowUsable ? '研究证据可用' : '等待研究证据',
+      影响: recovery.hfmShadowUsable
+        ? 'symbol/spec/Moss/backtest 证据仍可看；不能替代当前账号快照'
+        : '无法判断 crypto CFD 研究状态',
+      下一步: recovery.hfmLine || '刷新 HFM Crypto 状态',
+    },
+  ];
 }
 
 export function buildRuntimeItems(snapshot) {
