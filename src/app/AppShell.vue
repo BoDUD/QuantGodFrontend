@@ -46,45 +46,7 @@
       </header>
 
       <section :key="activeWorkspace" class="app-shell__content-frame">
-        <section v-if="activeWorkspace === 'dashboard'" class="qg-domain-panel qg-domain-panel--primary">
-          <div class="qg-domain-panel__header">
-            <div>
-              <p class="qg-eyebrow">实时快照恢复</p>
-              <h2>当前账号数据是否可信</h2>
-              <p class="qg-muted">
-                Dashboard 先显示核心快照诊断；MT5、Evolution 和 HFM Crypto 保持完整证据页。
-              </p>
-            </div>
-            <span class="qg-status-pill qg-status-pill--blocked">MT5/EA dashboard writer 未运行</span>
-          </div>
-          <div class="qg-domain-grid qg-domain-grid--two">
-            <div class="qg-key-value-list">
-              <article class="qg-key-value-list__item">
-                <span>实时账号状态</span>
-                <strong>不可作为当前状态</strong>
-                <small>MT5 dashboard 快照过期时，账户、持仓与执行状态不能当作实时值。</small>
-              </article>
-              <article class="qg-key-value-list__item">
-                <span>恢复动作</span>
-                <strong>恢复 MT5/EA writer</strong>
-                <small>先让 QuantGod_Dashboard.json 重新写入，再判断实盘账号状态。</small>
-              </article>
-            </div>
-            <div class="qg-key-value-list">
-              <article class="qg-key-value-list__item">
-                <span>HFM Crypto 研究证据</span>
-                <strong>仍可用于 shadow 研究</strong>
-                <small>该证据不触发交易、不授权钱包、不改实盘预设。</small>
-              </article>
-              <article class="qg-key-value-list__item">
-                <span>进程状态</span>
-                <strong>未检测到 terminal64/wine 进程</strong>
-                <small>这是快照过期的主要恢复方向。</small>
-              </article>
-            </div>
-          </div>
-        </section>
-        <Suspense v-else>
+        <Suspense>
           <component :is="activeComponent" />
           <template #fallback>
             <LoadingState

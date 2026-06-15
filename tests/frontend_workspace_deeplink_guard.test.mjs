@@ -49,7 +49,7 @@ function makeFixture() {
   );
   write(
     'src/app/AppShell.vue',
-    '<template><span class="app-shell__workspace-url" :data-url="activeWorkspaceUrl"></span></template><script setup>const activeWorkspaceUrl = ""; function copyLink(){} function initializeWorkspaceUrlSync(){}</script>',
+    '<template><span class="app-shell__workspace-url" :data-url="activeWorkspaceUrl"></span><component :is="activeComponent" /></template><script setup>const activeWorkspaceUrl = ""; const activeComponent = {}; function copyLink(){} function initializeWorkspaceUrlSync(){}</script>',
     root,
   );
   write(

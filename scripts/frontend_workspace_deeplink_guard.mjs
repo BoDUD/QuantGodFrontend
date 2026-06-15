@@ -83,6 +83,8 @@ assertIncludes(appShell, 'initializeWorkspaceUrlSync', 'src/app/AppShell.vue');
 assertIncludes(appShell, 'activeWorkspaceUrl', 'src/app/AppShell.vue');
 assertIncludes(appShell, 'copyLink', 'src/app/AppShell.vue');
 assertIncludes(appShell, 'app-shell__workspace-url', 'src/app/AppShell.vue');
+assertIncludes(appShell, ':is="activeComponent"', 'src/app/AppShell.vue');
+assertNotIncludes(appShell, "activeWorkspace === 'dashboard'", 'src/app/AppShell.vue');
 assertNotIncludes(appShell, 'fetch(', 'src/app/AppShell.vue');
 assertNotIncludes(appShell, '/QuantGod_', 'src/app/AppShell.vue');
 
