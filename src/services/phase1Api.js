@@ -99,7 +99,7 @@ export function getChartTrades({ symbol, days = 30, signal } = {}) {
 
 export function getShadowSignals({ symbol, days = 7, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return fetchJson(`/api/shadow-signals?${params.toString()}`, { signal });
+  return fetchJson(`/api/shadow/signals?${params.toString()}`, { signal });
 }
 
 export async function getSymbolRegistry({ signal } = {}) {
