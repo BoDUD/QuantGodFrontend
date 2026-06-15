@@ -34,7 +34,7 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const metrics = buildDashboardMetrics(snapshot);
     const freshnessMetric = metrics.find((item) => item.label === 'MT5 快照新鲜度');
-    const equityMetric = metrics.find((item) => item.label === '账户净值（历史）');
+    const equityMetric = metrics.find((item) => item.label === '账户净值');
     const positionsMetric = metrics.find((item) => item.label === '当前持仓');
     const runtimeItems = buildRuntimeItems(snapshot);
     const latestHealth = buildEndpointHealth(raw).find((item) => item.endpoint === '/api/latest');
@@ -42,18 +42,20 @@ describe('dashboardModel', () => {
     expect(snapshot.latestDashboardStale).toBe(true);
     expect(snapshot.runtimeState).toBe('STALE_DASHBOARD_SNAPSHOT');
     expect(equityMetric).toMatchObject({
-      value: '10220.35 USC',
-      hint: 'MT5 dashboard 快照已过期',
+      value: '快照过期',
       status: 'warn',
     });
+    expect(equityMetric.hint).toContain('MT5 dashboard 快照已过期');
+    expect(equityMetric.hint).toContain('历史净值: 10220.35 USC，仅作参考');
     expect(freshnessMetric).toMatchObject({
       value: '过期',
       hint: 'MT5 dashboard 快照已过期',
     });
     expect(positionsMetric).toMatchObject({
-      hint: '过期 MT5 快照，不能当当前持仓',
+      value: '不可确认',
       status: 'warn',
     });
+    expect(positionsMetric.hint).toContain('旧快照持仓 0 笔，仅作历史参考');
     expect(runtimeItems[0]).toMatchObject({
       label: '运行状态',
       value: '快照过期',

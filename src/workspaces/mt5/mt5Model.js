@@ -95,6 +95,20 @@ function formatAccountWithCurrency(value, currency = 'USC') {
   return `${amount} ${code}`.trim();
 }
 
+function staleAwareAccountItem(label, value, currency, snapshotState = {}) {
+  const formatted = formatAccountWithCurrency(value, currency);
+  if (!snapshotState.stale && !snapshotState.unconfirmed) {
+    return { label, value: formatted };
+  }
+  const historicalHint = formatted === '—' ? '' : `历史${label}: ${formatted}，仅作参考`;
+  return {
+    label,
+    value: snapshotState.stale ? '快照过期' : '待确认',
+    status: 'warn',
+    hint: [snapshotState.hint, historicalHint].filter(Boolean).join('；'),
+  };
+}
+
 function truthyFlag(value) {
   return value === true || value === 'true' || value === 1 || value === '1' || value === 'yes';
 }
@@ -698,6 +712,14 @@ function accountCard(account = {}, fallback = {}) {
   );
   const latestFresh = latestFreshness?.fresh === true;
   const latestUnconfirmed = Boolean(latestFreshness && !latestStale && !latestFresh);
+  const accountSnapshotStale = latestStale || account.snapshotFresh === false;
+  const accountSnapshotUnconfirmed = !accountSnapshotStale && latestUnconfirmed;
+  const accountSnapshotHint =
+    latestFreshness?.nextActionZh ||
+    freshnessLine(latestFreshness) ||
+    account.timestamp ||
+    account.sourceFile ||
+    '等待 MT5 快照刷新';
   const positions = Array.isArray(fallback.positions) ? fallback.positions : [];
   const positionHint = positions.length
     ? positions
@@ -708,6 +730,14 @@ function accountCard(account = {}, fallback = {}) {
         )
         .join('；')
     : '该账号实时快照当前无持仓';
+  const stalePositionHint = [
+    accountSnapshotHint,
+    positions.length
+      ? `旧快照持仓 ${positions.length} 笔，仅作历史参考`
+      : '旧快照未显示持仓，不能据此确认当前为 0 仓',
+  ]
+    .filter(Boolean)
+    .join('；');
   const isUsdLane =
     lane?.accountMode === 'standard_usd' ||
     String(lane?.lane || '').includes('USD') ||
@@ -733,27 +763,43 @@ function accountCard(account = {}, fallback = {}) {
       { label: '服务器', value: account.server || '—' },
       {
         label: '当前持仓',
-        value: `${positions.length} 笔`,
-        status: positions.length ? 'warn' : 'ok',
-        hint: positionHint,
+        value: accountSnapshotStale
+          ? '不可确认'
+          : accountSnapshotUnconfirmed
+            ? '待确认'
+            : `${positions.length} 笔`,
+        status: accountSnapshotStale || accountSnapshotUnconfirmed || positions.length ? 'warn' : 'ok',
+        hint: accountSnapshotStale || accountSnapshotUnconfirmed ? stalePositionHint : positionHint,
       },
-      { label: '净值', value: formatAccountWithCurrency(account.equity, account.currency) },
-      { label: '余额', value: formatAccountWithCurrency(account.balance, account.currency) },
+      staleAwareAccountItem('净值', account.equity, account.currency, {
+        stale: accountSnapshotStale,
+        unconfirmed: accountSnapshotUnconfirmed,
+        hint: accountSnapshotHint,
+      }),
+      staleAwareAccountItem('余额', account.balance, account.currency, {
+        stale: accountSnapshotStale,
+        unconfirmed: accountSnapshotUnconfirmed,
+        hint: accountSnapshotHint,
+      }),
       { label: '交易品种', value: accountSymbolLabel(account), hint: accountMarketHint(account) },
       {
         label: 'EA 自动交易',
-        value: latestStale
+        value: accountSnapshotStale
           ? '快照过期'
-          : latestUnconfirmed
+          : accountSnapshotUnconfirmed
             ? '快照待确认'
             : accountAutoTradingEnabled(account)
               ? '已开启'
               : '未完全开启',
         status:
-          latestStale || latestUnconfirmed ? 'warn' : accountAutoTradingEnabled(account) ? 'ok' : 'warn',
+          accountSnapshotStale || accountSnapshotUnconfirmed
+            ? 'warn'
+            : accountAutoTradingEnabled(account)
+              ? 'ok'
+              : 'warn',
         hint:
-          latestStale || latestUnconfirmed
-            ? freshnessLine(latestFreshness)
+          accountSnapshotStale || accountSnapshotUnconfirmed
+            ? accountSnapshotHint
             : `执行 ${onOffText(account.executionEnabled)} / 实盘 ${onOffText(
                 account.livePilotMode,
               )} / 交易权限 ${onOffText(account.tradeAllowed)}`,
@@ -1171,6 +1217,42 @@ export function buildMt5Metrics(snapshot) {
   const rsiEnabled = routeEnabled(snapshot, 'RSI_Reversal');
   const primary = snapshot.primaryConnection || snapshot;
   const secondary = snapshot.secondaryConnection || {};
+  const snapshotState = {
+    stale: snapshot.latestDashboardStale,
+    unconfirmed: Boolean(
+      present(snapshot.latestFreshness) &&
+      !snapshot.latestDashboardStale &&
+      snapshot.latestFreshness?.fresh !== true,
+    ),
+    hint:
+      snapshot.latestFreshness?.nextActionZh ||
+      snapshot.latestFreshnessLine ||
+      freshnessLine(snapshot.latestFreshness || {}),
+  };
+  const primaryEquity = staleAwareAccountItem(
+    '主账号净值',
+    primary.equity ?? snapshot.equity,
+    primary.currency ?? snapshot.currency,
+    snapshotState,
+  );
+  const secondaryEquity = staleAwareAccountItem(
+    '第二账号净值',
+    secondary.equity,
+    secondary.currency,
+    snapshotState,
+  );
+  const positionsCount = snapshot.positions.length;
+  const positionsMetric =
+    snapshotState.stale || snapshotState.unconfirmed
+      ? {
+          label: '当前持仓',
+          value: snapshotState.stale ? '不可确认' : '待确认',
+          status: 'warn',
+          hint: [snapshotState.hint, `旧快照持仓 ${positionsCount} 笔，仅作历史参考`]
+            .filter(Boolean)
+            .join('；'),
+        }
+      : { label: '当前持仓', value: positionsCount, hint: '实盘账户' };
   return [
     {
       label: '主账号 EA',
@@ -1183,16 +1265,14 @@ export function buildMt5Metrics(snapshot) {
       hint: `${secondary.login || '—'} / ${humanizeStatus(secondary.tradeStatus || '—')}`,
     },
     {
-      label: '主账号净值',
-      value: formatAccountAmount(primary.equity ?? snapshot.equity, primary.currency ?? snapshot.currency),
-      hint: primary.server || snapshot.server,
+      ...primaryEquity,
+      hint: primaryEquity.hint || primary.server || snapshot.server,
     },
     {
-      label: '第二账号净值',
-      value: formatAccountAmount(secondary.equity, secondary.currency),
-      hint: secondary.server || '等待第二账号快照',
+      ...secondaryEquity,
+      hint: secondaryEquity.hint || secondary.server || '等待第二账号快照',
     },
-    { label: '当前持仓', value: snapshot.positions.length, hint: '实盘账户' },
+    positionsMetric,
     {
       label: 'RSI实盘路线',
       value: rsiEnabled ? '开启' : '未开启',

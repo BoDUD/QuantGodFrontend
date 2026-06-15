@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCloseHistoryRows,
   buildMt5AccountCards,
+  buildMt5Metrics,
   buildMt5ExecutionFeedbackRows,
   buildMt5SimulationItems,
   buildMt5ShadowBlockerRows,
@@ -283,6 +284,8 @@ describe('mt5Model ledgers', () => {
           login: '186054398',
           server: 'HFMarketsGlobal-Live12',
           currency: 'USC',
+          equity: 10020.5,
+          balance: 10000,
           executionEnabled: true,
           livePilotMode: true,
           tradeAllowed: true,
@@ -293,6 +296,8 @@ describe('mt5Model ledgers', () => {
           login: '198135388',
           server: 'HFMarketsGlobal-Live16',
           currency: 'USD',
+          equity: 998.25,
+          balance: 1000,
           executionEnabled: true,
           livePilotMode: true,
           tradeAllowed: true,
@@ -301,17 +306,44 @@ describe('mt5Model ledgers', () => {
     });
 
     const centItems = buildMt5AccountCards(snapshot)[0].items;
+    const metrics = buildMt5Metrics(snapshot);
 
     expect(snapshot.latestDashboardStale).toBe(true);
+    expect(centItems.find((item) => item.label === '当前持仓')).toMatchObject({
+      value: '不可确认',
+      status: 'warn',
+    });
+    expect(centItems.find((item) => item.label === '当前持仓').hint).toContain(
+      '旧快照未显示持仓，不能据此确认当前为 0 仓',
+    );
+    expect(centItems.find((item) => item.label === '净值')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+    expect(centItems.find((item) => item.label === '净值').hint).toContain(
+      '历史净值: 10020.50 USC，仅作参考',
+    );
+    expect(centItems.find((item) => item.label === '余额')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
     expect(centItems.find((item) => item.label === 'EA 自动交易')).toMatchObject({
       value: '快照过期',
       status: 'warn',
-      hint: 'MT5 dashboard 快照已过期',
+      hint: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
     });
     expect(centItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
       value: '过期',
       status: 'warn',
       hint: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
+    });
+    expect(metrics.find((item) => item.label === '主账号净值')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+    expect(metrics.find((item) => item.label === '当前持仓')).toMatchObject({
+      value: '不可确认',
+      status: 'warn',
     });
   });
 
@@ -351,7 +383,7 @@ describe('mt5Model ledgers', () => {
     expect(centItems.find((item) => item.label === 'EA 自动交易')).toMatchObject({
       value: '快照待确认',
       status: 'warn',
-      hint: 'MT5 dashboard 新鲜度待确认',
+      hint: '等待 /api/latest 返回 mtime 新鲜度。',
     });
     expect(centItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
       value: '待确认',

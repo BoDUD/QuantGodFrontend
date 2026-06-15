@@ -158,6 +158,20 @@ function formatMoney(value, currency = 'USC') {
   return `${numeric.toFixed(2)} ${currency || 'USC'}`;
 }
 
+function staleDashboardAccountMetric(snapshot, value, currency, label) {
+  const formatted = value === null ? '—' : formatMoney(value, currency);
+  if (!snapshot.latestDashboardStale) {
+    return { value: formatted };
+  }
+  const freshnessHint = dashboardFreshnessHint(snapshot);
+  const historicalHint = formatted === '—' ? '' : `历史${label}: ${formatted}，仅作参考`;
+  return {
+    value: '快照过期',
+    hint: [freshnessHint, historicalHint].filter(Boolean).join('；'),
+    status: 'warn',
+  };
+}
+
 function formatIsoMinute(value) {
   if (!value) return '—';
   const parsed = new Date(value);
@@ -864,6 +878,21 @@ export function buildDashboardMetrics(snapshot) {
   const balance = numberValue(snapshot.account?.balance ?? snapshot.account?.equity, null);
   const equity = numberValue(snapshot.account?.equity, null);
   const staleDashboardHint = snapshot.latestDashboardStale ? dashboardFreshnessHint(snapshot) : '';
+  const equityMetric = staleDashboardAccountMetric(snapshot, equity, currency, '净值');
+  const balanceMetric = staleDashboardAccountMetric(snapshot, balance, currency, '余额');
+  const positionsCount = snapshot.positions?.length || 0;
+  const positionsMetric = snapshot.latestDashboardStale
+    ? {
+        value: '不可确认',
+        hint: [staleDashboardHint, `旧快照持仓 ${positionsCount} 笔，仅作历史参考`]
+          .filter(Boolean)
+          .join('；'),
+        status: 'warn',
+      }
+    : {
+        value: positionsCount,
+        hint: 'MT5 实盘快照',
+      };
   const hfmCryptoCount = snapshot.hfmCryptoRows?.length || 0;
   const hfmCryptoDiagnosticLine = hfmCryptoSummaryLine(snapshot);
   const hfmCryptoLikeCount = numberValue(snapshot.hfmCryptoDiagnostics?.brokerCryptoLikeCountAll, null);
@@ -883,16 +912,16 @@ export function buildDashboardMetrics(snapshot) {
   const forexRsiTester = snapshot.forexLive12RsiTesterRequest || {};
   return [
     {
-      label: snapshot.latestDashboardStale ? '账户净值（历史）' : '账户净值',
-      value: equity === null ? '—' : formatMoney(equity, currency),
-      hint: staleDashboardHint || snapshot.account?.server || 'HFM MT5',
-      status: snapshot.latestDashboardStale ? 'warn' : undefined,
+      label: '账户净值',
+      value: equityMetric.value,
+      hint: equityMetric.hint || snapshot.account?.server || 'HFM MT5',
+      status: equityMetric.status,
     },
     {
-      label: snapshot.latestDashboardStale ? '账户余额（历史）' : '账户余额',
-      value: balance === null ? '—' : formatMoney(balance, currency),
-      hint: staleDashboardHint || snapshot.account?.number || snapshot.account?.login || '实时快照',
-      status: snapshot.latestDashboardStale ? 'warn' : undefined,
+      label: '账户余额',
+      value: balanceMetric.value,
+      hint: balanceMetric.hint || snapshot.account?.number || snapshot.account?.login || '实时快照',
+      status: balanceMetric.status,
     },
     {
       label: 'MT5 快照新鲜度',
@@ -904,9 +933,9 @@ export function buildDashboardMetrics(snapshot) {
     },
     {
       label: '当前持仓',
-      value: snapshot.positions?.length || 0,
-      hint: snapshot.latestDashboardStale ? '过期 MT5 快照，不能当当前持仓' : 'MT5 实盘快照',
-      status: snapshot.latestDashboardStale ? 'warn' : undefined,
+      value: positionsMetric.value,
+      hint: positionsMetric.hint,
+      status: positionsMetric.status,
     },
     {
       label: '今日净值',
