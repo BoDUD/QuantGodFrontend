@@ -58,9 +58,59 @@ function freshnessLine(freshness = {}) {
   const ageSeconds = Number(freshness.ageSeconds);
   const ageText = Number.isFinite(ageSeconds) ? `${Math.round(ageSeconds)}s` : '未知时长';
   if (freshness.statusZh) return freshness.statusZh;
+  if (freshness.nextActionZh) return freshness.nextActionZh;
   if (freshness.stale === true) return `MT5 dashboard 已过期 ${ageText}`;
   if (freshness.fresh === true) return 'MT5 dashboard 新鲜';
   return 'MT5 dashboard 新鲜度待确认';
+}
+
+function freshnessFromReadonlyPayload(payload = {}) {
+  const source = unwrap(payload) || {};
+  if (isObject(source._freshness) && present(source._freshness)) {
+    const stale =
+      source._freshness.stale === true ||
+      String(source._freshness.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+    const fresh = source._freshness.fresh === true;
+    return {
+      ...source._freshness,
+      statusZh:
+        source._freshness.statusZh ||
+        (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
+      nextActionZh:
+        source._freshness.nextActionZh ||
+        (stale ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。' : ''),
+    };
+  }
+  const sourceMeta = isObject(source.source) ? source.source : {};
+  const hasFreshnessEvidence =
+    source.snapshotFresh !== undefined ||
+    sourceMeta.fresh !== undefined ||
+    sourceMeta.ageSeconds !== undefined ||
+    String(source.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+  if (!hasFreshnessEvidence) return {};
+  const fresh = source.snapshotFresh === true || sourceMeta.fresh === true;
+  const stale =
+    source.snapshotFresh === false ||
+    sourceMeta.fresh === false ||
+    String(source.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+  return {
+    mode: 'MT5_READONLY_EA_SNAPSHOT_MTIME_WATCH',
+    status: stale ? 'STALE_EA_SNAPSHOT' : fresh ? 'FRESH_EA_SNAPSHOT' : 'WAITING_EA_SNAPSHOT_FRESHNESS',
+    statusZh: stale
+      ? 'MT5 dashboard 快照已过期'
+      : fresh
+        ? 'MT5 dashboard 新鲜'
+        : 'MT5 dashboard 新鲜度待确认',
+    fresh,
+    stale,
+    ageSeconds: sourceMeta.ageSeconds,
+    maxAgeSeconds: sourceMeta.maxAgeSeconds,
+    sourceFile: sourceMeta.file || '',
+    blockers: stale ? ['live_dashboard_snapshot_stale'] : [],
+    nextActionZh: stale
+      ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
+      : '',
+  };
 }
 
 function format(value) {
@@ -467,6 +517,7 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}) {
   const accountEnvelope = unwrap(accountPayload) || {};
   const snapshotEnvelope = unwrap(snapshotPayload) || {};
   const source = { ...snapshotEnvelope, ...accountEnvelope };
+  const freshness = freshnessFromReadonlyPayload(source);
   const account = firstObject(
     accountEnvelope.account,
     snapshotEnvelope.account,
@@ -570,8 +621,9 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}) {
     account,
     runtime,
     terminal,
-    snapshotFresh: source.snapshotFresh,
-    sourceFile: source.source?.file || '',
+    snapshotFresh: source.snapshotFresh ?? freshness.fresh,
+    freshness,
+    sourceFile: source.source?.file || freshness.sourceFile || '',
     error:
       terminal.lastAuthFailure?.message ||
       terminal.lastAuthFailure?.reason ||
@@ -706,7 +758,11 @@ function accountCard(account = {}, fallback = {}) {
   const lane = present(fallback.lane) ? fallback.lane : null;
   const spreadGate = present(fallback.spreadGate) ? fallback.spreadGate : null;
   const usdDeploymentGate = present(fallback.usdDeploymentGate) ? fallback.usdDeploymentGate : null;
-  const latestFreshness = present(fallback.latestFreshness) ? fallback.latestFreshness : null;
+  const latestFreshness = present(account.freshness)
+    ? account.freshness
+    : present(fallback.latestFreshness)
+      ? fallback.latestFreshness
+      : null;
   const latestStale = Boolean(
     latestFreshness?.stale || latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT',
   );
@@ -960,6 +1016,10 @@ export function normalizeMt5Snapshot(raw = {}) {
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const primaryPositionsRaw = rowsFromPayload(raw.positions);
   const secondarySnapshotEnvelope = unwrap(raw.secondarySnapshot) || {};
+  const primaryFreshness = freshnessFromReadonlyPayload(snapshot);
+  const secondaryFreshness = freshnessFromReadonlyPayload(secondarySnapshotEnvelope);
+  const latestFreshness =
+    isObject(latest._freshness) && present(latest._freshness) ? latest._freshness : primaryFreshness;
   const secondaryPositionsRaw = rowsFromPayload(raw.secondaryPositions).length
     ? rowsFromPayload(raw.secondaryPositions)
     : rowsFromPayload(secondarySnapshotEnvelope.positions || secondarySnapshotEnvelope);
@@ -1040,11 +1100,15 @@ export function normalizeMt5Snapshot(raw = {}) {
 
   return {
     latest,
-    latestFreshness: isObject(latest._freshness) ? latest._freshness : {},
+    latestFreshness,
     latestDashboardStale: Boolean(
-      latest._freshness?.stale || latest._freshness?.status === 'STALE_DASHBOARD_SNAPSHOT',
+      latestFreshness?.stale ||
+      latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+      latestFreshness?.status === 'STALE_EA_SNAPSHOT',
     ),
-    latestFreshnessLine: freshnessLine(latest._freshness || {}),
+    latestFreshnessLine: freshnessLine(latestFreshness || {}),
+    primaryMt5Freshness: primaryFreshness,
+    secondaryMt5Freshness: secondaryFreshness,
     runtime,
     bridgeStatus,
     terminal: pick(
@@ -1217,38 +1281,73 @@ export function buildMt5Metrics(snapshot) {
   const rsiEnabled = routeEnabled(snapshot, 'RSI_Reversal');
   const primary = snapshot.primaryConnection || snapshot;
   const secondary = snapshot.secondaryConnection || {};
-  const snapshotState = {
-    stale: snapshot.latestDashboardStale,
+  const primaryFreshness = present(primary.freshness) ? primary.freshness : snapshot.latestFreshness;
+  const secondaryFreshness = present(secondary.freshness)
+    ? secondary.freshness
+    : snapshot.secondaryMt5Freshness;
+  const primarySnapshotState = {
+    stale: Boolean(
+      primaryFreshness?.stale ||
+      primaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+      primaryFreshness?.status === 'STALE_EA_SNAPSHOT',
+    ),
     unconfirmed: Boolean(
-      present(snapshot.latestFreshness) &&
-      !snapshot.latestDashboardStale &&
-      snapshot.latestFreshness?.fresh !== true,
+      present(primaryFreshness) &&
+      !(
+        primaryFreshness?.stale ||
+        primaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+        primaryFreshness?.status === 'STALE_EA_SNAPSHOT'
+      ) &&
+      primaryFreshness?.fresh !== true,
     ),
     hint:
-      snapshot.latestFreshness?.nextActionZh ||
-      snapshot.latestFreshnessLine ||
-      freshnessLine(snapshot.latestFreshness || {}),
+      primaryFreshness?.nextActionZh || primaryFreshness?.nextAction || freshnessLine(primaryFreshness || {}),
+  };
+  const secondarySnapshotState = {
+    stale: Boolean(
+      secondaryFreshness?.stale ||
+      secondaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+      secondaryFreshness?.status === 'STALE_EA_SNAPSHOT',
+    ),
+    unconfirmed: Boolean(
+      present(secondaryFreshness) &&
+      !(
+        secondaryFreshness?.stale ||
+        secondaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
+        secondaryFreshness?.status === 'STALE_EA_SNAPSHOT'
+      ) &&
+      secondaryFreshness?.fresh !== true,
+    ),
+    hint:
+      secondaryFreshness?.nextActionZh ||
+      secondaryFreshness?.nextAction ||
+      freshnessLine(secondaryFreshness || {}),
   };
   const primaryEquity = staleAwareAccountItem(
     '主账号净值',
     primary.equity ?? snapshot.equity,
     primary.currency ?? snapshot.currency,
-    snapshotState,
+    primarySnapshotState,
   );
   const secondaryEquity = staleAwareAccountItem(
     '第二账号净值',
     secondary.equity,
     secondary.currency,
-    snapshotState,
+    secondarySnapshotState,
   );
   const positionsCount = snapshot.positions.length;
+  const combinedSnapshotState = {
+    stale: primarySnapshotState.stale || secondarySnapshotState.stale,
+    unconfirmed: primarySnapshotState.unconfirmed || secondarySnapshotState.unconfirmed,
+    hint: [primarySnapshotState.hint, secondarySnapshotState.hint].filter(Boolean).join('；'),
+  };
   const positionsMetric =
-    snapshotState.stale || snapshotState.unconfirmed
+    combinedSnapshotState.stale || combinedSnapshotState.unconfirmed
       ? {
           label: '当前持仓',
-          value: snapshotState.stale ? '不可确认' : '待确认',
+          value: combinedSnapshotState.stale ? '不可确认' : '待确认',
           status: 'warn',
-          hint: [snapshotState.hint, `旧快照持仓 ${positionsCount} 笔，仅作历史参考`]
+          hint: [combinedSnapshotState.hint, `旧快照持仓 ${positionsCount} 笔，仅作历史参考`]
             .filter(Boolean)
             .join('；'),
         }

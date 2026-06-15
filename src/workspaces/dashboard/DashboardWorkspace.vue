@@ -189,6 +189,11 @@
         />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
         <JsonPreview
+          title="第二 MT5 快照"
+          source="/api/mt5-readonly-secondary/snapshot"
+          :payload="state.secondaryMt5Snapshot"
+        />
+        <JsonPreview
           title="HFM Crypto CFD"
           source="/api/hfm-crypto/status?view=summary&scope=secondary"
           :payload="state.hfmCrypto"
@@ -346,6 +351,7 @@ const state = shallowReactive({
   agentOpsHealth: null,
   telegramGateway: null,
   mt5Snapshot: null,
+  secondaryMt5Snapshot: null,
   hfmCrypto: null,
   profitTarget: null,
   liveAutomationOrchestrator: null,

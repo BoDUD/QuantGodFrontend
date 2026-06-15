@@ -392,6 +392,67 @@ describe('mt5Model ledgers', () => {
     });
   });
 
+  it('uses the secondary account readonly freshness instead of the primary latest freshness', () => {
+    const snapshot = normalizeMt5Snapshot({
+      latest: {
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      account: {
+        account: {
+          login: '186054398',
+          server: 'HFMarketsGlobal-Live12',
+          currency: 'USC',
+          equity: 10020.5,
+          balance: 10000,
+        },
+      },
+      secondarySnapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 875085,
+          nextAction: 'Restore Live16 EA dashboard writer.',
+        },
+        account: {
+          login: '198135388',
+          server: 'HFMarketsGlobal-Live16',
+          currency: 'USD',
+          equity: 16.33,
+          balance: 16.33,
+        },
+      },
+    });
+
+    const usdItems = buildMt5AccountCards(snapshot)[1].items;
+    const metrics = buildMt5Metrics(snapshot);
+
+    expect(snapshot.latestDashboardStale).toBe(false);
+    expect(snapshot.secondaryMt5Freshness).toMatchObject({
+      status: 'STALE_EA_SNAPSHOT',
+      stale: true,
+    });
+    expect(usdItems.find((item) => item.label === '净值')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+    expect(usdItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
+      value: '过期',
+      status: 'warn',
+    });
+    expect(metrics.find((item) => item.label === '第二账号净值')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+  });
+
   it('shows manual non-USDJPY live positions in the realtime positions table', () => {
     const snapshot = normalizeMt5Snapshot({
       positions: {

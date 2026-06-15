@@ -86,6 +86,50 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('surfaces secondary MT5 readonly snapshot staleness on the dashboard', () => {
+    const raw = {
+      latest: {
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      secondaryMt5Snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        source: {
+          file: '/tmp/live16/MQL5/Files/QuantGod_Dashboard.json',
+          ageSeconds: 875085,
+          maxAgeSeconds: 180,
+          fresh: false,
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const live16Metric = buildDashboardMetrics(snapshot).find((item) => item.label === 'Live16 快照');
+    const live16Health = buildEndpointHealth(raw).find(
+      (item) => item.endpoint === '/api/mt5-readonly-secondary/snapshot',
+    );
+    const runtimeItems = buildRuntimeItems(snapshot);
+
+    expect(snapshot.secondaryMt5SnapshotStale).toBe(true);
+    expect(live16Metric).toMatchObject({
+      value: '过期',
+      status: 'warn',
+    });
+    expect(live16Health).toMatchObject({
+      status: 'warn',
+      statusLabel: '快照过期',
+    });
+    expect(runtimeItems.find((item) => item.label === 'Live16 只读桥')).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+  });
+
   it('does not mark daily autopilot complete when the endpoint payload is missing', () => {
     const row = buildDailyReviewRows({ dailyAutopilot: null }).find((item) => item.领域 === '自动闭环');
 

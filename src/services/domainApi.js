@@ -79,6 +79,10 @@ export async function loadDashboardWorkspace(options = {}) {
       ],
       ['mt5Snapshot', (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions)],
       [
+        'secondaryMt5Snapshot',
+        (requestOptions) => fetchJson('/api/mt5-readonly-secondary/snapshot', null, requestOptions),
+      ],
+      [
         'hfmCrypto',
         (requestOptions) =>
           fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, requestOptions),

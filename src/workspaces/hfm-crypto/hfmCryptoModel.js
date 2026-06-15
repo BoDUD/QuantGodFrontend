@@ -53,6 +53,66 @@ function mt5SnapshotPayload(state = {}) {
   return state.mt5Snapshot || {};
 }
 
+function mt5SnapshotFreshness(payload = {}) {
+  if (!isObject(payload)) return {};
+  if (isObject(payload._freshness) && Object.keys(payload._freshness).length) {
+    const stale =
+      payload._freshness.stale === true ||
+      String(payload._freshness.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+    const fresh = payload._freshness.fresh === true;
+    return {
+      ...payload._freshness,
+      statusZh:
+        payload._freshness.statusZh ||
+        (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
+      nextActionZh:
+        payload._freshness.nextActionZh ||
+        (stale
+          ? '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
+          : ''),
+    };
+  }
+  const source = isObject(payload.source) ? payload.source : {};
+  const hasFreshnessEvidence =
+    payload.snapshotFresh !== undefined ||
+    source.fresh !== undefined ||
+    source.ageSeconds !== undefined ||
+    String(payload.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+  if (!hasFreshnessEvidence) return {};
+  const fresh = payload.snapshotFresh === true || source.fresh === true;
+  const stale =
+    payload.snapshotFresh === false ||
+    source.fresh === false ||
+    String(payload.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+  return {
+    status: stale ? 'STALE_EA_SNAPSHOT' : fresh ? 'FRESH_EA_SNAPSHOT' : 'WAITING_EA_SNAPSHOT_FRESHNESS',
+    statusZh: stale
+      ? 'MT5 dashboard 快照已过期'
+      : fresh
+        ? 'MT5 dashboard 新鲜'
+        : 'MT5 dashboard 新鲜度待确认',
+    fresh,
+    stale,
+    ageSeconds: source.ageSeconds,
+    maxAgeSeconds: source.maxAgeSeconds,
+    sourceFile: source.file || '',
+    nextActionZh: stale
+      ? '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
+      : '',
+  };
+}
+
+function mt5FreshnessLine(freshness = {}) {
+  if (!isObject(freshness) || !Object.keys(freshness).length) return WAITING;
+  if (freshness.statusZh) return freshness.statusZh;
+  if (freshness.nextActionZh || freshness.nextAction) return freshness.nextActionZh || freshness.nextAction;
+  const ageSeconds = Number(freshness.ageSeconds);
+  const ageText = Number.isFinite(ageSeconds) ? `${Math.round(ageSeconds)}s` : WAITING;
+  if (freshness.stale) return `MT5 dashboard 快照已过期 ${ageText}`;
+  if (freshness.fresh) return 'MT5 dashboard 新鲜';
+  return 'MT5 dashboard 新鲜度待确认';
+}
+
 function statusTone(status) {
   const text = String(status || '').toUpperCase();
   if (text.includes('READY')) return 'ok';
@@ -1430,6 +1490,8 @@ export function buildHfmCryptoModel(state = {}) {
   const evidenceBootstrap = evidenceBootstrapPayload(state);
   const mt5ExporterReview = mt5ExporterReviewPayload(state);
   const mt5Snapshot = mt5SnapshotPayload(state);
+  const mt5Freshness = mt5SnapshotFreshness(mt5Snapshot);
+  const mt5SnapshotStale = mt5Freshness.stale === true || mt5Freshness.status === 'STALE_EA_SNAPSHOT';
   const mt5UpgradeBundle = mt5UpgradeBundlePayload(state);
   const mt5ExporterDeployPlan = mt5ExporterDeployPlanPayload(state);
   const standaloneExporterBundle = standaloneExporterBundlePayload(state);
@@ -1684,7 +1746,8 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'MT5 账号链路',
         value: mt5Connected ? `已连接 ${mt5Server}` : '未连上 MT5 快照',
-        hint: `${mt5Login} / ${mt5Currency} / ${mt5Snapshot.snapshotFresh ? '快照新鲜' : '快照未确认新鲜'}`,
+        hint: `${mt5Login} / ${mt5Currency} / ${mt5FreshnessLine(mt5Freshness)}`,
+        status: mt5SnapshotStale ? 'blocked' : mt5Connected ? 'ok' : 'warn',
       },
       {
         label: 'Crypto 接入卡点',
@@ -2008,7 +2071,7 @@ export function buildHfmCryptoModel(state = {}) {
         label: 'MT5 账号快照',
         endpoint: '/api/mt5-readonly-secondary/snapshot',
         description: '读取 Live16 MT5 dashboard 快照，确认 crypto CFD 账号、服务器、当前 symbol 和交易权限',
-        status: endpointStatus(state.mt5Snapshot),
+        status: mt5SnapshotStale ? 'blocked' : endpointStatus(state.mt5Snapshot),
       },
       {
         label: 'HFM Crypto 状态',
@@ -2374,8 +2437,8 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'MT5 账号',
         value: mt5Connected ? `${mt5Login} / ${mt5Server}` : 'MT5 快照未连上',
-        hint: `${mt5Currency} / ${mt5Snapshot.snapshotFresh ? '快照新鲜' : '快照未确认新鲜'}`,
-        status: mt5Connected ? 'ok' : 'blocked',
+        hint: `${mt5Currency} / ${mt5FreshnessLine(mt5Freshness)}`,
+        status: mt5SnapshotStale ? 'blocked' : mt5Connected ? 'ok' : 'blocked',
       },
       {
         label: 'Broker symbols',
@@ -2422,8 +2485,14 @@ export function buildHfmCryptoModel(state = {}) {
     accountItems: [
       {
         label: 'MT5 快照',
-        value: mt5Snapshot.status || mt5Snapshot.bridgeStatus || WAITING,
-        status: mt5Snapshot.ok ? 'ok' : 'blocked',
+        value: mt5SnapshotStale ? '快照过期' : mt5Snapshot.status || mt5Snapshot.bridgeStatus || WAITING,
+        hint:
+          mt5Freshness.nextActionZh ||
+          mt5Freshness.nextAction ||
+          mt5FreshnessLine(mt5Freshness) ||
+          mt5Snapshot.source?.file ||
+          'MT5 dashboard 新鲜度待确认',
+        status: mt5SnapshotStale ? 'blocked' : mt5Snapshot.ok ? 'ok' : 'blocked',
       },
       {
         label: '服务器',
@@ -2453,8 +2522,8 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'Tick 年龄',
         value: mt5Runtime.tickAgeSeconds ?? mt5Snapshot.source?.ageSeconds ?? WAITING,
-        hint: mt5Snapshot.snapshotFresh ? 'dashboard 新鲜' : 'dashboard 陈旧或未同步',
-        status: mt5Snapshot.snapshotFresh ? 'ok' : 'blocked',
+        hint: mt5FreshnessLine(mt5Freshness),
+        status: mt5SnapshotStale ? 'blocked' : mt5Snapshot.snapshotFresh ? 'ok' : 'warn',
       },
       {
         label: 'Crypto exporter',

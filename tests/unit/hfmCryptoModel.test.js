@@ -3,6 +3,53 @@ import { describe, expect, it } from 'vitest';
 import { buildHfmCryptoModel } from '../../src/workspaces/hfm-crypto/hfmCryptoModel.js';
 
 describe('hfmCryptoModel', () => {
+  it('marks stale Live16 MT5 snapshots as blocked account evidence', () => {
+    const model = buildHfmCryptoModel({
+      mt5Snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 875085,
+          nextAction: 'Restore the Live16 EA dashboard writer.',
+        },
+        account: {
+          login: 198135388,
+          server: 'HFMarketsGlobal-Live16',
+          currency: 'USD',
+          tradeAllowed: true,
+          tradeExpert: true,
+        },
+        runtime: {
+          terminalConnected: true,
+          accountAuthorized: true,
+        },
+        market: {
+          symbol: '#BTCUSD',
+        },
+      },
+    });
+
+    expect(model.metrics.find((item) => item.label === 'MT5 账号链路')).toMatchObject({
+      status: 'blocked',
+    });
+    expect(model.accountItems.find((item) => item.label === 'MT5 快照')).toMatchObject({
+      value: '快照过期',
+      status: 'blocked',
+    });
+    expect(model.accountItems.find((item) => item.label === 'Tick 年龄')).toMatchObject({
+      status: 'blocked',
+    });
+    expect(
+      model.endpoints.find((item) => item.endpoint === '/api/mt5-readonly-secondary/snapshot'),
+    ).toMatchObject({
+      status: 'blocked',
+    });
+  });
+
   it('surfaces an authorized HFM account with zero crypto CFD symbols as an account blocker', () => {
     const model = buildHfmCryptoModel({
       mt5Snapshot: {
