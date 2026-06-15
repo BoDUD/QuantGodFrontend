@@ -308,6 +308,7 @@ import StatusPill from '../shared/StatusPill.vue';
 import KeyValueList from '../shared/KeyValueList.vue';
 import EndpointHealthGrid from '../shared/EndpointHealthGrid.vue';
 import LedgerTable from '../shared/LedgerTable.vue';
+import LoadingState from '../../components/LoadingState.vue';
 import DashboardUpgradePanel from './DashboardUpgradePanel.vue';
 import {
   normalizeDashboardSnapshot,
