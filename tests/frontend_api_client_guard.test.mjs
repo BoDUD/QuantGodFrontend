@@ -17,7 +17,8 @@ function writeFixture(root, overrides = {}) {
 
   fs.writeFileSync(
     path.join(root, 'src/services/apiClient.js'),
-    overrides.apiClient ?? `
+    overrides.apiClient ??
+      `
 export function assertApiPath(path) { return String(path).startsWith('/api/') ? path : (() => { throw new Error('bad'); })(); }
 export function makeApiUrl(path) { return assertApiPath(path); }
 export function queryString() { return ''; }
@@ -33,7 +34,8 @@ const RUNTIME_FILE_PATTERN = /QuantGod_/;
 
   fs.writeFileSync(
     path.join(root, 'src/services/domainApi.js'),
-    overrides.domainApi ?? `
+    overrides.domainApi ??
+      `
 import { fetchJson, fetchRows, postJson, queryString as params, rowsFromPayload } from './apiClient.js';
 export async function loadDashboardWorkspace() { return fetchJson('/api/latest'); }
 export { fetchJson, fetchRows, postJson, rowsFromPayload };
@@ -84,6 +86,18 @@ test('api-client guard rejects duplicated helpers in domainApi', () => {
   const result = runGuard(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr + result.stdout, /duplicated helper/);
+});
+
+test('api-client guard rejects direct fetch in legacy service modules', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-legacy-fetch-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase1Api.js'),
+    "export async function load() { return fetch('/api/latest'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase1Api\.js must not call fetch\(\) directly/);
 });
 
 test('api-client guard rejects missing raw file protection', () => {

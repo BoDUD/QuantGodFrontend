@@ -2,9 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const root = process.env.QG_FRONTEND_ROOT
-  ? path.resolve(process.env.QG_FRONTEND_ROOT)
-  : process.cwd();
+const root = process.env.QG_FRONTEND_ROOT ? path.resolve(process.env.QG_FRONTEND_ROOT) : process.cwd();
 
 const errors = [];
 
@@ -30,6 +28,19 @@ function readJson(relPath) {
   }
 }
 
+function walkFiles(dir, files = []) {
+  if (!fs.existsSync(dir)) return files;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkFiles(fullPath, files);
+    } else if (entry.isFile() && ['.js', '.mjs', '.ts'].includes(path.extname(entry.name))) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
 const apiClient = read('src/services/apiClient.js');
 const domainApi = read('src/services/domainApi.js');
 const pkg = readJson('package.json');
@@ -48,7 +59,10 @@ const requiredExports = [
 ];
 
 for (const name of requiredExports) {
-  if (!apiClient.includes(`export function ${name}`) && !apiClient.includes(`export async function ${name}`)) {
+  if (
+    !apiClient.includes(`export function ${name}`) &&
+    !apiClient.includes(`export async function ${name}`)
+  ) {
     fail(`apiClient.js must export ${name}`);
   }
 }
@@ -90,6 +104,26 @@ if (/\bfetch\s*\(/.test(domainApi)) {
 
 if (/\/QuantGod_[^\s'"?#]+\.(json|csv)\b/i.test(domainApi)) {
   fail('domainApi.js must not reference raw QuantGod runtime JSON/CSV files');
+}
+
+const serviceDir = path.join(root, 'src/services');
+for (const filePath of walkFiles(serviceDir)) {
+  const relativePath = path.relative(root, filePath).replaceAll(path.sep, '/');
+  if (relativePath === 'src/services/apiClient.js') continue;
+  const source = fs.readFileSync(filePath, 'utf8');
+  if (/\bfetch\s*\(/.test(source)) {
+    fail(`${relativePath} must not call fetch() directly; use apiClient.js helpers`);
+  }
+  for (const token of [
+    'const JSON_HEADERS',
+    'const CSRF_HEADERS',
+    'async function fetchJson',
+    'async function postJson',
+  ]) {
+    if (source.includes(token)) {
+      fail(`${relativePath} still defines duplicated API helper/header: ${token}`);
+    }
+  }
 }
 
 if (!domainApi.includes('queryString as params')) {

@@ -1,7 +1,5 @@
+import { fetchApiJson, postApiJson } from './apiClient.js';
 import { formatDisplayValue, humanizeLabel } from '../utils/displayText.js';
-
-const JSON_HEADERS = { Accept: 'application/json' };
-const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
 
 export const PHASE2_ENDPOINTS = Object.freeze({
   governance: [
@@ -44,34 +42,21 @@ export const PHASE2_ENDPOINTS = Object.freeze({
 });
 
 export async function apiGet(url, fallback = null) {
-  try {
-    const response = await fetch(url, { headers: JSON_HEADERS, cache: 'no-store' });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      return payload || fallback || { ok: false, error: `HTTP ${response.status}`, endpoint: url };
-    }
-    return payload;
-  } catch (error) {
-    return fallback || { ok: false, error: error?.message || String(error), endpoint: url };
-  }
+  const result = await fetchApiJson(url);
+  if (result.ok) return result.data;
+  return (
+    result.error?.body ||
+    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
+  );
 }
 
 export async function apiPost(url, payload = {}, fallback = null) {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', ...CSRF_HEADERS },
-      cache: 'no-store',
-      body: JSON.stringify(payload || {}),
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      return body || fallback || { ok: false, error: `HTTP ${response.status}`, endpoint: url };
-    }
-    return body;
-  } catch (error) {
-    return fallback || { ok: false, error: error?.message || String(error), endpoint: url };
-  }
+  const result = await postApiJson(url, payload);
+  if (result.ok) return result.data;
+  return (
+    result.error?.body ||
+    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
+  );
 }
 
 export function extractRows(payload) {

@@ -1,4 +1,5 @@
-const JSON_HEADERS = { 'Content-Type': 'application/json', 'X-QuantGod-Local': '1' };
+import { fetchApiJson, postApiJson } from './apiClient.js';
+
 export const USDJPY_FOCUS_SYMBOL = 'USDJPYc';
 
 const USDJPY_SYMBOL_FALLBACK = [
@@ -12,51 +13,50 @@ function isUsdJpySymbol(value) {
     .startsWith('USDJPY');
 }
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, { cache: 'no-store', ...options });
-  const text = await response.text();
-  let payload = {};
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch (parseError) {
-      throw new Error(`Non-JSON response from ${url}: ${text.slice(0, 200)}`, { cause: parseError });
-    }
+async function requestGetJson(endpoint, options = {}) {
+  const result = await fetchApiJson(endpoint, options);
+  if (!result.ok) {
+    throw new Error(
+      result.error?.body?.error || result.error?.message || `HTTP ${result.status} for ${endpoint}`,
+    );
   }
-  if (!response.ok) {
-    throw new Error(payload.error || `HTTP ${response.status} for ${url}`);
+  return result.data || {};
+}
+
+async function requestPostJson(endpoint, body = {}, options = {}) {
+  const result = await postApiJson(endpoint, body, options);
+  if (!result.ok) {
+    throw new Error(
+      result.error?.body?.error || result.error?.message || `HTTP ${result.status} for ${endpoint}`,
+    );
   }
-  return payload;
+  return result.data || {};
 }
 
 export async function runAiAnalysis({ symbol, timeframes = ['M15', 'H1', 'H4', 'D1'] }) {
-  return fetchJson('/api/ai-analysis/run', {
-    method: 'POST',
-    headers: JSON_HEADERS,
-    body: JSON.stringify({ symbol, timeframes }),
-  });
+  return requestPostJson('/api/ai-analysis/run', { symbol, timeframes });
 }
 
 export function getAiLatest() {
-  return fetchJson('/api/ai-analysis/latest');
+  return requestGetJson('/api/ai-analysis/latest');
 }
 
 export function getAiHistory({ symbol = '', limit = 20 } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (symbol) params.set('symbol', symbol);
-  return fetchJson(`/api/ai-analysis/history?${params.toString()}`);
+  return requestGetJson(`/api/ai-analysis/history?${params.toString()}`);
 }
 
 export function getAiHistoryItem(id) {
-  return fetchJson(`/api/ai-analysis/history/${encodeURIComponent(id)}`);
+  return requestGetJson(`/api/ai-analysis/history/${encodeURIComponent(id)}`);
 }
 
 export function getAiConfig() {
-  return fetchJson('/api/ai-analysis/config');
+  return requestGetJson('/api/ai-analysis/config');
 }
 
 export function getDeepSeekTelegramLatest() {
-  return fetchJson('/api/ai-analysis/deepseek-telegram/latest');
+  return requestGetJson('/api/ai-analysis/deepseek-telegram/latest');
 }
 
 export async function runDeepSeekTelegram({
@@ -68,43 +68,39 @@ export async function runDeepSeekTelegram({
   noDeepseek = false,
 } = {}) {
   const normalizedSymbols = Array.isArray(symbols) && symbols.length ? symbols : [symbol].filter(Boolean);
-  return fetchJson('/api/ai-analysis/deepseek-telegram/run', {
-    method: 'POST',
-    headers: JSON_HEADERS,
-    body: JSON.stringify({
-      symbols: normalizedSymbols,
-      timeframes,
-      send,
-      force,
-      noDeepseek,
-      minIntervalSeconds: force ? 0 : 900,
-    }),
+  return requestPostJson('/api/ai-analysis/deepseek-telegram/run', {
+    symbols: normalizedSymbols,
+    timeframes,
+    send,
+    force,
+    noDeepseek,
+    minIntervalSeconds: force ? 0 : 900,
   });
 }
 
 export function getKline({ symbol, tf = 'H1', bars = 200, signal } = {}) {
   const params = new URLSearchParams({ symbol, tf, bars: String(bars) });
-  return fetchJson(`/api/mt5-readonly/kline?${params.toString()}`, { signal });
+  return requestGetJson(`/api/mt5-readonly/kline?${params.toString()}`, { signal });
 }
 
 export function getQuote({ symbol, signal } = {}) {
   const params = new URLSearchParams({ symbol });
-  return fetchJson(`/api/mt5-readonly/quote?${params.toString()}`, { signal });
+  return requestGetJson(`/api/mt5-readonly/quote?${params.toString()}`, { signal });
 }
 
 export function getChartTrades({ symbol, days = 30, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return fetchJson(`/api/mt5-readonly/trades?${params.toString()}`, { signal });
+  return requestGetJson(`/api/mt5-readonly/trades?${params.toString()}`, { signal });
 }
 
 export function getShadowSignals({ symbol, days = 7, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return fetchJson(`/api/shadow/signals?${params.toString()}`, { signal });
+  return requestGetJson(`/api/shadow/signals?${params.toString()}`, { signal });
 }
 
 export async function getSymbolRegistry({ signal } = {}) {
   try {
-    const payload = await fetchJson('/api/mt5-symbol-registry', { signal });
+    const payload = await requestGetJson('/api/mt5-symbol-registry', { signal });
     const items = payload.items || payload.symbols || payload.registry || [];
     if (Array.isArray(items) && items.length) {
       const normalizedItems = items

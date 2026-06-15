@@ -1,5 +1,4 @@
-const JSON_HEADERS = { Accept: 'application/json' };
-const CSRF_HEADERS = { 'X-QuantGod-Local': '1' };
+import { fetchApiJson, postApiJson } from './apiClient.js';
 
 export const DEFAULT_BACKTEST_SYMBOLS = ['USDJPYc'];
 export const DEFAULT_BACKTEST_TIMEFRAMES = ['M15', 'H1', 'H4', 'D1'];
@@ -18,29 +17,22 @@ const SAFETY = Object.freeze({
   telegramCommandExecutionAllowed: false,
 });
 
-async function fetchJson(url, fallback = null, options = {}) {
-  try {
-    const response = await fetch(url, {
-      headers: JSON_HEADERS,
-      cache: 'no-store',
-      ...options,
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      return payload || fallback || { ok: false, error: `HTTP ${response.status}`, endpoint: url };
-    }
-    return payload;
-  } catch (error) {
-    return fallback || { ok: false, error: error?.message || String(error), endpoint: url };
-  }
+async function loadJson(url, fallback = null, options = {}) {
+  const result = await fetchApiJson(url, options);
+  if (result.ok) return result.data;
+  return (
+    result.error?.body ||
+    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
+  );
 }
 
-async function postJson(url, body = {}, fallback = null) {
-  return fetchJson(url, fallback, {
-    method: 'POST',
-    headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', ...CSRF_HEADERS },
-    body: JSON.stringify(body || {}),
-  });
+async function sendJson(url, body = {}, fallback = null, options = {}) {
+  const result = await postApiJson(url, body, options);
+  if (result.ok) return result.data;
+  return (
+    result.error?.body ||
+    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
+  );
 }
 
 function toArray(value) {
@@ -251,10 +243,10 @@ export function buildBacktestTelegramMessage({ backtest, ai, symbols }) {
 
 export async function loadBacktestAiState() {
   const [backtest, aiLatest, notifyConfig, notifyHistory] = await Promise.all([
-    fetchJson('/api/mt5-backtest-loop'),
-    fetchJson('/api/ai-analysis/deepseek-telegram/latest', { ok: false, items: [] }),
-    fetchJson('/api/notify/config', { ok: false }),
-    fetchJson('/api/notify/history?limit=20', { ok: false, items: [] }),
+    loadJson('/api/mt5-backtest-loop'),
+    loadJson('/api/ai-analysis/deepseek-telegram/latest', { ok: false, items: [] }),
+    loadJson('/api/notify/config', { ok: false }),
+    loadJson('/api/notify/history?limit=20', { ok: false, items: [] }),
   ]);
   return {
     backtest,
@@ -278,8 +270,8 @@ export async function runBacktestAiCycle({
     days: String(Math.max(7, Math.min(365, Number(days) || 180))),
     maxTasks: String(Math.max(1, Math.min(50, Number(maxTasks) || 20))),
   });
-  const backtest = await fetchJson(`/api/mt5-backtest-loop/run?${params.toString()}`);
-  const ai = await postJson('/api/ai-analysis/deepseek-telegram/run', {
+  const backtest = await loadJson(`/api/mt5-backtest-loop/run?${params.toString()}`);
+  const ai = await sendJson('/api/ai-analysis/deepseek-telegram/run', {
     symbols: normalizedSymbols,
     timeframes,
     send: sendTelegram,
@@ -289,7 +281,7 @@ export async function runBacktestAiCycle({
   });
   let notify = null;
   if (sendTelegram) {
-    notify = await postJson('/api/notify/test', {
+    notify = await sendJson('/api/notify/test', {
       eventType: 'BACKTEST_AI',
       message: buildBacktestTelegramMessage({ backtest, ai, symbols: normalizedSymbols }),
       dryRun: false,
