@@ -20,7 +20,7 @@
       </div>
       <div class="qg-domain-grid qg-domain-grid--two">
         <KeyValueList :items="snapshotRecoveryItems" />
-        <LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="4" />
+        <LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5" />
       </div>
     </section>
 
@@ -32,7 +32,7 @@
         </div>
         <span class="qg-muted">主账号、Live16 与 HFM Crypto 一起判定</span>
       </div>
-      <LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="4" />
+      <LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="5" />
     </section>
 
     <DashboardUpgradePanel :state="state" :snapshot="snapshot" :metrics="metrics" />

@@ -1,4 +1,4 @@
-import { fetchApiJson, postApiJson } from './apiClient.js';
+import { fetchJsonOrThrow, postJsonOrThrow } from './apiClient.js';
 
 export const USDJPY_FOCUS_SYMBOL = 'USDJPYc';
 
@@ -13,50 +13,30 @@ function isUsdJpySymbol(value) {
     .startsWith('USDJPY');
 }
 
-async function requestGetJson(endpoint, options = {}) {
-  const result = await fetchApiJson(endpoint, options);
-  if (!result.ok) {
-    throw new Error(
-      result.error?.body?.error || result.error?.message || `HTTP ${result.status} for ${endpoint}`,
-    );
-  }
-  return result.data || {};
-}
-
-async function requestPostJson(endpoint, body = {}, options = {}) {
-  const result = await postApiJson(endpoint, body, options);
-  if (!result.ok) {
-    throw new Error(
-      result.error?.body?.error || result.error?.message || `HTTP ${result.status} for ${endpoint}`,
-    );
-  }
-  return result.data || {};
-}
-
 export async function runAiAnalysis({ symbol, timeframes = ['M15', 'H1', 'H4', 'D1'] }) {
-  return requestPostJson('/api/ai-analysis/run', { symbol, timeframes });
+  return postJsonOrThrow('/api/ai-analysis/run', { symbol, timeframes });
 }
 
 export function getAiLatest() {
-  return requestGetJson('/api/ai-analysis/latest');
+  return fetchJsonOrThrow('/api/ai-analysis/latest');
 }
 
 export function getAiHistory({ symbol = '', limit = 20 } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (symbol) params.set('symbol', symbol);
-  return requestGetJson(`/api/ai-analysis/history?${params.toString()}`);
+  return fetchJsonOrThrow(`/api/ai-analysis/history?${params.toString()}`);
 }
 
 export function getAiHistoryItem(id) {
-  return requestGetJson(`/api/ai-analysis/history/${encodeURIComponent(id)}`);
+  return fetchJsonOrThrow(`/api/ai-analysis/history/${encodeURIComponent(id)}`);
 }
 
 export function getAiConfig() {
-  return requestGetJson('/api/ai-analysis/config');
+  return fetchJsonOrThrow('/api/ai-analysis/config');
 }
 
 export function getDeepSeekTelegramLatest() {
-  return requestGetJson('/api/ai-analysis/deepseek-telegram/latest');
+  return fetchJsonOrThrow('/api/ai-analysis/deepseek-telegram/latest');
 }
 
 export async function runDeepSeekTelegram({
@@ -68,7 +48,7 @@ export async function runDeepSeekTelegram({
   noDeepseek = false,
 } = {}) {
   const normalizedSymbols = Array.isArray(symbols) && symbols.length ? symbols : [symbol].filter(Boolean);
-  return requestPostJson('/api/ai-analysis/deepseek-telegram/run', {
+  return postJsonOrThrow('/api/ai-analysis/deepseek-telegram/run', {
     symbols: normalizedSymbols,
     timeframes,
     send,
@@ -80,27 +60,27 @@ export async function runDeepSeekTelegram({
 
 export function getKline({ symbol, tf = 'H1', bars = 200, signal } = {}) {
   const params = new URLSearchParams({ symbol, tf, bars: String(bars) });
-  return requestGetJson(`/api/mt5-readonly/kline?${params.toString()}`, { signal });
+  return fetchJsonOrThrow(`/api/mt5-readonly/kline?${params.toString()}`, { signal });
 }
 
 export function getQuote({ symbol, signal } = {}) {
   const params = new URLSearchParams({ symbol });
-  return requestGetJson(`/api/mt5-readonly/quote?${params.toString()}`, { signal });
+  return fetchJsonOrThrow(`/api/mt5-readonly/quote?${params.toString()}`, { signal });
 }
 
 export function getChartTrades({ symbol, days = 30, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return requestGetJson(`/api/mt5-readonly/trades?${params.toString()}`, { signal });
+  return fetchJsonOrThrow(`/api/mt5-readonly/trades?${params.toString()}`, { signal });
 }
 
 export function getShadowSignals({ symbol, days = 7, signal } = {}) {
   const params = new URLSearchParams({ symbol, days: String(days) });
-  return requestGetJson(`/api/shadow/signals?${params.toString()}`, { signal });
+  return fetchJsonOrThrow(`/api/shadow/signals?${params.toString()}`, { signal });
 }
 
 export async function getSymbolRegistry({ signal } = {}) {
   try {
-    const payload = await requestGetJson('/api/mt5-symbol-registry', { signal });
+    const payload = await fetchJsonOrThrow('/api/mt5-symbol-registry', { signal });
     const items = payload.items || payload.symbols || payload.registry || [];
     if (Array.isArray(items) && items.length) {
       const normalizedItems = items

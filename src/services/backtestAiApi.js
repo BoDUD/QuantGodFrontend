@@ -1,4 +1,4 @@
-import { fetchApiJson, postApiJson } from './apiClient.js';
+import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';
 
 export const DEFAULT_BACKTEST_SYMBOLS = ['USDJPYc'];
 export const DEFAULT_BACKTEST_TIMEFRAMES = ['M15', 'H1', 'H4', 'D1'];
@@ -16,24 +16,6 @@ const SAFETY = Object.freeze({
   canOverrideKillSwitch: false,
   telegramCommandExecutionAllowed: false,
 });
-
-async function loadJson(url, fallback = null, options = {}) {
-  const result = await fetchApiJson(url, options);
-  if (result.ok) return result.data;
-  return (
-    result.error?.body ||
-    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
-  );
-}
-
-async function sendJson(url, body = {}, fallback = null, options = {}) {
-  const result = await postApiJson(url, body, options);
-  if (result.ok) return result.data;
-  return (
-    result.error?.body ||
-    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
-  );
-}
 
 function toArray(value) {
   if (Array.isArray(value)) return value;
@@ -243,10 +225,10 @@ export function buildBacktestTelegramMessage({ backtest, ai, symbols }) {
 
 export async function loadBacktestAiState() {
   const [backtest, aiLatest, notifyConfig, notifyHistory] = await Promise.all([
-    loadJson('/api/mt5-backtest-loop'),
-    loadJson('/api/ai-analysis/deepseek-telegram/latest', { ok: false, items: [] }),
-    loadJson('/api/notify/config', { ok: false }),
-    loadJson('/api/notify/history?limit=20', { ok: false, items: [] }),
+    fetchJsonOrFallback('/api/mt5-backtest-loop'),
+    fetchJsonOrFallback('/api/ai-analysis/deepseek-telegram/latest', { ok: false, items: [] }),
+    fetchJsonOrFallback('/api/notify/config', { ok: false }),
+    fetchJsonOrFallback('/api/notify/history?limit=20', { ok: false, items: [] }),
   ]);
   return {
     backtest,
@@ -270,8 +252,8 @@ export async function runBacktestAiCycle({
     days: String(Math.max(7, Math.min(365, Number(days) || 180))),
     maxTasks: String(Math.max(1, Math.min(50, Number(maxTasks) || 20))),
   });
-  const backtest = await loadJson(`/api/mt5-backtest-loop/run?${params.toString()}`);
-  const ai = await sendJson('/api/ai-analysis/deepseek-telegram/run', {
+  const backtest = await fetchJsonOrFallback(`/api/mt5-backtest-loop/run?${params.toString()}`);
+  const ai = await postJsonOrFallback('/api/ai-analysis/deepseek-telegram/run', {
     symbols: normalizedSymbols,
     timeframes,
     send: sendTelegram,
@@ -281,7 +263,7 @@ export async function runBacktestAiCycle({
   });
   let notify = null;
   if (sendTelegram) {
-    notify = await sendJson('/api/notify/test', {
+    notify = await postJsonOrFallback('/api/notify/test', {
       eventType: 'BACKTEST_AI',
       message: buildBacktestTelegramMessage({ backtest, ai, symbols: normalizedSymbols }),
       dryRun: false,

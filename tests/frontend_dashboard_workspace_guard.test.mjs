@@ -16,7 +16,9 @@ function makeProject(files) {
 }
 
 const validFiles = {
-  'package.json': JSON.stringify({ scripts: { 'dashboard-workspace': 'node scripts/frontend_dashboard_workspace_guard.mjs' } }),
+  'package.json': JSON.stringify({
+    scripts: { 'dashboard-workspace': 'node scripts/frontend_dashboard_workspace_guard.mjs' },
+  }),
   'src/workspaces/shared/StatusPill.vue': '<template></template>',
   'src/workspaces/shared/KeyValueList.vue': '<template></template>',
   'src/workspaces/shared/EndpointHealthGrid.vue': '<template></template>',
@@ -70,7 +72,7 @@ const validFiles = {
     "const releaseTitle = 'Release token 闸门';",
     "const releaseEvidenceTitle = 'Release Token 证据';",
     "const releaseEvidenceSource = '/api/live-automation/release-token-evidence-review?scope=secondary';",
-    "const championPromotionGate = null;",
+    'const championPromotionGate = null;',
     "const championMemoryTitle = '冠军长期记忆晋级闸';",
     "const championMemorySource = '/api/live-automation/champion-promotion-gate?scope=secondary';",
     "const releaseSignoffTitle = 'Release Token 签收草案';",
@@ -101,6 +103,8 @@ const validFiles = {
     "const forexLive12RsiTesterLockDraftSource = '/api/live-automation/forex-live12-rsi-tester-lock-draft?scope=secondary';",
     "const simTargetExecutionReviewSummaryTitle = '模拟目标→实盘执行摘要';",
     "const simTargetExecutionReviewSummarySource = '/api/live-automation/sim-target-execution-review-summary?scope=secondary';",
+    '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5" />',
+    '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="5" />',
     "import { loadDashboardWorkspace } from '../../services/domainApi.js';",
     "import EndpointHealthGrid from '../shared/EndpointHealthGrid.vue';",
     "import KeyValueList from '../shared/KeyValueList.vue';",
@@ -118,7 +122,9 @@ test('accepts structured dashboard workspace', () => {
 test('rejects direct fetch in dashboard workspace', () => {
   const root = makeProject({
     ...validFiles,
-    'src/workspaces/dashboard/DashboardWorkspace.vue': validFiles['src/workspaces/dashboard/DashboardWorkspace.vue'] + "\n<script>fetch('/api/latest')</script>",
+    'src/workspaces/dashboard/DashboardWorkspace.vue':
+      validFiles['src/workspaces/dashboard/DashboardWorkspace.vue'] +
+      "\n<script>fetch('/api/latest')</script>",
   });
   assert.match(checkProject(root).join('\n'), /must not call fetch directly/);
 });
@@ -126,7 +132,9 @@ test('rejects direct fetch in dashboard workspace', () => {
 test('rejects runtime file path reads', () => {
   const root = makeProject({
     ...validFiles,
-    'src/workspaces/dashboard/DashboardWorkspace.vue': validFiles['src/workspaces/dashboard/DashboardWorkspace.vue'] + "\nconst x = '/QuantGod_Dashboard.json';",
+    'src/workspaces/dashboard/DashboardWorkspace.vue':
+      validFiles['src/workspaces/dashboard/DashboardWorkspace.vue'] +
+      "\nconst x = '/QuantGod_Dashboard.json';",
   });
   assert.match(checkProject(root).join('\n'), /runtime JSON\/CSV/);
 });

@@ -28,6 +28,12 @@ export async function postApiJson() { return { ok: true }; }
 export async function fetchJson() { return null; }
 export async function postJson() { return null; }
 export async function fetchRows() { return []; }
+export function apiFallback() { return {}; }
+export function apiThrowMessage() { return 'error'; }
+export async function fetchJsonOrFallback() { return null; }
+export async function postJsonOrFallback() { return null; }
+export async function fetchJsonOrThrow() { return {}; }
+export async function postJsonOrThrow() { return {}; }
 const RUNTIME_FILE_PATTERN = /QuantGod_/;
 `,
   );
@@ -113,6 +119,12 @@ export async function postApiJson() { return { ok: true }; }
 export async function fetchJson() { return null; }
 export async function postJson() { return null; }
 export async function fetchRows() { return []; }
+export function apiFallback() { return {}; }
+export function apiThrowMessage() { return 'error'; }
+export async function fetchJsonOrFallback() { return null; }
+export async function postJsonOrFallback() { return null; }
+export async function fetchJsonOrThrow() { return {}; }
+export async function postJsonOrThrow() { return {}; }
 `,
   });
   const result = runGuard(root);

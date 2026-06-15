@@ -1,4 +1,4 @@
-import { fetchApiJson, postApiJson } from './apiClient.js';
+import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';
 import { formatDisplayValue, humanizeLabel } from '../utils/displayText.js';
 
 export const PHASE2_ENDPOINTS = Object.freeze({
@@ -42,21 +42,11 @@ export const PHASE2_ENDPOINTS = Object.freeze({
 });
 
 export async function apiGet(url, fallback = null) {
-  const result = await fetchApiJson(url);
-  if (result.ok) return result.data;
-  return (
-    result.error?.body ||
-    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
-  );
+  return fetchJsonOrFallback(url, fallback);
 }
 
 export async function apiPost(url, payload = {}, fallback = null) {
-  const result = await postApiJson(url, payload);
-  if (result.ok) return result.data;
-  return (
-    result.error?.body ||
-    fallback || { ok: false, error: result.error?.message || `HTTP ${result.status}`, endpoint: url }
-  );
+  return postJsonOrFallback(url, payload, fallback);
 }
 
 export function extractRows(payload) {

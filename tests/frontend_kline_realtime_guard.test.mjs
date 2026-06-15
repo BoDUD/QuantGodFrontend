@@ -15,7 +15,7 @@ test('Kline workspace uses live quote for realtime market summary', () => {
   const apiClientSource = readRepoFile('src/services/apiClient.js');
   const workspaceSource = readRepoFile('src/workspaces/phase1/kline/KlineWorkspace.vue');
 
-  assert.match(apiSource, /fetchApiJson/);
+  assert.match(apiSource, /fetchJsonOrThrow/);
   assert.match(apiClientSource, /cache:\s*'no-store'/);
   assert.match(apiSource, /\/api\/mt5-readonly\/quote/);
   assert.match(workspaceSource, /getQuote/);

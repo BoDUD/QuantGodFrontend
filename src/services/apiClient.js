@@ -197,3 +197,46 @@ export async function postJson(path, payload = {}, fallback = null, options = {}
 export async function fetchRows(path, options = {}) {
   return rowsFromPayload(await fetchJson(path, null, options));
 }
+
+export function apiFallback(result, fallback = null, endpoint = '') {
+  if (result?.ok) return result.data;
+  return (
+    result?.error?.body ||
+    fallback || {
+      ok: false,
+      error: result?.error?.message || `HTTP ${result?.status || 0}`,
+      endpoint: endpoint || result?.endpoint || '',
+    }
+  );
+}
+
+export function apiThrowMessage(result, endpoint = '') {
+  return (
+    result?.error?.body?.error ||
+    result?.error?.body?.message ||
+    result?.error?.message ||
+    `HTTP ${result?.status || 0} for ${endpoint || result?.endpoint || 'unknown endpoint'}`
+  );
+}
+
+export async function fetchJsonOrFallback(path, fallback = null, options = {}) {
+  const result = await fetchApiJson(path, options);
+  return apiFallback(result, fallback, path);
+}
+
+export async function postJsonOrFallback(path, payload = {}, fallback = null, options = {}) {
+  const result = await postApiJson(path, payload, options);
+  return apiFallback(result, fallback, path);
+}
+
+export async function fetchJsonOrThrow(path, options = {}) {
+  const result = await fetchApiJson(path, options);
+  if (result.ok) return result.data || {};
+  throw new Error(apiThrowMessage(result, path));
+}
+
+export async function postJsonOrThrow(path, payload = {}, options = {}) {
+  const result = await postApiJson(path, payload, options);
+  if (result.ok) return result.data || {};
+  throw new Error(apiThrowMessage(result, path));
+}

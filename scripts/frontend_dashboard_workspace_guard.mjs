@@ -60,6 +60,8 @@ function checkDashboardWorkspace(root) {
     '外币 Live12 实盘交接',
     '/api/live-automation/forex-live12-runtime-handoff?scope=secondary',
     'buildReleaseGateRows',
+    '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5"',
+    '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="5"',
   ]) {
     if (!text.includes(required)) errors.push(`${rel(root, workspace)}: missing ${required}`);
   }
@@ -141,7 +143,9 @@ function checkPackageScript(root) {
   const packagePath = path.join(root, 'package.json');
   if (!exists(packagePath)) return [`${rel(root, packagePath)}: missing package.json`];
   const packageJson = JSON.parse(read(packagePath));
-  if (packageJson.scripts?.['dashboard-workspace'] !== 'node scripts/frontend_dashboard_workspace_guard.mjs') {
+  if (
+    packageJson.scripts?.['dashboard-workspace'] !== 'node scripts/frontend_dashboard_workspace_guard.mjs'
+  ) {
     errors.push('package.json: missing dashboard-workspace script');
   }
   return errors;

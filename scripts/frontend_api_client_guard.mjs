@@ -56,6 +56,12 @@ const requiredExports = [
   'fetchJson',
   'postJson',
   'fetchRows',
+  'apiFallback',
+  'apiThrowMessage',
+  'fetchJsonOrFallback',
+  'postJsonOrFallback',
+  'fetchJsonOrThrow',
+  'postJsonOrThrow',
 ];
 
 for (const name of requiredExports) {

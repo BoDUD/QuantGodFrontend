@@ -1,12 +1,11 @@
-import { fetchApiJson, postApiJson } from './apiClient.js';
+import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';
 
-async function requestJson(url, options = {}) {
+function requestJson(url, options = {}) {
   const method = String(options.method || 'GET').toUpperCase();
   const body = typeof options.body === 'string' ? JSON.parse(options.body || '{}') : options.body || {};
-  const result =
-    method === 'POST' ? await postApiJson(url, body) : await fetchApiJson(url, { signal: options.signal });
-  if (result.ok) return result.data || {};
-  return result.error?.body || { ok: false, error: result.error?.message || `HTTP ${result.status}` };
+  return method === 'POST'
+    ? postJsonOrFallback(url, body, { ok: false, error: 'phase3_post_failed' })
+    : fetchJsonOrFallback(url, { ok: false, error: 'phase3_fetch_failed' }, { signal: options.signal });
 }
 
 export const phase3Api = {
