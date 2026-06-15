@@ -80,6 +80,14 @@ export async function loadDashboardWorkspaceCore(options = {}) {
             timeoutMs: 5000,
           }),
       ],
+      [
+        'usdJpyLiveLoop',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/live-loop', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
     ],
     options,
     6,
@@ -131,6 +139,14 @@ export async function loadDashboardWorkspace(options = {}) {
         'profitTarget',
         (requestOptions) =>
           fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, requestOptions),
+      ],
+      [
+        'usdJpyLiveLoop',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/live-loop', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
       ],
       [
         'liveAutomationOrchestrator',

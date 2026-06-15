@@ -198,6 +198,11 @@
         <JsonPreview title="每日复盘" source="/api/daily-review" :payload="state.dailyReview" />
         <JsonPreview title="今日自动闭环" source="/api/daily-autopilot" :payload="state.dailyAutopilot" />
         <JsonPreview
+          title="USDJPY Live Loop"
+          source="/api/usdjpy-strategy-lab/live-loop"
+          :payload="state.usdJpyLiveLoop"
+        />
+        <JsonPreview
           title="Agent 日报 v2"
           source="/api/usdjpy-strategy-lab/autonomous-agent/daily-autopilot-v2?scope=secondary"
           :payload="state.dailyAutopilotV2"
@@ -375,6 +380,7 @@ const state = shallowReactive({
   backtest: null,
   dailyReview: null,
   dailyAutopilot: null,
+  usdJpyLiveLoop: null,
   dailyAutopilotV2: null,
   agentOpsHealth: null,
   telegramGateway: null,

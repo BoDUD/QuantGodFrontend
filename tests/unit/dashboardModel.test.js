@@ -195,6 +195,20 @@ describe('dashboardModel', () => {
           blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
         },
       },
+      usdJpyLiveLoop: {
+        schema: 'quantgod.usdjpy_live_loop_status.v1',
+        state: 'EVIDENCE_MISSING',
+        stateZh: 'USDJPY 运行快照不可用',
+        runtimeReady: false,
+        runtime: {
+          found: true,
+          ready: false,
+          freshnessTier: 'HARD_STALE',
+          ageSeconds: 542273,
+          source: '/tmp/runtime/QuantGod_MT5RuntimeSnapshot_USDJPYc.json',
+          reasons: ['运行快照严重陈旧：542273s > 90s'],
+        },
+      },
       hfmCrypto: {
         ok: true,
         status: 'READY_FOR_SHADOW_RESEARCH',
@@ -217,12 +231,31 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const items = buildSnapshotRecoveryItems(snapshot);
     const rows = buildSnapshotRecoveryRows(snapshot);
+    const metrics = buildDashboardMetrics(snapshot);
+    const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
+    const liveLoopHealth = buildEndpointHealth(raw).find(
+      (item) => item.endpoint === '/api/usdjpy-strategy-lab/live-loop',
+    );
 
     expect(snapshot.snapshotRecovery).toMatchObject({
       status: 'blocked',
       label: 'MT5/EA dashboard writer 未运行',
       realtimeUsable: false,
       hfmShadowUsable: true,
+      liveLoopUsable: false,
+    });
+    expect(snapshot.usdJpyLiveLoopStale).toBe(true);
+    expect(metrics.find((item) => item.label === 'USDJPY Live Loop')).toMatchObject({
+      value: '严重过期',
+      status: 'blocked',
+    });
+    expect(liveLoopHealth).toMatchObject({
+      status: 'blocked',
+      statusLabel: '运行快照严重过期',
+    });
+    expect(sourceRows.find((row) => row.数据源 === 'USDJPY Live Loop')).toMatchObject({
+      状态: '严重过期',
+      源文件: '/tmp/runtime/QuantGod_MT5RuntimeSnapshot_USDJPYc.json',
     });
     expect(items.find((item) => item.label === '实时账号状态')).toMatchObject({
       value: '不可作为当前状态',
@@ -230,6 +263,10 @@ describe('dashboardModel', () => {
     });
     expect(items.find((item) => item.label === '主账号进程')).toMatchObject({
       value: '未检测到 terminal64/wine 进程',
+      status: 'blocked',
+    });
+    expect(items.find((item) => item.label === 'USDJPY Live Loop')).toMatchObject({
+      value: '严重过期',
       status: 'blocked',
     });
     expect(items.find((item) => item.label === 'HFM Crypto 研究证据')).toMatchObject({
@@ -242,6 +279,9 @@ describe('dashboardModel', () => {
     });
     expect(rows.find((row) => row.区域 === 'HFM Crypto shadow')).toMatchObject({
       状态: '研究证据可用',
+    });
+    expect(rows.find((row) => row.区域 === 'USDJPY live-loop')).toMatchObject({
+      状态: '依赖运行快照严重过期',
     });
   });
 

@@ -284,19 +284,79 @@ function hostProcessLine(payload = {}) {
   return '进程状态待确认';
 }
 
+function liveLoopFreshness(payload = {}) {
+  if (!isObject(payload) || !present(payload)) return {};
+  const runtime = isObject(payload.runtime) ? payload.runtime : {};
+  const tier = String(runtime.freshnessTier || payload.runtimeFreshnessTier || '').toUpperCase();
+  const ready = payload.runtimeReady === true || runtime.ready === true;
+  const sourceFile = runtime.source || payload.source?.file || payload.sourceFile || '';
+  const ageSeconds = numberValue(
+    runtime.ageSeconds ?? payload.runtimeAgeSeconds ?? runtime.runtimeAgeSeconds,
+    null,
+  );
+  const reasons = toArray(runtime.reasons || payload.runtimeReasons)
+    .map((item) => String(item))
+    .filter(Boolean);
+  const hardStale = tier === 'HARD_STALE';
+  const softStale = tier === 'SOFT_STALE';
+  const fresh = tier === 'FRESH';
+  const stale = hardStale || softStale;
+  const statusZh = hardStale
+    ? 'USDJPY live-loop 依赖的运行快照严重过期'
+    : softStale
+      ? 'USDJPY live-loop 依赖的运行快照轻微陈旧'
+      : fresh
+        ? 'USDJPY live-loop 运行快照新鲜'
+        : payload.stateZh ||
+          payload.statusZh ||
+          humanizeStatus(payload.state || payload.status, '等待 live-loop');
+  const nextActionZh = hardStale
+    ? '恢复 MT5/EA dashboard writer，让 runtime snapshot 重新写入；live-loop 在此之前只能作为旧证据诊断。'
+    : softStale
+      ? '只允许只读观察或降级复核，等待下一次 MT5 runtime snapshot 刷新。'
+      : payload.nextRequiredActionZh || toArray(payload.nextActions)[0]?.summaryZh || '';
+  return {
+    status: tier || (ready ? 'READY' : payload.state || payload.status || ''),
+    statusZh,
+    fresh,
+    stale,
+    hardStale,
+    softStale,
+    ready,
+    ageSeconds,
+    maxAgeSeconds: hardStale || softStale ? 90 : undefined,
+    sourceFile,
+    reasons,
+    reasonLine: reasons.join('；') || payload.stateZh || '',
+    nextActionZh,
+  };
+}
+
+function liveLoopStatusValue(freshness = {}) {
+  if (freshness.hardStale) return '严重过期';
+  if (freshness.softStale) return '轻微陈旧';
+  if (freshness.fresh) return '新鲜';
+  if (freshness.ready) return '就绪';
+  if (freshness.statusZh) return freshness.statusZh;
+  return '待确认';
+}
+
 function snapshotRecovery(raw = {}) {
   const latest = latestFreshness(raw);
   const primary = readonlyFreshness(raw.mt5Snapshot);
   const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const liveLoop = liveLoopFreshness(raw.usdJpyLiveLoop);
   const staleLatest = freshnessIsStale(latest);
   const stalePrimary = freshnessIsStale(primary);
   const staleSecondary = freshnessIsStale(secondary);
+  const staleLiveLoop = liveLoop.hardStale === true;
   const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
   const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
   const staleSources = [
     staleLatest ? '总览 MT5 dashboard' : '',
     stalePrimary ? '主账号只读桥' : '',
     staleSecondary ? 'Live16 只读桥' : '',
+    staleLiveLoop ? 'USDJPY live-loop' : '',
   ].filter(Boolean);
   const hfmCryptoReady = endpointAvailable(raw.hfmCrypto);
   const hfmStatus = raw.hfmCrypto?.statusZh || humanizeStatus(raw.hfmCrypto?.status, '等待 HFM Crypto CFD');
@@ -330,6 +390,10 @@ function snapshotRecovery(raw = {}) {
     primaryProcessLine: hostProcessLine(raw.mt5Snapshot),
     secondaryProcessLine: hostProcessLine(raw.secondaryMt5Snapshot),
     realtimeUsable: !staleSources.length && !processMissing,
+    liveLoopUsable: Boolean(liveLoop.ready) && !liveLoop.hardStale,
+    liveLoopLine: liveLoop.statusZh || '等待 USDJPY live-loop 证据',
+    liveLoopNextAction: liveLoop.nextActionZh,
+    liveLoopFreshness: liveLoop,
     hfmShadowUsable: hfmCryptoReady,
     hfmLine,
     profitTargetLine: profitTargetReady
@@ -1014,6 +1078,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
   const dashboardFreshness = latestFreshness(raw);
   const mt5SnapshotFreshness = readonlyFreshness(raw.mt5Snapshot);
   const secondaryMt5SnapshotFreshness = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const usdJpyLiveLoopFreshness = liveLoopFreshness(raw.usdJpyLiveLoop);
   const dashboardStale =
     dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT';
   const recovery = snapshotRecovery(raw);
@@ -1052,6 +1117,9 @@ export function normalizeDashboardSnapshot(raw = {}) {
     secondaryMt5SnapshotStale:
       secondaryMt5SnapshotFreshness.stale === true ||
       secondaryMt5SnapshotFreshness.status === 'STALE_EA_SNAPSHOT',
+    usdJpyLiveLoop: raw?.usdJpyLiveLoop || {},
+    usdJpyLiveLoopFreshness,
+    usdJpyLiveLoopStale: usdJpyLiveLoopFreshness.hardStale === true,
     snapshotRecovery: recovery,
     routes: chooseRoutes(raw),
     account: latestAccount(raw),
@@ -1197,6 +1265,19 @@ export function buildDashboardMetrics(snapshot) {
       status: snapshot.secondaryMt5SnapshotStale
         ? 'warn'
         : snapshot.secondaryMt5SnapshotFreshness?.fresh
+          ? 'ok'
+          : 'warn',
+    },
+    {
+      label: 'USDJPY Live Loop',
+      value: liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+      hint:
+        snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
+        snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
+        '读取 /api/usdjpy-strategy-lab/live-loop',
+      status: snapshot.usdJpyLiveLoopFreshness?.hardStale
+        ? 'blocked'
+        : snapshot.usdJpyLiveLoopFreshness?.fresh
           ? 'ok'
           : 'warn',
     },
@@ -1370,6 +1451,12 @@ export function buildEndpointHealth(raw = {}) {
       '第二账号 HFM Live16 的账户、报价、symbol 只读快照',
     ],
     [
+      'USDJPY Live Loop',
+      '/api/usdjpy-strategy-lab/live-loop',
+      raw.usdJpyLiveLoop,
+      'USDJPY 策略 live-loop、EA 干跑和入场阻断诊断',
+    ],
+    [
       'HFM Crypto CFD',
       '/api/hfm-crypto/status?view=summary&scope=secondary',
       raw.hfmCrypto,
@@ -1448,16 +1535,19 @@ export function buildEndpointHealth(raw = {}) {
       endpoint === '/api/latest' &&
       (freshness.stale === true || freshness.status === 'STALE_DASHBOARD_SNAPSHOT');
     const endpointFreshness = readonlyFreshness(payload);
+    const loopFreshness = endpoint === '/api/usdjpy-strategy-lab/live-loop' ? liveLoopFreshness(payload) : {};
     const staleReadonly =
       endpoint !== '/api/latest' &&
       (endpointFreshness.stale === true || endpointFreshness.status === 'STALE_EA_SNAPSHOT');
+    const staleLiveLoop = loopFreshness.hardStale === true;
     const hasPayload = present(payload);
     const unavailable = endpointUnavailable(payload);
     return {
       label,
       endpoint,
-      description:
-        staleLatest || staleReadonly
+      description: staleLiveLoop
+        ? loopFreshness.nextActionZh || loopFreshness.reasonLine || description
+        : staleLatest || staleReadonly
           ? freshness.nextActionZh ||
             endpointFreshness.nextActionZh ||
             endpointFreshness.nextAction ||
@@ -1465,9 +1555,22 @@ export function buildEndpointHealth(raw = {}) {
           : unavailable
             ? endpointUnavailableDescription(payload, description)
             : description,
-      status: staleLatest || staleReadonly ? 'warn' : hasPayload && !unavailable ? 'ok' : 'warn',
-      statusLabel:
-        staleLatest || staleReadonly ? '快照过期' : unavailable ? '不可用' : hasPayload ? '正常' : '缺失',
+      status: staleLiveLoop
+        ? 'blocked'
+        : staleLatest || staleReadonly
+          ? 'warn'
+          : hasPayload && !unavailable
+            ? 'ok'
+            : 'warn',
+      statusLabel: staleLiveLoop
+        ? '运行快照严重过期'
+        : staleLatest || staleReadonly
+          ? '快照过期'
+          : unavailable
+            ? '不可用'
+            : hasPayload
+              ? '正常'
+              : '缺失',
     };
   });
 }
@@ -1476,6 +1579,7 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
   const latest = latestFreshness(raw);
   const primary = readonlyFreshness(raw.mt5Snapshot);
   const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const liveLoop = liveLoopFreshness(raw.usdJpyLiveLoop);
   const hfmCrypto = raw.hfmCrypto || {};
   const secondaryStale = secondary.stale === true || secondary.status === 'STALE_EA_SNAPSHOT';
   const hfmStatus = hfmCrypto.statusZh || humanizeStatus(hfmCrypto.status, '等待 HFM Crypto CFD 状态');
@@ -1498,6 +1602,18 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
       secondary,
       '恢复 Live16 MT5/EA dashboard writer，HFM Crypto 当前状态才可作为实时账号证据。',
     ),
+    {
+      数据源: 'USDJPY Live Loop',
+      端点: '/api/usdjpy-strategy-lab/live-loop',
+      状态: liveLoopStatusValue(liveLoop),
+      年龄: formatFreshnessAgeSeconds(liveLoop.ageSeconds),
+      阈值: liveLoop.hardStale || liveLoop.softStale ? '90 秒 hard / 30 秒 soft' : 'live-loop runtime',
+      源文件: liveLoop.sourceFile || '等待 live-loop runtime source',
+      动作:
+        liveLoop.nextActionZh ||
+        liveLoop.reasonLine ||
+        '读取 USDJPY live-loop，确认策略闭环是否依赖新鲜 MT5 runtime snapshot。',
+    },
     {
       数据源: 'HFM Crypto CFD',
       端点: '/api/hfm-crypto/status?view=summary&scope=secondary',
@@ -1788,6 +1904,12 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
       status: recovery.secondaryProcessLine?.includes('未检测到') ? 'blocked' : 'warn',
     },
     {
+      label: 'USDJPY Live Loop',
+      value: recovery.liveLoopUsable ? '可用于只读诊断' : liveLoopStatusValue(recovery.liveLoopFreshness),
+      status: recovery.liveLoopFreshness?.hardStale ? 'blocked' : recovery.liveLoopUsable ? 'ok' : 'warn',
+      hint: recovery.liveLoopNextAction || recovery.liveLoopLine,
+    },
+    {
       label: 'HFM Crypto 研究证据',
       value: recovery.hfmShadowUsable ? '仍可用于 shadow 研究' : '等待证据',
       status: recovery.hfmShadowUsable ? 'ok' : 'warn',
@@ -1838,6 +1960,21 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         snapshot.secondaryMt5SnapshotFreshness?.nextAction ||
         recovery.secondaryProcessLine ||
         '等待 Live16 只读桥',
+    },
+    {
+      区域: 'USDJPY live-loop',
+      状态: snapshot.usdJpyLiveLoopStale
+        ? '依赖运行快照严重过期'
+        : snapshot.usdJpyLiveLoopFreshness?.fresh
+          ? '新鲜'
+          : liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+      影响: snapshot.usdJpyLiveLoopStale
+        ? '策略闭环仍可给出诊断，但不能替代当前 MT5 账号快照'
+        : '可辅助判断 USDJPY RSI 路线和入场阻断',
+      下一步:
+        snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
+        snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
+        '刷新 USDJPY live-loop',
     },
     {
       区域: 'HFM Crypto shadow',
@@ -1891,6 +2028,19 @@ export function buildRuntimeItems(snapshot) {
           snapshot.secondaryMt5SnapshotFreshness?.sourceFile ||
           '等待 /api/mt5-readonly-secondary/snapshot 新鲜度',
       },
+      {
+        label: 'USDJPY Live Loop',
+        value: liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+        status: snapshot.usdJpyLiveLoopFreshness?.hardStale
+          ? 'blocked'
+          : snapshot.usdJpyLiveLoopFreshness?.fresh
+            ? 'ok'
+            : 'warn',
+        hint:
+          snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
+          snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
+          '等待 /api/usdjpy-strategy-lab/live-loop',
+      },
       { label: '熔断保护', value: '不可判定', status: 'warn', hint: '等待新鲜 MT5 快照' },
       { label: '模拟保护', value: '不可判定', status: 'warn', hint: '等待新鲜 MT5 快照' },
       { label: '当前路线', value: '历史快照', hint },
@@ -1932,6 +2082,19 @@ export function buildRuntimeItems(snapshot) {
         snapshot.secondaryMt5SnapshotFreshnessLine ||
         snapshot.secondaryMt5SnapshotFreshness?.sourceFile ||
         '等待 /api/mt5-readonly-secondary/snapshot 新鲜度',
+    },
+    {
+      label: 'USDJPY Live Loop',
+      value: liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+      status: snapshot.usdJpyLiveLoopFreshness?.hardStale
+        ? 'blocked'
+        : snapshot.usdJpyLiveLoopFreshness?.fresh
+          ? 'ok'
+          : 'warn',
+      hint:
+        snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
+        snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
+        '等待 /api/usdjpy-strategy-lab/live-loop',
     },
     { label: '熔断保护', value: humanizeStatus(snapshot.killSwitchLabel), status: snapshot.killSwitchStatus },
     { label: '模拟保护', value: humanizeStatus(snapshot.dryRunLabel), status: snapshot.dryRunStatus },
