@@ -30,6 +30,16 @@
         <p>所有候选保持 shadow，只进遗传进化种子池，不下单、不改 live preset。</p>
       </article>
       <article>
+        <span>样本类型晋级门</span>
+        <strong>{{ caseMemoryPromotionStatusText }}</strong>
+        <p>{{ caseMemoryPromotionReason }}</p>
+      </article>
+      <article>
+        <span>历史 freshness 门禁</span>
+        <strong>{{ historyPromotionStatusText }}</strong>
+        <p>{{ historyPromotionReason }}</p>
+      </article>
+      <article>
         <span>长期记忆</span>
         <strong>{{ tradeMemoryCount }} 笔</strong>
         <p>{{ longTermNextAction }}</p>
@@ -140,6 +150,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  coreEvidence: {
+    type: Object,
+    default: null,
+  },
   loading: {
     type: Boolean,
     default: false,
@@ -147,6 +161,19 @@ const props = defineProps({
 });
 
 const report = computed(() => props.payload?.report || props.payload || {});
+const coreReport = computed(() => props.coreEvidence?.report?.coreRuntimeEvidenceIntegrity || props.coreEvidence || {});
+const coreArtifacts = computed(() => {
+  const rows = coreReport.value?.artifacts || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const caseMemoryArtifact = computed(
+  () => coreArtifacts.value.find((row) => row?.artifactId === 'caseMemoryArtifactManifest') || {},
+);
+const historyArtifact = computed(
+  () => coreArtifacts.value.find((row) => row?.artifactId === 'historyProductionStatus') || {},
+);
+const caseMemoryPromotionGate = computed(() => caseMemoryArtifact.value?.promotionGate || {});
+const historyPromotionGate = computed(() => historyArtifact.value?.promotionGate || {});
 const candidateRows = computed(() => {
   const rows = report.value?.candidates || report.value?.strategyCandidates || [];
   return Array.isArray(rows) ? rows.slice(0, 10) : [];
@@ -173,6 +200,40 @@ const caseCount = computed(
   () => report.value?.caseSummary?.caseCount || props.fallbackCaseMemory?.caseCount || 0,
 );
 const gaSeedCount = computed(() => report.value?.gaSeedCount || gaSeedRows.value.length || 0);
+const missingCaseMemoryCategories = computed(() => {
+  const rows = caseMemoryPromotionGate.value?.missingCategories || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const staleHistoryTimeframes = computed(() => {
+  const timeframes = historyPromotionGate.value?.timeframes || {};
+  return Object.entries(timeframes)
+    .filter(([, row]) => row?.freshnessOk === false || row?.passed === false)
+    .map(([timeframe]) => timeframe);
+});
+const caseMemoryPromotionStatusText = computed(() => {
+  const status = caseMemoryPromotionGate.value?.status || coreReport.value?.promotionGateStatus;
+  if (status === 'PASS') return '样本类型已覆盖';
+  if (status === 'BLOCKED') return '样本类型不足';
+  return '等待样本门禁';
+});
+const caseMemoryPromotionReason = computed(() => {
+  if (missingCaseMemoryCategories.value.length) {
+    return `缺少 ${missingCaseMemoryCategories.value.join(' / ')}；这些样本补齐前不能把候选升为 champion。`;
+  }
+  return caseMemoryPromotionGate.value?.statusZh || '等待 Core Runtime Evidence 输出 Case Memory taxonomy gate。';
+});
+const historyPromotionStatusText = computed(() => {
+  const status = historyPromotionGate.value?.status || coreReport.value?.promotionGateStatus;
+  if (status === 'PASS') return '历史样本新鲜';
+  if (status === 'BLOCKED') return 'freshness 阻断';
+  return '等待历史门禁';
+});
+const historyPromotionReason = computed(() => {
+  if (staleHistoryTimeframes.value.length) {
+    return `过期周期 ${staleHistoryTimeframes.value.join(' / ')}；history freshness PASS 前只允许 shadow/tester。`;
+  }
+  return historyPromotionGate.value?.statusZh || '等待 USDJPY history production freshness gate。';
+});
 const tradeMemoryCount = computed(() => longTermMemory.value?.tradeMemoryCount || 0);
 const rollingStatus = computed(() => rollingReview.value?.status || 'WAITING_TRADE_MEMORY');
 const candidatePenaltyRows = computed(() => {

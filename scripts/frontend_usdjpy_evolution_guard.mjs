@@ -6,6 +6,7 @@ const errors = [];
 const files = [
   'src/services/usdjpyStrategyLabApi.js',
   'src/components/USDJPYEvolutionPanel.vue',
+  'src/components/USDJPYCaseMemoryPanel.vue',
   'src/workspaces/dashboard/DashboardWorkspace.vue',
 ];
 const forbidden =
@@ -229,6 +230,8 @@ for (const marker of [
   'gaSeedHints',
   'caseMemoryToGA',
   'promotionGate',
+  'fetchProductionEvidenceStatus',
+  'coreRuntimeEvidence',
   '经验记忆',
   '通知网关',
   '待投递',
@@ -236,6 +239,20 @@ for (const marker of [
   '生成证据系统',
 ]) {
   if (!panel.includes(marker)) errors.push(`panel missing Chinese marker: ${marker}`);
+}
+
+const caseMemoryPanel = read('src/components/USDJPYCaseMemoryPanel.vue');
+for (const marker of [
+  '样本类型晋级门',
+  '历史 freshness 门禁',
+  'missingCaseMemoryCategories',
+  'staleHistoryTimeframes',
+  'caseMemoryArtifactManifest',
+  'historyProductionStatus',
+  'Core Runtime Evidence',
+  'shadow/tester',
+]) {
+  if (!caseMemoryPanel.includes(marker)) errors.push(`case memory panel missing marker: ${marker}`);
 }
 if (panel.includes('patchAllowed') || panel.includes('待人工确认') || panel.includes('人工回灌。')) {
   errors.push('panel must use v2.5 Agent semantics without patchAllowed or human-backfill wording');

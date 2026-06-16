@@ -556,6 +556,7 @@
         <USDJPYCaseMemoryPanel
           :payload="caseMemoryCandidatePayload"
           :fallback-case-memory="caseMemory"
+          :core-evidence="coreRuntimeEvidence"
           :loading="loading"
           @build="runCaseMemoryBuild"
         />
@@ -1115,6 +1116,7 @@
 <script setup>
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import { buildCaseMemoryCandidates, fetchCaseMemoryStatus } from '../services/caseMemoryApi.js';
+import { fetchProductionEvidenceStatus } from '../services/productionEvidenceApi.js';
 import {
   buildHyperliquidShadowLane,
   buildStrategyFactoryIntentPlan,
@@ -1201,6 +1203,7 @@ const strategyIntentPlanPayload = shallowRef(null);
 const hyperliquidShadowPayload = shallowRef(null);
 const strategyBacktestPayload = shallowRef(null);
 const historyProductionPayload = shallowRef(null);
+const productionEvidencePayload = shallowRef(null);
 const evidenceOSPayload = shallowRef(null);
 const caseMemoryCandidatePayload = shallowRef(null);
 const telegramGatewayPayload = shallowRef(null);
@@ -1289,6 +1292,9 @@ const historyProduction = computed(
     strategyBacktestPayload.value?.historyProductionStatus ||
     strategyBacktestPayload.value?.qualityReport?.historyProductionStatus ||
     {},
+);
+const coreRuntimeEvidence = computed(
+  () => productionEvidencePayload.value?.report?.coreRuntimeEvidenceIntegrity || {},
 );
 const historyProductionStatusZh = computed(() => {
   const status = String(historyProduction.value?.status || 'MISSING').toUpperCase();
@@ -2200,6 +2206,7 @@ function assignLoaded(results) {
   hyperliquidShadowPayload.value = results.hyperliquidShadowState;
   strategyBacktestPayload.value = results.strategyBacktestState;
   historyProductionPayload.value = results.historyProductionState;
+  productionEvidencePayload.value = results.productionEvidenceState;
   evidenceOSPayload.value = results.evidenceOSState;
   caseMemoryCandidatePayload.value = results.caseMemoryCandidateState;
   telegramGatewayPayload.value = results.telegramGatewayState;
@@ -2248,6 +2255,7 @@ async function loadAll(options = {}) {
       ['hyperliquidShadowState', () => fetchHyperliquidShadowLane(options)],
       ['strategyBacktestState', () => fetchUSDJPYStrategyBacktestStatus(options)],
       ['historyProductionState', () => fetchUSDJPYStrategyBacktestProductionStatus(options)],
+      ['productionEvidenceState', () => fetchProductionEvidenceStatus(options)],
       ['evidenceOSState', () => fetchUSDJPYEvidenceOSStatus(options)],
       ['caseMemoryCandidateState', () => fetchCaseMemoryStatus(options)],
       ['telegramGatewayState', () => fetchUSDJPYTelegramGatewayStatus(options)],
