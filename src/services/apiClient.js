@@ -105,6 +105,26 @@ export function rowsFromPayload(payload) {
   return [];
 }
 
+function isPlainObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function attachApiMeta(payload, result = {}, endpoint = '') {
+  if (!isPlainObject(payload)) return payload;
+  const existing = isPlainObject(payload._api) ? payload._api : {};
+  return {
+    ...payload,
+    _api: {
+      ...existing,
+      ok: Boolean(result.ok),
+      endpoint: endpoint || result.endpoint || existing.endpoint || '',
+      status: Number(result.status || 0),
+      fetchedAt: result.fetchedAt || existing.fetchedAt || '',
+      durationMs: Number(result.durationMs || 0),
+    },
+  };
+}
+
 export async function fetchApiJson(path, options = {}) {
   const endpoint = assertApiPath(path);
   const startedAtMs = nowMs();
@@ -186,12 +206,12 @@ export async function postApiJson(path, payload = {}, options = {}) {
 
 export async function fetchJson(path, fallback = null, options = {}) {
   const result = await fetchApiJson(path, options);
-  return result.ok ? result.data : fallback;
+  return attachApiMeta(result.ok ? result.data : fallback, result, path);
 }
 
 export async function postJson(path, payload = {}, fallback = null, options = {}) {
   const result = await postApiJson(path, payload, options);
-  return result.ok ? result.data : fallback;
+  return attachApiMeta(result.ok ? result.data : fallback, result, path);
 }
 
 export async function fetchRows(path, options = {}) {
@@ -199,15 +219,16 @@ export async function fetchRows(path, options = {}) {
 }
 
 export function apiFallback(result, fallback = null, endpoint = '') {
-  if (result?.ok) return result.data;
-  return (
+  if (result?.ok) return attachApiMeta(result.data, result, endpoint);
+  const payload =
     result?.error?.body ||
     fallback || {
       ok: false,
       error: result?.error?.message || `HTTP ${result?.status || 0}`,
       endpoint: endpoint || result?.endpoint || '',
-    }
-  );
+    };
+  const envelope = isPlainObject(payload) && !result?.ok ? { ...payload, ok: false } : payload;
+  return attachApiMeta(envelope, result, endpoint);
 }
 
 export function apiThrowMessage(result, endpoint = '') {
@@ -231,12 +252,12 @@ export async function postJsonOrFallback(path, payload = {}, fallback = null, op
 
 export async function fetchJsonOrThrow(path, options = {}) {
   const result = await fetchApiJson(path, options);
-  if (result.ok) return result.data || {};
+  if (result.ok) return attachApiMeta(result.data || {}, result, path);
   throw new Error(apiThrowMessage(result, path));
 }
 
 export async function postJsonOrThrow(path, payload = {}, options = {}) {
   const result = await postApiJson(path, payload, options);
-  if (result.ok) return result.data || {};
+  if (result.ok) return attachApiMeta(result.data || {}, result, path);
   throw new Error(apiThrowMessage(result, path));
 }

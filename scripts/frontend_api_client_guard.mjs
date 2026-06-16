@@ -51,6 +51,7 @@ const requiredExports = [
   'makeApiUrl',
   'queryString',
   'rowsFromPayload',
+  'attachApiMeta',
   'fetchApiJson',
   'postApiJson',
   'fetchJson',
@@ -79,6 +80,10 @@ if (!apiClient.includes("startsWith('/api/')") && !apiClient.includes('startsWit
 
 if (!apiClient.includes('RUNTIME_FILE_PATTERN') || !apiClient.includes('QuantGod_')) {
   fail('apiClient.js must reject raw QuantGod runtime JSON/CSV paths');
+}
+
+if (!apiClient.includes('_api') || !apiClient.includes('fetchedAt') || !apiClient.includes('durationMs')) {
+  fail('apiClient.js must attach uniform _api observability metadata');
 }
 
 if (/^https?:\/\//i.test(apiClient)) {

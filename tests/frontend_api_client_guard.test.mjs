@@ -23,8 +23,9 @@ export function assertApiPath(path) { return String(path).startsWith('/api/') ? 
 export function makeApiUrl(path) { return assertApiPath(path); }
 export function queryString() { return ''; }
 export function rowsFromPayload() { return []; }
-export async function fetchApiJson() { return { ok: true }; }
-export async function postApiJson() { return { ok: true }; }
+export function attachApiMeta(payload, result = {}) { return { ...payload, _api: { fetchedAt: result.fetchedAt || '', durationMs: result.durationMs || 0 } }; }
+export async function fetchApiJson() { return { ok: true, fetchedAt: '', durationMs: 0 }; }
+export async function postApiJson() { return { ok: true, fetchedAt: '', durationMs: 0 }; }
 export async function fetchJson() { return null; }
 export async function postJson() { return null; }
 export async function fetchRows() { return []; }
@@ -114,6 +115,7 @@ export function assertApiPath(path) { return String(path).startsWith('/api/') ? 
 export function makeApiUrl(path) { return path; }
 export function queryString() { return ''; }
 export function rowsFromPayload() { return []; }
+export function attachApiMeta(payload, result = {}) { return { ...payload, _api: { fetchedAt: result.fetchedAt || '', durationMs: result.durationMs || 0 } }; }
 export async function fetchApiJson() { return { ok: true }; }
 export async function postApiJson() { return { ok: true }; }
 export async function fetchJson() { return null; }
@@ -130,4 +132,32 @@ export async function postJsonOrThrow() { return {}; }
   const result = runGuard(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr + result.stdout, /runtime JSON\/CSV/);
+});
+
+test('api-client guard rejects missing observability metadata', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-meta-'));
+  writeFixture(root, {
+    apiClient: `
+export function assertApiPath(path) { return String(path).startsWith('/api/') ? path : (() => { throw new Error('bad'); })(); }
+export function makeApiUrl(path) { return assertApiPath(path); }
+export function queryString() { return ''; }
+export function rowsFromPayload() { return []; }
+export function attachApiMeta(payload) { return payload; }
+export async function fetchApiJson() { return { ok: true }; }
+export async function postApiJson() { return { ok: true }; }
+export async function fetchJson() { return null; }
+export async function postJson() { return null; }
+export async function fetchRows() { return []; }
+export function apiFallback() { return {}; }
+export function apiThrowMessage() { return 'error'; }
+export async function fetchJsonOrFallback() { return null; }
+export async function postJsonOrFallback() { return null; }
+export async function fetchJsonOrThrow() { return {}; }
+export async function postJsonOrThrow() { return {}; }
+const RUNTIME_FILE_PATTERN = /QuantGod_/;
+`,
+  });
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /observability metadata/);
 });
