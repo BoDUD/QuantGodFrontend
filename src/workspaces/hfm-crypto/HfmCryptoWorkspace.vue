@@ -14,6 +14,32 @@
       >
     </div>
 
+    <section
+      class="qg-snapshot-root-cause"
+      :class="`qg-snapshot-root-cause--${model.snapshotRootCause.status}`"
+    >
+      <div class="qg-snapshot-root-cause__main">
+        <p class="qg-eyebrow">Live16 快照根因</p>
+        <h2>{{ model.snapshotRootCause.title }}</h2>
+        <p>{{ model.snapshotRootCause.rootCauseLine }}</p>
+      </div>
+      <StatusPill :status="model.snapshotRootCause.status" :label="model.snapshotRootCause.label" />
+      <div class="qg-snapshot-root-cause__grid">
+        <span>
+          <strong>当前不可直接信任</strong>
+          {{ model.snapshotRootCause.blockedLine }}
+        </span>
+        <span>
+          <strong>仍可继续复核</strong>
+          {{ model.snapshotRootCause.usableLine }}
+        </span>
+        <span>
+          <strong>下一步</strong>
+          {{ model.snapshotRootCause.nextAction }}
+        </span>
+      </div>
+    </section>
+
     <div class="hfm-crypto-controls">
       <label>
         <span>Moss backtest JSON</span>
@@ -82,6 +108,7 @@
         <span class="qg-muted">Crypto READY 不能替代实时账号快照</span>
       </div>
       <LedgerTable title="Live16 快照" :rows="model.tables.mt5FreshnessRows" :limit="1" />
+      <LedgerTable title="Live16 快照恢复矩阵" :rows="model.tables.mt5RecoveryRows" :limit="3" />
     </section>
 
     <div class="qg-domain-grid qg-domain-grid--two">

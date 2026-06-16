@@ -178,6 +178,95 @@ function mt5FreshnessRows(freshness = {}, payload = {}) {
   ];
 }
 
+function mt5SnapshotBlocked(freshness = {}, process = {}) {
+  const status = String(freshness.status || '').toUpperCase();
+  return (
+    mt5HostProcessMissing(process) ||
+    freshness.stale === true ||
+    status === 'STALE_EA_SNAPSHOT' ||
+    (freshness.fresh !== true && status !== 'FRESH_EA_SNAPSHOT')
+  );
+}
+
+function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, options = {}) {
+  const processMissing = mt5HostProcessMissing(process);
+  const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
+  const fresh = freshness.fresh === true;
+  const blocked = mt5SnapshotBlocked(freshness, process);
+  const snapshotState = processMissing ? 'writer 未运行' : stale ? '快照过期' : fresh ? '新鲜' : '待确认';
+  const snapshotAction = processMissing
+    ? '恢复 Live16 terminal64/wine 与 EA dashboard writer，再判断当前账号、BTC/crypto tick 和执行准备度。'
+    : freshness.nextActionZh ||
+      freshness.nextAction ||
+      '等待 Live16 只读桥返回新鲜快照后，再把账号状态作为当前证据。';
+  return [
+    {
+      区域: 'Live16 当前账号快照',
+      状态: snapshotState,
+      可信范围:
+        blocked
+          ? '当前账号、BTC/crypto tick、持仓和执行准备度不可确认；旧快照只作历史参考。'
+          : '可把 Live16 只读桥快照作为当前账号证据。',
+      下一步: snapshotAction,
+    },
+    {
+      区域: 'HFM Crypto symbol/spec',
+      状态: options.specsEvidenceReady ? '研究证据可用' : '等待 specs 证据',
+      可信范围:
+        options.specsEvidenceReady || options.symbolEvidenceCount
+          ? 'symbol/spec/Moss/backtest 证据仍可用于 shadow 研究；不能替代当前账号快照。'
+          : '需要 Live16 specs 或 broker symbol 证据后再评估 crypto CFD 车道。',
+      下一步: options.standaloneExporterNextAction || '刷新 HFM Crypto specs/exporter 证据。',
+    },
+    {
+      区域: 'Sim-to-live 执行闸门',
+      状态: options.targetExecutionConclusion || '等待 profit-target 证据',
+      可信范围: '只展示审查状态，不写 MT5 request/receipt，不调用 broker。',
+      下一步: options.executionGateHint || '继续只读复核 release token、execution mode 和 request contract。',
+    },
+  ];
+}
+
+function hfmMt5SnapshotRootCause(freshness = {}, payload = {}, process = {}, options = {}) {
+  const processMissing = mt5HostProcessMissing(process);
+  const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
+  const blocked = mt5SnapshotBlocked(freshness, process);
+  const status = processMissing || stale ? 'blocked' : blocked ? 'warn' : freshness.fresh ? 'ok' : 'warn';
+  const label = processMissing
+    ? 'Live16 writer 未运行'
+    : stale
+      ? 'Live16 快照过期'
+      : freshness.fresh
+        ? 'Live16 快照新鲜'
+        : 'Live16 快照待确认';
+  const rootCauseLine = processMissing
+    ? `Live16 MT5/EA writer 未运行；${mt5HostProcessLine(process)}。`
+    : stale
+      ? freshness.nextActionZh ||
+        freshness.nextAction ||
+        `Live16 MT5 dashboard 快照已过期 ${formatAgeSeconds(freshness.ageSeconds)}。`
+      : freshness.fresh
+        ? 'Live16 当前账号快照新鲜。'
+        : mt5FreshnessLine(freshness);
+  return {
+    status,
+    label,
+    title: blocked ? 'HFM Crypto 当前账号快照不能当作实时状态' : 'HFM Crypto 当前账号快照可用于只读观察',
+    rootCauseLine,
+    blockedLine: blocked
+      ? 'Live16 当前账号、BTC/crypto tick、持仓、保证金和执行准备度。'
+      : '无 Live16 当前账号状态阻断。',
+    usableLine:
+      options.specsEvidenceReady || options.symbolEvidenceCount
+        ? 'HFM crypto symbol/spec/Moss/模拟表现证据仍可用于 shadow 研究。'
+        : '安全边界、release token、request contract 和历史审查证据仍可只读复核。',
+    nextAction:
+      processMissing || stale
+        ? hfmMt5SnapshotRecoveryRows(freshness, payload, process, options)[0].下一步
+        : options.standaloneExporterNextAction || '保持 Live16 MT5/EA dashboard writer 正常刷新。',
+  };
+}
+
 function statusTone(status) {
   const text = String(status || '').toUpperCase();
   if (text.includes('READY')) return 'ok';
@@ -1805,9 +1894,32 @@ export function buildHfmCryptoModel(state = {}) {
     'dataPlaneBrokerOrderSendReady',
     'broker wrapper 合同可评审',
   );
+  const mt5SnapshotRootCause = hfmMt5SnapshotRootCause(mt5Freshness, mt5Snapshot, mt5Process, {
+    specsEvidenceReady,
+    symbolEvidenceCount,
+    standaloneExporterNextAction,
+    targetExecutionConclusion,
+    executionGateHint: executionGateHint(
+      profitTarget,
+      '目标达成后只展示闸门状态，不写 MT5 request 文件',
+      releaseReadinessRefresh,
+    ),
+  });
+  const mt5RecoveryRows = hfmMt5SnapshotRecoveryRows(mt5Freshness, mt5Snapshot, mt5Process, {
+    specsEvidenceReady,
+    symbolEvidenceCount,
+    standaloneExporterNextAction,
+    targetExecutionConclusion,
+    executionGateHint: executionGateHint(
+      profitTarget,
+      '目标达成后只展示闸门状态，不写 MT5 request 文件',
+      releaseReadinessRefresh,
+    ),
+  });
   return {
     status: statusTone(payload.status),
     statusLabel: payload.statusZh || humanizeStatus(payload.status, '等待 HFM Crypto CFD 状态'),
+    snapshotRootCause: mt5SnapshotRootCause,
     executionSpecReady,
     standaloneExporterReadyToRun,
     standaloneExporterNextAction,
@@ -3069,6 +3181,7 @@ export function buildHfmCryptoModel(state = {}) {
     ].filter(visibleKeyValueRow),
     tables: {
       mt5FreshnessRows: mt5FreshnessRows(mt5Freshness, mt5Snapshot),
+      mt5RecoveryRows,
       findings,
       symbolEvidenceSources,
       operatorChecklist,

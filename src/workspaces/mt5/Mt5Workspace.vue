@@ -18,6 +18,42 @@
       >
     </div>
 
+    <section class="qg-snapshot-root-cause" :class="`qg-snapshot-root-cause--${snapshotRootCause.status}`">
+      <div class="qg-snapshot-root-cause__main">
+        <p class="qg-eyebrow">全局快照恢复</p>
+        <h2>{{ snapshotRootCause.title }}</h2>
+        <p>{{ snapshotRootCause.rootCauseLine }}</p>
+      </div>
+      <StatusPill :status="snapshotRootCause.status" :label="snapshotRootCause.label" />
+      <div class="qg-snapshot-root-cause__grid">
+        <span>
+          <strong>当前不可直接信任</strong>
+          {{ snapshotRootCause.blockedLine }}
+        </span>
+        <span>
+          <strong>仍可继续复核</strong>
+          {{ snapshotRootCause.usableLine }}
+        </span>
+        <span>
+          <strong>下一步</strong>
+          {{ snapshotRootCause.nextAction }}
+        </span>
+      </div>
+    </section>
+
+    <section class="qg-section-card qg-section-card--operator">
+      <header>
+        <p class="qg-eyebrow">整体前端诊断</p>
+        <h2>MT5 快照恢复矩阵</h2>
+      </header>
+      <LedgerTable
+        title="Live12 / Live16 只读桥"
+        :rows="snapshotRecoveryRows"
+        :limit="4"
+        class="qg-ledger-table--important qg-ledger-table--mt5-full"
+      />
+    </section>
+
     <section class="qg-mt5-dual-accounts" aria-label="MT5 双账号 EA 状态">
       <header class="qg-mt5-dual-accounts__header">
         <div>
@@ -294,6 +330,8 @@ import {
   buildMt5AccountCards,
   buildMt5AccountProfileRows,
   buildMt5ConnectionItems,
+  buildMt5SnapshotRecoveryRows,
+  buildMt5SnapshotRootCauseBanner,
   buildEndpointHealth,
   buildMt5Metrics,
   buildMt5ShadowBlockerRows,
@@ -358,6 +396,8 @@ const state = shallowReactive({
 
 const snapshot = computed(() => normalizeMt5Snapshot(state));
 const shadowSummary = computed(() => buildMt5ShadowSummary(snapshot.value));
+const snapshotRootCause = computed(() => buildMt5SnapshotRootCauseBanner(snapshot.value));
+const snapshotRecoveryRows = computed(() => buildMt5SnapshotRecoveryRows(snapshot.value));
 const metrics = computed(() => buildMt5Metrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
 const safetyItems = computed(() => buildSafetyItems(snapshot.value));

@@ -11,6 +11,8 @@ import {
   buildMt5ShadowEquityRows,
   buildMt5ShadowSummary,
   buildMt5ShadowTradeRows,
+  buildMt5SnapshotRecoveryRows,
+  buildMt5SnapshotRootCauseBanner,
   buildMt5EvidenceOsLiteItems,
   buildMt5TodoRows,
   buildMt5ReviewRows,
@@ -173,6 +175,67 @@ describe('mt5Model ledgers', () => {
     });
     expect(cards[0].items.find((item) => item.label === '点差门禁')?.hint).toContain('小仓机会入场');
     expect(cards[1].items.find((item) => item.label === '点差门禁')?.hint).toContain('paper mirror');
+  });
+
+  it('surfaces a cross-frontend MT5 snapshot recovery banner and matrix', () => {
+    const snapshot = normalizeMt5Snapshot({
+      account: { account: { login: '186054398', server: 'HFMarketsGlobal-Live12', currency: 'USC' } },
+      snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 875085,
+          nextActionZh: '恢复 Live12 MT5/EA writer。',
+        },
+        hostProcess: {
+          status: 'MISSING',
+          terminalProcessDetected: false,
+          matchingProcessCount: 0,
+        },
+      },
+      secondaryAccount: {
+        account: { login: '198135388', server: 'HFMarketsGlobal-Live16', currency: 'USD' },
+      },
+      secondarySnapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 875085,
+          nextActionZh: '恢复 Live16 MT5/EA writer。',
+        },
+      },
+    });
+
+    const banner = buildMt5SnapshotRootCauseBanner(snapshot);
+    const rows = buildMt5SnapshotRecoveryRows(snapshot);
+
+    expect(banner).toMatchObject({
+      status: 'blocked',
+      label: 'MT5/EA writer 未运行',
+      title: 'MT5 当前账号快照不能当作实时状态',
+    });
+    expect(banner.rootCauseLine).toContain('主账号 / HFMarketsGlobal-Live12：writer 未运行');
+    expect(banner.blockedLine).toContain('当前持仓');
+    expect(banner.usableLine).toContain('shadow 账本');
+    expect(rows[0]).toMatchObject({
+      账户: '主账号 / HFMarketsGlobal-Live12',
+      端点: '/api/mt5-readonly/snapshot',
+      状态: 'writer 未运行',
+    });
+    expect(rows[0].可信范围).toContain('旧快照只作历史参考');
+    expect(rows[1]).toMatchObject({
+      账户: '第二账号 / HFMarketsGlobal-Live16',
+      端点: '/api/mt5-readonly-secondary/snapshot',
+      状态: '快照过期',
+    });
   });
 
   it('prefers latest live spread gate over stale daily autopilot spread snapshot', () => {

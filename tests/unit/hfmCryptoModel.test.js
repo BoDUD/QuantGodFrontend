@@ -53,6 +53,17 @@ describe('hfmCryptoModel', () => {
     expect(model.metrics.find((item) => item.label === 'MT5 账号链路').hint).toContain(
       '未检测到 terminal64/wine 进程',
     );
+    expect(model.snapshotRootCause).toMatchObject({
+      status: 'blocked',
+      label: 'Live16 writer 未运行',
+      title: 'HFM Crypto 当前账号快照不能当作实时状态',
+    });
+    expect(model.snapshotRootCause.blockedLine).toContain('BTC/crypto tick');
+    expect(model.tables.mt5RecoveryRows[0]).toMatchObject({
+      区域: 'Live16 当前账号快照',
+      状态: 'writer 未运行',
+    });
+    expect(model.tables.mt5RecoveryRows[0].可信范围).toContain('旧快照只作历史参考');
     expect(model.accountItems.find((item) => item.label === 'Tick 年龄')).toMatchObject({
       status: 'blocked',
     });

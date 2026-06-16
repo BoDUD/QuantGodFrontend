@@ -1503,6 +1503,99 @@ export function buildMt5Metrics(snapshot) {
   ];
 }
 
+function accountRecoveryEndpoint(account = {}) {
+  return account.role === 'secondary'
+    ? '/api/mt5-readonly-secondary/snapshot'
+    : '/api/mt5-readonly/snapshot';
+}
+
+function accountRecoveryLabel(account = {}) {
+  const server = account.server ? ` / ${account.server}` : '';
+  return `${account.label || (account.role === 'secondary' ? '第二账号' : '主账号')}${server}`;
+}
+
+function accountRecoveryRow(account = {}) {
+  const freshness = account.freshness || {};
+  const processMissing = account.hostProcessMissing === true;
+  const missing = freshnessMissing(freshness);
+  const stale = freshnessStale(freshness);
+  const unconfirmed = freshnessUnconfirmed(freshness);
+  const status = processMissing || missing ? 'blocked' : stale || unconfirmed ? 'warn' : 'ok';
+  const state = processMissing
+    ? 'writer 未运行'
+    : missing
+      ? '快照缺失'
+      : stale
+        ? '快照过期'
+        : unconfirmed
+          ? '快照待确认'
+          : freshness.fresh
+            ? '新鲜'
+            : '待同步';
+  const nextStep = processMissing
+    ? '恢复对应 terminal64/wine 与 EA dashboard writer，再判断账号、持仓和交易权限。'
+    : freshnessRecoveryHint(
+        freshness,
+        '等待只读桥返回 MT5 dashboard 新鲜度证据，再判断当前账号状态。',
+      );
+  return {
+    account,
+    status,
+    state,
+    processMissing,
+    blocksCurrentState: processMissing || freshnessBlocksCurrentState(freshness),
+    endpoint: accountRecoveryEndpoint(account),
+    nextStep,
+  };
+}
+
+export function buildMt5SnapshotRecoveryRows(snapshot = {}) {
+  return (snapshot.accountConnections || []).map((account) => {
+    const recovery = accountRecoveryRow(account);
+    return {
+      账户: accountRecoveryLabel(account),
+      端点: recovery.endpoint,
+      状态: recovery.state,
+      可信范围: recovery.blocksCurrentState
+        ? '当前净值、余额、持仓、挂单和 EA 权限不可确认；旧快照只作历史参考。'
+        : '可把只读桥快照作为当前账号状态。',
+      下一步: recovery.nextStep,
+    };
+  });
+}
+
+export function buildMt5SnapshotRootCauseBanner(snapshot = {}) {
+  const recoveryRows = (snapshot.accountConnections || []).map(accountRecoveryRow);
+  const blockers = recoveryRows.filter((row) => row.blocksCurrentState);
+  const processMissing = blockers.some((row) => row.processMissing);
+  const status = blockers.length ? (processMissing ? 'blocked' : 'warn') : 'ok';
+  const label = processMissing
+    ? 'MT5/EA writer 未运行'
+    : blockers.length
+      ? '实时快照不可用'
+      : '实时快照新鲜';
+  const rootCauseLine = blockers.length
+    ? blockers
+        .map((row) => `${accountRecoveryLabel(row.account)}：${row.state}`)
+        .join(' / ')
+    : 'Live12 与 Live16 当前快照没有 freshness 阻断。';
+  const nextAction =
+    blockers[0]?.nextStep ||
+    '保持 Live12/Live16 MT5 终端和 EA dashboard writer 正常刷新，前端继续只读观察。';
+  return {
+    status,
+    label,
+    title: blockers.length ? 'MT5 当前账号快照不能当作实时状态' : 'MT5 当前账号快照可用于只读观察',
+    rootCauseLine,
+    blockedLine: blockers.length
+      ? '净值、余额、当前持仓、挂单、EA 自动交易权限和执行准备度。'
+      : '无当前账号状态阻断。',
+    usableLine:
+      '历史交易流水、close history、shadow 账本、Evidence OS、RSI 诊断和研究证据仍可只读复核。',
+    nextAction,
+  };
+}
+
 export function buildSafetyItems(snapshot) {
   const rsiEnabled = routeEnabled(snapshot, 'RSI_Reversal');
   return [

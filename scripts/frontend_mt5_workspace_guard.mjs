@@ -46,6 +46,10 @@ function checkMt5Workspace(root) {
     'RSI 入场诊断',
     '执行反馈与下一代修复',
     'StatusPill',
+    '全局快照恢复',
+    'MT5 快照恢复矩阵',
+    'snapshotRootCause',
+    'snapshotRecoveryRows',
     'Safety Envelope',
     'Raw MT5 evidence',
   ]) {
@@ -85,6 +89,8 @@ function checkMt5Model(root) {
     'buildAccountItems',
     'buildMt5ConnectionItems',
     'buildMt5AccountProfileRows',
+    'buildMt5SnapshotRootCauseBanner',
+    'buildMt5SnapshotRecoveryRows',
     'buildPositionRows',
     'buildOrderRows',
     'buildSymbolRows',
@@ -108,6 +114,7 @@ function checkMt5Model(root) {
     'freshnessBlocksCurrentState',
     'writer 未运行',
     '旧快照不能证明当前为 0',
+    '当前净值、余额、持仓、挂单和 EA 权限不可确认',
   ]) {
     if (!text.includes(requiredSafety))
       errors.push(`${rel(root, model)}: missing safety field ${requiredSafety}`);
