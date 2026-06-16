@@ -43,6 +43,9 @@ function checkDashboardWorkspace(root) {
     'Agent 日报 v2',
     'agentOpsHealth',
     'Agent 自动化健康',
+    'productionEvidenceValidation',
+    '生产证据验证',
+    '/api/production-evidence-validation/status',
     '/api/hfm-crypto/status?view=summary&scope=secondary',
     'Release token 闸门',
     'Release Token 证据',
@@ -61,7 +64,7 @@ function checkDashboardWorkspace(root) {
     '/api/live-automation/forex-live12-runtime-handoff?scope=secondary',
     'buildReleaseGateRows',
     '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5"',
-    '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="5"',
+    '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="6"',
   ]) {
     if (!text.includes(required)) errors.push(`${rel(root, workspace)}: missing ${required}`);
   }
@@ -123,6 +126,9 @@ function checkDashboardModel(root) {
     'Release Token 签收模板',
     'Release Token 签收交接',
     'forexLive12RuntimeHandoff',
+    'coreRuntimeEvidence',
+    'Core Runtime Evidence',
+    '核心证据晋级闸',
   ]) {
     if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }

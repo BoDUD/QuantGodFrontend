@@ -32,7 +32,7 @@
         </div>
         <span class="qg-muted">主账号、Live16 与 HFM Crypto 一起判定</span>
       </div>
-      <LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="5" />
+      <LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="6" />
     </section>
 
     <DashboardUpgradePanel :state="state" :snapshot="snapshot" :metrics="metrics" />
@@ -217,6 +217,11 @@
           source="/api/usdjpy-strategy-lab/telegram-gateway/status"
           :payload="state.telegramGateway"
         />
+        <JsonPreview
+          title="生产证据验证"
+          source="/api/production-evidence-validation/status"
+          :payload="state.productionEvidenceValidation"
+        />
         <JsonPreview title="MT5 快照" source="/api/mt5-readonly/snapshot" :payload="state.mt5Snapshot" />
         <JsonPreview
           title="第二 MT5 快照"
@@ -384,6 +389,7 @@ const state = shallowReactive({
   dailyAutopilotV2: null,
   agentOpsHealth: null,
   telegramGateway: null,
+  productionEvidenceValidation: null,
   mt5Snapshot: null,
   secondaryMt5Snapshot: null,
   hfmCrypto: null,

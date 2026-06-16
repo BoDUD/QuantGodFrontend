@@ -88,6 +88,14 @@ export async function loadDashboardWorkspaceCore(options = {}) {
             timeoutMs: 10000,
           }),
       ],
+      [
+        'productionEvidenceValidation',
+        (requestOptions) =>
+          fetchJson('/api/production-evidence-validation/status', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
     ],
     options,
     6,
@@ -144,6 +152,14 @@ export async function loadDashboardWorkspace(options = {}) {
         'usdJpyLiveLoop',
         (requestOptions) =>
           fetchJson('/api/usdjpy-strategy-lab/live-loop', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      [
+        'productionEvidenceValidation',
+        (requestOptions) =>
+          fetchJson('/api/production-evidence-validation/status', null, {
             ...requestOptions,
             timeoutMs: 10000,
           }),

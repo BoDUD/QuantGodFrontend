@@ -725,6 +725,79 @@ function historyFreshnessBlocksPromotion(review = {}) {
   );
 }
 
+function productionEvidenceReport(raw = {}) {
+  const candidates = [
+    raw?.productionEvidenceValidation?.report,
+    raw?.productionEvidenceValidation,
+    raw?.state?.productionEvidenceValidation?.report,
+    raw?.state?.productionEvidenceValidation,
+    raw?.state?.data?.productionEvidenceValidation?.report,
+    raw?.state?.data?.productionEvidenceValidation,
+  ];
+  return candidates.find((candidate) => isObject(candidate)) || {};
+}
+
+function coreRuntimeEvidenceIntegrity(raw = {}) {
+  const report = productionEvidenceReport(raw);
+  const candidates = [
+    report?.coreRuntimeEvidenceIntegrity,
+    raw?.coreRuntimeEvidenceIntegrity,
+    raw?.state?.coreRuntimeEvidenceIntegrity,
+    raw?.state?.data?.coreRuntimeEvidenceIntegrity,
+  ];
+  return candidates.find((candidate) => isObject(candidate)) || {};
+}
+
+function coreRuntimeEvidenceGate(raw = {}) {
+  const core = coreRuntimeEvidenceIntegrity(raw);
+  if (!present(core)) return {};
+  const integrityStatus = String(core.status || '').toUpperCase();
+  const promotionStatus = String(
+    core.promotionGateStatus || (core.promotionGatePassed === true ? 'PASS' : ''),
+  ).toUpperCase();
+  const integrityBlockers = toArray(core.blockers).filter(Boolean);
+  const promotionBlockers = toArray(core.promotionBlockers).filter(Boolean);
+  const artifacts = rowsFromObjectList(core.artifacts);
+  const caseMemory = artifacts.find((row) => row.artifactId === 'caseMemoryArtifactManifest') || {};
+  const history = artifacts.find((row) => row.artifactId === 'historyProductionStatus') || {};
+  const caseGate = isObject(caseMemory.promotionGate) ? caseMemory.promotionGate : {};
+  const historyGate = isObject(history.promotionGate) ? history.promotionGate : {};
+  const missingCategories = toArray(caseGate.missingCategories).filter(Boolean);
+  const staleTimeframes = Object.entries(historyGate.timeframes || {})
+    .filter(([, row]) => row?.freshnessOk === false || row?.passed === false)
+    .map(([timeframe]) => timeframe);
+  const integrityOk = core.ok !== false && integrityStatus === 'PASS' && integrityBlockers.length === 0;
+  const promotionBlocked = Boolean(
+    promotionStatus === 'BLOCKED' ||
+      core.promotionGatePassed === false ||
+      promotionBlockers.length > 0 ||
+      missingCategories.length > 0 ||
+      staleTimeframes.length > 0,
+  );
+  const uiStatus = !integrityOk ? 'blocked' : promotionBlocked ? 'blocked' : 'ok';
+  const value = !integrityOk ? '完整性异常' : promotionBlocked ? '晋级阻断' : '已通过';
+  const blockerLine = codeListLine(promotionBlockers);
+  const detailParts = [
+    blockerLine,
+    missingCategories.length ? `Case Memory 缺 ${missingCategories.join('/')}` : '',
+    staleTimeframes.length ? `历史 freshness 过期 ${staleTimeframes.join('/')}` : '',
+  ].filter(Boolean);
+  return {
+    ...core,
+    integrityStatus,
+    promotionGateStatus: promotionStatus || (promotionBlocked ? 'BLOCKED' : integrityOk ? 'PASS' : 'UNKNOWN'),
+    status: promotionBlocked || !integrityOk ? 'BLOCKED' : 'PASS',
+    value,
+    uiStatus,
+    blockerLine,
+    detailLine: detailParts.join('；') || core.nextActionZh || core.statusZh || '',
+    missingCategories,
+    staleTimeframes,
+    promotionBlocked,
+    integrityOk,
+  };
+}
+
 function latestAccount(raw) {
   return raw?.latest?.account || raw?.mt5Snapshot?.account || {};
 }
@@ -1234,6 +1307,8 @@ export function normalizeDashboardSnapshot(raw = {}) {
     positions: mt5Positions(raw),
     dailySummary: dailySummary(raw),
     dailyPnlEvidence: dailyPnl(raw),
+    productionEvidenceValidation: productionEvidenceReport(raw),
+    coreRuntimeEvidence: coreRuntimeEvidenceGate(raw),
     historyProductionStatus: historyProductionStatus(raw),
     historyFreshnessPromotionReview: historyFreshnessPromotionReview(raw),
     hfmCrypto: raw?.hfmCrypto || {},
@@ -1418,6 +1493,19 @@ export function buildDashboardMetrics(snapshot) {
           ? 'ok'
           : 'warn',
     },
+    ...(present(snapshot.coreRuntimeEvidence)
+      ? [
+          {
+            label: '核心证据晋级闸',
+            value: snapshot.coreRuntimeEvidence.value,
+            hint:
+              snapshot.coreRuntimeEvidence.detailLine ||
+              snapshot.coreRuntimeEvidence.nextActionZh ||
+              '读取 /api/production-evidence-validation/status',
+            status: snapshot.coreRuntimeEvidence.uiStatus,
+          },
+        ]
+      : []),
     {
       label: '当前持仓',
       value: positionsMetric.value,
@@ -1577,6 +1665,12 @@ export function buildEndpointHealth(raw = {}) {
       'Daily Autopilot、HFM Crypto shadow 和 Telegram Gateway',
     ],
     [
+      '核心证据晋级闸',
+      '/api/production-evidence-validation/status',
+      raw.productionEvidenceValidation,
+      '核心 runtime evidence 完整性、history freshness 与 Case Memory 晋级门',
+    ],
+    [
       'Telegram Gateway',
       '/api/usdjpy-strategy-lab/telegram-gateway/status',
       raw.telegramGateway,
@@ -1675,10 +1769,13 @@ export function buildEndpointHealth(raw = {}) {
       (freshness.stale === true || freshness.status === 'STALE_DASHBOARD_SNAPSHOT');
     const endpointFreshness = readonlyFreshness(payload);
     const loopFreshness = endpoint === '/api/usdjpy-strategy-lab/live-loop' ? liveLoopFreshness(payload) : {};
+    const coreGate =
+      endpoint === '/api/production-evidence-validation/status' ? coreRuntimeEvidenceGate(raw) : {};
     const staleReadonly =
       endpoint !== '/api/latest' &&
       (endpointFreshness.stale === true || endpointFreshness.status === 'STALE_EA_SNAPSHOT');
     const staleLiveLoop = loopFreshness.hardStale === true;
+    const coreBlocked = coreGate.promotionBlocked === true || coreGate.integrityOk === false;
     const processMissing =
       (endpoint === '/api/latest' && (primaryProcessMissing || secondaryProcessMissing)) ||
       (endpoint === '/api/mt5-readonly/snapshot' && primaryProcessMissing) ||
@@ -1692,6 +1789,8 @@ export function buildEndpointHealth(raw = {}) {
         ? '未检测到对应 terminal64/wine 进程；先恢复 MT5 终端和 EA dashboard writer，再把账号状态当成当前值。'
         : staleLiveLoop
           ? loopFreshness.nextActionZh || loopFreshness.reasonLine || description
+          : coreBlocked
+            ? coreGate.detailLine || coreGate.nextActionZh || description
           : staleLatest || staleReadonly
             ? freshness.nextActionZh ||
               endpointFreshness.nextActionZh ||
@@ -1704,6 +1803,8 @@ export function buildEndpointHealth(raw = {}) {
         ? 'blocked'
         : staleLiveLoop
           ? 'blocked'
+          : coreBlocked
+            ? 'blocked'
           : staleLatest || staleReadonly
             ? 'warn'
             : hasPayload && !unavailable
@@ -1713,6 +1814,8 @@ export function buildEndpointHealth(raw = {}) {
         ? 'writer 未运行'
         : staleLiveLoop
           ? '运行快照严重过期'
+          : coreBlocked
+            ? coreGate.value || '晋级阻断'
           : staleLatest || staleReadonly
             ? '快照过期'
             : unavailable
@@ -1734,6 +1837,7 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
   const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
   const secondaryStale = secondary.stale === true || secondary.status === 'STALE_EA_SNAPSHOT';
   const hfmStatus = hfmCrypto.statusZh || humanizeStatus(hfmCrypto.status, '等待 HFM Crypto CFD 状态');
+  const coreGate = coreRuntimeEvidenceGate(raw);
   return [
     processAwareFreshnessRow(
       '总览 MT5 dashboard',
@@ -1780,6 +1884,22 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
         ? 'HFM Crypto shadow 资料可读，但 Live16 EA 快照过期；先恢复 Live16 dashboard writer，再判断当前账号与 BTC/crypto 执行准备度。'
         : hfmStatus,
     },
+    ...(present(coreGate)
+      ? [
+          {
+            数据源: 'Core Runtime Evidence',
+            端点: '/api/production-evidence-validation/status',
+            状态: coreGate.value,
+            年龄: coreGate.generatedAt || '见 integrity manifest',
+            阈值: '完整性 PASS + promotion gate PASS',
+            源文件: 'runtime/integrity/QuantGod_CoreRuntimeEvidenceManifest.json',
+            动作:
+              coreGate.detailLine ||
+              coreGate.nextActionZh ||
+              '核心证据完整性和晋级门通过后，GA/champion 才能继续晋级。',
+          },
+        ]
+      : []),
   ];
 }
 
@@ -2075,6 +2195,19 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
       status: snapshot.dualTargetReached ? 'ok' : snapshot.profitTargetStatus || 'warn',
       hint: recovery.profitTargetLine || snapshot.profitTargetStatusLabel,
     },
+    ...(present(snapshot.coreRuntimeEvidence)
+      ? [
+          {
+            label: '核心证据晋级闸',
+            value: snapshot.coreRuntimeEvidence.value,
+            status: snapshot.coreRuntimeEvidence.uiStatus,
+            hint:
+              snapshot.coreRuntimeEvidence.detailLine ||
+              snapshot.coreRuntimeEvidence.nextActionZh ||
+              '核心证据完整性和晋级门分开判定。',
+          },
+        ]
+      : []),
   ];
 }
 
@@ -2152,6 +2285,21 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         : '无法判断 crypto CFD 研究状态',
       下一步: recovery.hfmLine || '刷新 HFM Crypto 状态',
     },
+    ...(present(snapshot.coreRuntimeEvidence)
+      ? [
+          {
+            区域: 'Core evidence / GA 晋级',
+            状态: snapshot.coreRuntimeEvidence.value,
+            影响: snapshot.coreRuntimeEvidence.promotionBlocked
+              ? '核心文件可以完整，但 GA/champion 晋级仍被 freshness 或 Case Memory 样本类型阻断'
+              : '核心证据完整性与晋级门均通过',
+            下一步:
+              snapshot.coreRuntimeEvidence.detailLine ||
+              snapshot.coreRuntimeEvidence.nextActionZh ||
+              '继续保持 runtime evidence integrity。',
+          },
+        ]
+      : []),
   ];
 }
 

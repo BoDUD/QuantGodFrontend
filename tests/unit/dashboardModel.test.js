@@ -389,6 +389,88 @@ describe('dashboardModel', () => {
     expect(item.hint).toContain('history_production_status_missing');
   });
 
+  it('surfaces core runtime evidence promotion blockers on the dashboard', () => {
+    const raw = {
+      productionEvidenceValidation: {
+        ok: true,
+        report: {
+          coreRuntimeEvidenceIntegrity: {
+            status: 'PASS',
+            statusZh: '核心运行证据完整',
+            promotionGateStatus: 'BLOCKED',
+            promotionGatePassed: false,
+            nextActionZh: '核心证据文件完整，但 history freshness、Case Memory 样本类型仍阻断晋级。',
+            promotionBlockers: [
+              'historyProductionStatus:M1:freshness_not_ok',
+              'caseMemoryArtifactManifest:missing_category:BAD_ENTRY',
+              'caseMemoryArtifactManifest:missing_category:GA_OVERFIT',
+            ],
+            artifacts: [
+              {
+                artifactId: 'historyProductionStatus',
+                promotionGate: {
+                  status: 'BLOCKED',
+                  timeframes: {
+                    M1: { passed: false, freshnessOk: false },
+                    M5: { passed: true, freshnessOk: true },
+                  },
+                },
+              },
+              {
+                artifactId: 'caseMemoryArtifactManifest',
+                promotionGate: {
+                  status: 'BLOCKED',
+                  missingCategories: ['BAD_ENTRY', 'GA_OVERFIT'],
+                },
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const metric = buildDashboardMetrics(snapshot).find((item) => item.label === '核心证据晋级闸');
+    const recoveryItem = buildSnapshotRecoveryItems(snapshot).find((item) => item.label === '核心证据晋级闸');
+    const recoveryRow = buildSnapshotRecoveryRows(snapshot).find((row) => row.区域 === 'Core evidence / GA 晋级');
+    const sourceRow = buildRuntimeSourceDiagnosticRows(raw).find((row) => row.数据源 === 'Core Runtime Evidence');
+    const health = buildEndpointHealth(raw).find(
+      (item) => item.endpoint === '/api/production-evidence-validation/status',
+    );
+
+    expect(snapshot.coreRuntimeEvidence).toMatchObject({
+      integrityOk: true,
+      promotionBlocked: true,
+      promotionGateStatus: 'BLOCKED',
+      value: '晋级阻断',
+      uiStatus: 'blocked',
+      missingCategories: ['BAD_ENTRY', 'GA_OVERFIT'],
+      staleTimeframes: ['M1'],
+    });
+    expect(metric).toMatchObject({
+      value: '晋级阻断',
+      status: 'blocked',
+    });
+    expect(metric.hint).toContain('missing_category:BAD_ENTRY');
+    expect(metric.hint).toContain('Case Memory 缺 BAD_ENTRY/GA_OVERFIT');
+    expect(recoveryItem).toMatchObject({
+      value: '晋级阻断',
+      status: 'blocked',
+    });
+    expect(recoveryRow).toMatchObject({
+      状态: '晋级阻断',
+      影响: '核心文件可以完整，但 GA/champion 晋级仍被 freshness 或 Case Memory 样本类型阻断',
+    });
+    expect(sourceRow).toMatchObject({
+      状态: '晋级阻断',
+      阈值: '完整性 PASS + promotion gate PASS',
+    });
+    expect(health).toMatchObject({
+      status: 'blocked',
+      statusLabel: '晋级阻断',
+    });
+  });
+
   it('does not mark ok false endpoint envelopes as normal health', () => {
     const health = buildEndpointHealth({
       hfmCrypto: {
