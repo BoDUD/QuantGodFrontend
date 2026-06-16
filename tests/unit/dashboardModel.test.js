@@ -127,7 +127,7 @@ describe('dashboardModel', () => {
 
     expect(snapshot.secondaryMt5SnapshotStale).toBe(true);
     expect(live16Metric).toMatchObject({
-      value: '过期',
+      value: '快照过期',
       status: 'warn',
     });
     expect(live16Health).toMatchObject({
@@ -274,7 +274,7 @@ describe('dashboardModel', () => {
       status: 'ok',
     });
     expect(rows.find((row) => row.区域 === 'Live16 / HFM Crypto')).toMatchObject({
-      状态: '依赖快照过期',
+      状态: 'writer 未运行',
       影响: 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认',
     });
     expect(rows.find((row) => row.区域 === 'HFM Crypto shadow')).toMatchObject({
@@ -318,6 +318,75 @@ describe('dashboardModel', () => {
       结果: '等待 /api/daily-autopilot',
     });
     expect(row.结果).not.toBe('闭环完成');
+  });
+
+  it('surfaces champion history freshness as a blocked GA daily item', () => {
+    const raw = {
+      backtest: {
+        historyProductionStatus: {
+          status: 'PASS',
+          statusZh: '生产级 PASS',
+          promotionGateStatus: 'PASS',
+        },
+      },
+      championPromotionGate: {
+        historyFreshnessPromotionReview: {
+          status: 'HISTORY_FRESHNESS_BLOCKED',
+          blocksLivePromotion: true,
+          failedTimeframes: ['M1', 'M5'],
+          staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
+          blockers: ['history_freshness_lag_exceeded'],
+          reasonZh:
+            'USDJPY 历史生产状态未通过；覆盖/密度/最新延迟未全部达标前，只允许 tester-only/forward 或 shadow 观察。',
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const item = buildDailyItems(snapshot).find((entry) => entry.label === 'GA 历史样本');
+
+    expect(snapshot.historyProductionStatus).toMatchObject({
+      promotionGateStatus: 'BLOCKED',
+      historyFreshnessStatus: 'HISTORY_FRESHNESS_BLOCKED',
+      historyFreshnessBlocksPromotion: true,
+    });
+    expect(item).toMatchObject({
+      value: '历史 freshness 阻断晋级',
+      status: 'blocked',
+    });
+    expect(item.hint).toContain('晋级门 BLOCKED');
+    expect(item.hint).toContain('history_freshness_lag_exceeded');
+    expect(item.hint).toContain('周期 M1/M5/M15/H1');
+  });
+
+  it('marks missing production history as blocked even without daily autopilot evidence', () => {
+    const raw = {
+      championPromotionGate: {
+        historyFreshnessPromotionReview: {
+          status: 'HISTORY_PRODUCTION_STATUS_MISSING',
+          blocksLivePromotion: true,
+          failedTimeframes: ['M1', 'M5', 'M15', 'H1'],
+          staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
+          blockers: ['history_production_status_missing'],
+          reasonZh: '缺少 USDJPY 历史生产状态；M1/M5/M15/H1 未被证明新鲜前，不能把冠军包装成实盘晋级。',
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const item = buildDailyItems(snapshot).find((entry) => entry.label === 'GA 历史样本');
+
+    expect(snapshot.historyProductionStatus).toMatchObject({
+      promotionGateStatus: 'BLOCKED',
+      status: 'WARN',
+      statusZh: '历史 freshness 阻断晋级',
+      historyFreshnessBlocksPromotion: true,
+    });
+    expect(item).toMatchObject({
+      value: '历史 freshness 阻断晋级',
+      status: 'blocked',
+    });
+    expect(item.hint).toContain('history_production_status_missing');
   });
 
   it('does not mark ok false endpoint envelopes as normal health', () => {

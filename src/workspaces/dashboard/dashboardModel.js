@@ -239,6 +239,18 @@ function freshnessRow(label, endpoint, freshness = {}, fallbackAction = '') {
   };
 }
 
+function processAwareFreshnessRow(label, endpoint, freshness = {}, processMissing = false, fallbackAction = '') {
+  const row = freshnessRow(label, endpoint, freshness, fallbackAction);
+  if (!processMissing) return row;
+  return {
+    ...row,
+    状态: 'writer 未运行',
+    动作:
+      fallbackAction ||
+      '未检测到对应 terminal64/wine 进程；先恢复 MT5 终端和 EA dashboard writer，再读取当前账号状态。',
+  };
+}
+
 function freshnessIsStale(freshness = {}) {
   return (
     freshness.stale === true ||
@@ -435,13 +447,42 @@ function staleDashboardAccountMetric(snapshot, value, currency, label) {
   if (!snapshot.latestDashboardStale) {
     return { value: formatted };
   }
-  const freshnessHint = dashboardFreshnessHint(snapshot);
+  const processMissing = snapshot.snapshotRecovery?.processMissing === true;
+  const freshnessHint = processMissing
+    ? snapshot.snapshotRecovery?.nextAction || dashboardFreshnessHint(snapshot)
+    : dashboardFreshnessHint(snapshot);
   const historicalHint = formatted === '—' ? '' : `历史${label}: ${formatted}，仅作参考`;
   return {
-    value: '快照过期',
+    value: processMissing ? '不可确认' : '快照过期',
     hint: [freshnessHint, historicalHint].filter(Boolean).join('；'),
-    status: 'warn',
+    status: processMissing ? 'blocked' : 'warn',
   };
+}
+
+function mt5BridgeValue({ stale, fresh, processMissing }) {
+  if (processMissing) return 'writer 未运行';
+  if (stale) return '快照过期';
+  if (fresh) return '新鲜';
+  return '待确认';
+}
+
+function mt5BridgeStatus({ stale, fresh, processMissing }) {
+  if (processMissing) return 'blocked';
+  if (stale) return 'warn';
+  if (fresh) return 'ok';
+  return 'warn';
+}
+
+function mt5BridgeHint({ line, freshness = {}, processLine = '', processMissing = false, fallback = '' }) {
+  if (processMissing) {
+    return [
+      processLine || '未检测到 terminal64/wine 进程',
+      freshness.nextActionZh || freshness.nextAction || fallback,
+    ]
+      .filter(Boolean)
+      .join('；');
+  }
+  return line || freshness.sourceFile || fallback;
 }
 
 function formatIsoMinute(value) {
@@ -604,6 +645,7 @@ function dailyPnl(raw) {
 }
 
 function historyProductionStatus(raw = {}) {
+  const freshnessReview = historyFreshnessPromotionReview(raw);
   const candidates = [
     raw?.dailyAutopilotV2?.historyProductionStatus,
     raw?.dailyAutopilotV2?.gaReview?.historyProductionStatus,
@@ -616,7 +658,71 @@ function historyProductionStatus(raw = {}) {
     raw?.backtest?.data?.historyProductionStatus,
     raw?.state?.historyProductionStatus,
   ];
+  const production = candidates.find((candidate) => isObject(candidate)) || {};
+  if (!present(freshnessReview)) return production;
+
+  const blocksPromotion = historyFreshnessBlocksPromotion(freshnessReview);
+  const reviewStatus = String(freshnessReview.status || '').toUpperCase();
+  const reviewPass = !blocksPromotion && reviewStatus === 'HISTORY_FRESHNESS_PASS';
+  const blockers = [
+    ...toArray(production.blockers),
+    ...toArray(freshnessReview.blockers),
+  ].filter(Boolean);
+  return {
+    ...production,
+    promotionGateStatus: blocksPromotion
+      ? 'BLOCKED'
+      : production.promotionGateStatus || (reviewPass ? 'PASS' : undefined),
+    status:
+      production.status ||
+      (blocksPromotion
+        ? 'WARN'
+        : reviewPass
+          ? 'PASS'
+          : freshnessReview.status),
+    statusZh:
+      blocksPromotion
+        ? '历史 freshness 阻断晋级'
+        : production.statusZh || (reviewPass ? '历史 freshness 已通过' : undefined),
+    reasonZh: freshnessReview.reasonZh || production.reasonZh,
+    blockers,
+    historyFreshnessStatus: freshnessReview.status,
+    historyFreshnessBlocksPromotion: blocksPromotion,
+    historyFreshnessReview: freshnessReview,
+    failedTimeframes: toArray(freshnessReview.failedTimeframes),
+    staleTimeframes: toArray(freshnessReview.staleTimeframes),
+    latestLagHoursByTimeframe: freshnessReview.latestLagHoursByTimeframe || {},
+  };
+}
+
+function historyFreshnessPromotionReview(raw = {}) {
+  const candidates = [
+    raw?.championPromotionGate?.historyFreshnessPromotionReview,
+    raw?.championPromotionGate?.historyFreshnessReview,
+    raw?.dailyAutopilotV2?.championPromotionGate?.historyFreshnessPromotionReview,
+    raw?.dailyAutopilot?.championPromotionGate?.historyFreshnessPromotionReview,
+    raw?.backtest?.historyFreshnessPromotionReview,
+    raw?.backtest?.historyFreshnessGate,
+    raw?.backtest?.runtimeDataset?.latest?.historyFreshnessGate,
+    raw?.backtest?.data?.runtimeDataset?.latest?.historyFreshnessGate,
+    raw?.state?.historyFreshnessPromotionReview,
+    raw?.state?.historyFreshnessGate,
+    raw?.state?.data?.historyFreshnessGate,
+  ];
   return candidates.find((candidate) => isObject(candidate)) || {};
+}
+
+function historyFreshnessBlocksPromotion(review = {}) {
+  if (!present(review)) return false;
+  const status = String(review.status || '').toUpperCase();
+  return Boolean(
+    review.blocksLivePromotion === true ||
+      review.passed === false ||
+      status === 'HISTORY_FRESHNESS_BLOCKED' ||
+      status === 'HISTORY_PRODUCTION_STATUS_MISSING' ||
+      status === 'BLOCKED' ||
+      toArray(review.blockers).length > 0,
+  );
 }
 
 function latestAccount(raw) {
@@ -1112,11 +1218,13 @@ export function normalizeDashboardSnapshot(raw = {}) {
     mt5SnapshotFreshnessLine: latestFreshnessLine(mt5SnapshotFreshness),
     mt5SnapshotStale:
       mt5SnapshotFreshness.stale === true || mt5SnapshotFreshness.status === 'STALE_EA_SNAPSHOT',
+    mt5HostProcessMissing: hostProcessMissing(raw.mt5Snapshot),
     secondaryMt5SnapshotFreshness,
     secondaryMt5SnapshotFreshnessLine: latestFreshnessLine(secondaryMt5SnapshotFreshness),
     secondaryMt5SnapshotStale:
       secondaryMt5SnapshotFreshness.stale === true ||
       secondaryMt5SnapshotFreshness.status === 'STALE_EA_SNAPSHOT',
+    secondaryMt5HostProcessMissing: hostProcessMissing(raw.secondaryMt5Snapshot),
     usdJpyLiveLoop: raw?.usdJpyLiveLoop || {},
     usdJpyLiveLoopFreshness,
     usdJpyLiveLoopStale: usdJpyLiveLoopFreshness.hardStale === true,
@@ -1127,6 +1235,7 @@ export function normalizeDashboardSnapshot(raw = {}) {
     dailySummary: dailySummary(raw),
     dailyPnlEvidence: dailyPnl(raw),
     historyProductionStatus: historyProductionStatus(raw),
+    historyFreshnessPromotionReview: historyFreshnessPromotionReview(raw),
     hfmCrypto: raw?.hfmCrypto || {},
     hfmCryptoRows: hfmCryptoRows(raw),
     hfmCryptoStatus: raw?.hfmCrypto?.status || '',
@@ -1191,13 +1300,14 @@ export function buildDashboardMetrics(snapshot) {
   const equityMetric = staleDashboardAccountMetric(snapshot, equity, currency, '净值');
   const balanceMetric = staleDashboardAccountMetric(snapshot, balance, currency, '余额');
   const positionsCount = snapshot.positions?.length || 0;
+  const latestDashboardProcessMissing = snapshot.snapshotRecovery?.processMissing === true;
   const positionsMetric = snapshot.latestDashboardStale
     ? {
         value: '不可确认',
         hint: [staleDashboardHint, `旧快照持仓 ${positionsCount} 笔，仅作历史参考`]
           .filter(Boolean)
           .join('；'),
-        status: 'warn',
+        status: latestDashboardProcessMissing ? 'blocked' : 'warn',
       }
     : {
         value: positionsCount,
@@ -1235,38 +1345,65 @@ export function buildDashboardMetrics(snapshot) {
     },
     {
       label: 'MT5 快照新鲜度',
-      value: snapshot.latestDashboardStale ? '过期' : snapshot.latestDashboardFresh ? '新鲜' : '待确认',
+      value: latestDashboardProcessMissing
+        ? 'writer 未运行'
+        : snapshot.latestDashboardStale
+          ? '过期'
+          : snapshot.latestDashboardFresh
+            ? '新鲜'
+            : '待确认',
       hint:
+        (latestDashboardProcessMissing ? snapshot.snapshotRecovery?.nextAction : '') ||
         snapshot.latestFreshnessLine ||
         snapshot.latestFreshness?.nextActionZh ||
         '按 /api/latest dashboard mtime 判定',
-      status: snapshot.latestDashboardStale ? 'warn' : snapshot.latestDashboardFresh ? 'ok' : 'warn',
+      status: latestDashboardProcessMissing
+        ? 'blocked'
+        : snapshot.latestDashboardStale
+          ? 'warn'
+          : snapshot.latestDashboardFresh
+            ? 'ok'
+            : 'warn',
     },
     {
       label: '主 MT5 只读桥',
-      value: snapshot.mt5SnapshotStale ? '过期' : snapshot.mt5SnapshotFreshness?.fresh ? '新鲜' : '待确认',
-      hint:
-        snapshot.mt5SnapshotFreshnessLine ||
-        snapshot.mt5SnapshotFreshness?.sourceFile ||
-        '按 /api/mt5-readonly/snapshot source 判定',
-      status: snapshot.mt5SnapshotStale ? 'warn' : snapshot.mt5SnapshotFreshness?.fresh ? 'ok' : 'warn',
+      value: mt5BridgeValue({
+        stale: snapshot.mt5SnapshotStale,
+        fresh: snapshot.mt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.mt5HostProcessMissing,
+      }),
+      hint: mt5BridgeHint({
+        line: snapshot.mt5SnapshotFreshnessLine,
+        freshness: snapshot.mt5SnapshotFreshness,
+        processLine: snapshot.snapshotRecovery?.primaryProcessLine,
+        processMissing: snapshot.mt5HostProcessMissing,
+        fallback: '按 /api/mt5-readonly/snapshot source 判定',
+      }),
+      status: mt5BridgeStatus({
+        stale: snapshot.mt5SnapshotStale,
+        fresh: snapshot.mt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.mt5HostProcessMissing,
+      }),
     },
     {
       label: 'Live16 快照',
-      value: snapshot.secondaryMt5SnapshotStale
-        ? '过期'
-        : snapshot.secondaryMt5SnapshotFreshness?.fresh
-          ? '新鲜'
-          : '待确认',
-      hint:
-        snapshot.secondaryMt5SnapshotFreshnessLine ||
-        snapshot.secondaryMt5SnapshotFreshness?.sourceFile ||
-        '按 /api/mt5-readonly-secondary/snapshot source 判定',
-      status: snapshot.secondaryMt5SnapshotStale
-        ? 'warn'
-        : snapshot.secondaryMt5SnapshotFreshness?.fresh
-          ? 'ok'
-          : 'warn',
+      value: mt5BridgeValue({
+        stale: snapshot.secondaryMt5SnapshotStale,
+        fresh: snapshot.secondaryMt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+      }),
+      hint: mt5BridgeHint({
+        line: snapshot.secondaryMt5SnapshotFreshnessLine,
+        freshness: snapshot.secondaryMt5SnapshotFreshness,
+        processLine: snapshot.snapshotRecovery?.secondaryProcessLine,
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+        fallback: '按 /api/mt5-readonly-secondary/snapshot source 判定',
+      }),
+      status: mt5BridgeStatus({
+        stale: snapshot.secondaryMt5SnapshotStale,
+        fresh: snapshot.secondaryMt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+      }),
     },
     {
       label: 'USDJPY Live Loop',
@@ -1421,6 +1558,8 @@ export function buildDashboardMetrics(snapshot) {
 
 export function buildEndpointHealth(raw = {}) {
   const freshness = latestFreshness(raw);
+  const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
+  const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
   const endpoints = [
     ['MT5 实时快照', '/api/latest', raw.latest, '账户、行情、策略运行状态'],
     ['每日复盘', '/api/daily-review', raw.dailyReview, 'MT5 与 HFM Crypto 的日终结论'],
@@ -1540,37 +1679,47 @@ export function buildEndpointHealth(raw = {}) {
       endpoint !== '/api/latest' &&
       (endpointFreshness.stale === true || endpointFreshness.status === 'STALE_EA_SNAPSHOT');
     const staleLiveLoop = loopFreshness.hardStale === true;
+    const processMissing =
+      (endpoint === '/api/latest' && (primaryProcessMissing || secondaryProcessMissing)) ||
+      (endpoint === '/api/mt5-readonly/snapshot' && primaryProcessMissing) ||
+      (endpoint === '/api/mt5-readonly-secondary/snapshot' && secondaryProcessMissing);
     const hasPayload = present(payload);
     const unavailable = endpointUnavailable(payload);
     return {
       label,
       endpoint,
-      description: staleLiveLoop
-        ? loopFreshness.nextActionZh || loopFreshness.reasonLine || description
-        : staleLatest || staleReadonly
-          ? freshness.nextActionZh ||
-            endpointFreshness.nextActionZh ||
-            endpointFreshness.nextAction ||
-            description
-          : unavailable
-            ? endpointUnavailableDescription(payload, description)
-            : description,
-      status: staleLiveLoop
+      description: processMissing
+        ? '未检测到对应 terminal64/wine 进程；先恢复 MT5 终端和 EA dashboard writer，再把账号状态当成当前值。'
+        : staleLiveLoop
+          ? loopFreshness.nextActionZh || loopFreshness.reasonLine || description
+          : staleLatest || staleReadonly
+            ? freshness.nextActionZh ||
+              endpointFreshness.nextActionZh ||
+              endpointFreshness.nextAction ||
+              description
+            : unavailable
+              ? endpointUnavailableDescription(payload, description)
+              : description,
+      status: processMissing
         ? 'blocked'
-        : staleLatest || staleReadonly
-          ? 'warn'
-          : hasPayload && !unavailable
-            ? 'ok'
-            : 'warn',
-      statusLabel: staleLiveLoop
-        ? '运行快照严重过期'
-        : staleLatest || staleReadonly
-          ? '快照过期'
-          : unavailable
-            ? '不可用'
-            : hasPayload
-              ? '正常'
-              : '缺失',
+        : staleLiveLoop
+          ? 'blocked'
+          : staleLatest || staleReadonly
+            ? 'warn'
+            : hasPayload && !unavailable
+              ? 'ok'
+              : 'warn',
+      statusLabel: processMissing
+        ? 'writer 未运行'
+        : staleLiveLoop
+          ? '运行快照严重过期'
+          : staleLatest || staleReadonly
+            ? '快照过期'
+            : unavailable
+              ? '不可用'
+              : hasPayload
+                ? '正常'
+                : '缺失',
     };
   });
 }
@@ -1581,25 +1730,30 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
   const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
   const liveLoop = liveLoopFreshness(raw.usdJpyLiveLoop);
   const hfmCrypto = raw.hfmCrypto || {};
+  const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
+  const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
   const secondaryStale = secondary.stale === true || secondary.status === 'STALE_EA_SNAPSHOT';
   const hfmStatus = hfmCrypto.statusZh || humanizeStatus(hfmCrypto.status, '等待 HFM Crypto CFD 状态');
   return [
-    freshnessRow(
+    processAwareFreshnessRow(
       '总览 MT5 dashboard',
       '/api/latest',
       latest,
+      primaryProcessMissing || secondaryProcessMissing,
       '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
     ),
-    freshnessRow(
+    processAwareFreshnessRow(
       '主账号只读桥',
       '/api/mt5-readonly/snapshot',
       primary,
+      primaryProcessMissing,
       '恢复主账号 MT5/EA dashboard writer。',
     ),
-    freshnessRow(
+    processAwareFreshnessRow(
       'Live16 只读桥',
       '/api/mt5-readonly-secondary/snapshot',
       secondary,
+      secondaryProcessMissing,
       '恢复 Live16 MT5/EA dashboard writer，HFM Crypto 当前状态才可作为实时账号证据。',
     ),
     {
@@ -1937,9 +2091,19 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       区域: '主 MT5 Live12',
-      状态: snapshot.mt5SnapshotStale ? '快照过期' : snapshot.mt5SnapshotFreshness?.fresh ? '新鲜' : '待确认',
-      影响: snapshot.mt5SnapshotStale ? '外币/RSI 当前执行状态不可确认' : '可继续只读观察',
+      状态: snapshot.mt5HostProcessMissing
+        ? 'writer 未运行'
+        : snapshot.mt5SnapshotStale
+          ? '快照过期'
+          : snapshot.mt5SnapshotFreshness?.fresh
+            ? '新鲜'
+            : '待确认',
+      影响:
+        snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale
+          ? '外币/RSI 当前执行状态不可确认'
+          : '可继续只读观察',
       下一步:
+        (snapshot.mt5HostProcessMissing ? recovery.primaryProcessLine : '') ||
         snapshot.mt5SnapshotFreshness?.nextActionZh ||
         snapshot.mt5SnapshotFreshness?.nextAction ||
         recovery.primaryProcessLine ||
@@ -1947,15 +2111,19 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       区域: 'Live16 / HFM Crypto',
-      状态: snapshot.secondaryMt5SnapshotStale
-        ? '依赖快照过期'
-        : snapshot.secondaryMt5SnapshotFreshness?.fresh
-          ? '新鲜'
-          : '待确认',
-      影响: snapshot.secondaryMt5SnapshotStale
-        ? 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认'
-        : '可把 Live16 快照作为当前账号证据',
+      状态: snapshot.secondaryMt5HostProcessMissing
+        ? 'writer 未运行'
+        : snapshot.secondaryMt5SnapshotStale
+          ? '依赖快照过期'
+          : snapshot.secondaryMt5SnapshotFreshness?.fresh
+            ? '新鲜'
+            : '待确认',
+      影响:
+        snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale
+          ? 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认'
+          : '可把 Live16 快照作为当前账号证据',
       下一步:
+        (snapshot.secondaryMt5HostProcessMissing ? recovery.secondaryProcessLine : '') ||
         snapshot.secondaryMt5SnapshotFreshness?.nextActionZh ||
         snapshot.secondaryMt5SnapshotFreshness?.nextAction ||
         recovery.secondaryProcessLine ||
@@ -1990,43 +2158,54 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
 export function buildRuntimeItems(snapshot) {
   if (snapshot.latestDashboardStale) {
     const hint = dashboardFreshnessHint(snapshot);
+    const processMissing = snapshot.snapshotRecovery?.processMissing === true;
     return [
       {
         label: '运行状态',
-        value: '快照过期',
-        status: 'warn',
-        hint,
+        value: processMissing ? 'writer 未运行' : '快照过期',
+        status: processMissing ? 'blocked' : 'warn',
+        hint: processMissing ? snapshot.snapshotRecovery?.nextAction || hint : hint,
       },
       { label: '更新时间', value: snapshot.updatedAt, hint: 'MT5 dashboard 文件 mtime' },
       {
         label: '主 MT5 只读桥',
-        value: snapshot.mt5SnapshotStale
-          ? '快照过期'
-          : snapshot.mt5SnapshotFreshness?.fresh
-            ? '新鲜'
-            : '待确认',
-        status: snapshot.mt5SnapshotStale ? 'warn' : snapshot.mt5SnapshotFreshness?.fresh ? 'ok' : 'warn',
-        hint:
-          snapshot.mt5SnapshotFreshnessLine ||
-          snapshot.mt5SnapshotFreshness?.sourceFile ||
-          '等待 /api/mt5-readonly/snapshot 新鲜度',
+        value: mt5BridgeValue({
+          stale: snapshot.mt5SnapshotStale,
+          fresh: snapshot.mt5SnapshotFreshness?.fresh,
+          processMissing: snapshot.mt5HostProcessMissing,
+        }),
+        status: mt5BridgeStatus({
+          stale: snapshot.mt5SnapshotStale,
+          fresh: snapshot.mt5SnapshotFreshness?.fresh,
+          processMissing: snapshot.mt5HostProcessMissing,
+        }),
+        hint: mt5BridgeHint({
+          line: snapshot.mt5SnapshotFreshnessLine,
+          freshness: snapshot.mt5SnapshotFreshness,
+          processLine: snapshot.snapshotRecovery?.primaryProcessLine,
+          processMissing: snapshot.mt5HostProcessMissing,
+          fallback: '等待 /api/mt5-readonly/snapshot 新鲜度',
+        }),
       },
       {
         label: 'Live16 只读桥',
-        value: snapshot.secondaryMt5SnapshotStale
-          ? '快照过期'
-          : snapshot.secondaryMt5SnapshotFreshness?.fresh
-            ? '新鲜'
-            : '待确认',
-        status: snapshot.secondaryMt5SnapshotStale
-          ? 'warn'
-          : snapshot.secondaryMt5SnapshotFreshness?.fresh
-            ? 'ok'
-            : 'warn',
-        hint:
-          snapshot.secondaryMt5SnapshotFreshnessLine ||
-          snapshot.secondaryMt5SnapshotFreshness?.sourceFile ||
-          '等待 /api/mt5-readonly-secondary/snapshot 新鲜度',
+        value: mt5BridgeValue({
+          stale: snapshot.secondaryMt5SnapshotStale,
+          fresh: snapshot.secondaryMt5SnapshotFreshness?.fresh,
+          processMissing: snapshot.secondaryMt5HostProcessMissing,
+        }),
+        status: mt5BridgeStatus({
+          stale: snapshot.secondaryMt5SnapshotStale,
+          fresh: snapshot.secondaryMt5SnapshotFreshness?.fresh,
+          processMissing: snapshot.secondaryMt5HostProcessMissing,
+        }),
+        hint: mt5BridgeHint({
+          line: snapshot.secondaryMt5SnapshotFreshnessLine,
+          freshness: snapshot.secondaryMt5SnapshotFreshness,
+          processLine: snapshot.snapshotRecovery?.secondaryProcessLine,
+          processMissing: snapshot.secondaryMt5HostProcessMissing,
+          fallback: '等待 /api/mt5-readonly-secondary/snapshot 新鲜度',
+        }),
       },
       {
         label: 'USDJPY Live Loop',
@@ -2055,33 +2234,43 @@ export function buildRuntimeItems(snapshot) {
     { label: '更新时间', value: snapshot.updatedAt },
     {
       label: '主 MT5 只读桥',
-      value: snapshot.mt5SnapshotStale
-        ? '快照过期'
-        : snapshot.mt5SnapshotFreshness?.fresh
-          ? '新鲜'
-          : '待确认',
-      status: snapshot.mt5SnapshotStale ? 'warn' : snapshot.mt5SnapshotFreshness?.fresh ? 'ok' : 'warn',
-      hint:
-        snapshot.mt5SnapshotFreshnessLine ||
-        snapshot.mt5SnapshotFreshness?.sourceFile ||
-        '等待 /api/mt5-readonly/snapshot 新鲜度',
+      value: mt5BridgeValue({
+        stale: snapshot.mt5SnapshotStale,
+        fresh: snapshot.mt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.mt5HostProcessMissing,
+      }),
+      status: mt5BridgeStatus({
+        stale: snapshot.mt5SnapshotStale,
+        fresh: snapshot.mt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.mt5HostProcessMissing,
+      }),
+      hint: mt5BridgeHint({
+        line: snapshot.mt5SnapshotFreshnessLine,
+        freshness: snapshot.mt5SnapshotFreshness,
+        processLine: snapshot.snapshotRecovery?.primaryProcessLine,
+        processMissing: snapshot.mt5HostProcessMissing,
+        fallback: '等待 /api/mt5-readonly/snapshot 新鲜度',
+      }),
     },
     {
       label: 'Live16 只读桥',
-      value: snapshot.secondaryMt5SnapshotStale
-        ? '快照过期'
-        : snapshot.secondaryMt5SnapshotFreshness?.fresh
-          ? '新鲜'
-          : '待确认',
-      status: snapshot.secondaryMt5SnapshotStale
-        ? 'warn'
-        : snapshot.secondaryMt5SnapshotFreshness?.fresh
-          ? 'ok'
-          : 'warn',
-      hint:
-        snapshot.secondaryMt5SnapshotFreshnessLine ||
-        snapshot.secondaryMt5SnapshotFreshness?.sourceFile ||
-        '等待 /api/mt5-readonly-secondary/snapshot 新鲜度',
+      value: mt5BridgeValue({
+        stale: snapshot.secondaryMt5SnapshotStale,
+        fresh: snapshot.secondaryMt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+      }),
+      status: mt5BridgeStatus({
+        stale: snapshot.secondaryMt5SnapshotStale,
+        fresh: snapshot.secondaryMt5SnapshotFreshness?.fresh,
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+      }),
+      hint: mt5BridgeHint({
+        line: snapshot.secondaryMt5SnapshotFreshnessLine,
+        freshness: snapshot.secondaryMt5SnapshotFreshness,
+        processLine: snapshot.snapshotRecovery?.secondaryProcessLine,
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+        fallback: '等待 /api/mt5-readonly-secondary/snapshot 新鲜度',
+      }),
     },
     {
       label: 'USDJPY Live Loop',
@@ -2104,7 +2293,33 @@ export function buildRuntimeItems(snapshot) {
 
 export function buildDailyItems(snapshot) {
   const history = snapshot.historyProductionStatus || {};
-  const historyPass = history.promotionGateStatus === 'PASS' || history.status === 'PASS';
+  const historyStatus = String(history.status || '').toUpperCase();
+  const historyPromotionStatus = String(history.promotionGateStatus || '').toUpperCase();
+  const historyFreshnessStatus = String(history.historyFreshnessStatus || '').toUpperCase();
+  const historyBlocked = Boolean(
+    history.historyFreshnessBlocksPromotion ||
+      historyPromotionStatus === 'BLOCKED' ||
+      historyStatus === 'BLOCKED' ||
+      historyStatus === 'FAIL' ||
+      historyStatus === 'FAILED' ||
+      historyFreshnessStatus === 'HISTORY_FRESHNESS_BLOCKED' ||
+      historyFreshnessStatus === 'HISTORY_PRODUCTION_STATUS_MISSING',
+  );
+  const historyPass =
+    !historyBlocked &&
+    (historyPromotionStatus === 'PASS' ||
+      historyStatus === 'PASS' ||
+      historyFreshnessStatus === 'HISTORY_FRESHNESS_PASS');
+  const historyTimeframes = [...new Set([...toArray(history.failedTimeframes), ...toArray(history.staleTimeframes)])];
+  const historyHint = [
+    `晋级门 ${history.promotionGateStatus || (historyBlocked ? 'BLOCKED' : '等待')}`,
+    history.historyFreshnessStatus ? `freshness ${history.historyFreshnessStatus}` : '',
+    codeListLine(history.blockers),
+    historyTimeframes.length ? `周期 ${historyTimeframes.join('/')}` : '',
+    history.reasonZh || (!historyPass ? '未 PASS 时只允许 shadow/tester 观察' : ''),
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return [
     {
       label: '每日复盘',
@@ -2118,11 +2333,12 @@ export function buildDailyItems(snapshot) {
     },
     {
       label: 'GA 历史样本',
-      value: history.statusZh || history.status || '等待生产状态',
-      status: historyPass ? 'ok' : 'warn',
-      hint: `晋级门 ${history.promotionGateStatus || 'BLOCKED'} · ${
-        history.reasonZh || '未 PASS 时只允许 shadow/tester 观察'
-      }`,
+      value:
+        historyBlocked && history.historyFreshnessStatus
+          ? history.statusZh || '历史 freshness 阻断晋级'
+          : history.statusZh || history.status || '等待生产状态',
+      status: historyPass ? 'ok' : historyBlocked ? 'blocked' : 'warn',
+      hint: historyHint,
     },
     {
       label: '策略回测摘要',
