@@ -68,6 +68,8 @@ for (const marker of [
   'Case Memory 覆盖',
   'caseMemoryCoverage',
   'Case Memory 缺失分类',
+  '证据缺口',
+  'evidenceGapZh',
   'coverage',
   'collectionEndpoint',
   'targetCount',

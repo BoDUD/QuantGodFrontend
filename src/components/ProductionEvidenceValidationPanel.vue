@@ -64,6 +64,7 @@
           <span role="columnheader">优先级</span>
           <span role="columnheader">状态</span>
           <span role="columnheader">样本缺口</span>
+          <span role="columnheader">证据缺口</span>
           <span role="columnheader">来源</span>
           <span role="columnheader">下一步</span>
         </div>
@@ -77,6 +78,7 @@
           <span role="cell">{{ row.priority }}</span>
           <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
           <span role="cell">{{ row.observedCount }} / {{ row.targetCount }}</span>
+          <span role="cell">{{ row.evidenceGapZh || row.sourceGapStatus || '—' }}</span>
           <span role="cell">{{ row.collectionEndpoint || row.source }}</span>
           <span role="cell">{{ row.nextActionZh }}</span>
         </div>
@@ -130,6 +132,8 @@ const caseMemoryRows = computed(() => {
     observedCount: row.observedCount ?? 0,
     targetCount: row.targetCount ?? 1,
     remainingCount: row.remainingCount ?? 0,
+    evidenceGapZh: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '',
+    sourceGapStatus: row.sourceGap?.status || '',
     source: row.source || 'Case Memory evidence',
     collectionEndpoint: row.collectionEndpoint || '',
     acceptanceZh: row.acceptanceZh || '',
@@ -291,10 +295,9 @@ onMounted(load);
 .production-evidence-mini-table__head,
 .production-evidence-mini-table__row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(72px, 0.5fr) minmax(80px, 0.6fr) minmax(
-      72px,
-      0.5fr
-    ) minmax(180px, 1.4fr) minmax(220px, 2fr);
+  grid-template-columns:
+    minmax(120px, 1fr) minmax(72px, 0.5fr) minmax(80px, 0.6fr) minmax(72px, 0.5fr)
+    minmax(220px, 1.8fr) minmax(180px, 1.4fr) minmax(220px, 2fr);
   gap: 8px;
   align-items: start;
   padding: 8px 10px;

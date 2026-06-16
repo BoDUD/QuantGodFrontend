@@ -726,6 +726,38 @@ describe('dashboardModel', () => {
               },
             ],
           },
+          caseMemoryCoverage: {
+            missingRows: [
+              {
+                category: 'BAD_ENTRY',
+                status: 'MISSING',
+                priority: 'HIGH',
+                observedCount: 0,
+                targetCount: 3,
+                collectionEndpoint: '/api/usdjpy-strategy-lab/evidence-os/execution-feedback',
+                evidenceGapZh: 'bad-entry replay 缺 entryContext，不能证明坏入场。',
+                sourceGap: {
+                  status: 'WAITING_ENTRY_CONTEXT',
+                  evidenceGapZh: 'bad-entry replay 缺 entryContext，不能证明坏入场。',
+                },
+                nextActionZh: '收集带 entryContext 的坏入场样本。',
+              },
+              {
+                category: 'GA_OVERFIT',
+                status: 'MISSING',
+                priority: 'HIGH',
+                observedCount: 0,
+                targetCount: 2,
+                collectionEndpoint: '/api/usdjpy-strategy-lab/ga/blockers',
+                evidenceGapZh: 'GA walk-forward 尚未证明 train/forward 失配。',
+                sourceGap: {
+                  status: 'WAITING_WALK_FORWARD_DELTA',
+                  evidenceGapZh: 'GA walk-forward 尚未证明 train/forward 失配。',
+                },
+                nextActionZh: '补齐 GA blocker 与 walk-forward 失效样本。',
+              },
+            ],
+          },
         },
       },
     };
@@ -765,6 +797,9 @@ describe('dashboardModel', () => {
     expect(snapshot.coreRuntimeEvidence.detailLine).toContain('CopyRates STALE');
     expect(snapshot.coreRuntimeEvidence.detailLine).toContain('周期 M1/M5/M15/H1');
     expect(snapshot.coreRuntimeEvidence.detailLine).toContain('Case Memory 缺 BAD_ENTRY/GA_OVERFIT');
+    expect(snapshot.coreRuntimeEvidence.detailLine).toContain(
+      'BAD_ENTRY: bad-entry replay 缺 entryContext，不能证明坏入场。',
+    );
     expect(metric.hint).toContain('按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT');
     expect(recoveryItem).toMatchObject({
       value: '晋级阻断',
@@ -791,6 +826,10 @@ describe('dashboardModel', () => {
       任务: 'Case Memory BAD_ENTRY',
       状态: 'MISSING_CATEGORY',
       优先级: 'HIGH',
+      源缺口状态: 'WAITING_ENTRY_CONTEXT',
+      证据缺口: 'bad-entry replay 缺 entryContext，不能证明坏入场。',
+      下一步:
+        'bad-entry replay 缺 entryContext，不能证明坏入场；随后 补齐 Case Memory BAD_ENTRY 样本；只允许 shadow/tester/read-only 证据。',
     });
     expect(sourceRow).toMatchObject({
       状态: '晋级阻断',

@@ -869,6 +869,51 @@ function productionEvidenceReport(raw = {}) {
   return candidates.find((candidate) => isObject(candidate)) || {};
 }
 
+function caseMemoryCoverageFromReport(report = {}) {
+  const coverage = isObject(report?.caseMemoryCoverage) ? report.caseMemoryCoverage : {};
+  const plan = isObject(coverage.coveragePlan) ? coverage.coveragePlan : {};
+  const rows = [
+    ...rowsFromObjectList(coverage.nextCollectionQueue),
+    ...rowsFromObjectList(coverage.missingRows),
+    ...rowsFromObjectList(plan.nextCollectionQueue),
+    ...rowsFromObjectList(plan.rows),
+    ...rowsFromObjectList(coverage.rows),
+  ];
+  const byCategory = new Map();
+  rows.forEach((row) => {
+    const category = row?.category;
+    if (!category || byCategory.has(category)) return;
+    byCategory.set(category, row);
+  });
+  return { coverage, rows, byCategory };
+}
+
+function enrichCaseMemoryRecoveryRow(row = {}, byCategory = new Map()) {
+  if (!row.category || !byCategory.has(row.category)) return row;
+  const sourceRow = byCategory.get(row.category);
+  const sourceGap = isObject(row.sourceGap)
+    ? row.sourceGap
+    : isObject(sourceRow.sourceGap)
+      ? sourceRow.sourceGap
+      : {};
+  return {
+    ...sourceRow,
+    ...row,
+    priority: row.priority || sourceRow.priority,
+    status: row.status || sourceRow.status,
+    collectionEndpoint: row.collectionEndpoint || sourceRow.collectionEndpoint,
+    source: row.source || sourceRow.source,
+    sourceArtifacts: row.sourceArtifacts || sourceRow.sourceArtifacts,
+    observedCount: row.observedCount ?? sourceRow.observedCount,
+    targetCount: row.targetCount ?? sourceRow.targetCount,
+    remainingCount: row.remainingCount ?? sourceRow.remainingCount,
+    evidenceGapZh: row.evidenceGapZh || sourceRow.evidenceGapZh || sourceGap.evidenceGapZh || '',
+    sourceGap,
+    nextActionZh: row.nextActionZh || sourceRow.nextActionZh,
+    acceptanceZh: row.acceptanceZh || sourceRow.acceptanceZh,
+  };
+}
+
 function coreRuntimeEvidenceIntegrity(raw = {}) {
   const report = productionEvidenceReport(raw);
   const candidates = [
@@ -898,9 +943,18 @@ function promotionRecoveryTaskLabel(row = {}) {
   return row.kind || row.artifactId || 'Promotion recovery';
 }
 
-function coreEvidencePromotionRecoveryQueue(core = {}, historyGate = {}, caseGate = {}) {
+function coreEvidencePromotionRecoveryQueue(
+  core = {},
+  historyGate = {},
+  caseGate = {},
+  caseMemoryCoverage = {},
+) {
+  const caseRowsByCategory =
+    caseMemoryCoverage.byCategory instanceof Map ? caseMemoryCoverage.byCategory : new Map();
   const direct = rowsFromObjectList(core.promotionRecoveryQueue);
-  if (direct.length) return direct;
+  if (direct.length) {
+    return direct.map((row) => enrichCaseMemoryRecoveryRow(row, caseRowsByCategory));
+  }
   const directHistoryRows = rowsFromObjectList(historyGate.freshnessRecoveryQueue)
     .filter((row) => row?.passed !== true || String(row?.status || '').toUpperCase() !== 'PASS')
     .map((row) => ({
@@ -939,18 +993,24 @@ function coreEvidencePromotionRecoveryQueue(core = {}, historyGate = {}, caseGat
         }));
   const caseRows = toArray(caseGate.missingCategories)
     .filter(Boolean)
-    .map((category) => ({
-      kind: 'case_memory_category',
-      artifactId: 'caseMemoryArtifactManifest',
-      category,
-      status: 'MISSING_CATEGORY',
-      priority: 'HIGH',
-      nextActionZh: `补齐 Case Memory ${category} 样本；只允许 shadow/tester/read-only 证据。`,
-    }));
+    .map((category) =>
+      enrichCaseMemoryRecoveryRow(
+        {
+          kind: 'case_memory_category',
+          artifactId: 'caseMemoryArtifactManifest',
+          category,
+          status: 'MISSING_CATEGORY',
+          priority: 'HIGH',
+          nextActionZh: `补齐 Case Memory ${category} 样本；只允许 shadow/tester/read-only 证据。`,
+        },
+        caseRowsByCategory,
+      ),
+    );
   return [...historyRows, ...caseRows];
 }
 
 function coreRuntimeEvidenceGate(raw = {}) {
+  const report = productionEvidenceReport(raw);
   const core = coreRuntimeEvidenceIntegrity(raw);
   if (!present(core)) return {};
   const integrityStatus = String(core.status || '').toUpperCase();
@@ -964,6 +1024,7 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const history = artifacts.find((row) => row.artifactId === 'historyProductionStatus') || {};
   const caseGate = isObject(caseMemory.promotionGate) ? caseMemory.promotionGate : {};
   const historyGate = isObject(history.promotionGate) ? history.promotionGate : {};
+  const caseMemoryCoverage = caseMemoryCoverageFromReport(report);
   const copyRatesFreshness = isObject(historyGate.copyRatesExportFreshness)
     ? historyGate.copyRatesExportFreshness
     : {};
@@ -972,8 +1033,19 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const staleTimeframes = Object.entries(historyGate.timeframes || {})
     .filter(([, row]) => row?.freshnessOk === false || row?.passed === false)
     .map(([timeframe]) => timeframe);
-  const promotionRecoveryQueue = coreEvidencePromotionRecoveryQueue(core, historyGate, caseGate);
+  const promotionRecoveryQueue = coreEvidencePromotionRecoveryQueue(
+    core,
+    historyGate,
+    caseGate,
+    caseMemoryCoverage,
+  );
   const recoveryQueueLine = promotionRecoveryQueueLine(promotionRecoveryQueue);
+  const evidenceGapLine = codeListLine(
+    promotionRecoveryQueue
+      .filter((row) => row.category && (row.evidenceGapZh || row.sourceGap?.evidenceGapZh))
+      .map((row) => `${row.category}: ${row.evidenceGapZh || row.sourceGap?.evidenceGapZh}`),
+    3,
+  );
   const integrityOk = core.ok !== false && integrityStatus === 'PASS' && integrityBlockers.length === 0;
   const promotionBlocked = Boolean(
     promotionStatus === 'BLOCKED' ||
@@ -990,6 +1062,7 @@ function coreRuntimeEvidenceGate(raw = {}) {
     recoveryQueueLine ? `恢复队列 ${recoveryQueueLine}` : '',
     copyRatesLine,
     missingCategories.length ? `Case Memory 缺 ${missingCategories.join('/')}` : '',
+    evidenceGapLine ? `源证据缺口 ${evidenceGapLine}` : '',
     staleTimeframes.length ? `历史 freshness 过期 ${staleTimeframes.join('/')}` : '',
   ].filter(Boolean);
   return {
@@ -1007,6 +1080,7 @@ function coreRuntimeEvidenceGate(raw = {}) {
     detailLine: detailParts.join('；') || core.nextActionZh || core.statusZh || '',
     missingCategories,
     staleTimeframes,
+    caseMemoryEvidenceGapLine: evidenceGapLine,
     copyRatesExportFreshness: copyRatesFreshness,
     promotionRecoveryQueue,
     promotionRecoveryQueueCount: promotionRecoveryQueue.length,
@@ -2655,6 +2729,8 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
     任务: promotionRecoveryTaskLabel(row),
     状态: row.status || '待处理',
     优先级: row.priority || 'PENDING',
+    源缺口状态: row.sourceGap?.status || '—',
+    证据缺口: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '—',
     CopyRates: row.copyRatesExportFreshnessStatus || (row.copyRatesExportStale ? 'STALE' : '—'),
     导出延迟: row.copyRatesExportGeneratedLagHours
       ? formatHourValue(row.copyRatesExportGeneratedLagHours)
@@ -2668,6 +2744,7 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
       'runtime evidence',
     下一步: chainedActionLine([
       row.copyRatesExportNextActionZh,
+      row.evidenceGapZh || row.sourceGap?.evidenceGapZh,
       row.nextActionZh || '继续只读补齐晋级证据。',
     ]),
     验收: row.acceptanceZh || '恢复后重新运行 production evidence / runtime evidence integrity。',
