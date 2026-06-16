@@ -8,6 +8,7 @@ import {
   buildDailyItems,
   buildEndpointHealth,
   buildRuntimeSourceDiagnosticRows,
+  buildSnapshotRootCauseBanner,
   buildSnapshotRecoveryItems,
   buildSnapshotRecoveryRows,
   buildFrontendSnapshotRecoveryRows,
@@ -294,6 +295,7 @@ describe('dashboardModel', () => {
     const liveLoopHealth = buildEndpointHealth(raw).find(
       (item) => item.endpoint === '/api/usdjpy-strategy-lab/live-loop',
     );
+    const rootCause = buildSnapshotRootCauseBanner(snapshot);
 
     expect(snapshot.snapshotRecovery).toMatchObject({
       status: 'blocked',
@@ -311,6 +313,17 @@ describe('dashboardModel', () => {
       status: 'blocked',
       statusLabel: '运行快照严重过期',
     });
+    expect(rootCause).toMatchObject({
+      status: 'blocked',
+      label: 'MT5/EA dashboard writer 未运行',
+      title: '真实账号快照不能当作当前状态',
+    });
+    expect(rootCause.rootCauseLine).toContain('Live12 MT5/EA writer 未运行');
+    expect(rootCause.rootCauseLine).toContain('Live16 MT5/EA writer 未运行');
+    expect(rootCause.rootCauseLine).toContain('USDJPY live-loop 运行快照严重过期');
+    expect(rootCause.blockedLine).toContain('当前账户/净值/持仓/执行状态');
+    expect(rootCause.usableLine).toContain('HFM Crypto shadow/spec/Moss 研究证据');
+    expect(rootCause.usableLine).toContain('模拟收益目标证据');
     expect(sourceRows.find((row) => row.数据源 === 'USDJPY Live Loop')).toMatchObject({
       状态: '严重过期',
       源文件: '/tmp/runtime/QuantGod_MT5RuntimeSnapshot_USDJPYc.json',

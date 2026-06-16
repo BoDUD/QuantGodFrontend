@@ -7,6 +7,29 @@
     :error="error"
     @refresh="load"
   >
+    <section class="qg-snapshot-root-cause" :class="`qg-snapshot-root-cause--${snapshotRootCause.status}`">
+      <div class="qg-snapshot-root-cause__main">
+        <p class="qg-eyebrow">全局快照根因</p>
+        <h2>{{ snapshotRootCause.title }}</h2>
+        <p>{{ snapshotRootCause.rootCauseLine }}</p>
+      </div>
+      <StatusPill :status="snapshotRootCause.status" :label="snapshotRootCause.label" />
+      <div class="qg-snapshot-root-cause__grid">
+        <span>
+          <strong>当前不可直接信任</strong>
+          {{ snapshotRootCause.blockedLine }}
+        </span>
+        <span>
+          <strong>仍可继续复核</strong>
+          {{ snapshotRootCause.usableLine }}
+        </span>
+        <span>
+          <strong>下一步</strong>
+          {{ snapshotRootCause.nextAction }}
+        </span>
+      </div>
+    </section>
+
     <MetricGrid :items="metrics" />
     <EndpointHealthGrid :items="endpointHealth" />
 
@@ -366,6 +389,7 @@ import {
   buildDashboardMetrics,
   buildEndpointHealth,
   buildRuntimeSourceDiagnosticRows,
+  buildSnapshotRootCauseBanner,
   buildSnapshotRecoveryItems,
   buildSnapshotRecoveryRows,
   buildFrontendSnapshotRecoveryRows,
@@ -432,6 +456,7 @@ const snapshot = computed(() => normalizeDashboardSnapshot(state));
 const metrics = computed(() => buildDashboardMetrics(snapshot.value));
 const endpointHealth = computed(() => buildEndpointHealth(state));
 const runtimeSourceRows = computed(() => buildRuntimeSourceDiagnosticRows(state));
+const snapshotRootCause = computed(() => buildSnapshotRootCauseBanner(snapshot.value));
 const snapshotRecoveryItems = computed(() => buildSnapshotRecoveryItems(snapshot.value));
 const snapshotRecoveryRows = computed(() => buildSnapshotRecoveryRows(snapshot.value));
 const frontendSnapshotRecoveryRows = computed(() => buildFrontendSnapshotRecoveryRows(snapshot.value));
@@ -510,6 +535,65 @@ onBeforeUnmount(abortLoad);
 </script>
 
 <style scoped>
+.qg-snapshot-root-cause {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid rgba(255, 184, 77, 0.28);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 184, 77, 0.13), rgba(15, 23, 42, 0.82));
+}
+
+.qg-snapshot-root-cause--ok {
+  border-color: rgba(51, 217, 154, 0.28);
+  background: linear-gradient(135deg, rgba(51, 217, 154, 0.1), rgba(15, 23, 42, 0.82));
+}
+
+.qg-snapshot-root-cause--blocked {
+  border-color: rgba(255, 107, 134, 0.34);
+  background: linear-gradient(135deg, rgba(255, 107, 134, 0.12), rgba(15, 23, 42, 0.82));
+}
+
+.qg-snapshot-root-cause__main {
+  min-width: 0;
+}
+
+.qg-snapshot-root-cause__main h2 {
+  font-size: 1.15rem;
+}
+
+.qg-snapshot-root-cause__main p:last-child {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.qg-snapshot-root-cause__grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.qg-snapshot-root-cause__grid span {
+  min-width: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  line-height: 1.42;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(129, 151, 178, 0.18);
+  border-radius: 8px;
+}
+
+.qg-snapshot-root-cause__grid strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
 .qg-dashboard-fast-lanes__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -541,5 +625,12 @@ onBeforeUnmount(abortLoad);
 .qg-dashboard-fast-lanes__card strong {
   overflow-wrap: anywhere;
   color: var(--qg-text);
+}
+
+@media (width <= 720px) {
+  .qg-snapshot-root-cause,
+  .qg-snapshot-root-cause__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

@@ -486,6 +486,19 @@ function mt5BridgeHint({ line, freshness = {}, processLine = '', processMissing 
   return line || freshness.sourceFile || fallback;
 }
 
+function recoveryActionLine({ processMissing = false, processLine = '', freshness = {}, fallback = '' }) {
+  const action = freshness.nextActionZh || freshness.nextAction || fallback;
+  if (processMissing) {
+    return [
+      processLine || '未检测到 terminal64/wine 进程',
+      action || '恢复对应 MT5 终端和 EA dashboard writer。',
+    ]
+      .filter(Boolean)
+      .join('；');
+  }
+  return action || processLine || fallback;
+}
+
 function formatIsoMinute(value) {
   if (!value) return '—';
   const parsed = new Date(value);
@@ -2212,6 +2225,48 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
   ];
 }
 
+export function buildSnapshotRootCauseBanner(snapshot = {}) {
+  const recovery = snapshot.snapshotRecovery || {};
+  const rootCauses = [];
+  if (snapshot.mt5HostProcessMissing) {
+    rootCauses.push('Live12 MT5/EA writer 未运行');
+  } else if (snapshot.mt5SnapshotStale) {
+    rootCauses.push('Live12 快照过期');
+  }
+  if (snapshot.secondaryMt5HostProcessMissing) {
+    rootCauses.push('Live16 MT5/EA writer 未运行');
+  } else if (snapshot.secondaryMt5SnapshotStale) {
+    rootCauses.push('Live16 快照过期');
+  }
+  if (snapshot.usdJpyLiveLoopStale) rootCauses.push('USDJPY live-loop 运行快照严重过期');
+  if (snapshot.latestDashboardStale && !rootCauses.length) rootCauses.push('总览 dashboard 快照过期');
+  const realtimeBlocked = recovery.realtimeUsable !== true;
+  const status = realtimeBlocked ? (recovery.processMissing ? 'blocked' : 'warn') : 'ok';
+  const blockedScopes = [];
+  if (realtimeBlocked) blockedScopes.push('当前账户/净值/持仓/执行状态');
+  if (snapshot.usdJpyLiveLoopStale) blockedScopes.push('USDJPY live-loop 当前闭环');
+  if (snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale) {
+    blockedScopes.push('Live16 当前账号与 crypto tick 权限');
+  }
+  const stillUsable = [];
+  if (recovery.hfmShadowUsable) stillUsable.push('HFM Crypto shadow/spec/Moss 研究证据');
+  if (present(snapshot.productionEvidenceValidation) || present(snapshot.coreRuntimeEvidence)) {
+    stillUsable.push('production evidence / GA 只读复核');
+  }
+  if (present(snapshot.profitTarget)) stillUsable.push('模拟收益目标证据');
+  return {
+    status,
+    label: recovery.label || (realtimeBlocked ? '实时快照不可用' : '实时快照新鲜'),
+    title: realtimeBlocked ? '真实账号快照不能当作当前状态' : '真实账号快照可用于当前状态',
+    rootCauseLine: rootCauses.length ? rootCauses.join(' / ') : '未发现 MT5 writer 或 freshness 阻断。',
+    blockedLine: blockedScopes.length ? blockedScopes.join(' / ') : '无当前状态阻断。',
+    usableLine: stillUsable.length ? stillUsable.join(' / ') : '等待研究证据同步。',
+    nextAction:
+      recovery.nextAction ||
+      '恢复对应 MT5 终端和 EA dashboard writer，直到 /api/latest 与两个 MT5 只读桥返回 fresh。',
+  };
+}
+
 export function buildSnapshotRecoveryRows(snapshot = {}) {
   const recovery = snapshot.snapshotRecovery || {};
   return [
@@ -2236,12 +2291,12 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale
           ? '外币/RSI 当前执行状态不可确认'
           : '可继续只读观察',
-      下一步:
-        (snapshot.mt5HostProcessMissing ? recovery.primaryProcessLine : '') ||
-        snapshot.mt5SnapshotFreshness?.nextActionZh ||
-        snapshot.mt5SnapshotFreshness?.nextAction ||
-        recovery.primaryProcessLine ||
-        '等待主账号只读桥',
+      下一步: recoveryActionLine({
+        processMissing: snapshot.mt5HostProcessMissing,
+        processLine: recovery.primaryProcessLine,
+        freshness: snapshot.mt5SnapshotFreshness,
+        fallback: '等待主账号只读桥',
+      }),
     },
     {
       区域: 'Live16 / HFM Crypto',
@@ -2256,12 +2311,12 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale
           ? 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认'
           : '可把 Live16 快照作为当前账号证据',
-      下一步:
-        (snapshot.secondaryMt5HostProcessMissing ? recovery.secondaryProcessLine : '') ||
-        snapshot.secondaryMt5SnapshotFreshness?.nextActionZh ||
-        snapshot.secondaryMt5SnapshotFreshness?.nextAction ||
-        recovery.secondaryProcessLine ||
-        '等待 Live16 只读桥',
+      下一步: recoveryActionLine({
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+        processLine: recovery.secondaryProcessLine,
+        freshness: snapshot.secondaryMt5SnapshotFreshness,
+        fallback: '等待 Live16 只读桥',
+      }),
     },
     {
       区域: 'USDJPY live-loop',
@@ -2328,11 +2383,12 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
       状态: primaryBlocked ? (snapshot.mt5HostProcessMissing ? 'writer 未运行' : '快照过期') : '主账号快照新鲜',
       可信范围: primaryBlocked ? '外币/RSI 当前账号状态不可确认' : '可继续只读观察 Live12 当前账号状态',
       修复优先级: primaryBlocked ? 'P0' : 'OK',
-      下一步:
-        (snapshot.mt5HostProcessMissing ? recovery.primaryProcessLine : '') ||
-        snapshot.mt5SnapshotFreshness?.nextActionZh ||
-        snapshot.mt5SnapshotFreshness?.nextAction ||
-        '恢复主账号 MT5/EA dashboard writer。',
+      下一步: recoveryActionLine({
+        processMissing: snapshot.mt5HostProcessMissing,
+        processLine: recovery.primaryProcessLine,
+        freshness: snapshot.mt5SnapshotFreshness,
+        fallback: '恢复主账号 MT5/EA dashboard writer。',
+      }),
     },
     {
       前端区域: 'HFM Crypto 工作台',
@@ -2343,12 +2399,12 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
         ? 'Crypto symbol、spec、Moss/backtest 证据可读；BTC/crypto 当前账号、tick、权限不可确认'
         : '可把 Live16 快照作为当前账号证据，但仍保持 shadow-only 安全边界',
       修复优先级: live16Blocked ? 'P0' : 'OK',
-      下一步:
-        (snapshot.secondaryMt5HostProcessMissing ? recovery.secondaryProcessLine : '') ||
-        snapshot.secondaryMt5SnapshotFreshness?.nextActionZh ||
-        snapshot.secondaryMt5SnapshotFreshness?.nextAction ||
-        recovery.hfmLine ||
-        '恢复 Live16 MT5/EA dashboard writer。',
+      下一步: recoveryActionLine({
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+        processLine: recovery.secondaryProcessLine,
+        freshness: snapshot.secondaryMt5SnapshotFreshness,
+        fallback: recovery.hfmLine || '恢复 Live16 MT5/EA dashboard writer。',
+      }),
     },
     {
       前端区域: 'USDJPY Live Loop',

@@ -64,6 +64,9 @@ function checkDashboardWorkspace(root) {
     '/api/live-automation/forex-live12-runtime-handoff?scope=secondary',
     'buildReleaseGateRows',
     '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5"',
+    '全局快照根因',
+    'buildSnapshotRootCauseBanner',
+    'snapshotRootCause',
     '整体前端诊断',
     '快照过期影响哪些页面',
     'buildFrontendSnapshotRecoveryRows',
@@ -95,6 +98,7 @@ function checkDashboardModel(root) {
     'buildAgentOpsRows',
     'buildRouteRows',
     'buildChampionMemoryItems',
+    'buildSnapshotRootCauseBanner',
     'buildFrontendSnapshotRecoveryRows',
   ]) {
     if (!text.includes(`export function ${exportedName}`)) {
