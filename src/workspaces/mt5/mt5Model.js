@@ -1574,9 +1574,11 @@ export function buildMt5SnapshotRecoveryRows(snapshot = {}) {
       账户: accountRecoveryLabel(account),
       端点: recovery.endpoint,
       状态: recovery.state,
+      打开页面: '/vue/?workspace=mt5',
       可信范围: recovery.blocksCurrentState
         ? '当前净值、余额、持仓、挂单和 EA 权限不可确认；旧快照只作历史参考。'
         : '可把只读桥快照作为当前账号状态。',
+      验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
       下一步: recovery.nextStep,
     };
   });

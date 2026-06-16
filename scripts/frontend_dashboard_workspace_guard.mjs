@@ -67,6 +67,8 @@ function checkDashboardWorkspace(root) {
     '全局快照根因',
     'buildSnapshotRootCauseBanner',
     'snapshotRootCause',
+    'snapshotRootCause.recoveryPathLine',
+    '修复入口',
     '整体前端诊断',
     '快照过期影响哪些页面',
     'buildFrontendSnapshotRecoveryRows',

@@ -214,26 +214,35 @@ function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, 
   return [
     {
       区域: 'Live16 当前账号快照',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: snapshotState,
       可信范围:
         blocked
           ? '当前账号、BTC/crypto tick、持仓和执行准备度不可确认；旧快照只作历史参考。'
           : '可把 Live16 只读桥快照作为当前账号证据。',
+      验收标准: 'Live16 只读桥 fresh=true，terminal64/wine 进程存在。',
       下一步: snapshotAction,
     },
     {
       区域: 'HFM Crypto symbol/spec',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/hfm-crypto/status?view=summary&scope=secondary',
       状态: options.specsEvidenceReady ? '研究证据可用' : '等待 specs 证据',
       可信范围:
         options.specsEvidenceReady || options.symbolEvidenceCount
           ? 'symbol/spec/Moss/backtest 证据仍可用于 shadow 研究；不能替代当前账号快照。'
           : '需要 Live16 specs 或 broker symbol 证据后再评估 crypto CFD 车道。',
+      验收标准: 'symbol/spec/Moss/backtest 证据可读；当前账号状态仍必须依赖 Live16 fresh。',
       下一步: options.standaloneExporterNextAction || '刷新 HFM Crypto specs/exporter 证据。',
     },
     {
       区域: 'Sim-to-live 执行闸门',
+      打开页面: '/vue/?workspace=dashboard',
+      核对端点: '/api/profit-target/status?scope=secondary&targetUsd=50 + /api/live-automation/*',
       状态: options.targetExecutionConclusion || '等待 profit-target 证据',
       可信范围: '只展示审查状态，不写 MT5 request/receipt，不调用 broker。',
+      验收标准: '只读 readiness/token/request-contract 证据完整；此页面仍不释放实盘执行。',
       下一步: options.executionGateHint || '继续只读复核 release token、execution mode 和 request contract。',
     },
   ];

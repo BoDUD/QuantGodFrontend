@@ -24,6 +24,10 @@
           {{ snapshotRootCause.usableLine }}
         </span>
         <span>
+          <strong>修复入口</strong>
+          {{ snapshotRootCause.recoveryPathLine }}
+        </span>
+        <span>
           <strong>下一步</strong>
           {{ snapshotRootCause.nextAction }}
         </span>

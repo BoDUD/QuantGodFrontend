@@ -62,7 +62,10 @@ describe('hfmCryptoModel', () => {
     expect(model.snapshotRootCause.blockedLine).toContain('BTC/crypto tick');
     expect(model.tables.mt5RecoveryRows[0]).toMatchObject({
       区域: 'Live16 当前账号快照',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: 'writer 未运行',
+      验收标准: 'Live16 只读桥 fresh=true，terminal64/wine 进程存在。',
     });
     expect(model.tables.mt5RecoveryRows[0].下一步).toContain('确认对应 HFM/MT5 终端正在运行');
     expect(model.tables.mt5RecoveryRows[0].可信范围).toContain('旧快照只作历史参考');

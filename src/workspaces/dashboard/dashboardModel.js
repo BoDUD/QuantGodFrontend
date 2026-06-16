@@ -2363,6 +2363,19 @@ export function buildSnapshotRootCauseBanner(snapshot = {}) {
     stillUsable.push('production evidence / GA 只读复核');
   }
   if (present(snapshot.profitTarget)) stillUsable.push('模拟收益目标证据');
+  const recoveryPath = [];
+  if (snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale || snapshot.latestDashboardStale) {
+    recoveryPath.push('MT5 工作台 /vue/?workspace=mt5');
+  }
+  if (snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale) {
+    recoveryPath.push('HFM Crypto 工作台 /vue/?workspace=hfm-crypto');
+  }
+  if (snapshot.usdJpyLiveLoopStale) {
+    recoveryPath.push('MT5 工作台的 USDJPY Live Loop');
+  }
+  if (snapshot.coreRuntimeEvidence?.promotionBlocked) {
+    recoveryPath.push('Dashboard/Evolution 的核心证据恢复队列');
+  }
   return {
     status,
     label: recovery.label || (realtimeBlocked ? '实时快照不可用' : '实时快照新鲜'),
@@ -2370,6 +2383,9 @@ export function buildSnapshotRootCauseBanner(snapshot = {}) {
     rootCauseLine: rootCauses.length ? rootCauses.join(' / ') : '未发现 MT5 writer 或 freshness 阻断。',
     blockedLine: blockedScopes.length ? blockedScopes.join(' / ') : '无当前状态阻断。',
     usableLine: stillUsable.length ? stillUsable.join(' / ') : '等待研究证据同步。',
+    recoveryPathLine: recoveryPath.length
+      ? recoveryPath.join(' → ')
+      : 'Dashboard 首页、MT5 工作台和 HFM Crypto 工作台只读复核即可。',
     nextAction:
       recovery.nextAction ||
       '恢复对应 MT5 终端和 EA dashboard writer，直到 /api/latest 与两个 MT5 只读桥返回 fresh。',
@@ -2381,14 +2397,19 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
   return [
     {
       区域: '总览账户/持仓',
+      打开页面: '/vue/?workspace=dashboard',
+      核对端点: '/api/latest + 两个 MT5 只读桥',
       状态: recovery.realtimeUsable ? '可读当前状态' : '实时状态不可确认',
       影响: recovery.realtimeUsable
         ? '净值、持仓、执行状态可以按当前快照展示'
         : '净值、持仓、执行状态只能作为历史参考',
+      验收标准: 'latest/Live12/Live16 均返回 fresh，且 writer 进程被检测到。',
       下一步: recovery.nextAction || '等待新鲜 MT5 dashboard',
     },
     {
       区域: '主 MT5 Live12',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/mt5-readonly/snapshot',
       状态: snapshot.mt5HostProcessMissing
         ? 'writer 未运行'
         : snapshot.mt5SnapshotStale
@@ -2400,6 +2421,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale
           ? '外币/RSI 当前执行状态不可确认'
           : '可继续只读观察',
+      验收标准: '主账号只读桥 fresh=true，terminal64/wine 进程存在。',
       下一步: recoveryActionLine({
         processMissing: snapshot.mt5HostProcessMissing,
         processLine: recovery.primaryProcessLine,
@@ -2409,6 +2431,8 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       区域: 'Live16 / HFM Crypto',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: snapshot.secondaryMt5HostProcessMissing
         ? 'writer 未运行'
         : snapshot.secondaryMt5SnapshotStale
@@ -2420,6 +2444,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale
           ? 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认'
           : '可把 Live16 快照作为当前账号证据',
+      验收标准: 'Live16 只读桥 fresh=true，BTC/crypto tick 再作为当前账号证据。',
       下一步: recoveryActionLine({
         processMissing: snapshot.secondaryMt5HostProcessMissing,
         processLine: recovery.secondaryProcessLine,
@@ -2429,6 +2454,8 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       区域: 'USDJPY live-loop',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/usdjpy-strategy-lab/live-loop',
       状态: snapshot.usdJpyLiveLoopStale
         ? '依赖运行快照严重过期'
         : snapshot.usdJpyLiveLoopFreshness?.fresh
@@ -2437,6 +2464,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
       影响: snapshot.usdJpyLiveLoopStale
         ? '策略闭环仍可给出诊断，但不能替代当前 MT5 账号快照'
         : '可辅助判断 USDJPY RSI 路线和入场阻断',
+      验收标准: 'live-loop runtime freshness 不再 HARD_STALE。',
       下一步:
         snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
         snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
@@ -2444,20 +2472,26 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       区域: 'HFM Crypto shadow',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/hfm-crypto/status?view=summary&scope=secondary',
       状态: recovery.hfmShadowUsable ? '研究证据可用' : '等待研究证据',
       影响: recovery.hfmShadowUsable
         ? 'symbol/spec/Moss/backtest 证据仍可看；不能替代当前账号快照'
         : '无法判断 crypto CFD 研究状态',
+      验收标准: 'symbol/spec/Moss 证据可读；若要看当前账号状态仍必须等待 Live16 fresh。',
       下一步: recovery.hfmLine || '刷新 HFM Crypto 状态',
     },
     ...(present(snapshot.coreRuntimeEvidence)
       ? [
           {
             区域: 'Core evidence / GA 晋级',
+            打开页面: '/vue/?workspace=dashboard 或 /vue/?workspace=evolution',
+            核对端点: '/api/production-evidence-validation/status',
             状态: snapshot.coreRuntimeEvidence.value,
             影响: snapshot.coreRuntimeEvidence.promotionBlocked
               ? '核心文件可以完整，但 GA/champion 晋级仍被 freshness 或 Case Memory 样本类型阻断'
               : '核心证据完整性与晋级门均通过',
+            验收标准: 'core integrity PASS 且 promotion gate PASS。',
             下一步:
               snapshot.coreRuntimeEvidence.recoveryActionLine ||
               snapshot.coreRuntimeEvidence.detailLine ||
@@ -2495,16 +2529,22 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
   return [
     {
       前端区域: 'Dashboard 首页',
+      打开页面: '/vue/?workspace=dashboard',
+      核对端点: '/api/latest + /api/mt5-readonly/snapshot + /api/mt5-readonly-secondary/snapshot',
       状态: realtimeBlocked ? recovery.label || '实时快照不可用' : '实时快照可用',
       可信范围: realtimeBlocked ? '研究证据可读；账户、持仓、执行状态只能当历史参考' : '账户、持仓、执行状态可作为当前快照',
       修复优先级: realtimeBlocked ? 'P0' : 'OK',
+      验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示快照过期。',
       下一步: recovery.nextAction || '保持 MT5/EA dashboard writer 正常刷新。',
     },
     {
       前端区域: 'MT5 工作台',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/mt5-readonly/snapshot',
       状态: primaryBlocked ? (snapshot.mt5HostProcessMissing ? 'writer 未运行' : '快照过期') : '主账号快照新鲜',
       可信范围: primaryBlocked ? '外币/RSI 当前账号状态不可确认' : '可继续只读观察 Live12 当前账号状态',
       修复优先级: primaryBlocked ? 'P0' : 'OK',
+      验收标准: '主账号快照状态为新鲜，MT5 权限才重新进入只读判断。',
       下一步: recoveryActionLine({
         processMissing: snapshot.mt5HostProcessMissing,
         processLine: recovery.primaryProcessLine,
@@ -2514,6 +2554,8 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       前端区域: 'HFM Crypto 工作台',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/mt5-readonly-secondary/snapshot + /api/hfm-crypto/status?view=summary&scope=secondary',
       状态: live16Blocked
         ? '研究证据可看 / Live16 账号快照阻断'
         : snapshot.hfmCryptoStatusZh || snapshot.hfmCryptoStatus || 'Live16 快照可用',
@@ -2521,6 +2563,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
         ? 'Crypto symbol、spec、Moss/backtest 证据可读；BTC/crypto 当前账号、tick、权限不可确认'
         : '可把 Live16 快照作为当前账号证据，但仍保持 shadow-only 安全边界',
       修复优先级: live16Blocked ? 'P0' : 'OK',
+      验收标准: 'Live16 快照新鲜后，BTC/crypto tick 与账号准备度才可作为当前证据。',
       下一步: recoveryActionLine({
         processMissing: snapshot.secondaryMt5HostProcessMissing,
         processLine: recovery.secondaryProcessLine,
@@ -2530,9 +2573,12 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       前端区域: 'USDJPY Live Loop',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/usdjpy-strategy-lab/live-loop',
       状态: liveLoopBlocked ? '依赖运行快照严重过期' : liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
       可信范围: liveLoopBlocked ? '策略闭环只可用于旧证据诊断' : '可辅助判断 RSI 路线和入场阻断',
       修复优先级: liveLoopBlocked ? 'P1' : 'OK',
+      验收标准: 'runtime freshness 不再 HARD_STALE，live-loop 可辅助当前诊断。',
       下一步:
         snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
         snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
@@ -2540,11 +2586,14 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       前端区域: 'Evolution / GA',
+      打开页面: '/vue/?workspace=evolution',
+      核对端点: '/api/production-evidence-validation/status',
       状态: coreBlocked ? snapshot.coreRuntimeEvidence.value || '晋级阻断' : '研究页可读',
       可信范围: coreBlocked
         ? '回测、Case Memory、GA 证据可看；晋级仍被 production evidence gate 阻断'
         : '研究证据可用于只读复核',
       修复优先级: coreBlocked ? 'P1' : 'OK',
+      验收标准: 'history freshness 与 Case Memory 恢复队列清空，promotion gate PASS。',
       下一步:
         snapshot.coreRuntimeEvidence?.detailLine ||
         snapshot.coreRuntimeEvidence?.nextActionZh ||
@@ -2552,6 +2601,8 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
     },
     {
       前端区域: 'Sim-to-live 闸门',
+      打开页面: '/vue/?workspace=dashboard',
+      核对端点: '/api/profit-target/status?scope=secondary&targetUsd=50 + /api/live-automation/*',
       状态: executionBlocked
         ? '执行释放仍阻断'
         : snapshot.dualTargetReached
@@ -2559,6 +2610,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
           : '等待模拟目标证据',
       可信范围: '只展示 readiness / token / gate 证据；当前前端不签收、不启用实盘执行',
       修复优先级: executionBlocked || snapshot.dualTargetReached ? 'P1' : 'P2',
+      验收标准: '仅数据面可显示达标；真实执行仍需独立 release lane 审查。',
       下一步:
         snapshot.liveExecutionBlockerLine ||
         snapshot.profitExecutionConclusionLine ||

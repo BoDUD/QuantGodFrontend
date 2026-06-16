@@ -113,6 +113,8 @@ const validFiles = {
     "const simTargetExecutionReviewSummarySource = '/api/live-automation/sim-target-execution-review-summary?scope=secondary';",
     "const rootCauseTitle = '全局快照根因';",
     'const snapshotRootCause = null;',
+    'snapshotRootCause.recoveryPathLine;',
+    "'修复入口';",
     '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5" />',
     "const overallFrontendTitle = '整体前端诊断';",
     "const staleImpactTitle = '快照过期影响哪些页面';",

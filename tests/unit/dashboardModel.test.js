@@ -126,6 +126,7 @@ describe('dashboardModel', () => {
       status: 'warn',
       title: '真实账号快照不能当作当前状态',
     });
+    expect(rootCause.recoveryPathLine).toBe('Dashboard 首页、MT5 工作台和 HFM Crypto 工作台只读复核即可。');
   });
 
   it('surfaces secondary MT5 readonly snapshot staleness on the dashboard', () => {
@@ -361,6 +362,8 @@ describe('dashboardModel', () => {
     expect(rootCause.blockedLine).toContain('当前账户/净值/持仓/执行状态');
     expect(rootCause.usableLine).toContain('HFM Crypto shadow/spec/Moss 研究证据');
     expect(rootCause.usableLine).toContain('模拟收益目标证据');
+    expect(rootCause.recoveryPathLine).toContain('/vue/?workspace=mt5');
+    expect(rootCause.recoveryPathLine).toContain('/vue/?workspace=hfm-crypto');
     expect(sourceRows.find((row) => row.数据源 === 'USDJPY Live Loop')).toMatchObject({
       状态: '严重过期',
       源文件: '/tmp/runtime/QuantGod_MT5RuntimeSnapshot_USDJPYc.json',
@@ -382,34 +385,53 @@ describe('dashboardModel', () => {
       status: 'ok',
     });
     expect(rows.find((row) => row.区域 === 'Live16 / HFM Crypto')).toMatchObject({
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: 'writer 未运行',
       影响: 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认',
+      验收标准: 'Live16 只读桥 fresh=true，BTC/crypto tick 再作为当前账号证据。',
     });
     expect(rows.find((row) => row.区域 === 'HFM Crypto shadow')).toMatchObject({
       状态: '研究证据可用',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/hfm-crypto/status?view=summary&scope=secondary',
     });
     expect(rows.find((row) => row.区域 === 'USDJPY live-loop')).toMatchObject({
       状态: '依赖运行快照严重过期',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/usdjpy-strategy-lab/live-loop',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'Dashboard 首页')).toMatchObject({
       状态: 'MT5/EA dashboard writer 未运行',
       修复优先级: 'P0',
+      打开页面: '/vue/?workspace=dashboard',
+      核对端点: '/api/latest + /api/mt5-readonly/snapshot + /api/mt5-readonly-secondary/snapshot',
       可信范围: '研究证据可读；账户、持仓、执行状态只能当历史参考',
+      验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示快照过期。',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'MT5 工作台')).toMatchObject({
       状态: 'writer 未运行',
       修复优先级: 'P0',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/mt5-readonly/snapshot',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'HFM Crypto 工作台')).toMatchObject({
       状态: '研究证据可看 / Live16 账号快照阻断',
       修复优先级: 'P0',
+      打开页面: '/vue/?workspace=hfm-crypto',
+      核对端点: '/api/mt5-readonly-secondary/snapshot + /api/hfm-crypto/status?view=summary&scope=secondary',
+      验收标准: 'Live16 快照新鲜后，BTC/crypto tick 与账号准备度才可作为当前证据。',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'USDJPY Live Loop')).toMatchObject({
       状态: '依赖运行快照严重过期',
       修复优先级: 'P1',
+      打开页面: '/vue/?workspace=mt5',
+      核对端点: '/api/usdjpy-strategy-lab/live-loop',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'Sim-to-live 闸门')).toMatchObject({
       可信范围: '只展示 readiness / token / gate 证据；当前前端不签收、不启用实盘执行',
+      打开页面: '/vue/?workspace=dashboard',
+      验收标准: '仅数据面可显示达标；真实执行仍需独立 release lane 审查。',
     });
   });
 

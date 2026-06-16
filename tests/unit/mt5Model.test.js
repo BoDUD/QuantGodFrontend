@@ -230,6 +230,8 @@ describe('mt5Model ledgers', () => {
       账户: '主账号 / HFMarketsGlobal-Live12',
       端点: '/api/mt5-readonly/snapshot',
       状态: 'writer 未运行',
+      打开页面: '/vue/?workspace=mt5',
+      验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
     });
     expect(rows[0].下一步).toContain('未检测到 terminal64/wine 进程');
     expect(rows[0].下一步).toContain('确认 Live12 HFM/MT5 终端正在运行');
@@ -238,6 +240,8 @@ describe('mt5Model ledgers', () => {
       账户: '第二账号 / HFMarketsGlobal-Live16',
       端点: '/api/mt5-readonly-secondary/snapshot',
       状态: '快照过期',
+      打开页面: '/vue/?workspace=mt5',
+      验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
     });
   });
 
