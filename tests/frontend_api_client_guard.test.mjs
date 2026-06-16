@@ -107,6 +107,21 @@ test('api-client guard rejects direct fetch in legacy service modules', () => {
   assert.match(result.stderr + result.stdout, /phase1Api\.js must not call fetch\(\) directly/);
 });
 
+test('api-client guard rejects legacy requestJson wrappers in service modules', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-request-json-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase3Api.js'),
+    "import { fetchJsonOrFallback } from './apiClient.js';\nfunction requestJson(url) { return fetchJsonOrFallback(url); }\nexport const phase3Api = { latest: () => requestJson('/api/latest') };\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /phase3Api\.js still defines duplicated API helper\/header: function requestJson/,
+  );
+});
+
 test('api-client guard rejects missing raw file protection', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-raw-'));
   writeFixture(root, {

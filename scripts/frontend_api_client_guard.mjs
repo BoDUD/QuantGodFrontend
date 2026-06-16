@@ -130,6 +130,7 @@ for (const filePath of walkFiles(serviceDir)) {
     'const CSRF_HEADERS',
     'async function fetchJson',
     'async function postJson',
+    'function requestJson',
   ]) {
     if (source.includes(token)) {
       fail(`${relativePath} still defines duplicated API helper/header: ${token}`);
