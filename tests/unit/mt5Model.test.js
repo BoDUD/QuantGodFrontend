@@ -190,7 +190,10 @@ describe('mt5Model ledgers', () => {
           fresh: false,
           ageSeconds: 875085,
           nextActionZh: '恢复 Live12 MT5/EA writer。',
-          recoveryStepsZh: ['确认 Live12 HFM/MT5 终端正在运行。', '确认 EA 持续写出 QuantGod_Dashboard.json。'],
+          recoveryStepsZh: [
+            '确认 Live12 HFM/MT5 终端正在运行。',
+            '确认 EA 持续写出 QuantGod_Dashboard.json。',
+          ],
         },
         hostProcess: {
           status: 'MISSING',
@@ -242,6 +245,46 @@ describe('mt5Model ledgers', () => {
       状态: '快照过期',
       打开页面: '/vue/?workspace=mt5',
       验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
+    });
+  });
+
+  it('shows readonly bridge unavailable instead of waiting when secondary MT5 is unconfigured', () => {
+    const snapshot = normalizeMt5Snapshot({
+      secondarySnapshot: {
+        ok: false,
+        status: 'UNCONFIGURED',
+        scope: 'secondary',
+        error: 'secondary_mt5_runtime_not_found',
+      },
+    });
+
+    const rows = buildMt5SnapshotRecoveryRows(snapshot);
+    const endpointHealth = buildEndpointHealth({
+      secondaryAccount: {
+        ok: false,
+        status: 'UNCONFIGURED',
+        scope: 'secondary',
+        error: 'secondary_mt5_runtime_not_found',
+      },
+    });
+
+    expect(snapshot.secondaryMt5Freshness).toMatchObject({
+      status: 'MT5_READONLY_BRIDGE_UNCONFIGURED',
+      statusZh: 'Live16 只读桥未配置',
+      unavailable: true,
+      stale: true,
+    });
+    expect(rows[1]).toMatchObject({
+      账户: '第二账号',
+      端点: '/api/mt5-readonly-secondary/snapshot',
+      状态: '只读桥不可用',
+    });
+    expect(rows[1].下一步).toContain('配置 Live16 的 MT5 MQL5/Files runtime');
+    expect(
+      endpointHealth.find((item) => item.endpoint === '/api/mt5-readonly-secondary/account'),
+    ).toMatchObject({
+      status: 'blocked',
+      statusLabel: '只读桥不可用',
     });
   });
 

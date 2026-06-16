@@ -86,6 +86,53 @@ describe('hfmCryptoModel', () => {
     expect(model.tables.mt5RecoveryRows[0].下一步).toContain('/api/mt5-readonly-secondary/snapshot');
   });
 
+  it('marks an unconfigured Live16 readonly bridge as a blocked snapshot root cause', () => {
+    const model = buildHfmCryptoModel({
+      mt5Snapshot: {
+        ok: false,
+        status: 'UNCONFIGURED',
+        scope: 'secondary',
+        error: 'secondary_mt5_runtime_not_found',
+      },
+      status: {
+        ok: true,
+        status: 'READY_FOR_SHADOW_RESEARCH',
+        symbolEvidence: {
+          canonicalSymbols: ['BTCUSD'],
+          brokerSymbols: ['#BTCUSD'],
+        },
+      },
+    });
+
+    expect(model.mt5Freshness).toMatchObject({
+      status: 'MT5_READONLY_BRIDGE_UNCONFIGURED',
+      statusZh: 'Live16 只读桥未配置',
+      unavailable: true,
+      stale: true,
+    });
+    expect(model.snapshotRootCause).toMatchObject({
+      status: 'blocked',
+      label: 'Live16 只读桥不可用',
+      title: 'HFM Crypto 当前账号快照不能当作实时状态',
+    });
+    expect(model.snapshotRootCause.rootCauseLine).toContain('配置 Live16 的 MT5 MQL5/Files runtime');
+    expect(model.tables.mt5FreshnessRows[0]).toMatchObject({
+      来源: 'Live16 MT5 dashboard',
+      状态: '只读桥不可用',
+    });
+    expect(model.tables.mt5RecoveryRows[0]).toMatchObject({
+      区域: 'Live16 当前账号快照',
+      状态: '只读桥不可用',
+      可信范围: '当前账号、BTC/crypto tick、持仓和执行准备度不可确认；旧快照只作历史参考。',
+    });
+    expect(
+      model.endpoints.find((item) => item.endpoint === '/api/mt5-readonly-secondary/snapshot'),
+    ).toMatchObject({
+      status: 'blocked',
+      statusLabel: '只读桥不可用',
+    });
+  });
+
   it('surfaces an authorized HFM account with zero crypto CFD symbols as an account blocker', () => {
     const model = buildHfmCryptoModel({
       mt5Snapshot: {

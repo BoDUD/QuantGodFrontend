@@ -1,4 +1,5 @@
 import { formatCurrencyDisplay, formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
+import { normalizeMt5ReadonlyFreshness } from '../../utils/mt5ReadonlyFreshness.js';
 
 const FOCUS_SYMBOL = 'USDJPYc';
 const NON_FOCUS_SYMBOL_RE = /\b(EURUSD|EURUSDc|XAUUSD|XAUUSDc)\b/i;
@@ -100,76 +101,11 @@ function mt5HostProcessLine(process = {}) {
   return '进程状态待确认';
 }
 
-function freshnessFromReadonlyPayload(payload = {}) {
-  const source = unwrap(payload) || {};
-  if (isObject(source._freshness) && present(source._freshness)) {
-    const status = String(source._freshness.status || '').toUpperCase();
-    const missing = status === 'MISSING_EA_SNAPSHOT';
-    const stale = source._freshness.stale === true || status === 'STALE_EA_SNAPSHOT' || missing;
-    const fresh = source._freshness.fresh === true;
-    return {
-      ...source._freshness,
-      missing,
-      statusZh:
-        source._freshness.statusZh ||
-        (missing
-          ? 'MT5 dashboard 快照缺失'
-          : stale
-            ? 'MT5 dashboard 快照已过期'
-            : fresh
-              ? 'MT5 dashboard 新鲜'
-              : ''),
-      nextActionZh:
-        source._freshness.nextActionZh ||
-        (missing
-          ? '未找到 QuantGod_Dashboard.json；先恢复对应 MT5 终端和 EA dashboard writer。'
-          : stale
-            ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
-            : ''),
-    };
-  }
-  const sourceMeta = isObject(source.source) ? source.source : {};
-  const status = String(source.status || '').toUpperCase();
-  const hasFreshnessEvidence =
-    source.snapshotFresh !== undefined ||
-    sourceMeta.fresh !== undefined ||
-    sourceMeta.ageSeconds !== undefined ||
-    status === 'STALE_EA_SNAPSHOT' ||
-    status === 'MISSING_EA_SNAPSHOT';
-  if (!hasFreshnessEvidence) return {};
-  const missing = status === 'MISSING_EA_SNAPSHOT';
-  const fresh = source.snapshotFresh === true || sourceMeta.fresh === true;
-  const stale =
-    source.snapshotFresh === false || sourceMeta.fresh === false || status === 'STALE_EA_SNAPSHOT' || missing;
-  return {
-    mode: 'MT5_READONLY_EA_SNAPSHOT_MTIME_WATCH',
-    status: missing
-      ? 'MISSING_EA_SNAPSHOT'
-      : stale
-        ? 'STALE_EA_SNAPSHOT'
-        : fresh
-          ? 'FRESH_EA_SNAPSHOT'
-          : 'WAITING_EA_SNAPSHOT_FRESHNESS',
-    statusZh: missing
-      ? 'MT5 dashboard 快照缺失'
-      : stale
-        ? 'MT5 dashboard 快照已过期'
-        : fresh
-          ? 'MT5 dashboard 新鲜'
-          : 'MT5 dashboard 新鲜度待确认',
-    fresh,
-    stale,
-    missing,
-    ageSeconds: sourceMeta.ageSeconds,
-    maxAgeSeconds: sourceMeta.maxAgeSeconds,
-    sourceFile: sourceMeta.file || '',
-    blockers: missing ? ['missing_ea_dashboard_snapshot'] : stale ? ['live_dashboard_snapshot_stale'] : [],
-    nextActionZh: missing
-      ? '未找到 QuantGod_Dashboard.json；先恢复对应 MT5 终端和 EA dashboard writer。'
-      : stale
-        ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
-        : '',
-  };
+function freshnessFromReadonlyPayload(payload = {}, options = {}) {
+  return normalizeMt5ReadonlyFreshness(payload, {
+    scopeLabel: options.scopeLabel || 'MT5',
+    refreshEndpoint: options.refreshEndpoint || '/api/mt5-readonly/snapshot',
+  });
 }
 
 function freshnessStatus(freshness = {}) {
@@ -185,12 +121,22 @@ function freshnessMissing(freshness = {}) {
   );
 }
 
+function freshnessUnavailable(freshness = {}) {
+  const status = freshnessStatus(freshness);
+  return (
+    freshness.unavailable === true ||
+    status === 'MT5_READONLY_BRIDGE_UNAVAILABLE' ||
+    status === 'MT5_READONLY_BRIDGE_UNCONFIGURED'
+  );
+}
+
 function freshnessStale(freshness = {}) {
   const status = freshnessStatus(freshness);
   return (
     freshness.stale === true ||
     status === 'STALE_EA_SNAPSHOT' ||
     status === 'STALE_DASHBOARD_SNAPSHOT' ||
+    freshnessUnavailable(freshness) ||
     freshnessMissing(freshness)
   );
 }
@@ -205,6 +151,7 @@ function freshnessBlocksCurrentState(freshness = {}) {
 
 function freshnessStatusLabel(freshness = {}) {
   if (freshnessMissing(freshness)) return '快照缺失';
+  if (freshnessUnavailable(freshness)) return '只读桥不可用';
   if (freshnessStale(freshness)) return '快照过期';
   if (freshnessUnconfirmed(freshness)) return '快照待确认';
   if (freshness.fresh === true) return '新鲜';
@@ -624,11 +571,11 @@ function hasAccountFields(value) {
   );
 }
 
-function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}) {
+function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}, options = {}) {
   const accountEnvelope = unwrap(accountPayload) || {};
   const snapshotEnvelope = unwrap(snapshotPayload) || {};
   const source = { ...snapshotEnvelope, ...accountEnvelope };
-  const freshness = freshnessFromReadonlyPayload(source);
+  const freshness = freshnessFromReadonlyPayload(source, options);
   const account = firstObject(
     accountEnvelope.account,
     snapshotEnvelope.account,
@@ -1166,10 +1113,22 @@ export function normalizeMt5Snapshot(raw = {}) {
     {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
   const secondarySnapshotEnvelope = unwrap(raw.secondarySnapshot) || {};
-  const primaryFreshness = freshnessFromReadonlyPayload(snapshot);
-  const secondaryFreshness = freshnessFromReadonlyPayload(secondarySnapshotEnvelope);
-  const primaryPositionsFreshness = freshnessFromReadonlyPayload(raw.positions || {});
-  const primaryOrdersFreshness = freshnessFromReadonlyPayload(raw.orders || {});
+  const primaryFreshness = freshnessFromReadonlyPayload(snapshot, {
+    scopeLabel: 'Live12',
+    refreshEndpoint: '/api/mt5-readonly/snapshot',
+  });
+  const secondaryFreshness = freshnessFromReadonlyPayload(secondarySnapshotEnvelope, {
+    scopeLabel: 'Live16',
+    refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+  });
+  const primaryPositionsFreshness = freshnessFromReadonlyPayload(raw.positions || {}, {
+    scopeLabel: 'Live12',
+    refreshEndpoint: '/api/mt5-readonly/positions',
+  });
+  const primaryOrdersFreshness = freshnessFromReadonlyPayload(raw.orders || {}, {
+    scopeLabel: 'Live12',
+    refreshEndpoint: '/api/mt5-readonly/orders',
+  });
   const primaryPositionsBlocked =
     freshnessBlocksCurrentState(primaryFreshness) || freshnessBlocksCurrentState(primaryPositionsFreshness);
   const primaryOrdersBlocked =
@@ -1209,12 +1168,18 @@ export function normalizeMt5Snapshot(raw = {}) {
   const governanceSummary = asSummary(raw.governanceAdvisor);
   const accountProfiles = accountProfileList(raw.accountProfiles);
   const primaryConnection = {
-    ...mt5ConnectionFromPayload(raw.account, raw.snapshot),
+    ...mt5ConnectionFromPayload(raw.account, raw.snapshot, {
+      scopeLabel: 'Live12',
+      refreshEndpoint: '/api/mt5-readonly/snapshot',
+    }),
     role: 'primary',
     label: '主账号',
   };
   const secondaryConnection = {
-    ...mt5ConnectionFromPayload(raw.secondaryAccount, raw.secondarySnapshot),
+    ...mt5ConnectionFromPayload(raw.secondaryAccount, raw.secondarySnapshot, {
+      scopeLabel: 'Live16',
+      refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+    }),
     role: 'secondary',
     label: '第二账号',
   };
@@ -1514,9 +1479,7 @@ export function buildMt5Metrics(snapshot) {
 }
 
 function accountRecoveryEndpoint(account = {}) {
-  return account.role === 'secondary'
-    ? '/api/mt5-readonly-secondary/snapshot'
-    : '/api/mt5-readonly/snapshot';
+  return account.role === 'secondary' ? '/api/mt5-readonly-secondary/snapshot' : '/api/mt5-readonly/snapshot';
 }
 
 function accountRecoveryLabel(account = {}) {
@@ -1528,20 +1491,23 @@ function accountRecoveryRow(account = {}) {
   const freshness = account.freshness || {};
   const processMissing = account.hostProcessMissing === true;
   const missing = freshnessMissing(freshness);
+  const unavailable = freshnessUnavailable(freshness);
   const stale = freshnessStale(freshness);
   const unconfirmed = freshnessUnconfirmed(freshness);
-  const status = processMissing || missing ? 'blocked' : stale || unconfirmed ? 'warn' : 'ok';
+  const status = processMissing || missing || unavailable ? 'blocked' : stale || unconfirmed ? 'warn' : 'ok';
   const state = processMissing
     ? 'writer 未运行'
     : missing
       ? '快照缺失'
-      : stale
-        ? '快照过期'
-        : unconfirmed
-          ? '快照待确认'
-          : freshness.fresh
-            ? '新鲜'
-            : '待同步';
+      : unavailable
+        ? '只读桥不可用'
+        : stale
+          ? '快照过期'
+          : unconfirmed
+            ? '快照待确认'
+            : freshness.fresh
+              ? '新鲜'
+              : '待同步';
   const nextStep = processMissing
     ? [
         account.hostProcessLine || '未检测到 terminal64/wine 进程',
@@ -1552,10 +1518,7 @@ function accountRecoveryRow(account = {}) {
       ]
         .filter(Boolean)
         .join('；')
-    : freshnessRecoveryHint(
-        freshness,
-        '等待只读桥返回 MT5 dashboard 新鲜度证据，再判断当前账号状态。',
-      );
+    : freshnessRecoveryHint(freshness, '等待只读桥返回 MT5 dashboard 新鲜度证据，再判断当前账号状态。');
   return {
     account,
     status,
@@ -1588,20 +1551,14 @@ export function buildMt5SnapshotRootCauseBanner(snapshot = {}) {
   const recoveryRows = (snapshot.accountConnections || []).map(accountRecoveryRow);
   const blockers = recoveryRows.filter((row) => row.blocksCurrentState);
   const processMissing = blockers.some((row) => row.processMissing);
-  const status = blockers.length ? (processMissing ? 'blocked' : 'warn') : 'ok';
-  const label = processMissing
-    ? 'MT5/EA writer 未运行'
-    : blockers.length
-      ? '实时快照不可用'
-      : '实时快照新鲜';
+  const bridgeUnavailable = blockers.some((row) => row.account?.freshness?.unavailable === true);
+  const status = blockers.length ? (processMissing || bridgeUnavailable ? 'blocked' : 'warn') : 'ok';
+  const label = processMissing ? 'MT5/EA writer 未运行' : blockers.length ? '实时快照不可用' : '实时快照新鲜';
   const rootCauseLine = blockers.length
-    ? blockers
-        .map((row) => `${accountRecoveryLabel(row.account)}：${row.state}`)
-        .join(' / ')
+    ? blockers.map((row) => `${accountRecoveryLabel(row.account)}：${row.state}`).join(' / ')
     : 'Live12 与 Live16 当前快照没有 freshness 阻断。';
   const nextAction =
-    blockers[0]?.nextStep ||
-    '保持 Live12/Live16 MT5 终端和 EA dashboard writer 正常刷新，前端继续只读观察。';
+    blockers[0]?.nextStep || '保持 Live12/Live16 MT5 终端和 EA dashboard writer 正常刷新，前端继续只读观察。';
   return {
     status,
     label,
@@ -1610,8 +1567,7 @@ export function buildMt5SnapshotRootCauseBanner(snapshot = {}) {
     blockedLine: blockers.length
       ? '净值、余额、当前持仓、挂单、EA 自动交易权限和执行准备度。'
       : '无当前账号状态阻断。',
-    usableLine:
-      '历史交易流水、close history、shadow 账本、Evidence OS、RSI 诊断和研究证据仍可只读复核。',
+    usableLine: '历史交易流水、close history、shadow 账本、Evidence OS、RSI 诊断和研究证据仍可只读复核。',
     nextAction,
   };
 }
@@ -2944,6 +2900,16 @@ export function buildEndpointHealth(raw = {}) {
         description: freshnessRecoveryHint(
           freshness,
           '未找到 QuantGod_Dashboard.json；先恢复 MT5 终端和 EA dashboard writer。',
+        ),
+      };
+    }
+    if (freshnessUnavailable(freshness)) {
+      return {
+        status: 'blocked',
+        statusLabel: '只读桥不可用',
+        description: freshnessRecoveryHint(
+          freshness,
+          '恢复或配置对应 MT5 只读桥后，再把账号、持仓或执行状态当成当前值。',
         ),
       };
     }

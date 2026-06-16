@@ -182,6 +182,126 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('treats an unconfigured Live16 readonly bridge as a whole-frontend account blocker', () => {
+    const raw = {
+      latest: {
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      mt5Snapshot: {
+        ok: true,
+        status: 'FRESH_EA_SNAPSHOT',
+        snapshotFresh: true,
+        _freshness: {
+          status: 'FRESH_EA_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      secondaryMt5Snapshot: {
+        ok: false,
+        status: 'UNCONFIGURED',
+        scope: 'secondary',
+        error: 'secondary_mt5_runtime_not_found',
+      },
+      hfmCrypto: {
+        ok: true,
+        status: 'READY_FOR_SHADOW_RESEARCH',
+        symbolEvidence: { canonicalSymbols: ['BTCUSD'] },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const rootCause = buildSnapshotRootCauseBanner(snapshot);
+    const recoveryItems = buildSnapshotRecoveryItems(snapshot);
+    const frontendRows = buildFrontendSnapshotRecoveryRows(snapshot);
+    const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
+
+    expect(snapshot.secondaryMt5SnapshotFreshness).toMatchObject({
+      status: 'MT5_READONLY_BRIDGE_UNCONFIGURED',
+      statusZh: 'Live16 只读桥未配置',
+      unavailable: true,
+      stale: true,
+    });
+    expect(snapshot.snapshotRecovery).toMatchObject({
+      status: 'blocked',
+      label: 'MT5 只读桥不可用',
+      bridgeUnavailable: true,
+      realtimeUsable: false,
+    });
+    expect(rootCause).toMatchObject({
+      status: 'blocked',
+      title: '真实账号快照不能当作当前状态',
+    });
+    expect(rootCause.rootCauseLine).toContain('Live16 只读桥不可用');
+    expect(recoveryItems.find((item) => item.label === '实时账号状态')?.hint).toContain(
+      'Live16 只读桥不可用 阻断当前状态',
+    );
+    expect(frontendRows.find((row) => row.前端区域 === 'HFM Crypto 工作台')).toMatchObject({
+      状态: '研究证据可看 / Live16 账号快照阻断',
+      修复优先级: 'P0',
+    });
+    expect(sourceRows.find((row) => row.数据源 === 'Live16 只读桥')).toMatchObject({
+      状态: '只读桥不可用',
+    });
+  });
+
+  it('marks account metrics historical when the primary readonly bridge is stale even if /api/latest is fresh', () => {
+    const raw = {
+      latest: {
+        account: {
+          number: 186054398,
+          server: 'HFMarketsGlobal-Live12',
+          currency: 'USC',
+          equity: 10020.5,
+          balance: 10020.5,
+        },
+        openTrades: [],
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      mt5Snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        source: {
+          file: '/tmp/live12/MQL5/Files/QuantGod_Dashboard.json',
+          ageSeconds: 9000,
+          maxAgeSeconds: 180,
+          fresh: false,
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const metrics = buildDashboardMetrics(snapshot);
+    const equityMetric = metrics.find((item) => item.label === '账户净值');
+    const balanceMetric = metrics.find((item) => item.label === '账户余额');
+    const positionsMetric = metrics.find((item) => item.label === '当前持仓');
+
+    expect(snapshot.latestDashboardFresh).toBe(true);
+    expect(snapshot.mt5SnapshotStale).toBe(true);
+    expect(equityMetric).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+    expect(equityMetric.hint).toContain('历史净值: 10020.50 USC，仅作参考');
+    expect(balanceMetric).toMatchObject({
+      value: '快照过期',
+      status: 'warn',
+    });
+    expect(positionsMetric).toMatchObject({
+      value: '不可确认',
+      status: 'warn',
+    });
+  });
+
   it('surfaces missing MT5 EA snapshot as a recovery blocker instead of waiting data', () => {
     const raw = {
       latest: {
@@ -264,7 +384,10 @@ describe('dashboardModel', () => {
           fresh: false,
           ageSeconds: 542273,
           nextAction: 'Restore the MT5 terminal/EA dashboard writer process.',
-          recoveryStepsZh: ['确认 Live12 HFM/MT5 终端正在运行。', '确认 EA 持续写出 QuantGod_Dashboard.json。'],
+          recoveryStepsZh: [
+            '确认 Live12 HFM/MT5 终端正在运行。',
+            '确认 EA 持续写出 QuantGod_Dashboard.json。',
+          ],
           blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
         },
       },
@@ -610,9 +733,13 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const metric = buildDashboardMetrics(snapshot).find((item) => item.label === '核心证据晋级闸');
     const recoveryItem = buildSnapshotRecoveryItems(snapshot).find((item) => item.label === '核心证据晋级闸');
-    const recoveryRow = buildSnapshotRecoveryRows(snapshot).find((row) => row.区域 === 'Core evidence / GA 晋级');
+    const recoveryRow = buildSnapshotRecoveryRows(snapshot).find(
+      (row) => row.区域 === 'Core evidence / GA 晋级',
+    );
     const coreRecoveryRows = buildCoreEvidenceRecoveryRows(snapshot);
-    const sourceRow = buildRuntimeSourceDiagnosticRows(raw).find((row) => row.数据源 === 'Core Runtime Evidence');
+    const sourceRow = buildRuntimeSourceDiagnosticRows(raw).find(
+      (row) => row.数据源 === 'Core Runtime Evidence',
+    );
     const health = buildEndpointHealth(raw).find(
       (item) => item.endpoint === '/api/production-evidence-validation/status',
     );

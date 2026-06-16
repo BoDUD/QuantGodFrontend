@@ -1,4 +1,5 @@
 import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
+import { normalizeMt5ReadonlyFreshness } from '../../utils/mt5ReadonlyFreshness.js';
 
 const WAITING = '等待资料';
 
@@ -54,55 +55,10 @@ function mt5SnapshotPayload(state = {}) {
 }
 
 function mt5SnapshotFreshness(payload = {}) {
-  if (!isObject(payload)) return {};
-  if (isObject(payload._freshness) && Object.keys(payload._freshness).length) {
-    const stale =
-      payload._freshness.stale === true ||
-      String(payload._freshness.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
-    const fresh = payload._freshness.fresh === true;
-    return {
-      ...payload._freshness,
-      sourceFile: payload._freshness.sourceFile || payload.source?.file || '',
-      mtimeIso: payload._freshness.mtimeIso || payload.source?.mtimeIso || '',
-      statusZh:
-        payload._freshness.statusZh ||
-        (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
-      nextActionZh:
-        payload._freshness.nextActionZh ||
-        (stale
-          ? '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
-          : ''),
-    };
-  }
-  const source = isObject(payload.source) ? payload.source : {};
-  const hasFreshnessEvidence =
-    payload.snapshotFresh !== undefined ||
-    source.fresh !== undefined ||
-    source.ageSeconds !== undefined ||
-    String(payload.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
-  if (!hasFreshnessEvidence) return {};
-  const fresh = payload.snapshotFresh === true || source.fresh === true;
-  const stale =
-    payload.snapshotFresh === false ||
-    source.fresh === false ||
-    String(payload.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
-  return {
-    status: stale ? 'STALE_EA_SNAPSHOT' : fresh ? 'FRESH_EA_SNAPSHOT' : 'WAITING_EA_SNAPSHOT_FRESHNESS',
-    statusZh: stale
-      ? 'MT5 dashboard 快照已过期'
-      : fresh
-        ? 'MT5 dashboard 新鲜'
-        : 'MT5 dashboard 新鲜度待确认',
-    fresh,
-    stale,
-    ageSeconds: source.ageSeconds,
-    maxAgeSeconds: source.maxAgeSeconds,
-    sourceFile: source.file || '',
-    mtimeIso: source.mtimeIso || '',
-    nextActionZh: stale
-      ? '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
-      : '',
-  };
+  return normalizeMt5ReadonlyFreshness(payload, {
+    scopeLabel: 'Live16',
+    refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+  });
 }
 
 function formatAgeSeconds(value) {
@@ -175,12 +131,21 @@ function mt5HostProcessLine(process = {}) {
 function mt5FreshnessRows(freshness = {}, payload = {}, process = {}) {
   const processMissing = mt5HostProcessMissing(process);
   const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
+  const unavailable = freshness.unavailable === true;
   const fresh = freshness.fresh === true;
   return [
     {
       来源: 'Live16 MT5 dashboard',
       端点: '/api/mt5-readonly-secondary/snapshot',
-      状态: processMissing ? 'writer 未运行' : stale ? '快照过期' : fresh ? '新鲜' : '待确认',
+      状态: processMissing
+        ? 'writer 未运行'
+        : unavailable
+          ? '只读桥不可用'
+          : stale
+            ? '快照过期'
+            : fresh
+              ? '新鲜'
+              : '待确认',
       年龄: formatAgeSeconds(freshness.ageSeconds),
       阈值: formatAgeSeconds(freshness.maxAgeSeconds),
       源文件: freshness.sourceFile || payload.source?.file || WAITING,
@@ -213,12 +178,21 @@ function mt5SnapshotBlocked(freshness = {}, process = {}) {
   );
 }
 
-function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, options = {}) {
+function hfmMt5SnapshotRecoveryRows(freshness = {}, _payload = {}, process = {}, options = {}) {
   const processMissing = mt5HostProcessMissing(process);
   const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
+  const unavailable = freshness.unavailable === true;
   const fresh = freshness.fresh === true;
   const blocked = mt5SnapshotBlocked(freshness, process);
-  const snapshotState = processMissing ? 'writer 未运行' : stale ? '快照过期' : fresh ? '新鲜' : '待确认';
+  const snapshotState = processMissing
+    ? 'writer 未运行'
+    : unavailable
+      ? '只读桥不可用'
+      : stale
+        ? '快照过期'
+        : fresh
+          ? '新鲜'
+          : '待确认';
   const snapshotAction = processMissing
     ? mt5RecoveryActionLine(
         freshness,
@@ -236,10 +210,9 @@ function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, 
       打开页面: '/vue/?workspace=hfm-crypto',
       核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: snapshotState,
-      可信范围:
-        blocked
-          ? '当前账号、BTC/crypto tick、持仓和执行准备度不可确认；旧快照只作历史参考。'
-          : '可把 Live16 只读桥快照作为当前账号证据。',
+      可信范围: blocked
+        ? '当前账号、BTC/crypto tick、持仓和执行准备度不可确认；旧快照只作历史参考。'
+        : '可把 Live16 只读桥快照作为当前账号证据。',
       验收标准: 'Live16 只读桥 fresh=true，terminal64/wine 进程存在。',
       下一步: snapshotAction,
     },
@@ -270,24 +243,29 @@ function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, 
 function hfmMt5SnapshotRootCause(freshness = {}, payload = {}, process = {}, options = {}) {
   const processMissing = mt5HostProcessMissing(process);
   const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
+  const unavailable = freshness.unavailable === true;
   const blocked = mt5SnapshotBlocked(freshness, process);
   const status = processMissing || stale ? 'blocked' : blocked ? 'warn' : freshness.fresh ? 'ok' : 'warn';
   const label = processMissing
     ? 'Live16 writer 未运行'
-    : stale
-      ? 'Live16 快照过期'
-      : freshness.fresh
-        ? 'Live16 快照新鲜'
-        : 'Live16 快照待确认';
+    : unavailable
+      ? 'Live16 只读桥不可用'
+      : stale
+        ? 'Live16 快照过期'
+        : freshness.fresh
+          ? 'Live16 快照新鲜'
+          : 'Live16 快照待确认';
   const rootCauseLine = processMissing
     ? `Live16 MT5/EA writer 未运行；${mt5HostProcessLine(process)}。`
-    : stale
-      ? freshness.nextActionZh ||
-        freshness.nextAction ||
-        `Live16 MT5 dashboard 快照已过期 ${formatAgeSeconds(freshness.ageSeconds)}。`
-      : freshness.fresh
-        ? 'Live16 当前账号快照新鲜。'
-        : mt5FreshnessLine(freshness);
+    : unavailable
+      ? freshness.nextActionZh || freshness.nextAction || 'Live16 只读桥不可用。'
+      : stale
+        ? freshness.nextActionZh ||
+          freshness.nextAction ||
+          `Live16 MT5 dashboard 快照已过期 ${formatAgeSeconds(freshness.ageSeconds)}。`
+        : freshness.fresh
+          ? 'Live16 当前账号快照新鲜。'
+          : mt5FreshnessLine(freshness);
   return {
     status,
     label,
@@ -1960,6 +1938,7 @@ export function buildHfmCryptoModel(state = {}) {
     status: statusTone(payload.status),
     statusLabel: payload.statusZh || humanizeStatus(payload.status, '等待 HFM Crypto CFD 状态'),
     snapshotRootCause: mt5SnapshotRootCause,
+    mt5Freshness,
     executionSpecReady,
     standaloneExporterReadyToRun,
     standaloneExporterNextAction,
@@ -2295,6 +2274,13 @@ export function buildHfmCryptoModel(state = {}) {
         endpoint: '/api/mt5-readonly-secondary/snapshot',
         description: '读取 Live16 MT5 dashboard 快照，确认 crypto CFD 账号、服务器、当前 symbol 和交易权限',
         status: mt5SnapshotStale ? 'blocked' : endpointStatus(state.mt5Snapshot),
+        statusLabel: mt5Freshness.unavailable
+          ? '只读桥不可用'
+          : mt5SnapshotStale
+            ? '快照过期'
+            : mt5Freshness.fresh
+              ? '新鲜'
+              : mt5Snapshot.status || WAITING,
       },
       {
         label: 'HFM Crypto 状态',
@@ -2720,7 +2706,11 @@ export function buildHfmCryptoModel(state = {}) {
         : []),
       {
         label: 'MT5 快照',
-        value: mt5SnapshotStale ? '快照过期' : mt5Snapshot.status || mt5Snapshot.bridgeStatus || WAITING,
+        value: mt5Freshness.unavailable
+          ? '只读桥不可用'
+          : mt5SnapshotStale
+            ? '快照过期'
+            : mt5Snapshot.status || mt5Snapshot.bridgeStatus || WAITING,
         hint:
           mt5Freshness.nextActionZh ||
           mt5Freshness.nextAction ||

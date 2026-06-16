@@ -1,4 +1,5 @@
 import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
+import { normalizeMt5ReadonlyFreshness } from '../../utils/mt5ReadonlyFreshness.js';
 
 const FOCUS_SYMBOL = 'USDJPYc';
 const NON_FOCUS_SYMBOL_RE = /\b(EURUSD|EURUSDc|XAUUSD|XAUUSDc)\b/i;
@@ -155,60 +156,16 @@ function dashboardFreshnessHint(snapshot = {}) {
   );
 }
 
-function readonlyFreshness(payload = {}) {
-  if (!isObject(payload)) return {};
-  if (isObject(payload._freshness) && present(payload._freshness)) {
-    const stale =
-      payload._freshness.stale === true ||
-      String(payload._freshness.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
-    const fresh = payload._freshness.fresh === true;
-    return {
-      ...payload._freshness,
-      sourceFile: payload._freshness.sourceFile || payload.source?.file || '',
-      mtimeIso: payload._freshness.mtimeIso || payload.source?.mtimeIso || '',
-      statusZh:
-        payload._freshness.statusZh ||
-        (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
-      nextActionZh:
-        payload._freshness.nextActionZh ||
-        (stale ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。' : ''),
-    };
-  }
-  const source = isObject(payload.source) ? payload.source : {};
-  const hasFreshnessEvidence =
-    payload.snapshotFresh !== undefined ||
-    source.fresh !== undefined ||
-    source.ageSeconds !== undefined ||
-    String(payload.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
-  if (!hasFreshnessEvidence) return {};
-  const fresh = payload.snapshotFresh === true || source.fresh === true;
-  const stale =
-    payload.snapshotFresh === false ||
-    source.fresh === false ||
-    String(payload.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
-  return {
-    mode: 'MT5_READONLY_EA_SNAPSHOT_MTIME_WATCH',
-    status: stale ? 'STALE_EA_SNAPSHOT' : fresh ? 'FRESH_EA_SNAPSHOT' : 'WAITING_EA_SNAPSHOT_FRESHNESS',
-    statusZh: stale
-      ? 'MT5 dashboard 快照已过期'
-      : fresh
-        ? 'MT5 dashboard 新鲜'
-        : 'MT5 dashboard 新鲜度待确认',
-    fresh,
-    stale,
-    ageSeconds: source.ageSeconds,
-    maxAgeSeconds: source.maxAgeSeconds,
-    sourceFile: source.file || '',
-    mtimeIso: source.mtimeIso || '',
-    blockers: stale ? ['live_dashboard_snapshot_stale'] : [],
-    nextActionZh: stale
-      ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
-      : '',
-  };
+function readonlyFreshness(payload = {}, options = {}) {
+  return normalizeMt5ReadonlyFreshness(payload, {
+    scopeLabel: options.scopeLabel || 'MT5',
+    refreshEndpoint: options.refreshEndpoint || '/api/mt5-readonly/snapshot',
+  });
 }
 
 function freshnessStatusValue(freshness = {}) {
   if (freshness.status === 'MISSING_EA_SNAPSHOT') return '快照缺失';
+  if (freshness.unavailable) return '只读桥不可用';
   if (freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT') return '快照过期';
   if (freshness.status === 'STALE_DASHBOARD_SNAPSHOT') return '快照过期';
   if (freshness.fresh === true) return '新鲜';
@@ -240,7 +197,13 @@ function freshnessRow(label, endpoint, freshness = {}, fallbackAction = '') {
   };
 }
 
-function processAwareFreshnessRow(label, endpoint, freshness = {}, processMissing = false, fallbackAction = '') {
+function processAwareFreshnessRow(
+  label,
+  endpoint,
+  freshness = {},
+  processMissing = false,
+  fallbackAction = '',
+) {
   const row = freshnessRow(label, endpoint, freshness, fallbackAction);
   if (!processMissing) return row;
   return {
@@ -357,8 +320,14 @@ function liveLoopStatusValue(freshness = {}) {
 
 function snapshotRecovery(raw = {}) {
   const latest = latestFreshness(raw);
-  const primary = readonlyFreshness(raw.mt5Snapshot);
-  const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const primary = readonlyFreshness(raw.mt5Snapshot, {
+    scopeLabel: 'Live12',
+    refreshEndpoint: '/api/mt5-readonly/snapshot',
+  });
+  const secondary = readonlyFreshness(raw.secondaryMt5Snapshot, {
+    scopeLabel: 'Live16',
+    refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+  });
   const liveLoop = liveLoopFreshness(raw.usdJpyLiveLoop);
   const staleLatest = freshnessIsStale(latest);
   const stalePrimary = freshnessIsStale(primary);
@@ -366,10 +335,13 @@ function snapshotRecovery(raw = {}) {
   const staleLiveLoop = liveLoop.hardStale === true;
   const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
   const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
+  const bridgeUnavailable = primary.unavailable === true || secondary.unavailable === true;
   const staleSources = [
+    primary.unavailable ? '主账号只读桥不可用' : '',
+    secondary.unavailable ? 'Live16 只读桥不可用' : '',
     staleLatest ? '总览 MT5 dashboard' : '',
-    stalePrimary ? '主账号只读桥' : '',
-    staleSecondary ? 'Live16 只读桥' : '',
+    stalePrimary && !primary.unavailable ? '主账号只读桥' : '',
+    staleSecondary && !secondary.unavailable ? 'Live16 只读桥' : '',
     staleLiveLoop ? 'USDJPY live-loop' : '',
   ].filter(Boolean);
   const hfmCryptoReady = endpointAvailable(raw.hfmCrypto);
@@ -400,16 +372,24 @@ function snapshotRecovery(raw = {}) {
     primaryProcessMissing || stalePrimary ? `Live12: ${primaryRecoveryAction}` : '',
     secondaryProcessMissing || staleSecondary ? `Live16: ${secondaryRecoveryAction}` : '',
   ].filter(Boolean);
-  const hasFreshRealtimeEvidence = latest.fresh === true || primary.fresh === true || secondary.fresh === true;
+  const hasFreshRealtimeEvidence =
+    latest.fresh === true || primary.fresh === true || secondary.fresh === true;
   const realtimeUsable = hasFreshRealtimeEvidence && !staleSources.length && !processMissing;
-  const status = processMissing ? 'blocked' : staleSources.length || !hasFreshRealtimeEvidence ? 'warn' : 'ok';
+  const status =
+    processMissing || bridgeUnavailable
+      ? 'blocked'
+      : staleSources.length || !hasFreshRealtimeEvidence
+        ? 'warn'
+        : 'ok';
   const label = processMissing
     ? 'MT5/EA dashboard writer 未运行'
-    : staleSources.length
-      ? '实时快照过期'
-      : !hasFreshRealtimeEvidence
-        ? '等待实时快照'
-      : '实时快照新鲜';
+    : bridgeUnavailable
+      ? 'MT5 只读桥不可用'
+      : staleSources.length
+        ? '实时快照过期'
+        : !hasFreshRealtimeEvidence
+          ? '等待实时快照'
+          : '实时快照新鲜';
   const nextAction = processMissing
     ? scopedRecoveryActions.length
       ? scopedRecoveryActions.join('；')
@@ -423,12 +403,13 @@ function snapshotRecovery(raw = {}) {
         '刷新 MT5/EA dashboard writer 后再读取实时账户状态。'
       : !hasFreshRealtimeEvidence
         ? '等待 /api/latest 与 MT5 只读桥返回 freshness，再判断账户、持仓和执行状态是否可信。'
-      : '运行快照可用于只读观察。';
+        : '运行快照可用于只读观察。';
   return {
     status,
     label,
     staleSources,
     processMissing,
+    bridgeUnavailable,
     primaryProcessLine,
     secondaryProcessLine,
     primaryRecoveryAction,
@@ -475,20 +456,58 @@ function formatMoney(value, currency = 'USC') {
   return `${numeric.toFixed(2)} ${currency || 'USC'}`;
 }
 
+function primaryAccountSnapshotState(snapshot = {}) {
+  const freshnessKnown = present(snapshot.latestFreshness) || present(snapshot.mt5SnapshotFreshness);
+  const processMissing = snapshot.mt5HostProcessMissing === true;
+  const stale = snapshot.latestDashboardStale === true || snapshot.mt5SnapshotStale === true;
+  const unconfirmed =
+    freshnessKnown &&
+    !processMissing &&
+    !stale &&
+    snapshot.latestDashboardFresh !== true &&
+    snapshot.mt5SnapshotFreshness?.fresh !== true;
+  const blocked = processMissing || stale || unconfirmed;
+  const hint = processMissing
+    ? snapshot.snapshotRecovery?.primaryRecoveryAction ||
+      snapshot.snapshotRecovery?.nextAction ||
+      snapshot.mt5SnapshotFreshness?.nextActionZh ||
+      dashboardFreshnessHint(snapshot)
+    : stale
+      ? [
+          snapshot.mt5SnapshotFreshness?.nextActionZh ||
+            snapshot.mt5SnapshotFreshness?.nextAction ||
+            snapshot.mt5SnapshotFreshnessLine,
+          dashboardFreshnessHint(snapshot),
+        ]
+          .filter(Boolean)
+          .join('；')
+      : unconfirmed
+        ? snapshot.mt5SnapshotFreshness?.nextActionZh ||
+          snapshot.latestFreshness?.nextActionZh ||
+          '等待主账号只读桥返回 fresh=true 后再把账号值当成当前状态。'
+        : '';
+  return {
+    blocked,
+    processMissing,
+    stale,
+    unconfirmed,
+    value: processMissing ? '不可确认' : stale ? '快照过期' : unconfirmed ? '待确认' : '',
+    status: processMissing ? 'blocked' : blocked ? 'warn' : undefined,
+    hint,
+  };
+}
+
 function staleDashboardAccountMetric(snapshot, value, currency, label) {
   const formatted = value === null ? '—' : formatMoney(value, currency);
-  if (!snapshot.latestDashboardStale) {
+  const snapshotState = primaryAccountSnapshotState(snapshot);
+  if (!snapshotState.blocked) {
     return { value: formatted };
   }
-  const processMissing = snapshot.snapshotRecovery?.processMissing === true;
-  const freshnessHint = processMissing
-    ? snapshot.snapshotRecovery?.nextAction || dashboardFreshnessHint(snapshot)
-    : dashboardFreshnessHint(snapshot);
   const historicalHint = formatted === '—' ? '' : `历史${label}: ${formatted}，仅作参考`;
   return {
-    value: processMissing ? '不可确认' : '快照过期',
-    hint: [freshnessHint, historicalHint].filter(Boolean).join('；'),
-    status: processMissing ? 'blocked' : 'warn',
+    value: snapshotState.value,
+    hint: [snapshotState.hint, historicalHint].filter(Boolean).join('；'),
+    status: snapshotState.status,
   };
 }
 
@@ -730,32 +749,24 @@ function historyProductionStatus(raw = {}) {
   const production = candidates.find((candidate) => isObject(candidate)) || {};
   const copyRatesFreshness = copyRatesExportFreshness(raw, production, evidenceReport);
   if (!present(freshnessReview)) {
-    return present(copyRatesFreshness) ? { ...production, copyRatesExportFreshness: copyRatesFreshness } : production;
+    return present(copyRatesFreshness)
+      ? { ...production, copyRatesExportFreshness: copyRatesFreshness }
+      : production;
   }
 
   const blocksPromotion = historyFreshnessBlocksPromotion(freshnessReview);
   const reviewStatus = String(freshnessReview.status || '').toUpperCase();
   const reviewPass = !blocksPromotion && reviewStatus === 'HISTORY_FRESHNESS_PASS';
-  const blockers = [
-    ...toArray(production.blockers),
-    ...toArray(freshnessReview.blockers),
-  ].filter(Boolean);
+  const blockers = [...toArray(production.blockers), ...toArray(freshnessReview.blockers)].filter(Boolean);
   return {
     ...production,
     promotionGateStatus: blocksPromotion
       ? 'BLOCKED'
       : production.promotionGateStatus || (reviewPass ? 'PASS' : undefined),
-    status:
-      production.status ||
-      (blocksPromotion
-        ? 'WARN'
-        : reviewPass
-          ? 'PASS'
-          : freshnessReview.status),
-    statusZh:
-      blocksPromotion
-        ? '历史 freshness 阻断晋级'
-        : production.statusZh || (reviewPass ? '历史 freshness 已通过' : undefined),
+    status: production.status || (blocksPromotion ? 'WARN' : reviewPass ? 'PASS' : freshnessReview.status),
+    statusZh: blocksPromotion
+      ? '历史 freshness 阻断晋级'
+      : production.statusZh || (reviewPass ? '历史 freshness 已通过' : undefined),
     reasonZh: freshnessReview.reasonZh || production.reasonZh,
     blockers,
     historyFreshnessStatus: freshnessReview.status,
@@ -790,17 +801,19 @@ function historyFreshnessBlocksPromotion(review = {}) {
   const status = String(review.status || '').toUpperCase();
   return Boolean(
     review.blocksLivePromotion === true ||
-      review.passed === false ||
-      status === 'HISTORY_FRESHNESS_BLOCKED' ||
-      status === 'HISTORY_PRODUCTION_STATUS_MISSING' ||
-      status === 'BLOCKED' ||
-      toArray(review.blockers).length > 0,
+    review.passed === false ||
+    status === 'HISTORY_FRESHNESS_BLOCKED' ||
+    status === 'HISTORY_PRODUCTION_STATUS_MISSING' ||
+    status === 'BLOCKED' ||
+    toArray(review.blockers).length > 0,
   );
 }
 
 function copyRatesExportFreshness(raw = {}, production = {}, evidenceReport = {}) {
   const core = coreRuntimeEvidenceIntegrity(raw);
-  const historyArtifact = rowsFromObjectList(core?.artifacts).find((row) => row.artifactId === 'historyProductionStatus');
+  const historyArtifact = rowsFromObjectList(core?.artifacts).find(
+    (row) => row.artifactId === 'historyProductionStatus',
+  );
   const historyGate = isObject(historyArtifact?.promotionGate) ? historyArtifact.promotionGate : {};
   const candidates = [
     production?.copyRatesExportFreshness,
@@ -831,7 +844,8 @@ function formatHourValue(value) {
 
 function copyRatesFreshnessLine(freshness = {}) {
   if (!present(freshness)) return '';
-  const status = freshness.statusZh || freshness.status || (copyRatesFreshnessIsStale(freshness) ? 'STALE' : '');
+  const status =
+    freshness.statusZh || freshness.status || (copyRatesFreshnessIsStale(freshness) ? 'STALE' : '');
   const generatedLag = freshness.generatedLagHours;
   const staleTimeframes = toArray(freshness.staleTimeframes);
   const parts = [
@@ -963,10 +977,10 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const integrityOk = core.ok !== false && integrityStatus === 'PASS' && integrityBlockers.length === 0;
   const promotionBlocked = Boolean(
     promotionStatus === 'BLOCKED' ||
-      core.promotionGatePassed === false ||
-      promotionBlockers.length > 0 ||
-      missingCategories.length > 0 ||
-      staleTimeframes.length > 0,
+    core.promotionGatePassed === false ||
+    promotionBlockers.length > 0 ||
+    missingCategories.length > 0 ||
+    staleTimeframes.length > 0,
   );
   const uiStatus = !integrityOk ? 'blocked' : promotionBlocked ? 'blocked' : 'ok';
   const value = !integrityOk ? '完整性异常' : promotionBlocked ? '晋级阻断' : '已通过';
@@ -1469,8 +1483,14 @@ function chooseRoutes(raw) {
 export function normalizeDashboardSnapshot(raw = {}) {
   const reviewFresh = dailyReviewIsFresh(raw.dailyReview);
   const dashboardFreshness = latestFreshness(raw);
-  const mt5SnapshotFreshness = readonlyFreshness(raw.mt5Snapshot);
-  const secondaryMt5SnapshotFreshness = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const mt5SnapshotFreshness = readonlyFreshness(raw.mt5Snapshot, {
+    scopeLabel: 'Live12',
+    refreshEndpoint: '/api/mt5-readonly/snapshot',
+  });
+  const secondaryMt5SnapshotFreshness = readonlyFreshness(raw.secondaryMt5Snapshot, {
+    scopeLabel: 'Live16',
+    refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+  });
   const usdJpyLiveLoopFreshness = liveLoopFreshness(raw.usdJpyLiveLoop);
   const dashboardStale =
     dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT';
@@ -1589,14 +1609,18 @@ export function buildDashboardMetrics(snapshot) {
   const equityMetric = staleDashboardAccountMetric(snapshot, equity, currency, '净值');
   const balanceMetric = staleDashboardAccountMetric(snapshot, balance, currency, '余额');
   const positionsCount = snapshot.positions?.length || 0;
-  const latestDashboardProcessMissing = snapshot.snapshotRecovery?.processMissing === true;
-  const positionsMetric = snapshot.latestDashboardStale
+  const primarySnapshotState = primaryAccountSnapshotState(snapshot);
+  const latestDashboardProcessMissing = primarySnapshotState.processMissing;
+  const positionsMetric = primarySnapshotState.blocked
     ? {
         value: '不可确认',
-        hint: [staleDashboardHint, `旧快照持仓 ${positionsCount} 笔，仅作历史参考`]
+        hint: [
+          primarySnapshotState.hint || staleDashboardHint,
+          `旧快照持仓 ${positionsCount} 笔，仅作历史参考`,
+        ]
           .filter(Boolean)
           .join('；'),
-        status: latestDashboardProcessMissing ? 'blocked' : 'warn',
+        status: primarySnapshotState.status,
       }
     : {
         value: positionsCount,
@@ -1979,16 +2003,30 @@ export function buildEndpointHealth(raw = {}) {
     ['策略回测摘要', '/api/dashboard/backtest-summary', raw.backtest, '候选策略研究结果'],
   ];
   return endpoints.map(([label, endpoint, payload, description]) => {
+    const mt5ReadonlyEndpoint =
+      endpoint === '/api/mt5-readonly/snapshot' || endpoint === '/api/mt5-readonly-secondary/snapshot';
     const staleLatest =
       endpoint === '/api/latest' &&
       (freshness.stale === true || freshness.status === 'STALE_DASHBOARD_SNAPSHOT');
-    const endpointFreshness = readonlyFreshness(payload);
+    const endpointFreshness =
+      endpoint === '/api/mt5-readonly/snapshot'
+        ? readonlyFreshness(payload, {
+            scopeLabel: 'Live12',
+            refreshEndpoint: '/api/mt5-readonly/snapshot',
+          })
+        : endpoint === '/api/mt5-readonly-secondary/snapshot'
+          ? readonlyFreshness(payload, {
+              scopeLabel: 'Live16',
+              refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+            })
+          : {};
     const loopFreshness = endpoint === '/api/usdjpy-strategy-lab/live-loop' ? liveLoopFreshness(payload) : {};
     const coreGate =
       endpoint === '/api/production-evidence-validation/status' ? coreRuntimeEvidenceGate(raw) : {};
     const staleReadonly =
-      endpoint !== '/api/latest' &&
+      mt5ReadonlyEndpoint &&
       (endpointFreshness.stale === true || endpointFreshness.status === 'STALE_EA_SNAPSHOT');
+    const readonlyUnavailable = mt5ReadonlyEndpoint && endpointFreshness.unavailable === true;
     const staleLiveLoop = loopFreshness.hardStale === true;
     const coreBlocked = coreGate.promotionBlocked === true || coreGate.integrityOk === false;
     const processMissing =
@@ -2006,46 +2044,54 @@ export function buildEndpointHealth(raw = {}) {
           ? loopFreshness.nextActionZh || loopFreshness.reasonLine || description
           : coreBlocked
             ? coreGate.detailLine || coreGate.nextActionZh || description
-          : staleLatest || staleReadonly
-            ? freshness.nextActionZh ||
-              endpointFreshness.nextActionZh ||
-              endpointFreshness.nextAction ||
-              description
-            : unavailable
-              ? endpointUnavailableDescription(payload, description)
-              : description,
+            : staleLatest || staleReadonly
+              ? freshness.nextActionZh ||
+                endpointFreshness.nextActionZh ||
+                endpointFreshness.nextAction ||
+                description
+              : unavailable
+                ? endpointUnavailableDescription(payload, description)
+                : description,
       status: processMissing
         ? 'blocked'
         : staleLiveLoop
           ? 'blocked'
           : coreBlocked
             ? 'blocked'
-          : staleLatest || staleReadonly
-            ? 'warn'
-            : hasPayload && !unavailable
-              ? 'ok'
-              : 'warn',
+            : staleLatest || staleReadonly
+              ? 'warn'
+              : hasPayload && !unavailable
+                ? 'ok'
+                : 'warn',
       statusLabel: processMissing
         ? 'writer 未运行'
         : staleLiveLoop
           ? '运行快照严重过期'
           : coreBlocked
             ? coreGate.value || '晋级阻断'
-          : staleLatest || staleReadonly
-            ? '快照过期'
-            : unavailable
-              ? '不可用'
-              : hasPayload
-                ? '正常'
-                : '缺失',
+            : readonlyUnavailable
+              ? '只读桥不可用'
+              : staleLatest || staleReadonly
+                ? '快照过期'
+                : unavailable
+                  ? '不可用'
+                  : hasPayload
+                    ? '正常'
+                    : '缺失',
     };
   });
 }
 
 export function buildRuntimeSourceDiagnosticRows(raw = {}) {
   const latest = latestFreshness(raw);
-  const primary = readonlyFreshness(raw.mt5Snapshot);
-  const secondary = readonlyFreshness(raw.secondaryMt5Snapshot);
+  const primary = readonlyFreshness(raw.mt5Snapshot, {
+    scopeLabel: 'Live12',
+    refreshEndpoint: '/api/mt5-readonly/snapshot',
+  });
+  const secondary = readonlyFreshness(raw.secondaryMt5Snapshot, {
+    scopeLabel: 'Live16',
+    refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+  });
   const liveLoop = liveLoopFreshness(raw.usdJpyLiveLoop);
   const hfmCrypto = raw.hfmCrypto || {};
   const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
@@ -2379,7 +2425,7 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
       value: recovery.realtimeUsable ? '可作为当前状态' : '不可作为当前状态',
       status: recovery.realtimeUsable ? 'ok' : 'blocked',
       hint: recovery.staleSources?.length
-        ? `${recovery.staleSources.join(' / ')} 已过期`
+        ? `${recovery.staleSources.join(' / ')} 阻断当前状态`
         : '账户、持仓与执行状态必须依赖新鲜 MT5/EA 快照。',
     },
     {
@@ -2430,12 +2476,16 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
 export function buildSnapshotRootCauseBanner(snapshot = {}) {
   const recovery = snapshot.snapshotRecovery || {};
   const rootCauses = [];
-  if (snapshot.mt5HostProcessMissing) {
+  if (snapshot.mt5SnapshotFreshness?.unavailable) {
+    rootCauses.push('Live12 只读桥不可用');
+  } else if (snapshot.mt5HostProcessMissing) {
     rootCauses.push('Live12 MT5/EA writer 未运行');
   } else if (snapshot.mt5SnapshotStale) {
     rootCauses.push('Live12 快照过期');
   }
-  if (snapshot.secondaryMt5HostProcessMissing) {
+  if (snapshot.secondaryMt5SnapshotFreshness?.unavailable) {
+    rootCauses.push('Live16 只读桥不可用');
+  } else if (snapshot.secondaryMt5HostProcessMissing) {
     rootCauses.push('Live16 MT5/EA writer 未运行');
   } else if (snapshot.secondaryMt5SnapshotStale) {
     rootCauses.push('Live16 快照过期');
@@ -2469,8 +2519,9 @@ export function buildSnapshotRootCauseBanner(snapshot = {}) {
   if (snapshot.coreRuntimeEvidence?.promotionBlocked) {
     recoveryPath.push('Dashboard/Evolution 的核心证据恢复队列');
   }
+  const hardBlocked = recovery.processMissing === true || recovery.bridgeUnavailable === true;
   return {
-    status,
+    status: realtimeBlocked ? (hardBlocked ? 'blocked' : status) : status,
     label: recovery.label || (realtimeBlocked ? '实时快照不可用' : '实时快照新鲜'),
     title: realtimeBlocked ? '真实账号快照不能当作当前状态' : '真实账号快照可用于当前状态',
     rootCauseLine: rootCauses.length ? rootCauses.join(' / ') : '未发现 MT5 writer 或 freshness 阻断。',
@@ -2609,8 +2660,16 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
       ? formatHourValue(row.copyRatesExportGeneratedLagHours)
       : '—',
     周期延迟: row.copyRatesExportLatestLagHours ? formatHourValue(row.copyRatesExportLatestLagHours) : '—',
-    证据源: row.collectionEndpoint || row.refreshCommand || row.artifactPath || row.artifactId || 'runtime evidence',
-    下一步: chainedActionLine([row.copyRatesExportNextActionZh, row.nextActionZh || '继续只读补齐晋级证据。']),
+    证据源:
+      row.collectionEndpoint ||
+      row.refreshCommand ||
+      row.artifactPath ||
+      row.artifactId ||
+      'runtime evidence',
+    下一步: chainedActionLine([
+      row.copyRatesExportNextActionZh,
+      row.nextActionZh || '继续只读补齐晋级证据。',
+    ]),
     验收: row.acceptanceZh || '恢复后重新运行 production evidence / runtime evidence integrity。',
   }));
 }
@@ -2632,7 +2691,9 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
       打开页面: '/vue/?workspace=dashboard',
       核对端点: '/api/latest + /api/mt5-readonly/snapshot + /api/mt5-readonly-secondary/snapshot',
       状态: realtimeBlocked ? recovery.label || '实时快照不可用' : '实时快照可用',
-      可信范围: realtimeBlocked ? '研究证据可读；账户、持仓、执行状态只能当历史参考' : '账户、持仓、执行状态可作为当前快照',
+      可信范围: realtimeBlocked
+        ? '研究证据可读；账户、持仓、执行状态只能当历史参考'
+        : '账户、持仓、执行状态可作为当前快照',
       修复优先级: realtimeBlocked ? 'P0' : 'OK',
       验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示快照过期。',
       下一步: recovery.nextAction || '保持 MT5/EA dashboard writer 正常刷新。',
@@ -2641,7 +2702,11 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
       前端区域: 'MT5 工作台',
       打开页面: '/vue/?workspace=mt5',
       核对端点: '/api/mt5-readonly/snapshot',
-      状态: primaryBlocked ? (snapshot.mt5HostProcessMissing ? 'writer 未运行' : '快照过期') : '主账号快照新鲜',
+      状态: primaryBlocked
+        ? snapshot.mt5HostProcessMissing
+          ? 'writer 未运行'
+          : '快照过期'
+        : '主账号快照新鲜',
       可信范围: primaryBlocked ? '外币/RSI 当前账号状态不可确认' : '可继续只读观察 Live12 当前账号状态',
       修复优先级: primaryBlocked ? 'P0' : 'OK',
       验收标准: '主账号快照状态为新鲜，MT5 权限才重新进入只读判断。',
@@ -2867,20 +2932,22 @@ export function buildDailyItems(snapshot) {
   const historyFreshnessStatus = String(history.historyFreshnessStatus || '').toUpperCase();
   const historyBlocked = Boolean(
     history.historyFreshnessBlocksPromotion ||
-      copyRatesStale ||
-      historyPromotionStatus === 'BLOCKED' ||
-      historyStatus === 'BLOCKED' ||
-      historyStatus === 'FAIL' ||
-      historyStatus === 'FAILED' ||
-      historyFreshnessStatus === 'HISTORY_FRESHNESS_BLOCKED' ||
-      historyFreshnessStatus === 'HISTORY_PRODUCTION_STATUS_MISSING',
+    copyRatesStale ||
+    historyPromotionStatus === 'BLOCKED' ||
+    historyStatus === 'BLOCKED' ||
+    historyStatus === 'FAIL' ||
+    historyStatus === 'FAILED' ||
+    historyFreshnessStatus === 'HISTORY_FRESHNESS_BLOCKED' ||
+    historyFreshnessStatus === 'HISTORY_PRODUCTION_STATUS_MISSING',
   );
   const historyPass =
     !historyBlocked &&
     (historyPromotionStatus === 'PASS' ||
       historyStatus === 'PASS' ||
       historyFreshnessStatus === 'HISTORY_FRESHNESS_PASS');
-  const historyTimeframes = [...new Set([...toArray(history.failedTimeframes), ...toArray(history.staleTimeframes)])];
+  const historyTimeframes = [
+    ...new Set([...toArray(history.failedTimeframes), ...toArray(history.staleTimeframes)]),
+  ];
   const historyHint = [
     `晋级门 ${history.promotionGateStatus || (historyBlocked ? 'BLOCKED' : '等待')}`,
     history.historyFreshnessStatus ? `freshness ${history.historyFreshnessStatus}` : '',
