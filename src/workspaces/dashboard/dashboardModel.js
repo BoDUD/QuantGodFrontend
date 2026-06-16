@@ -790,6 +790,62 @@ function coreRuntimeEvidenceIntegrity(raw = {}) {
   return candidates.find((candidate) => isObject(candidate)) || {};
 }
 
+function promotionRecoveryQueueLine(rows = []) {
+  const queue = rowsFromObjectList(rows);
+  if (!queue.length) return '';
+  const labels = queue.map((row) => {
+    if (row.timeframe) return `history:${row.timeframe}`;
+    if (row.category) return `case:${row.category}`;
+    return row.kind || row.status || row.artifactId || 'recovery';
+  });
+  return codeListLine(labels);
+}
+
+function coreEvidencePromotionRecoveryQueue(core = {}, historyGate = {}, caseGate = {}) {
+  const direct = rowsFromObjectList(core.promotionRecoveryQueue);
+  if (direct.length) return direct;
+  const directHistoryRows = rowsFromObjectList(historyGate.freshnessRecoveryQueue)
+    .filter((row) => row?.passed !== true || String(row?.status || '').toUpperCase() !== 'PASS')
+    .map((row) => ({
+      kind: 'history_freshness',
+      artifactId: 'historyProductionStatus',
+      timeframe: row.timeframe,
+      status: row.status,
+      priority: row.priority,
+      latestLagHours: row.latestLagHours,
+      maxLatestLagHours: row.maxLatestLagHours,
+      nextActionZh: row.nextActionZh,
+      acceptanceZh: row.acceptanceZh,
+      allowedLanes: row.allowedLanes,
+      forbiddenSideEffects: row.forbiddenSideEffects,
+    }));
+  const historyRows = directHistoryRows.length
+    ? directHistoryRows
+    : Object.entries(historyGate.timeframes || {})
+        .filter(([, row]) => row?.freshnessOk === false || row?.passed === false)
+        .map(([timeframe, row]) => ({
+          kind: 'history_freshness',
+          artifactId: 'historyProductionStatus',
+          timeframe,
+          status: row?.freshnessOk === false ? 'FRESHNESS_STALE' : 'BLOCKED',
+          priority: 'HIGH',
+          latestLagHours: row?.latestLagHours,
+          maxLatestLagHours: row?.maxLatestLagHours,
+          nextActionZh: `刷新 ${timeframe} history freshness；通过 production-status 前禁止 GA/champion 晋级。`,
+        }));
+  const caseRows = toArray(caseGate.missingCategories)
+    .filter(Boolean)
+    .map((category) => ({
+      kind: 'case_memory_category',
+      artifactId: 'caseMemoryArtifactManifest',
+      category,
+      status: 'MISSING_CATEGORY',
+      priority: 'HIGH',
+      nextActionZh: `补齐 Case Memory ${category} 样本；只允许 shadow/tester/read-only 证据。`,
+    }));
+  return [...historyRows, ...caseRows];
+}
+
 function coreRuntimeEvidenceGate(raw = {}) {
   const core = coreRuntimeEvidenceIntegrity(raw);
   if (!present(core)) return {};
@@ -808,6 +864,8 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const staleTimeframes = Object.entries(historyGate.timeframes || {})
     .filter(([, row]) => row?.freshnessOk === false || row?.passed === false)
     .map(([timeframe]) => timeframe);
+  const promotionRecoveryQueue = coreEvidencePromotionRecoveryQueue(core, historyGate, caseGate);
+  const recoveryQueueLine = promotionRecoveryQueueLine(promotionRecoveryQueue);
   const integrityOk = core.ok !== false && integrityStatus === 'PASS' && integrityBlockers.length === 0;
   const promotionBlocked = Boolean(
     promotionStatus === 'BLOCKED' ||
@@ -821,6 +879,7 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const blockerLine = codeListLine(promotionBlockers);
   const detailParts = [
     blockerLine,
+    recoveryQueueLine ? `恢复队列 ${recoveryQueueLine}` : '',
     missingCategories.length ? `Case Memory 缺 ${missingCategories.join('/')}` : '',
     staleTimeframes.length ? `历史 freshness 过期 ${staleTimeframes.join('/')}` : '',
   ].filter(Boolean);
@@ -832,9 +891,15 @@ function coreRuntimeEvidenceGate(raw = {}) {
     value,
     uiStatus,
     blockerLine,
+    recoveryQueueLine,
+    recoveryActionLine: recoveryQueueLine
+      ? `按恢复队列处理 ${recoveryQueueLine}；只允许只读/shadow/tester 补证。`
+      : '',
     detailLine: detailParts.join('；') || core.nextActionZh || core.statusZh || '',
     missingCategories,
     staleTimeframes,
+    promotionRecoveryQueue,
+    promotionRecoveryQueueCount: promotionRecoveryQueue.length,
     promotionBlocked,
     integrityOk,
   };
@@ -1541,6 +1606,7 @@ export function buildDashboardMetrics(snapshot) {
             label: '核心证据晋级闸',
             value: snapshot.coreRuntimeEvidence.value,
             hint:
+              snapshot.coreRuntimeEvidence.recoveryActionLine ||
               snapshot.coreRuntimeEvidence.detailLine ||
               snapshot.coreRuntimeEvidence.nextActionZh ||
               '读取 /api/production-evidence-validation/status',
@@ -2244,6 +2310,7 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
             value: snapshot.coreRuntimeEvidence.value,
             status: snapshot.coreRuntimeEvidence.uiStatus,
             hint:
+              snapshot.coreRuntimeEvidence.recoveryActionLine ||
               snapshot.coreRuntimeEvidence.detailLine ||
               snapshot.coreRuntimeEvidence.nextActionZh ||
               '核心证据完整性和晋级门分开判定。',
@@ -2378,6 +2445,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
               ? '核心文件可以完整，但 GA/champion 晋级仍被 freshness 或 Case Memory 样本类型阻断'
               : '核心证据完整性与晋级门均通过',
             下一步:
+              snapshot.coreRuntimeEvidence.recoveryActionLine ||
               snapshot.coreRuntimeEvidence.detailLine ||
               snapshot.coreRuntimeEvidence.nextActionZh ||
               '继续保持 runtime evidence integrity。',

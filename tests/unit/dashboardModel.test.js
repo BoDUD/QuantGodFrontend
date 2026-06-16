@@ -543,20 +543,27 @@ describe('dashboardModel', () => {
       uiStatus: 'blocked',
       missingCategories: ['BAD_ENTRY', 'GA_OVERFIT'],
       staleTimeframes: ['M1'],
+      promotionRecoveryQueueCount: 3,
+      recoveryQueueLine: 'history:M1 / case:BAD_ENTRY / case:GA_OVERFIT',
+      recoveryActionLine:
+        '按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT；只允许只读/shadow/tester 补证。',
     });
     expect(metric).toMatchObject({
       value: '晋级阻断',
       status: 'blocked',
     });
-    expect(metric.hint).toContain('missing_category:BAD_ENTRY');
-    expect(metric.hint).toContain('Case Memory 缺 BAD_ENTRY/GA_OVERFIT');
+    expect(snapshot.coreRuntimeEvidence.detailLine).toContain('missing_category:BAD_ENTRY');
+    expect(snapshot.coreRuntimeEvidence.detailLine).toContain('Case Memory 缺 BAD_ENTRY/GA_OVERFIT');
+    expect(metric.hint).toContain('按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT');
     expect(recoveryItem).toMatchObject({
       value: '晋级阻断',
       status: 'blocked',
+      hint: '按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT；只允许只读/shadow/tester 补证。',
     });
     expect(recoveryRow).toMatchObject({
       状态: '晋级阻断',
       影响: '核心文件可以完整，但 GA/champion 晋级仍被 freshness 或 Case Memory 样本类型阻断',
+      下一步: '按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT；只允许只读/shadow/tester 补证。',
     });
     expect(sourceRow).toMatchObject({
       状态: '晋级阻断',
