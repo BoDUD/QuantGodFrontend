@@ -22,6 +22,8 @@ const model = [
   'export function buildAccountItems() {}',
   'export function buildMt5ConnectionItems() {}',
   'export function buildMt5AccountProfileRows() {}',
+  'export function buildMt5SnapshotRootCauseBanner() {}',
+  'export function buildMt5SnapshotRecoveryRows() {}',
   'export function buildPositionRows() {}',
   'export function buildOrderRows() {}',
   'export function buildSymbolRows() {}',
@@ -33,6 +35,7 @@ const model = [
   'const missingSnapshot = "MISSING_EA_SNAPSHOT";',
   'function freshnessBlocksCurrentState() { return true; }',
   'const staleSnapshotCopy = "writer 未运行 / 旧快照不能证明当前为 0";',
+  'const recoveryScope = "当前净值、余额、持仓、挂单和 EA 权限不可确认";',
   "const FOCUS_SYMBOL = 'USDJPYc';",
   'function isFocusSymbolRow() { return true; }',
   'function focusSymbolRows() { return []; }',
@@ -42,7 +45,7 @@ const model = [
 ].join('\n');
 
 const workspace = [
-  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="账号连接矩阵" /><LedgerTable title="MT5 账号 Profiles" /><LedgerTable title="第二账号信息" /><LedgerTable title="RSI 入场诊断" /><StatusPill />执行反馈与下一代修复 Safety Envelope Raw MT5 evidence</template>',
+  '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="账号连接矩阵" /><LedgerTable title="MT5 账号 Profiles" /><LedgerTable title="第二账号信息" /><LedgerTable title="RSI 入场诊断" /><LedgerTable title="MT5 快照恢复矩阵" :rows="snapshotRecoveryRows" /><StatusPill />全局快照恢复 {{ snapshotRootCause }} 执行反馈与下一代修复 Safety Envelope Raw MT5 evidence</template>',
   '<script setup>',
   "import { loadMt5Workspace } from '../../services/domainApi.js';",
   "import { normalizeMt5Snapshot } from './mt5Model.js';",

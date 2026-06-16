@@ -30,6 +30,7 @@ test('fetchJson attaches uniform API metadata to object payloads', async () => {
   assert.equal(payload._api.source, 'backend-file');
   assert.equal(payload._api.ok, true);
   assert.equal(payload._api.endpoint, '/api/latest');
+  assert.equal(payload._api.method, 'GET');
   assert.equal(payload._api.status, 200);
   assert.equal(typeof payload._api.fetchedAt, 'string');
   assert.equal(typeof payload._api.durationMs, 'number');
@@ -44,6 +45,7 @@ test('fetchJsonOrFallback keeps failure metadata on fallback envelopes', async (
   assert.equal(payload.error, 'backend_unavailable');
   assert.equal(payload._api.ok, false);
   assert.equal(payload._api.endpoint, '/api/dashboard/state');
+  assert.equal(payload._api.method, 'GET');
   assert.equal(payload._api.status, 503);
 });
 
@@ -72,5 +74,37 @@ test('postJson attaches API metadata to local POST envelopes', async () => {
   assert.equal(payload.accepted, true);
   assert.equal(payload._api.ok, true);
   assert.equal(payload._api.endpoint, '/api/notify/test');
+  assert.equal(payload._api.method, 'POST');
   assert.equal(payload._api.status, 200);
+});
+
+test('apiClient keeps method, cache, body, and local POST header under client control', async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return jsonResponse({ ok: true });
+  };
+
+  await fetchJson('/api/latest', null, {
+    method: 'POST',
+    cache: 'reload',
+    body: 'unsafe',
+    headers: { 'X-Trace': 'ok' },
+  });
+  await postJson('/api/notify/test', { dryRun: true }, null, {
+    method: 'GET',
+    cache: 'reload',
+    body: 'unsafe',
+    headers: { 'X-QuantGod-Local': '0', 'X-Trace': 'ok' },
+  });
+
+  assert.equal(calls[0].options.method, 'GET');
+  assert.equal(calls[0].options.cache, 'no-store');
+  assert.equal(calls[0].options.body, undefined);
+  assert.equal(calls[0].options.headers['X-Trace'], 'ok');
+  assert.equal(calls[1].options.method, 'POST');
+  assert.equal(calls[1].options.cache, 'no-store');
+  assert.equal(calls[1].options.headers['X-QuantGod-Local'], '1');
+  assert.equal(calls[1].options.headers['X-Trace'], 'ok');
+  assert.deepEqual(JSON.parse(calls[1].options.body), { dryRun: true });
 });

@@ -82,7 +82,12 @@ if (!apiClient.includes('RUNTIME_FILE_PATTERN') || !apiClient.includes('QuantGod
   fail('apiClient.js must reject raw QuantGod runtime JSON/CSV paths');
 }
 
-if (!apiClient.includes('_api') || !apiClient.includes('fetchedAt') || !apiClient.includes('durationMs')) {
+if (
+  !apiClient.includes('_api') ||
+  !apiClient.includes('method') ||
+  !apiClient.includes('fetchedAt') ||
+  !apiClient.includes('durationMs')
+) {
   fail('apiClient.js must attach uniform _api observability metadata');
 }
 

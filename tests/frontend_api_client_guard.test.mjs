@@ -23,7 +23,7 @@ export function assertApiPath(path) { return String(path).startsWith('/api/') ? 
 export function makeApiUrl(path) { return assertApiPath(path); }
 export function queryString() { return ''; }
 export function rowsFromPayload() { return []; }
-export function attachApiMeta(payload, result = {}) { return { ...payload, _api: { fetchedAt: result.fetchedAt || '', durationMs: result.durationMs || 0 } }; }
+export function attachApiMeta(payload, result = {}) { return { ...payload, _api: { method: result.method || '', fetchedAt: result.fetchedAt || '', durationMs: result.durationMs || 0 } }; }
 export async function fetchApiJson() { return { ok: true, fetchedAt: '', durationMs: 0 }; }
 export async function postApiJson() { return { ok: true, fetchedAt: '', durationMs: 0 }; }
 export async function fetchJson() { return null; }
@@ -145,7 +145,7 @@ export function assertApiPath(path) { return String(path).startsWith('/api/') ? 
 export function makeApiUrl(path) { return path; }
 export function queryString() { return ''; }
 export function rowsFromPayload() { return []; }
-export function attachApiMeta(payload, result = {}) { return { ...payload, _api: { fetchedAt: result.fetchedAt || '', durationMs: result.durationMs || 0 } }; }
+export function attachApiMeta(payload, result = {}) { return { ...payload, _api: { method: result.method || '', fetchedAt: result.fetchedAt || '', durationMs: result.durationMs || 0 } }; }
 export async function fetchApiJson() { return { ok: true }; }
 export async function postApiJson() { return { ok: true }; }
 export async function fetchJson() { return null; }

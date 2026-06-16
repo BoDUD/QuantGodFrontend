@@ -77,8 +77,17 @@ test('one-click cycle calls read-only backtest, AI monitor, and Telegram push en
   assert.equal(calls[0].url, '/api/mt5-backtest-loop/run?days=30&maxTasks=3');
   assert.equal(calls[1].url, '/api/ai-analysis/deepseek-telegram/run');
   assert.equal(calls[2].url, '/api/notify/test');
+  assert.equal(calls[0].options.method, 'GET');
+  assert.equal(calls[0].options.cache, 'no-store');
+  assert.equal(calls[1].options.method, 'POST');
+  assert.equal(calls[1].options.headers['X-QuantGod-Local'], '1');
+  assert.equal(calls[2].options.method, 'POST');
+  assert.equal(calls[2].options.headers['X-QuantGod-Local'], '1');
   assert.deepEqual(JSON.parse(calls[1].options.body).symbols, ['USDJPYc']);
   assert.equal(JSON.parse(calls[2].options.body).eventType, 'BACKTEST_AI');
+  assert.equal(result.backtest._api.method, 'GET');
+  assert.equal(result.ai._api.method, 'POST');
+  assert.equal(result.notify._api.method, 'POST');
 });
 
 test('Telegram digest keeps the safety boundary visible', () => {

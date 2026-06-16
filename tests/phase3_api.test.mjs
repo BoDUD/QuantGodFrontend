@@ -26,6 +26,7 @@ test('phase3Api GET calls use apiClient metadata and no-store fetch options', as
 
   assert.equal(payload.ok, true);
   assert.equal(payload._api.endpoint, '/api/vibe-coding/config');
+  assert.equal(payload._api.method, 'GET');
   assert.equal(payload._api.status, 200);
   assert.equal(typeof payload._api.fetchedAt, 'string');
   assert.equal(typeof payload._api.durationMs, 'number');
@@ -48,6 +49,7 @@ test('phase3Api POST calls use apiClient CSRF header and preserve metadata', asy
 
   assert.equal(payload.ok, true);
   assert.equal(payload._api.endpoint, '/api/vibe-coding/generate');
+  assert.equal(payload._api.method, 'POST');
   assert.equal(payload.strategy.strategy_id, 'vibe-usdjpy-001');
   assert.equal(calls[0].options.method, 'POST');
   assert.equal(calls[0].options.headers['X-QuantGod-Local'], '1');
@@ -65,5 +67,6 @@ test('phase3Api fallback keeps endpoint status when backend rejects a request', 
   assert.equal(payload.ok, false);
   assert.equal(payload.error, 'backend_busy');
   assert.equal(payload._api.endpoint, '/api/ai-analysis-v2/run');
+  assert.equal(payload._api.method, 'POST');
   assert.equal(payload._api.status, 503);
 });

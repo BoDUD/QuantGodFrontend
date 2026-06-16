@@ -109,6 +109,26 @@ function isPlainObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function normalizedHeaders(value) {
+  if (typeof Headers !== 'undefined' && value instanceof Headers) {
+    return Object.fromEntries(value.entries());
+  }
+  return isPlainObject(value) ? value : {};
+}
+
+function normalizeFetchOptions(options = {}) {
+  const { signal, timeoutMs, headers, method, cache, body, ...fetchOptions } = options || {};
+  void method;
+  void cache;
+  void body;
+  return {
+    signal,
+    timeoutMs: Number(timeoutMs || DEFAULT_TIMEOUT_MS),
+    headers: normalizedHeaders(headers),
+    fetchOptions,
+  };
+}
+
 export function attachApiMeta(payload, result = {}, endpoint = '') {
   if (!isPlainObject(payload)) return payload;
   const existing = isPlainObject(payload._api) ? payload._api : {};
@@ -118,6 +138,7 @@ export function attachApiMeta(payload, result = {}, endpoint = '') {
       ...existing,
       ok: Boolean(result.ok),
       endpoint: endpoint || result.endpoint || existing.endpoint || '',
+      method: String(result.method || existing.method || '').toUpperCase(),
       status: Number(result.status || 0),
       fetchedAt: result.fetchedAt || existing.fetchedAt || '',
       durationMs: Number(result.durationMs || 0),
@@ -128,21 +149,22 @@ export function attachApiMeta(payload, result = {}, endpoint = '') {
 export async function fetchApiJson(path, options = {}) {
   const endpoint = assertApiPath(path);
   const startedAtMs = nowMs();
-  const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
-  const requestAbort = requestAbortController(options.signal, timeoutMs);
+  const normalized = normalizeFetchOptions(options);
+  const requestAbort = requestAbortController(normalized.signal, normalized.timeoutMs);
 
   try {
     const response = await fetch(makeApiUrl(endpoint), {
+      ...normalized.fetchOptions,
       method: 'GET',
-      headers: JSON_HEADERS,
+      headers: { ...JSON_HEADERS, ...normalized.headers },
       cache: 'no-store',
-      ...options,
       signal: requestAbort.signal,
     });
     const data = await parseJsonSafe(response);
     return {
       ok: response.ok,
       endpoint,
+      method: 'GET',
       status: response.status,
       data: response.ok ? data : null,
       error: response.ok ? null : { message: `HTTP ${response.status}`, body: data },
@@ -153,6 +175,7 @@ export async function fetchApiJson(path, options = {}) {
     return {
       ok: false,
       endpoint,
+      method: 'GET',
       status: 0,
       data: null,
       error: asErrorPayload(error),
@@ -167,22 +190,28 @@ export async function fetchApiJson(path, options = {}) {
 export async function postApiJson(path, payload = {}, options = {}) {
   const endpoint = assertApiPath(path);
   const startedAtMs = nowMs();
-  const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
-  const requestAbort = requestAbortController(options.signal, timeoutMs);
+  const normalized = normalizeFetchOptions(options);
+  const requestAbort = requestAbortController(normalized.signal, normalized.timeoutMs);
 
   try {
     const response = await fetch(makeApiUrl(endpoint), {
+      ...normalized.fetchOptions,
       method: 'POST',
-      headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', ...CSRF_HEADERS },
+      headers: {
+        ...JSON_HEADERS,
+        'Content-Type': 'application/json',
+        ...normalized.headers,
+        ...CSRF_HEADERS,
+      },
       cache: 'no-store',
       body: JSON.stringify(payload || {}),
-      ...options,
       signal: requestAbort.signal,
     });
     const data = await parseJsonSafe(response);
     return {
       ok: response.ok,
       endpoint,
+      method: 'POST',
       status: response.status,
       data: response.ok ? data : null,
       error: response.ok ? null : { message: `HTTP ${response.status}`, body: data },
@@ -193,6 +222,7 @@ export async function postApiJson(path, payload = {}, options = {}) {
     return {
       ok: false,
       endpoint,
+      method: 'POST',
       status: 0,
       data: null,
       error: asErrorPayload(error),
