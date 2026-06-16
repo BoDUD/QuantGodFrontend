@@ -712,7 +712,10 @@ function dailyPnl(raw) {
 
 function historyProductionStatus(raw = {}) {
   const freshnessReview = historyFreshnessPromotionReview(raw);
+  const evidenceReport = productionEvidenceReport(raw);
   const candidates = [
+    evidenceReport?.historyProduction,
+    evidenceReport?.historyProductionStatus,
     raw?.dailyAutopilotV2?.historyProductionStatus,
     raw?.dailyAutopilotV2?.gaReview?.historyProductionStatus,
     raw?.dailyAutopilotV2?.dailyTodo?.historyProductionStatus,
@@ -725,7 +728,10 @@ function historyProductionStatus(raw = {}) {
     raw?.state?.historyProductionStatus,
   ];
   const production = candidates.find((candidate) => isObject(candidate)) || {};
-  if (!present(freshnessReview)) return production;
+  const copyRatesFreshness = copyRatesExportFreshness(raw, production, evidenceReport);
+  if (!present(freshnessReview)) {
+    return present(copyRatesFreshness) ? { ...production, copyRatesExportFreshness: copyRatesFreshness } : production;
+  }
 
   const blocksPromotion = historyFreshnessBlocksPromotion(freshnessReview);
   const reviewStatus = String(freshnessReview.status || '').toUpperCase();
@@ -758,6 +764,7 @@ function historyProductionStatus(raw = {}) {
     failedTimeframes: toArray(freshnessReview.failedTimeframes),
     staleTimeframes: toArray(freshnessReview.staleTimeframes),
     latestLagHoursByTimeframe: freshnessReview.latestLagHoursByTimeframe || {},
+    ...(present(copyRatesFreshness) ? { copyRatesExportFreshness: copyRatesFreshness } : {}),
   };
 }
 
@@ -789,6 +796,51 @@ function historyFreshnessBlocksPromotion(review = {}) {
       status === 'BLOCKED' ||
       toArray(review.blockers).length > 0,
   );
+}
+
+function copyRatesExportFreshness(raw = {}, production = {}, evidenceReport = {}) {
+  const core = coreRuntimeEvidenceIntegrity(raw);
+  const historyArtifact = rowsFromObjectList(core?.artifacts).find((row) => row.artifactId === 'historyProductionStatus');
+  const historyGate = isObject(historyArtifact?.promotionGate) ? historyArtifact.promotionGate : {};
+  const candidates = [
+    production?.copyRatesExportFreshness,
+    evidenceReport?.historyProduction?.copyRatesExportFreshness,
+    evidenceReport?.historyProductionStatus?.copyRatesExportFreshness,
+    historyGate?.copyRatesExportFreshness,
+    raw?.state?.historyProductionStatus?.copyRatesExportFreshness,
+    raw?.state?.data?.historyProductionStatus?.copyRatesExportFreshness,
+    raw?.backtest?.historyProductionStatus?.copyRatesExportFreshness,
+    raw?.backtest?.qualityReport?.historyProductionStatus?.copyRatesExportFreshness,
+    raw?.backtest?.data?.historyProductionStatus?.copyRatesExportFreshness,
+  ];
+  return candidates.find((candidate) => isObject(candidate)) || {};
+}
+
+function copyRatesFreshnessIsStale(freshness = {}) {
+  const status = String(freshness.status || '').toUpperCase();
+  return Boolean(freshness.stale === true || status === 'STALE' || status === 'FAIL' || status === 'FAILED');
+}
+
+function formatHourValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '待确认';
+  if (numeric < 1) return `${Math.round(numeric * 60)} 分钟`;
+  if (numeric < 24) return `${numeric.toFixed(1)} 小时`;
+  return `${(numeric / 24).toFixed(1)} 天`;
+}
+
+function copyRatesFreshnessLine(freshness = {}) {
+  if (!present(freshness)) return '';
+  const status = freshness.statusZh || freshness.status || (copyRatesFreshnessIsStale(freshness) ? 'STALE' : '');
+  const generatedLag = freshness.generatedLagHours;
+  const staleTimeframes = toArray(freshness.staleTimeframes);
+  const parts = [
+    status ? `CopyRates ${status}` : 'CopyRates 待确认',
+    Number.isFinite(Number(generatedLag)) ? `导出 ${formatHourValue(generatedLag)}未刷新` : '',
+    staleTimeframes.length ? `周期 ${staleTimeframes.join('/')}` : '',
+    freshness.nextActionZh || '',
+  ].filter(Boolean);
+  return parts.join(' · ');
 }
 
 function productionEvidenceReport(raw = {}) {
@@ -845,6 +897,13 @@ function coreEvidencePromotionRecoveryQueue(core = {}, historyGate = {}, caseGat
       priority: row.priority,
       latestLagHours: row.latestLagHours,
       maxLatestLagHours: row.maxLatestLagHours,
+      copyRatesExportFreshnessStatus: row.copyRatesExportFreshnessStatus,
+      copyRatesExportStale: row.copyRatesExportStale,
+      copyRatesExportGeneratedAtServer: row.copyRatesExportGeneratedAtServer,
+      copyRatesExportGeneratedLagHours: row.copyRatesExportGeneratedLagHours,
+      copyRatesExportLatestLagHours: row.copyRatesExportLatestLagHours,
+      copyRatesExportStaleTimeframes: row.copyRatesExportStaleTimeframes,
+      copyRatesExportNextActionZh: row.copyRatesExportNextActionZh,
       nextActionZh: row.nextActionZh,
       acceptanceZh: row.acceptanceZh,
       allowedLanes: row.allowedLanes,
@@ -891,6 +950,10 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const history = artifacts.find((row) => row.artifactId === 'historyProductionStatus') || {};
   const caseGate = isObject(caseMemory.promotionGate) ? caseMemory.promotionGate : {};
   const historyGate = isObject(history.promotionGate) ? history.promotionGate : {};
+  const copyRatesFreshness = isObject(historyGate.copyRatesExportFreshness)
+    ? historyGate.copyRatesExportFreshness
+    : {};
+  const copyRatesLine = copyRatesFreshnessLine(copyRatesFreshness);
   const missingCategories = toArray(caseGate.missingCategories).filter(Boolean);
   const staleTimeframes = Object.entries(historyGate.timeframes || {})
     .filter(([, row]) => row?.freshnessOk === false || row?.passed === false)
@@ -911,6 +974,7 @@ function coreRuntimeEvidenceGate(raw = {}) {
   const detailParts = [
     blockerLine,
     recoveryQueueLine ? `恢复队列 ${recoveryQueueLine}` : '',
+    copyRatesLine,
     missingCategories.length ? `Case Memory 缺 ${missingCategories.join('/')}` : '',
     staleTimeframes.length ? `历史 freshness 过期 ${staleTimeframes.join('/')}` : '',
   ].filter(Boolean);
@@ -929,6 +993,7 @@ function coreRuntimeEvidenceGate(raw = {}) {
     detailLine: detailParts.join('；') || core.nextActionZh || core.statusZh || '',
     missingCategories,
     staleTimeframes,
+    copyRatesExportFreshness: copyRatesFreshness,
     promotionRecoveryQueue,
     promotionRecoveryQueueCount: promotionRecoveryQueue.length,
     promotionBlocked,
@@ -1275,6 +1340,17 @@ function codeListLine(codes = []) {
   if (!rows.length) return '';
   if (rows.length <= 3) return rows.join(' / ');
   return `${rows.slice(0, 3).join(' / ')} +${rows.length - 3}`;
+}
+
+function trimActionPunctuation(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[。；;]+$/u, '');
+}
+
+function chainedActionLine(actions = []) {
+  const rows = actions.map(trimActionPunctuation).filter(Boolean);
+  return rows.length ? `${rows.join('；随后 ')}。` : '';
 }
 
 function primaryExecutionBlocker(raw = {}) {
@@ -2528,8 +2604,13 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
     任务: promotionRecoveryTaskLabel(row),
     状态: row.status || '待处理',
     优先级: row.priority || 'PENDING',
+    CopyRates: row.copyRatesExportFreshnessStatus || (row.copyRatesExportStale ? 'STALE' : '—'),
+    导出延迟: row.copyRatesExportGeneratedLagHours
+      ? formatHourValue(row.copyRatesExportGeneratedLagHours)
+      : '—',
+    周期延迟: row.copyRatesExportLatestLagHours ? formatHourValue(row.copyRatesExportLatestLagHours) : '—',
     证据源: row.collectionEndpoint || row.refreshCommand || row.artifactPath || row.artifactId || 'runtime evidence',
-    下一步: row.nextActionZh || '继续只读补齐晋级证据。',
+    下一步: chainedActionLine([row.copyRatesExportNextActionZh, row.nextActionZh || '继续只读补齐晋级证据。']),
     验收: row.acceptanceZh || '恢复后重新运行 production evidence / runtime evidence integrity。',
   }));
 }
@@ -2779,11 +2860,14 @@ export function buildRuntimeItems(snapshot) {
 
 export function buildDailyItems(snapshot) {
   const history = snapshot.historyProductionStatus || {};
+  const copyRatesFreshness = history.copyRatesExportFreshness || {};
+  const copyRatesStale = copyRatesFreshnessIsStale(copyRatesFreshness);
   const historyStatus = String(history.status || '').toUpperCase();
   const historyPromotionStatus = String(history.promotionGateStatus || '').toUpperCase();
   const historyFreshnessStatus = String(history.historyFreshnessStatus || '').toUpperCase();
   const historyBlocked = Boolean(
     history.historyFreshnessBlocksPromotion ||
+      copyRatesStale ||
       historyPromotionStatus === 'BLOCKED' ||
       historyStatus === 'BLOCKED' ||
       historyStatus === 'FAIL' ||
@@ -2802,6 +2886,7 @@ export function buildDailyItems(snapshot) {
     history.historyFreshnessStatus ? `freshness ${history.historyFreshnessStatus}` : '',
     codeListLine(history.blockers),
     historyTimeframes.length ? `周期 ${historyTimeframes.join('/')}` : '',
+    copyRatesFreshnessLine(copyRatesFreshness),
     history.reasonZh || (!historyPass ? '未 PASS 时只允许 shadow/tester 观察' : ''),
   ]
     .filter(Boolean)

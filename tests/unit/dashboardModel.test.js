@@ -563,6 +563,31 @@ describe('dashboardModel', () => {
                 artifactId: 'historyProductionStatus',
                 promotionGate: {
                   status: 'BLOCKED',
+                  copyRatesExportFreshness: {
+                    status: 'STALE',
+                    stale: true,
+                    generatedLagHours: 263.4,
+                    staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
+                    nextActionZh: '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status。',
+                  },
+                  freshnessRecoveryQueue: [
+                    {
+                      timeframe: 'M1',
+                      status: 'FRESHNESS_STALE',
+                      priority: 'HIGH',
+                      latestLagHours: 240,
+                      maxLatestLagHours: 96,
+                      copyRatesExportFreshnessStatus: 'STALE',
+                      copyRatesExportStale: true,
+                      copyRatesExportGeneratedLagHours: 263.4,
+                      copyRatesExportLatestLagHours: 263.4,
+                      copyRatesExportStaleTimeframes: ['M1', 'M5', 'M15', 'H1'],
+                      copyRatesExportNextActionZh:
+                        '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status。',
+                      nextActionZh: 'M1 最新 K 线延迟超阈值；刷新 history freshness。',
+                      acceptanceZh: 'M1 freshnessOk=true、passed=true。',
+                    },
+                  ],
                   timeframes: {
                     M1: { passed: false, freshnessOk: false },
                     M5: { passed: true, freshnessOk: true },
@@ -610,6 +635,8 @@ describe('dashboardModel', () => {
       status: 'blocked',
     });
     expect(snapshot.coreRuntimeEvidence.detailLine).toContain('missing_category:BAD_ENTRY');
+    expect(snapshot.coreRuntimeEvidence.detailLine).toContain('CopyRates STALE');
+    expect(snapshot.coreRuntimeEvidence.detailLine).toContain('周期 M1/M5/M15/H1');
     expect(snapshot.coreRuntimeEvidence.detailLine).toContain('Case Memory 缺 BAD_ENTRY/GA_OVERFIT');
     expect(metric.hint).toContain('按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT');
     expect(recoveryItem).toMatchObject({
@@ -627,7 +654,11 @@ describe('dashboardModel', () => {
       任务: 'History freshness M1',
       状态: 'FRESHNESS_STALE',
       优先级: 'HIGH',
-      下一步: '刷新 M1 history freshness；通过 production-status 前禁止 GA/champion 晋级。',
+      CopyRates: 'STALE',
+      导出延迟: '11.0 天',
+      周期延迟: '11.0 天',
+      下一步:
+        '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status；随后 M1 最新 K 线延迟超阈值；刷新 history freshness。',
     });
     expect(coreRecoveryRows[1]).toMatchObject({
       任务: 'Case Memory BAD_ENTRY',
@@ -642,6 +673,45 @@ describe('dashboardModel', () => {
       status: 'blocked',
       statusLabel: '晋级阻断',
     });
+  });
+
+  it('surfaces CopyRates export staleness from production evidence on daily history item', () => {
+    const raw = {
+      productionEvidenceValidation: {
+        ok: true,
+        report: {
+          historyProduction: {
+            status: 'WARN',
+            statusZh: 'USDJPY 历史 freshness 未通过',
+            promotionGateStatus: 'BLOCKED',
+            historyTargetSatisfied: false,
+            staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
+            copyRatesExportFreshness: {
+              status: 'STALE',
+              stale: true,
+              generatedLagHours: 263.4,
+              staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
+              nextActionZh: '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status。',
+            },
+          },
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const item = buildDailyItems(snapshot).find((entry) => entry.label === 'GA 历史样本');
+
+    expect(snapshot.historyProductionStatus.copyRatesExportFreshness).toMatchObject({
+      status: 'STALE',
+      stale: true,
+    });
+    expect(item).toMatchObject({
+      value: 'USDJPY 历史 freshness 未通过',
+      status: 'blocked',
+    });
+    expect(item.hint).toContain('CopyRates STALE');
+    expect(item.hint).toContain('导出 11.0 天未刷新');
+    expect(item.hint).toContain('先刷新 MQL5 CopyRates exporter');
   });
 
   it('does not mark ok false endpoint envelopes as normal health', () => {
