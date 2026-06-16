@@ -60,6 +60,11 @@ assertCondition(
   'production evidence API must expose the run endpoint',
 );
 for (const marker of [
+  'History Freshness 恢复队列',
+  'freshnessRecoveryQueue',
+  'refreshCommand',
+  'verifyCommand',
+  'latestLagHours',
   'Case Memory 覆盖',
   'caseMemoryCoverage',
   'Case Memory 缺失分类',

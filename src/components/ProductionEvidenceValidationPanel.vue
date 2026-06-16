@@ -29,6 +29,33 @@
       </ul>
     </div>
 
+    <div v-if="historyRows.length" class="production-evidence-history">
+      <h4>History Freshness 恢复队列</h4>
+      <div class="production-evidence-mini-table" role="table" aria-label="History freshness recovery">
+        <div class="production-evidence-mini-table__head" role="row">
+          <span role="columnheader">周期</span>
+          <span role="columnheader">优先级</span>
+          <span role="columnheader">状态</span>
+          <span role="columnheader">最新延迟</span>
+          <span role="columnheader">恢复命令</span>
+          <span role="columnheader">验收</span>
+        </div>
+        <div
+          v-for="row in historyRows"
+          :key="row.timeframe"
+          class="production-evidence-mini-table__row"
+          role="row"
+        >
+          <span role="cell">{{ row.timeframe }}</span>
+          <span role="cell">{{ row.priority }}</span>
+          <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
+          <span role="cell">{{ row.latestLagHours }}h / {{ row.maxLatestLagHours }}h</span>
+          <span role="cell">{{ row.refreshCommand }}</span>
+          <span role="cell">{{ row.acceptanceZh }}</span>
+        </div>
+      </div>
+    </div>
+
     <div v-if="caseMemoryRows.length" class="production-evidence-case-memory">
       <h4>Case Memory 缺失分类</h4>
       <div class="production-evidence-mini-table" role="table" aria-label="Case Memory coverage">
@@ -71,6 +98,24 @@ const payload = ref(null);
 
 const report = computed(() => payload.value?.report || payload.value || {});
 const blockers = computed(() => report.value?.blockersZh || []);
+const historyRows = computed(() => {
+  const rows = Array.isArray(report.value?.historyProduction?.freshnessRecoveryQueue)
+    ? report.value.historyProduction.freshnessRecoveryQueue
+    : [];
+  return rows.map((row) => ({
+    timeframe: row.timeframe || 'UNKNOWN',
+    priority: row.priority || 'MEDIUM',
+    status: row.status || 'UNKNOWN',
+    statusClass: String(row.status || 'UNKNOWN').toLowerCase(),
+    latestLagHours: row.latestLagHours ?? '待确认',
+    maxLatestLagHours: row.maxLatestLagHours ?? 96,
+    excessLagHours: row.excessLagHours ?? 0,
+    refreshCommand: row.refreshCommand || '等待 sync-klines 恢复命令',
+    verifyCommand: row.verifyCommand || '',
+    nextActionZh: row.nextActionZh || '继续刷新 USDJPY 历史 K 线。',
+    acceptanceZh: row.acceptanceZh || 'spanOk / densityOk / freshnessOk 均为 true。',
+  }));
+});
 const caseMemoryRows = computed(() => {
   const rows = Array.isArray(report.value?.caseMemoryCoverage?.missingRows)
     ? report.value.caseMemoryCoverage.missingRows
@@ -98,7 +143,10 @@ const cards = computed(() => {
       key: 'history',
       label: '历史数据',
       status: r.historyProduction?.status || 'UNKNOWN',
-      detail: r.historyProduction?.recommendation || '等待历史同步验证',
+      detail:
+        r.historyProduction?.nextRecoveryActionZh ||
+        r.historyProduction?.recommendation ||
+        '等待历史同步验证',
     },
     {
       key: 'parity',
