@@ -3,8 +3,14 @@ node_modules/
 dist/
 coverage/
 runtime/
+exports/
+cache/
+.cache/
+.codex/
 *.log
 .env
 .env.*
 !.env.example
 .DS_Store
+__pycache__/
+*.pyc
