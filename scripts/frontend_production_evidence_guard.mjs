@@ -47,6 +47,7 @@ for (const file of files) {
 }
 
 const service = readSource('src/services/productionEvidenceApi.js');
+const panel = readSource('src/components/ProductionEvidenceValidationPanel.vue');
 assertCondition(
   /\/api\/production-evidence-validation\/status/.test(service),
   'production evidence API must expose the status endpoint',
@@ -55,6 +56,14 @@ assertCondition(
   /\/api\/production-evidence-validation\/run/.test(service),
   'production evidence API must expose the run endpoint',
 );
+for (const marker of [
+  'Case Memory 覆盖',
+  'caseMemoryCoverage',
+  'Case Memory 缺失分类',
+  'coverage',
+]) {
+  assertCondition(panel.includes(marker), `production evidence panel must surface ${marker}`);
+}
 
 if (failures.length > 0) {
   console.error('frontend production evidence guard failed:');

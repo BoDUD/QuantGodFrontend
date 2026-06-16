@@ -28,6 +28,29 @@
         <li v-for="item in blockers" :key="item">{{ item }}</li>
       </ul>
     </div>
+
+    <div v-if="caseMemoryRows.length" class="production-evidence-case-memory">
+      <h4>Case Memory 缺失分类</h4>
+      <div class="production-evidence-mini-table" role="table" aria-label="Case Memory coverage">
+        <div class="production-evidence-mini-table__head" role="row">
+          <span role="columnheader">分类</span>
+          <span role="columnheader">状态</span>
+          <span role="columnheader">样本</span>
+          <span role="columnheader">下一步</span>
+        </div>
+        <div
+          v-for="row in caseMemoryRows"
+          :key="row.category"
+          class="production-evidence-mini-table__row"
+          role="row"
+        >
+          <span role="cell">{{ row.category }}</span>
+          <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
+          <span role="cell">{{ row.observedCount }}</span>
+          <span role="cell">{{ row.nextActionZh }}</span>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -41,6 +64,18 @@ const payload = ref(null);
 
 const report = computed(() => payload.value?.report || payload.value || {});
 const blockers = computed(() => report.value?.blockersZh || []);
+const caseMemoryRows = computed(() => {
+  const rows = Array.isArray(report.value?.caseMemoryCoverage?.rows)
+    ? report.value.caseMemoryCoverage.rows
+    : [];
+  return rows.map((row) => ({
+    category: row.category || 'UNKNOWN',
+    status: row.status || 'UNKNOWN',
+    statusClass: String(row.status || 'UNKNOWN').toLowerCase(),
+    observedCount: row.observedCount ?? 0,
+    nextActionZh: row.nextActionZh || '继续补齐 shadow/tester 样本证据。',
+  }));
+});
 const cards = computed(() => {
   const r = report.value || {};
   return [
@@ -67,6 +102,12 @@ const cards = computed(() => {
       label: 'GA 多代稳定性',
       status: r.gaMultiGenerationStability?.status || 'UNKNOWN',
       detail: `代数 ${r.gaMultiGenerationStability?.currentGeneration || 0}，候选 ${r.gaMultiGenerationStability?.candidateCount || 0}`,
+    },
+    {
+      key: 'case-memory',
+      label: 'Case Memory 覆盖',
+      status: r.caseMemoryCoverage?.status || 'UNKNOWN',
+      detail: `覆盖 ${r.caseMemoryCoverage?.coveredCategoryCount || 0} / ${r.caseMemoryCoverage?.requiredCategoryCount || 0}，缺失 ${(r.caseMemoryCoverage?.missingCategories || []).join(' / ') || '无'}`,
     },
   ];
 });
@@ -129,8 +170,35 @@ onMounted(load);
 .status { display: block; font-size: 18px; }
 .status.pass { color: #86efac; }
 .status.warn, .status.unknown { color: #fde68a; }
-.status.fail { color: #fca5a5; }
+.status.fail, .status.blocked, .status.missing { color: #fca5a5; }
+.status.covered { color: #86efac; }
 .production-evidence-blockers { margin-top: 12px; }
+.production-evidence-case-memory { margin-top: 12px; }
+.production-evidence-mini-table {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.production-evidence-mini-table__head,
+.production-evidence-mini-table__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(80px, .6fr) minmax(56px, .4fr) minmax(220px, 2fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.36);
+}
+.production-evidence-mini-table__head {
+  font-size: 12px;
+  opacity: .72;
+}
 @media (max-width: 900px) { .production-evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) {
+  .production-evidence-mini-table__head,
+  .production-evidence-mini-table__row {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 520px) { .production-evidence-card__header { flex-direction: column; } .production-evidence-grid { grid-template-columns: 1fr; } }
 </style>
