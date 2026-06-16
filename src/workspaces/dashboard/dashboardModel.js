@@ -208,6 +208,7 @@ function readonlyFreshness(payload = {}) {
 }
 
 function freshnessStatusValue(freshness = {}) {
+  if (freshness.status === 'MISSING_EA_SNAPSHOT') return '快照缺失';
   if (freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT') return '快照过期';
   if (freshness.status === 'STALE_DASHBOARD_SNAPSHOT') return '快照过期';
   if (freshness.fresh === true) return '新鲜';

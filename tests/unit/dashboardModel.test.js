@@ -149,6 +149,62 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('surfaces missing MT5 EA snapshot as a recovery blocker instead of waiting data', () => {
+    const raw = {
+      latest: {
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      mt5Snapshot: {
+        ok: false,
+        status: 'MISSING_EA_SNAPSHOT',
+        statusZh: 'MT5 dashboard 快照缺失',
+        snapshotFresh: false,
+        hostProcess: {
+          status: 'MISSING',
+          terminalProcessDetected: false,
+          matchingProcessCount: 0,
+        },
+        _freshness: {
+          status: 'MISSING_EA_SNAPSHOT',
+          statusZh: 'MT5 dashboard 快照缺失',
+          stale: true,
+          fresh: false,
+          blockers: ['missing_ea_dashboard_snapshot', 'mt5_terminal_process_missing'],
+          nextActionZh: '未找到 QuantGod_Dashboard.json；先恢复 MT5 终端和 EA dashboard writer。',
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const metrics = buildDashboardMetrics(snapshot);
+    const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
+    const recoveryItems = buildSnapshotRecoveryItems(snapshot);
+
+    expect(snapshot.mt5SnapshotStale).toBe(true);
+    expect(snapshot.mt5HostProcessMissing).toBe(true);
+    expect(snapshot.snapshotRecovery).toMatchObject({
+      status: 'blocked',
+      label: 'MT5/EA dashboard writer 未运行',
+      realtimeUsable: false,
+    });
+    expect(metrics.find((item) => item.label === '主 MT5 只读桥')).toMatchObject({
+      value: 'writer 未运行',
+      status: 'blocked',
+    });
+    expect(sourceRows.find((row) => row.数据源 === '主账号只读桥')).toMatchObject({
+      状态: 'writer 未运行',
+      动作: '恢复主账号 MT5/EA dashboard writer。',
+    });
+    expect(recoveryItems.find((item) => item.label === '当前结论')).toMatchObject({
+      value: 'MT5/EA dashboard writer 未运行',
+      status: 'blocked',
+    });
+  });
+
   it('summarizes stale MT5 snapshots across the whole dashboard without hiding fresh research evidence', () => {
     const raw = {
       latest: {
