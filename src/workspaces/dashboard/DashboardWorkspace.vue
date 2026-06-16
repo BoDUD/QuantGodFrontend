@@ -56,6 +56,12 @@
         <span class="qg-muted">区分当前账号状态、研究证据和实盘释放闸门</span>
       </div>
       <LedgerTable title="整体前端修复优先级" :rows="frontendSnapshotRecoveryRows" :limit="8" />
+      <LedgerTable
+        v-if="coreEvidenceRecoveryRows.length"
+        title="核心证据恢复队列"
+        :rows="coreEvidenceRecoveryRows"
+        :limit="10"
+      />
     </section>
 
     <section class="qg-domain-panel qg-domain-panel--primary">
@@ -393,6 +399,7 @@ import {
   buildSnapshotRecoveryItems,
   buildSnapshotRecoveryRows,
   buildFrontendSnapshotRecoveryRows,
+  buildCoreEvidenceRecoveryRows,
   buildRuntimeItems,
   buildDailyItems,
   buildAgentOpsItems,
@@ -460,6 +467,7 @@ const snapshotRootCause = computed(() => buildSnapshotRootCauseBanner(snapshot.v
 const snapshotRecoveryItems = computed(() => buildSnapshotRecoveryItems(snapshot.value));
 const snapshotRecoveryRows = computed(() => buildSnapshotRecoveryRows(snapshot.value));
 const frontendSnapshotRecoveryRows = computed(() => buildFrontendSnapshotRecoveryRows(snapshot.value));
+const coreEvidenceRecoveryRows = computed(() => buildCoreEvidenceRecoveryRows(snapshot.value));
 const runtimeItems = computed(() => buildRuntimeItems(snapshot.value));
 const dailyItems = computed(() => buildDailyItems(snapshot.value));
 const agentOpsItems = computed(() => buildAgentOpsItems(state));

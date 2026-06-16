@@ -261,8 +261,9 @@ function freshnessIsStale(freshness = {}) {
 }
 
 function hostProcess(payload = {}) {
-  const terminal = isObject(payload.terminal) ? payload.terminal : {};
-  const process = isObject(payload.hostProcess) ? payload.hostProcess : {};
+  const source = isObject(payload) ? payload : {};
+  const terminal = isObject(source.terminal) ? source.terminal : {};
+  const process = isObject(source.hostProcess) ? source.hostProcess : {};
   return {
     status: process.status || terminal.hostProcessStatus || '',
     terminalProcessDetected:
@@ -397,11 +398,15 @@ function snapshotRecovery(raw = {}) {
     primaryProcessMissing || stalePrimary ? `Live12: ${primaryRecoveryAction}` : '',
     secondaryProcessMissing || staleSecondary ? `Live16: ${secondaryRecoveryAction}` : '',
   ].filter(Boolean);
-  const status = processMissing ? 'blocked' : staleSources.length ? 'warn' : 'ok';
+  const hasFreshRealtimeEvidence = latest.fresh === true || primary.fresh === true || secondary.fresh === true;
+  const realtimeUsable = hasFreshRealtimeEvidence && !staleSources.length && !processMissing;
+  const status = processMissing ? 'blocked' : staleSources.length || !hasFreshRealtimeEvidence ? 'warn' : 'ok';
   const label = processMissing
     ? 'MT5/EA dashboard writer 未运行'
     : staleSources.length
       ? '实时快照过期'
+      : !hasFreshRealtimeEvidence
+        ? '等待实时快照'
       : '实时快照新鲜';
   const nextAction = processMissing
     ? scopedRecoveryActions.length
@@ -414,6 +419,8 @@ function snapshotRecovery(raw = {}) {
         secondary.nextActionZh ||
         secondary.nextAction ||
         '刷新 MT5/EA dashboard writer 后再读取实时账户状态。'
+      : !hasFreshRealtimeEvidence
+        ? '等待 /api/latest 与 MT5 只读桥返回 freshness，再判断账户、持仓和执行状态是否可信。'
       : '运行快照可用于只读观察。';
   return {
     status,
@@ -425,7 +432,7 @@ function snapshotRecovery(raw = {}) {
     primaryRecoveryAction,
     secondaryRecoveryAction,
     recoveryChecklistLine: scopedRecoveryActions.join('；'),
-    realtimeUsable: !staleSources.length && !processMissing,
+    realtimeUsable,
     liveLoopUsable: Boolean(liveLoop.ready) && !liveLoop.hardStale,
     liveLoopLine: liveLoop.statusZh || '等待 USDJPY live-loop 证据',
     liveLoopNextAction: liveLoop.nextActionZh,
@@ -799,6 +806,13 @@ function promotionRecoveryQueueLine(rows = []) {
     return row.kind || row.status || row.artifactId || 'recovery';
   });
   return codeListLine(labels);
+}
+
+function promotionRecoveryTaskLabel(row = {}) {
+  if (row.timeframe) return `History freshness ${row.timeframe}`;
+  if (row.category) return `Case Memory ${row.category}`;
+  if (row.kind === 'case_memory_report') return 'Case Memory candidate report';
+  return row.kind || row.artifactId || 'Promotion recovery';
 }
 
 function coreEvidencePromotionRecoveryQueue(core = {}, historyGate = {}, caseGate = {}) {
@@ -2453,6 +2467,18 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         ]
       : []),
   ];
+}
+
+export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
+  const queue = rowsFromObjectList(snapshot.coreRuntimeEvidence?.promotionRecoveryQueue);
+  return queue.map((row) => ({
+    任务: promotionRecoveryTaskLabel(row),
+    状态: row.status || '待处理',
+    优先级: row.priority || 'PENDING',
+    证据源: row.collectionEndpoint || row.refreshCommand || row.artifactPath || row.artifactId || 'runtime evidence',
+    下一步: row.nextActionZh || '继续只读补齐晋级证据。',
+    验收: row.acceptanceZh || '恢复后重新运行 production evidence / runtime evidence integrity。',
+  }));
 }
 
 export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {

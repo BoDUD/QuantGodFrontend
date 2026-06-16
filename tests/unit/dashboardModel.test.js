@@ -12,6 +12,7 @@ import {
   buildSnapshotRecoveryItems,
   buildSnapshotRecoveryRows,
   buildFrontendSnapshotRecoveryRows,
+  buildCoreEvidenceRecoveryRows,
   buildRuntimeItems,
   buildProfitTargetItems,
   normalizeDashboardSnapshot,
@@ -94,6 +95,36 @@ describe('dashboardModel', () => {
     expect(freshnessMetric).toMatchObject({
       value: '待确认',
       hint: '按 /api/latest dashboard mtime 判定',
+    });
+  });
+
+  it('keeps the dashboard shell renderable while nullable API payloads are still loading', () => {
+    const raw = {
+      latest: null,
+      state: null,
+      mt5Snapshot: null,
+      secondaryMt5Snapshot: null,
+      usdJpyLiveLoop: null,
+      hfmCrypto: null,
+      profitTarget: null,
+      productionEvidenceValidation: null,
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const recoveryItems = buildSnapshotRecoveryItems(snapshot);
+    const rootCause = buildSnapshotRootCauseBanner(snapshot);
+
+    expect(snapshot.snapshotRecovery).toMatchObject({
+      realtimeUsable: false,
+      processMissing: false,
+    });
+    expect(recoveryItems.find((item) => item.label === '实时账号状态')).toMatchObject({
+      value: '不可作为当前状态',
+      status: 'blocked',
+    });
+    expect(rootCause).toMatchObject({
+      status: 'warn',
+      title: '真实账号快照不能当作当前状态',
     });
   });
 
@@ -530,6 +561,7 @@ describe('dashboardModel', () => {
     const metric = buildDashboardMetrics(snapshot).find((item) => item.label === '核心证据晋级闸');
     const recoveryItem = buildSnapshotRecoveryItems(snapshot).find((item) => item.label === '核心证据晋级闸');
     const recoveryRow = buildSnapshotRecoveryRows(snapshot).find((row) => row.区域 === 'Core evidence / GA 晋级');
+    const coreRecoveryRows = buildCoreEvidenceRecoveryRows(snapshot);
     const sourceRow = buildRuntimeSourceDiagnosticRows(raw).find((row) => row.数据源 === 'Core Runtime Evidence');
     const health = buildEndpointHealth(raw).find(
       (item) => item.endpoint === '/api/production-evidence-validation/status',
@@ -564,6 +596,18 @@ describe('dashboardModel', () => {
       状态: '晋级阻断',
       影响: '核心文件可以完整，但 GA/champion 晋级仍被 freshness 或 Case Memory 样本类型阻断',
       下一步: '按恢复队列处理 history:M1 / case:BAD_ENTRY / case:GA_OVERFIT；只允许只读/shadow/tester 补证。',
+    });
+    expect(coreRecoveryRows).toHaveLength(3);
+    expect(coreRecoveryRows[0]).toMatchObject({
+      任务: 'History freshness M1',
+      状态: 'FRESHNESS_STALE',
+      优先级: 'HIGH',
+      下一步: '刷新 M1 history freshness；通过 production-status 前禁止 GA/champion 晋级。',
+    });
+    expect(coreRecoveryRows[1]).toMatchObject({
+      任务: 'Case Memory BAD_ENTRY',
+      状态: 'MISSING_CATEGORY',
+      优先级: 'HIGH',
     });
     expect(sourceRow).toMatchObject({
       状态: '晋级阻断',
