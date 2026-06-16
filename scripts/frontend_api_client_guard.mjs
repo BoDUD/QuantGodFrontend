@@ -123,10 +123,20 @@ if (/\/QuantGod_[^\s'"?#]+\.(json|csv)\b/i.test(domainApi)) {
 }
 
 const serviceDir = path.join(root, 'src/services');
+const requiredApiClientServices = [
+  'src/services/api.js',
+  'src/services/backtestAiApi.js',
+  'src/services/phase1Api.js',
+  'src/services/phase2Api.js',
+  'src/services/phase3Api.js',
+];
 for (const filePath of walkFiles(serviceDir)) {
   const relativePath = path.relative(root, filePath).replaceAll(path.sep, '/');
   if (relativePath === 'src/services/apiClient.js') continue;
   const source = fs.readFileSync(filePath, 'utf8');
+  if (requiredApiClientServices.includes(relativePath) && !source.includes("from './apiClient.js'")) {
+    fail(`${relativePath} must import API helpers from apiClient.js`);
+  }
   if (/\bfetch\s*\(/.test(source)) {
     fail(`${relativePath} must not call fetch() directly; use apiClient.js helpers`);
   }

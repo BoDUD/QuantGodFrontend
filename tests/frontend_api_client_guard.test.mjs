@@ -122,6 +122,21 @@ test('api-client guard rejects domainApi helper imports in service modules', () 
   );
 });
 
+test('api-client guard requires legacy high-risk services to import apiClient directly', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-required-import-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/backtestAiApi.js'),
+    "export const DEFAULT_BACKTEST_SYMBOLS = ['USDJPYc'];\nexport async function loadBacktestAiState() { return { ok: false }; }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /backtestAiApi\.js must import API helpers from apiClient\.js/,
+  );
+});
+
 test('api-client guard rejects legacy requestJson wrappers in service modules', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-request-json-'));
   writeFixture(root);
