@@ -31,7 +31,10 @@ function assertReadableSource(file, text) {
 }
 
 function assertNoRuntimeArtifactReferences(file, text) {
-  assertCondition(!forbiddenRuntimeArtifactPattern.test(text), `${file} must not directly reference runtime files`);
+  assertCondition(
+    !forbiddenRuntimeArtifactPattern.test(text),
+    `${file} must not directly reference runtime files`,
+  );
   assertCondition(!forbiddenRuntimeFetchPattern.test(text), `${file} must not directly fetch runtime files`);
 }
 
@@ -61,6 +64,9 @@ for (const marker of [
   'caseMemoryCoverage',
   'Case Memory 缺失分类',
   'coverage',
+  'collectionEndpoint',
+  'targetCount',
+  'priority',
 ]) {
   assertCondition(panel.includes(marker), `production evidence panel must surface ${marker}`);
 }

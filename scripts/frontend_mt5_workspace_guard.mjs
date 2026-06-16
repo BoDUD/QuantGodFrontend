@@ -104,6 +104,10 @@ function checkMt5Model(root) {
     'cancelAllowed',
     'credentialStorageAllowed',
     'livePresetMutationAllowed',
+    'MISSING_EA_SNAPSHOT',
+    'freshnessBlocksCurrentState',
+    'writer 未运行',
+    '旧快照不能证明当前为 0',
   ]) {
     if (!text.includes(requiredSafety))
       errors.push(`${rel(root, model)}: missing safety field ${requiredSafety}`);

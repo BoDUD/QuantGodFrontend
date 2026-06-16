@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCloseHistoryRows,
+  buildEndpointHealth,
   buildMt5AccountCards,
   buildMt5Metrics,
   buildMt5ExecutionFeedbackRows,
@@ -13,6 +14,7 @@ import {
   buildMt5EvidenceOsLiteItems,
   buildMt5TodoRows,
   buildMt5ReviewRows,
+  buildOrderRows,
   buildPositionRows,
   buildRsiEntryDiagnosticRows,
   buildUsdJpyLiveLoopItems,
@@ -348,7 +350,7 @@ describe('mt5Model ledgers', () => {
   });
 
   it('surfaces missing terminal process as the stale snapshot root cause', () => {
-    const snapshot = normalizeMt5Snapshot({
+    const raw = {
       snapshot: {
         ok: true,
         status: 'STALE_EA_SNAPSHOT',
@@ -375,10 +377,38 @@ describe('mt5Model ledgers', () => {
           balance: 10020.5,
         },
       },
-    });
+      positions: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          blockers: ['live_dashboard_snapshot_stale'],
+        },
+        items: [{ ticket: 'old-position', symbol: 'USDJPYc', volume: 0.01 }],
+      },
+      orders: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          blockers: ['live_dashboard_snapshot_stale'],
+        },
+        items: [{ ticket: 'old-order', symbol: 'USDJPYc', volume: 0.01 }],
+      },
+    };
+    const snapshot = normalizeMt5Snapshot(raw);
 
     const centItems = buildMt5AccountCards(snapshot)[0].items;
+    const endpointHealth = buildEndpointHealth(raw);
 
+    expect(buildMt5AccountCards(snapshot)[0]).toMatchObject({
+      status: 'blocked',
+      statusLabel: 'writer 未运行',
+    });
     expect(centItems.find((item) => item.label === 'MT5 进程')).toMatchObject({
       value: '未检测到 terminal64/wine 进程',
       status: 'blocked',
@@ -390,6 +420,56 @@ describe('mt5Model ledgers', () => {
     expect(centItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
       value: '过期',
       status: 'warn',
+    });
+    expect(endpointHealth.find((item) => item.endpoint === '/api/mt5-readonly/snapshot')).toMatchObject({
+      status: 'blocked',
+      statusLabel: 'writer 未运行',
+    });
+    expect(buildPositionRows(snapshot)[0]).toMatchObject({
+      账户: '主账号',
+      状态: 'writer 未运行',
+      可信范围: '实时持仓不可确认；旧快照不能证明当前为 0。',
+    });
+    expect(buildPositionRows(snapshot)[0].票号).toBeUndefined();
+    expect(buildOrderRows(snapshot)[0]).toMatchObject({
+      账户: '主账号',
+      状态: 'writer 未运行',
+      可信范围: '挂单状态不可确认；旧快照不能证明当前为 0。',
+    });
+    expect(buildOrderRows(snapshot)[0].票号).toBeUndefined();
+  });
+
+  it('marks missing EA snapshots as blocked instead of a normal endpoint', () => {
+    const raw = {
+      snapshot: {
+        ok: false,
+        status: 'MISSING_EA_SNAPSHOT',
+        statusZh: 'MT5 dashboard 快照缺失',
+        snapshotFresh: false,
+        _freshness: {
+          status: 'MISSING_EA_SNAPSHOT',
+          statusZh: 'MT5 dashboard 快照缺失',
+          stale: true,
+          fresh: false,
+          blockers: ['missing_ea_dashboard_snapshot'],
+          nextActionZh: '未找到 QuantGod_Dashboard.json；先恢复 MT5 终端和 EA dashboard writer。',
+        },
+      },
+    };
+    const snapshot = normalizeMt5Snapshot(raw);
+    const endpointHealth = buildEndpointHealth(raw);
+
+    expect(buildMt5AccountCards(snapshot)[0]).toMatchObject({
+      status: 'blocked',
+      statusLabel: '快照缺失',
+    });
+    expect(endpointHealth.find((item) => item.endpoint === '/api/mt5-readonly/snapshot')).toMatchObject({
+      status: 'blocked',
+      statusLabel: '快照缺失',
+    });
+    expect(buildPositionRows(snapshot)[0]).toMatchObject({
+      状态: '快照缺失',
+      可信范围: '实时持仓不可确认；旧快照不能证明当前为 0。',
     });
   });
 

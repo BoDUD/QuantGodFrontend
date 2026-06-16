@@ -66,6 +66,9 @@ for (const marker of [
   'candidateRows',
   'candidatePenaltyRows',
   'parityGate',
+  'remainingCount',
+  'collectionEndpoint',
+  'acceptanceZh',
 ]) {
   if (!component.includes(marker)) errors.push(`case memory panel missing marker: ${marker}`);
 }

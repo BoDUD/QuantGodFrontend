@@ -96,50 +96,122 @@ function mt5HostProcessLine(process = {}) {
 function freshnessFromReadonlyPayload(payload = {}) {
   const source = unwrap(payload) || {};
   if (isObject(source._freshness) && present(source._freshness)) {
-    const stale =
-      source._freshness.stale === true ||
-      String(source._freshness.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+    const status = String(source._freshness.status || '').toUpperCase();
+    const missing = status === 'MISSING_EA_SNAPSHOT';
+    const stale = source._freshness.stale === true || status === 'STALE_EA_SNAPSHOT' || missing;
     const fresh = source._freshness.fresh === true;
     return {
       ...source._freshness,
+      missing,
       statusZh:
         source._freshness.statusZh ||
-        (stale ? 'MT5 dashboard 快照已过期' : fresh ? 'MT5 dashboard 新鲜' : ''),
+        (missing
+          ? 'MT5 dashboard 快照缺失'
+          : stale
+            ? 'MT5 dashboard 快照已过期'
+            : fresh
+              ? 'MT5 dashboard 新鲜'
+              : ''),
       nextActionZh:
         source._freshness.nextActionZh ||
-        (stale ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。' : ''),
+        (missing
+          ? '未找到 QuantGod_Dashboard.json；先恢复对应 MT5 终端和 EA dashboard writer。'
+          : stale
+            ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
+            : ''),
     };
   }
   const sourceMeta = isObject(source.source) ? source.source : {};
+  const status = String(source.status || '').toUpperCase();
   const hasFreshnessEvidence =
     source.snapshotFresh !== undefined ||
     sourceMeta.fresh !== undefined ||
     sourceMeta.ageSeconds !== undefined ||
-    String(source.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+    status === 'STALE_EA_SNAPSHOT' ||
+    status === 'MISSING_EA_SNAPSHOT';
   if (!hasFreshnessEvidence) return {};
+  const missing = status === 'MISSING_EA_SNAPSHOT';
   const fresh = source.snapshotFresh === true || sourceMeta.fresh === true;
   const stale =
-    source.snapshotFresh === false ||
-    sourceMeta.fresh === false ||
-    String(source.status || '').toUpperCase() === 'STALE_EA_SNAPSHOT';
+    source.snapshotFresh === false || sourceMeta.fresh === false || status === 'STALE_EA_SNAPSHOT' || missing;
   return {
     mode: 'MT5_READONLY_EA_SNAPSHOT_MTIME_WATCH',
-    status: stale ? 'STALE_EA_SNAPSHOT' : fresh ? 'FRESH_EA_SNAPSHOT' : 'WAITING_EA_SNAPSHOT_FRESHNESS',
-    statusZh: stale
-      ? 'MT5 dashboard 快照已过期'
-      : fresh
-        ? 'MT5 dashboard 新鲜'
-        : 'MT5 dashboard 新鲜度待确认',
+    status: missing
+      ? 'MISSING_EA_SNAPSHOT'
+      : stale
+        ? 'STALE_EA_SNAPSHOT'
+        : fresh
+          ? 'FRESH_EA_SNAPSHOT'
+          : 'WAITING_EA_SNAPSHOT_FRESHNESS',
+    statusZh: missing
+      ? 'MT5 dashboard 快照缺失'
+      : stale
+        ? 'MT5 dashboard 快照已过期'
+        : fresh
+          ? 'MT5 dashboard 新鲜'
+          : 'MT5 dashboard 新鲜度待确认',
     fresh,
     stale,
+    missing,
     ageSeconds: sourceMeta.ageSeconds,
     maxAgeSeconds: sourceMeta.maxAgeSeconds,
     sourceFile: sourceMeta.file || '',
-    blockers: stale ? ['live_dashboard_snapshot_stale'] : [],
-    nextActionZh: stale
-      ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
-      : '',
+    blockers: missing ? ['missing_ea_dashboard_snapshot'] : stale ? ['live_dashboard_snapshot_stale'] : [],
+    nextActionZh: missing
+      ? '未找到 QuantGod_Dashboard.json；先恢复对应 MT5 终端和 EA dashboard writer。'
+      : stale
+        ? '恢复对应 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。'
+        : '',
   };
+}
+
+function freshnessStatus(freshness = {}) {
+  return String(freshness.status || '').toUpperCase();
+}
+
+function freshnessMissing(freshness = {}) {
+  const blockers = Array.isArray(freshness.blockers) ? freshness.blockers : [];
+  return (
+    freshness.missing === true ||
+    freshnessStatus(freshness) === 'MISSING_EA_SNAPSHOT' ||
+    blockers.includes('missing_ea_dashboard_snapshot')
+  );
+}
+
+function freshnessStale(freshness = {}) {
+  const status = freshnessStatus(freshness);
+  return (
+    freshness.stale === true ||
+    status === 'STALE_EA_SNAPSHOT' ||
+    status === 'STALE_DASHBOARD_SNAPSHOT' ||
+    freshnessMissing(freshness)
+  );
+}
+
+function freshnessUnconfirmed(freshness = {}) {
+  return present(freshness) && !freshnessStale(freshness) && freshness.fresh !== true;
+}
+
+function freshnessBlocksCurrentState(freshness = {}) {
+  return freshnessStale(freshness) || freshnessUnconfirmed(freshness);
+}
+
+function freshnessStatusLabel(freshness = {}) {
+  if (freshnessMissing(freshness)) return '快照缺失';
+  if (freshnessStale(freshness)) return '快照过期';
+  if (freshnessUnconfirmed(freshness)) return '快照待确认';
+  if (freshness.fresh === true) return '新鲜';
+  return '待同步';
+}
+
+function freshnessRecoveryHint(freshness = {}, fallback = '') {
+  return (
+    freshness.nextActionZh ||
+    freshness.nextAction ||
+    freshnessLine(freshness) ||
+    fallback ||
+    '等待 MT5 快照刷新'
+  );
 }
 
 function format(value) {
@@ -669,6 +741,7 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}) {
 }
 
 function accountAutoTradingEnabled(account = {}) {
+  if (account.hostProcessMissing || freshnessBlocksCurrentState(account.freshness || {})) return false;
   return Boolean(
     normalizeAccountId(account.login) &&
     account.connected &&
@@ -684,6 +757,8 @@ function accountEntryGateReady(account = {}) {
 }
 
 function accountStatusTone(account = {}) {
+  if (account.hostProcessMissing || freshnessMissing(account.freshness || {})) return 'blocked';
+  if (freshnessBlocksCurrentState(account.freshness || {})) return 'warn';
   if (!normalizeAccountId(account.login) || !account.connected) return 'error';
   if (truthyFlag(account.killSwitch)) return 'error';
   if (!accountAutoTradingEnabled(account)) return 'warn';
@@ -692,6 +767,10 @@ function accountStatusTone(account = {}) {
 }
 
 function accountStatusLabel(account = {}) {
+  if (account.hostProcessMissing) return 'writer 未运行';
+  if (freshnessMissing(account.freshness || {})) return '快照缺失';
+  if (freshnessStale(account.freshness || {})) return '快照过期';
+  if (freshnessUnconfirmed(account.freshness || {})) return '快照待确认';
   if (!normalizeAccountId(account.login) || !account.connected) return '未连接';
   if (truthyFlag(account.killSwitch)) return '熔断中';
   if (!accountAutoTradingEnabled(account)) return '等待 EA 权限';
@@ -700,6 +779,18 @@ function accountStatusLabel(account = {}) {
 }
 
 function accountPermissionItem(account = {}) {
+  if (account.hostProcessMissing || freshnessBlocksCurrentState(account.freshness || {})) {
+    const freshness = account.freshness || {};
+    const blocked = account.hostProcessMissing || freshnessMissing(freshness);
+    return {
+      label: 'MT5 权限',
+      value: account.hostProcessMissing ? 'writer 未运行' : freshnessStatusLabel(freshness),
+      status: blocked ? 'blocked' : 'warn',
+      hint: account.hostProcessMissing
+        ? '未检测到 terminal64/wine 进程；先恢复 MT5/EA dashboard writer，再判断交易权限。'
+        : freshnessRecoveryHint(freshness, '等待新鲜 MT5 快照后再判断交易权限。'),
+    };
+  }
   const flags = [
     account.terminalTradeAllowed,
     account.programTradeAllowed,
@@ -797,19 +888,13 @@ function accountCard(account = {}, fallback = {}) {
     : present(fallback.latestFreshness)
       ? fallback.latestFreshness
       : null;
-  const latestStale = Boolean(
-    latestFreshness?.stale || latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT',
-  );
+  const latestStale = Boolean(latestFreshness && freshnessStale(latestFreshness));
   const latestFresh = latestFreshness?.fresh === true;
-  const latestUnconfirmed = Boolean(latestFreshness && !latestStale && !latestFresh);
+  const latestUnconfirmed = Boolean(latestFreshness && freshnessUnconfirmed(latestFreshness));
   const accountSnapshotStale = latestStale || account.snapshotFresh === false;
   const accountSnapshotUnconfirmed = !accountSnapshotStale && latestUnconfirmed;
-  const accountSnapshotHint =
-    latestFreshness?.nextActionZh ||
-    freshnessLine(latestFreshness) ||
-    account.timestamp ||
-    account.sourceFile ||
-    '等待 MT5 快照刷新';
+  const freshnessHint = latestFreshness ? freshnessRecoveryHint(latestFreshness) : '';
+  const accountSnapshotHint = freshnessHint || account.timestamp || account.sourceFile || '等待 MT5 快照刷新';
   const positions = Array.isArray(fallback.positions) ? fallback.positions : [];
   const positionHint = positions.length
     ? positions
@@ -914,9 +999,15 @@ function accountCard(account = {}, fallback = {}) {
         ? [
             {
               label: '快照新鲜度',
-              value: latestStale ? '过期' : latestFresh ? '新鲜' : '待确认',
+              value: latestStale
+                ? freshnessMissing(latestFreshness)
+                  ? '缺失'
+                  : '过期'
+                : latestFresh
+                  ? '新鲜'
+                  : '待确认',
               status: latestStale || !latestFresh ? 'warn' : 'ok',
-              hint: latestFreshness.nextActionZh || freshnessLine(latestFreshness),
+              hint: freshnessRecoveryHint(latestFreshness),
             },
           ]
         : []),
@@ -1064,19 +1155,33 @@ export function normalizeMt5Snapshot(raw = {}) {
     usdJpyLiveLoop?.usdDeploymentGate ||
     {};
   const runtime = isObject(snapshot.runtime) ? snapshot.runtime : {};
-  const primaryPositionsRaw = rowsFromPayload(raw.positions);
   const secondarySnapshotEnvelope = unwrap(raw.secondarySnapshot) || {};
   const primaryFreshness = freshnessFromReadonlyPayload(snapshot);
   const secondaryFreshness = freshnessFromReadonlyPayload(secondarySnapshotEnvelope);
+  const primaryPositionsFreshness = freshnessFromReadonlyPayload(raw.positions || {});
+  const primaryOrdersFreshness = freshnessFromReadonlyPayload(raw.orders || {});
+  const primaryPositionsBlocked =
+    freshnessBlocksCurrentState(primaryFreshness) || freshnessBlocksCurrentState(primaryPositionsFreshness);
+  const primaryOrdersBlocked =
+    freshnessBlocksCurrentState(primaryFreshness) || freshnessBlocksCurrentState(primaryOrdersFreshness);
+  const secondaryPositionsBlocked = freshnessBlocksCurrentState(secondaryFreshness);
+  const secondaryOrdersBlocked = freshnessBlocksCurrentState(secondaryFreshness);
+  const secondaryPositionsFromEndpoint = rowsFromPayload(raw.secondaryPositions);
+  const secondaryOrdersFromEndpoint = rowsFromPayload(raw.secondaryOrders);
+  const primaryPositionsRaw = primaryPositionsBlocked ? [] : rowsFromPayload(raw.positions);
   const latestFreshness =
     isObject(latest._freshness) && present(latest._freshness) ? latest._freshness : primaryFreshness;
-  const secondaryPositionsRaw = rowsFromPayload(raw.secondaryPositions).length
-    ? rowsFromPayload(raw.secondaryPositions)
-    : rowsFromPayload(secondarySnapshotEnvelope.positions || secondarySnapshotEnvelope);
-  const primaryOrdersRaw = rowsFromPayload(raw.orders);
-  const secondaryOrdersRaw = rowsFromPayload(raw.secondaryOrders).length
-    ? rowsFromPayload(raw.secondaryOrders)
-    : rowsFromPayload(secondarySnapshotEnvelope.orders || {});
+  const secondaryPositionsRaw = secondaryPositionsBlocked
+    ? []
+    : secondaryPositionsFromEndpoint.length
+      ? secondaryPositionsFromEndpoint
+      : rowsFromPayload(secondarySnapshotEnvelope.positions || secondarySnapshotEnvelope);
+  const primaryOrdersRaw = primaryOrdersBlocked ? [] : rowsFromPayload(raw.orders);
+  const secondaryOrdersRaw = secondaryOrdersBlocked
+    ? []
+    : secondaryOrdersFromEndpoint.length
+      ? secondaryOrdersFromEndpoint
+      : rowsFromPayload(secondarySnapshotEnvelope.orders || {});
   const rawSymbols = rowsFromPayload(raw.symbols).length
     ? rowsFromPayload(raw.symbols)
     : rowsFromPayload(snapshot.symbols);
@@ -1151,11 +1256,7 @@ export function normalizeMt5Snapshot(raw = {}) {
   return {
     latest,
     latestFreshness,
-    latestDashboardStale: Boolean(
-      latestFreshness?.stale ||
-      latestFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
-      latestFreshness?.status === 'STALE_EA_SNAPSHOT',
-    ),
+    latestDashboardStale: freshnessStale(latestFreshness || {}),
     latestFreshnessLine: freshnessLine(latestFreshness || {}),
     primaryMt5Freshness: primaryFreshness,
     secondaryMt5Freshness: secondaryFreshness,
@@ -1336,42 +1437,14 @@ export function buildMt5Metrics(snapshot) {
     ? secondary.freshness
     : snapshot.secondaryMt5Freshness;
   const primarySnapshotState = {
-    stale: Boolean(
-      primaryFreshness?.stale ||
-      primaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
-      primaryFreshness?.status === 'STALE_EA_SNAPSHOT',
-    ),
-    unconfirmed: Boolean(
-      present(primaryFreshness) &&
-      !(
-        primaryFreshness?.stale ||
-        primaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
-        primaryFreshness?.status === 'STALE_EA_SNAPSHOT'
-      ) &&
-      primaryFreshness?.fresh !== true,
-    ),
-    hint:
-      primaryFreshness?.nextActionZh || primaryFreshness?.nextAction || freshnessLine(primaryFreshness || {}),
+    stale: freshnessStale(primaryFreshness || {}),
+    unconfirmed: freshnessUnconfirmed(primaryFreshness || {}),
+    hint: freshnessRecoveryHint(primaryFreshness || {}, ''),
   };
   const secondarySnapshotState = {
-    stale: Boolean(
-      secondaryFreshness?.stale ||
-      secondaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
-      secondaryFreshness?.status === 'STALE_EA_SNAPSHOT',
-    ),
-    unconfirmed: Boolean(
-      present(secondaryFreshness) &&
-      !(
-        secondaryFreshness?.stale ||
-        secondaryFreshness?.status === 'STALE_DASHBOARD_SNAPSHOT' ||
-        secondaryFreshness?.status === 'STALE_EA_SNAPSHOT'
-      ) &&
-      secondaryFreshness?.fresh !== true,
-    ),
-    hint:
-      secondaryFreshness?.nextActionZh ||
-      secondaryFreshness?.nextAction ||
-      freshnessLine(secondaryFreshness || {}),
+    stale: freshnessStale(secondaryFreshness || {}),
+    unconfirmed: freshnessUnconfirmed(secondaryFreshness || {}),
+    hint: freshnessRecoveryHint(secondaryFreshness || {}, ''),
   };
   const primaryEquity = staleAwareAccountItem(
     '主账号净值',
@@ -2467,7 +2540,29 @@ function latestRows(rows, keys, limit = Number.POSITIVE_INFINITY) {
     .map((item) => item.row);
 }
 
+function accountSnapshotDiagnosticRows(snapshot = {}, noun = '实时数据') {
+  return (snapshot.accountConnections || [])
+    .filter((account) => account.hostProcessMissing || freshnessBlocksCurrentState(account.freshness || {}))
+    .map((account) => {
+      const freshness = account.freshness || {};
+      const state = account.hostProcessMissing ? 'writer 未运行' : freshnessStatusLabel(freshness);
+      const hint = account.hostProcessMissing
+        ? '未检测到 terminal64/wine 进程；先恢复 MT5/EA dashboard writer。'
+        : freshnessRecoveryHint(freshness);
+      return {
+        账户: account.label || account.role || 'MT5 账号',
+        状态: state,
+        可信范围: `${noun}不可确认；旧快照不能证明当前为 0。`,
+        下一步: hint,
+      };
+    });
+}
+
 export function buildPositionRows(snapshot) {
+  if (!snapshot.positions.length) {
+    const diagnostics = accountSnapshotDiagnosticRows(snapshot, '实时持仓');
+    if (diagnostics.length) return diagnostics;
+  }
   return snapshot.positions.slice(0, 30).map((row) =>
     compactRow(row, {
       账户: ['Account', 'account', 'AccountLogin', 'accountLogin'],
@@ -2487,6 +2582,10 @@ export function buildPositionRows(snapshot) {
 }
 
 export function buildOrderRows(snapshot) {
+  if (!snapshot.orders.length) {
+    const diagnostics = accountSnapshotDiagnosticRows(snapshot, '挂单状态');
+    if (diagnostics.length) return diagnostics;
+  }
   return snapshot.orders.slice(0, 30).map((row) =>
     compactRow(row, {
       账户: ['Account', 'account', 'AccountLogin', 'accountLogin'],
@@ -2709,10 +2808,58 @@ export function buildEndpointHealth(raw = {}) {
   const hasSnapshot = present(raw.snapshot);
   const hasSymbolRegistry = present(raw.symbols);
   const symbolPayload = hasSymbolRegistry ? raw.symbols : hasSnapshot ? raw.snapshot : raw.symbols;
-  const endpointReady = (payload) => {
-    if (!present(payload)) return false;
+  const endpointState = (payload) => {
+    if (!present(payload)) {
+      return { status: 'warn', statusLabel: '缺失', description: '' };
+    }
     const value = unwrap(payload);
-    return !(isObject(value) && value.ok === false);
+    const freshness = freshnessFromReadonlyPayload(value || {});
+    const process = mt5HostProcess(value || {});
+    const processMissing = mt5HostProcessMissing(process);
+    if (processMissing) {
+      return {
+        status: 'blocked',
+        statusLabel: 'writer 未运行',
+        description:
+          '未检测到 terminal64/wine 进程；先恢复 MT5 终端和 EA dashboard writer，再判断当前账号状态。',
+      };
+    }
+    if (freshnessMissing(freshness)) {
+      return {
+        status: 'blocked',
+        statusLabel: '快照缺失',
+        description: freshnessRecoveryHint(
+          freshness,
+          '未找到 QuantGod_Dashboard.json；先恢复 MT5 终端和 EA dashboard writer。',
+        ),
+      };
+    }
+    if (freshnessStale(freshness)) {
+      return {
+        status: 'warn',
+        statusLabel: '快照过期',
+        description: freshnessRecoveryHint(
+          freshness,
+          '恢复对应 MT5/EA dashboard writer 后再把账号、持仓或执行状态当成当前值。',
+        ),
+      };
+    }
+    if (freshnessUnconfirmed(freshness)) {
+      return {
+        status: 'warn',
+        statusLabel: '待确认',
+        description: freshnessRecoveryHint(freshness, '等待只读桥返回快照新鲜度证据。'),
+      };
+    }
+    if (isObject(value) && value.ok === false) {
+      return {
+        status: 'warn',
+        statusLabel: '不可用',
+        description:
+          value.statusZh || value.error?.message || value.error || '后端返回 ok=false，当前证据不可用。',
+      };
+    }
+    return { status: 'ok', statusLabel: '正常', description: '' };
   };
   const endpoints = [
     ['连接状态', '/api/mt5-readonly/status', raw.status, '终端连接与授权'],
@@ -2742,11 +2889,14 @@ export function buildEndpointHealth(raw = {}) {
     ],
     ['完整快照', '/api/mt5-readonly/snapshot', raw.snapshot, 'EA 快照兜底'],
   ];
-  return endpoints.map(([label, endpoint, payload, description]) => ({
-    label,
-    endpoint,
-    description,
-    status: endpointReady(payload) ? 'ok' : 'warn',
-    statusLabel: endpointReady(payload) ? '正常' : '待同步',
-  }));
+  return endpoints.map(([label, endpoint, payload, description]) => {
+    const state = endpointState(payload);
+    return {
+      label,
+      endpoint,
+      description: state.description || description,
+      status: state.status,
+      statusLabel: state.statusLabel,
+    };
+  });
 }

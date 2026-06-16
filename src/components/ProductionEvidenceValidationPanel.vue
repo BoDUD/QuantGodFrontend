@@ -34,8 +34,10 @@
       <div class="production-evidence-mini-table" role="table" aria-label="Case Memory coverage">
         <div class="production-evidence-mini-table__head" role="row">
           <span role="columnheader">分类</span>
+          <span role="columnheader">优先级</span>
           <span role="columnheader">状态</span>
-          <span role="columnheader">样本</span>
+          <span role="columnheader">样本缺口</span>
+          <span role="columnheader">来源</span>
           <span role="columnheader">下一步</span>
         </div>
         <div
@@ -45,8 +47,10 @@
           role="row"
         >
           <span role="cell">{{ row.category }}</span>
+          <span role="cell">{{ row.priority }}</span>
           <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
-          <span role="cell">{{ row.observedCount }}</span>
+          <span role="cell">{{ row.observedCount }} / {{ row.targetCount }}</span>
+          <span role="cell">{{ row.collectionEndpoint || row.source }}</span>
           <span role="cell">{{ row.nextActionZh }}</span>
         </div>
       </div>
@@ -56,7 +60,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { fetchProductionEvidenceStatus, runProductionEvidenceValidation } from '../services/productionEvidenceApi.js';
+import {
+  fetchProductionEvidenceStatus,
+  runProductionEvidenceValidation,
+} from '../services/productionEvidenceApi.js';
 
 const loading = ref(false);
 const error = ref('');
@@ -65,14 +72,22 @@ const payload = ref(null);
 const report = computed(() => payload.value?.report || payload.value || {});
 const blockers = computed(() => report.value?.blockersZh || []);
 const caseMemoryRows = computed(() => {
-  const rows = Array.isArray(report.value?.caseMemoryCoverage?.rows)
-    ? report.value.caseMemoryCoverage.rows
-    : [];
+  const rows = Array.isArray(report.value?.caseMemoryCoverage?.missingRows)
+    ? report.value.caseMemoryCoverage.missingRows
+    : Array.isArray(report.value?.caseMemoryCoverage?.rows)
+      ? report.value.caseMemoryCoverage.rows
+      : [];
   return rows.map((row) => ({
     category: row.category || 'UNKNOWN',
+    priority: row.priority || 'MEDIUM',
     status: row.status || 'UNKNOWN',
     statusClass: String(row.status || 'UNKNOWN').toLowerCase(),
     observedCount: row.observedCount ?? 0,
+    targetCount: row.targetCount ?? 1,
+    remainingCount: row.remainingCount ?? 0,
+    source: row.source || 'Case Memory evidence',
+    collectionEndpoint: row.collectionEndpoint || '',
+    acceptanceZh: row.acceptanceZh || '',
     nextActionZh: row.nextActionZh || '继续补齐 shadow/tester 样本证据。',
   }));
 });
@@ -153,7 +168,11 @@ onMounted(load);
   gap: 16px;
   align-items: flex-start;
 }
-.production-evidence-card__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.production-evidence-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .production-evidence-card__actions button {
   border: 1px solid var(--qg-border, rgba(148, 163, 184, 0.3));
   border-radius: 999px;
@@ -161,19 +180,61 @@ onMounted(load);
   background: transparent;
   color: inherit;
 }
-.eyebrow { margin: 0 0 4px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .72; }
-.muted { opacity: .72; }
-.error { color: #fca5a5; }
-.production-evidence-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.production-evidence-cardlet { padding: 12px; border-radius: 12px; background: rgba(15, 23, 42, 0.5); min-width: 0; }
-.label { display: block; opacity: .72; font-size: 12px; margin-bottom: 6px; }
-.status { display: block; font-size: 18px; }
-.status.pass { color: #86efac; }
-.status.warn, .status.unknown { color: #fde68a; }
-.status.fail, .status.blocked, .status.missing { color: #fca5a5; }
-.status.covered { color: #86efac; }
-.production-evidence-blockers { margin-top: 12px; }
-.production-evidence-case-memory { margin-top: 12px; }
+.eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+.muted {
+  opacity: 0.72;
+}
+.error {
+  color: #fca5a5;
+}
+.production-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.production-evidence-cardlet {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.5);
+  min-width: 0;
+}
+.label {
+  display: block;
+  opacity: 0.72;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.status {
+  display: block;
+  font-size: 18px;
+}
+.status.pass {
+  color: #86efac;
+}
+.status.warn,
+.status.unknown {
+  color: #fde68a;
+}
+.status.fail,
+.status.blocked,
+.status.missing {
+  color: #fca5a5;
+}
+.status.covered {
+  color: #86efac;
+}
+.production-evidence-blockers {
+  margin-top: 12px;
+}
+.production-evidence-case-memory {
+  margin-top: 12px;
+}
 .production-evidence-mini-table {
   display: grid;
   gap: 6px;
@@ -182,7 +243,10 @@ onMounted(load);
 .production-evidence-mini-table__head,
 .production-evidence-mini-table__row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(80px, .6fr) minmax(56px, .4fr) minmax(220px, 2fr);
+  grid-template-columns: minmax(120px, 1fr) minmax(72px, 0.5fr) minmax(80px, 0.6fr) minmax(
+      72px,
+      0.5fr
+    ) minmax(180px, 1.4fr) minmax(220px, 2fr);
   gap: 8px;
   align-items: start;
   padding: 8px 10px;
@@ -191,14 +255,25 @@ onMounted(load);
 }
 .production-evidence-mini-table__head {
   font-size: 12px;
-  opacity: .72;
+  opacity: 0.72;
 }
-@media (max-width: 900px) { .production-evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .production-evidence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 720px) {
   .production-evidence-mini-table__head,
   .production-evidence-mini-table__row {
     grid-template-columns: 1fr;
   }
 }
-@media (max-width: 520px) { .production-evidence-card__header { flex-direction: column; } .production-evidence-grid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) {
+  .production-evidence-card__header {
+    flex-direction: column;
+  }
+  .production-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

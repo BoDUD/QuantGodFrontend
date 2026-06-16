@@ -22,7 +22,9 @@
       <article>
         <span>Case Memory</span>
         <strong>{{ caseCount }} 条</strong>
-        <p>{{ fallbackCaseMemory?.summaryZh || '等待 replay / execution feedback / GA blocker 生成经验。' }}</p>
+        <p>
+          {{ fallbackCaseMemory?.summaryZh || '等待 replay / execution feedback / GA blocker 生成经验。' }}
+        </p>
       </article>
       <article>
         <span>GA seed</span>
@@ -81,9 +83,13 @@
 
     <div v-if="missingCoverageRows.length" class="qg-usdjpy-evolution__mini-list">
       <article v-for="item in missingCoverageRows" :key="item.category">
-        <span>补证分类</span>
-        <strong>{{ item.category }}</strong>
-        <p>{{ item.nextActionZh }} 来源：{{ item.source }}。</p>
+        <span>补证分类 · {{ item.priority || 'MEDIUM' }}</span>
+        <strong>{{ item.category }} · 缺 {{ item.remainingCount ?? 0 }} 条</strong>
+        <p>
+          {{ item.nextActionZh }} 来源：{{ item.collectionEndpoint || item.source }}。验收：{{
+            item.acceptanceZh || '补齐 shadow/tester 样本。'
+          }}
+        </p>
       </article>
     </div>
 
@@ -138,8 +144,8 @@
     </div>
 
     <p class="qg-usdjpy-evolution__note">
-      这个面板只展示 Case Memory 到 Strategy JSON candidate 的转换结果；PARITY_FAIL 会阻断候选进入
-      shadow / GA elite / MICRO_LIVE。
+      这个面板只展示 Case Memory 到 Strategy JSON candidate 的转换结果；PARITY_FAIL 会阻断候选进入 shadow / GA
+      elite / MICRO_LIVE。
     </p>
   </section>
 </template>
@@ -177,7 +183,9 @@ const coverageRows = computed(() => {
 const missingCoverageRows = computed(() =>
   coverageRows.value.filter((row) => row?.status === 'MISSING').slice(0, 6),
 );
-const coreReport = computed(() => props.coreEvidence?.report?.coreRuntimeEvidenceIntegrity || props.coreEvidence || {});
+const coreReport = computed(
+  () => props.coreEvidence?.report?.coreRuntimeEvidenceIntegrity || props.coreEvidence || {},
+);
 const coreArtifacts = computed(() => {
   const rows = coreReport.value?.artifacts || [];
   return Array.isArray(rows) ? rows : [];
@@ -195,7 +203,8 @@ const candidateRows = computed(() => {
   return Array.isArray(rows) ? rows.slice(0, 10) : [];
 });
 const gaSeedRows = computed(() => {
-  const rows = report.value?.gaSeeds || report.value?.gaSeedHints || props.fallbackCaseMemory?.gaSeedHints || [];
+  const rows =
+    report.value?.gaSeeds || report.value?.gaSeedHints || props.fallbackCaseMemory?.gaSeedHints || [];
   return Array.isArray(rows) ? rows : [];
 });
 const parityGate = computed(() => report.value?.parityGate || {});
@@ -217,7 +226,8 @@ const caseCount = computed(
 );
 const gaSeedCount = computed(() => report.value?.gaSeedCount || gaSeedRows.value.length || 0);
 const missingCaseMemoryCategories = computed(() => {
-  const rows = coveragePlan.value?.missingCategories || caseMemoryPromotionGate.value?.missingCategories || [];
+  const rows =
+    coveragePlan.value?.missingCategories || caseMemoryPromotionGate.value?.missingCategories || [];
   return Array.isArray(rows) ? rows : [];
 });
 const staleHistoryTimeframes = computed(() => {
@@ -227,7 +237,10 @@ const staleHistoryTimeframes = computed(() => {
     .map(([timeframe]) => timeframe);
 });
 const caseMemoryPromotionStatusText = computed(() => {
-  const status = coveragePlan.value?.status || caseMemoryPromotionGate.value?.status || coreReport.value?.promotionGateStatus;
+  const status =
+    coveragePlan.value?.status ||
+    caseMemoryPromotionGate.value?.status ||
+    coreReport.value?.promotionGateStatus;
   if (status === 'PASS') return '样本类型已覆盖';
   if (status === 'BLOCKED') return '样本类型不足';
   return '等待样本门禁';
@@ -261,12 +274,16 @@ const candidatePenaltyRows = computed(() => {
   return Array.isArray(rows) ? rows.slice(0, 8) : [];
 });
 const candidatePenaltyCount = computed(() => candidatePenaltyRows.value.length);
-const parityStatus = computed(() => parityGate.value?.status || report.value?.parityStatus || 'WAITING_PARITY');
+const parityStatus = computed(
+  () => parityGate.value?.status || report.value?.parityStatus || 'WAITING_PARITY',
+);
 const parityReason = computed(
-  () => parityGate.value?.reasonZh || report.value?.parityReasonZh || '等待 Strategy / Replay / EA 一致性结果。',
+  () =>
+    parityGate.value?.reasonZh || report.value?.parityReasonZh || '等待 Strategy / Replay / EA 一致性结果。',
 );
 const nextAction = computed(
-  () => report.value?.nextActionZh || props.fallbackCaseMemory?.caseMemoryToGA?.nextActionZh || '等待生成候选。',
+  () =>
+    report.value?.nextActionZh || props.fallbackCaseMemory?.caseMemoryToGA?.nextActionZh || '等待生成候选。',
 );
 const longTermNextAction = computed(
   () => longTermMemory.value?.nextActionZh || '等待逐笔交易记忆、离场标签和滚动复盘样本。',
@@ -290,7 +307,9 @@ const tpSlActionText = computed(() => {
   return Array.isArray(rows) && rows.length ? rows[0] : '继续积累 TP/SL 复盘样本。';
 });
 const topLossPatternText = computed(() => topCounterText(rollingReview.value?.commonLossPatterns));
-const topDataGapText = computed(() => topCounterText(rollingReview.value?.commonDataGaps, '暂无数据缺口模式。'));
+const topDataGapText = computed(() =>
+  topCounterText(rollingReview.value?.commonDataGaps, '暂无数据缺口模式。'),
+);
 const gaMemoryPenaltyText = computed(() => metricText(gaLongTermMemoryFeedback.value?.penalty));
 const gaMemoryReason = computed(
   () => gaLongTermMemoryFeedback.value?.reasonZh || '等待 GA fitness 输出长期记忆惩罚。',
