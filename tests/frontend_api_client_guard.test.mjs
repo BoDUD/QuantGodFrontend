@@ -107,6 +107,21 @@ test('api-client guard rejects direct fetch in legacy service modules', () => {
   assert.match(result.stderr + result.stdout, /phase1Api\.js must not call fetch\(\) directly/);
 });
 
+test('api-client guard rejects domainApi helper imports in service modules', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-domain-import-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/strategyGaFactoryApi.js'),
+    "import { fetchJson } from './domainApi.js';\nexport const load = () => fetchJson('/api/latest');\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /strategyGaFactoryApi\.js must import API helpers from apiClient\.js instead of domainApi\.js/,
+  );
+});
+
 test('api-client guard rejects legacy requestJson wrappers in service modules', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-request-json-'));
   writeFixture(root);

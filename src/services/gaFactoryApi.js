@@ -1,4 +1,4 @@
-import { fetchJson, postJson } from './domainApi.js';
+import { fetchJson, postJson } from './apiClient.js';
 
 const BASE = '/api/ga-factory';
 
