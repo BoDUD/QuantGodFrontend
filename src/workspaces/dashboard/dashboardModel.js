@@ -2153,7 +2153,7 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
             状态: coreGate.value,
             年龄: coreGate.generatedAt || '见 integrity manifest',
             阈值: '完整性 PASS + promotion gate PASS',
-            源文件: 'runtime/integrity/QuantGod_CoreRuntimeEvidenceManifest.json',
+            源文件: '由 /api/production-evidence-validation/status 暴露的 core runtime evidence manifest',
             动作:
               coreGate.detailLine ||
               coreGate.nextActionZh ||

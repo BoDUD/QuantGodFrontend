@@ -164,6 +164,11 @@ if (!pkg.scripts || pkg.scripts['api-client'] !== 'node scripts/frontend_api_cli
   fail('package.json must define npm run api-client');
 }
 
+const p0Toolchain = String(pkg.scripts?.['p0-toolchain'] || '');
+if (!p0Toolchain.includes('npm run contract') || !p0Toolchain.includes('npm run api-client')) {
+  fail('package.json p0-toolchain must run contract and api-client guards before frontend acceptance');
+}
+
 if (!workflow.includes('npm run api-client')) {
   fail('Frontend CI workflow must run npm run api-client');
 }

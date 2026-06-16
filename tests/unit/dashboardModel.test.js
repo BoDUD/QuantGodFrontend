@@ -796,6 +796,10 @@ describe('dashboardModel', () => {
       状态: '晋级阻断',
       阈值: '完整性 PASS + promotion gate PASS',
     });
+    expect(sourceRow.源文件).toBe(
+      '由 /api/production-evidence-validation/status 暴露的 core runtime evidence manifest',
+    );
+    expect(sourceRow.源文件).not.toContain('QuantGod_');
     expect(health).toMatchObject({
       status: 'blocked',
       statusLabel: '晋级阻断',

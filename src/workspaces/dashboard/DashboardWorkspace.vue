@@ -553,19 +553,19 @@ onBeforeUnmount(abortLoad);
   gap: 14px;
   align-items: start;
   padding: 18px;
-  border: 1px solid rgba(255, 184, 77, 0.28);
+  border: 1px solid rgb(255 184 77 / 28%);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(255, 184, 77, 0.13), rgba(15, 23, 42, 0.82));
+  background: linear-gradient(135deg, rgb(255 184 77 / 13%), rgb(15 23 42 / 82%));
 }
 
 .qg-snapshot-root-cause--ok {
-  border-color: rgba(51, 217, 154, 0.28);
-  background: linear-gradient(135deg, rgba(51, 217, 154, 0.1), rgba(15, 23, 42, 0.82));
+  border-color: rgb(51 217 154 / 28%);
+  background: linear-gradient(135deg, rgb(51 217 154 / 10%), rgb(15 23 42 / 82%));
 }
 
 .qg-snapshot-root-cause--blocked {
-  border-color: rgba(255, 107, 134, 0.34);
-  background: linear-gradient(135deg, rgba(255, 107, 134, 0.12), rgba(15, 23, 42, 0.82));
+  border-color: rgb(255 107 134 / 34%);
+  background: linear-gradient(135deg, rgb(255 107 134 / 12%), rgb(15 23 42 / 82%));
 }
 
 .qg-snapshot-root-cause__main {
@@ -594,8 +594,8 @@ onBeforeUnmount(abortLoad);
   padding: 10px 12px;
   color: var(--muted);
   line-height: 1.42;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(129, 151, 178, 0.18);
+  background: rgb(255 255 255 / 3.5%);
+  border: 1px solid rgb(129 151 178 / 18%);
   border-radius: 8px;
 }
 

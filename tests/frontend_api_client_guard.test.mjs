@@ -51,7 +51,17 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
 
   fs.writeFileSync(
     path.join(root, 'package.json'),
-    JSON.stringify({ scripts: { 'api-client': 'node scripts/frontend_api_client_guard.mjs' } }, null, 2),
+    JSON.stringify(
+      {
+        scripts: {
+          contract: 'node scripts/frontend_api_contract_guard.mjs',
+          'api-client': 'node scripts/frontend_api_client_guard.mjs',
+          'p0-toolchain': 'npm run contract && npm run api-client && npm run lint',
+        },
+      },
+      null,
+      2,
+    ),
   );
 
   fs.writeFileSync(
@@ -131,10 +141,7 @@ test('api-client guard requires legacy high-risk services to import apiClient di
   );
   const result = runGuard(root);
   assert.notEqual(result.status, 0);
-  assert.match(
-    result.stderr + result.stdout,
-    /backtestAiApi\.js must import API helpers from apiClient\.js/,
-  );
+  assert.match(result.stderr + result.stdout, /backtestAiApi\.js must import API helpers from apiClient\.js/);
 });
 
 test('api-client guard rejects legacy requestJson wrappers in service modules', () => {
@@ -150,6 +157,28 @@ test('api-client guard rejects legacy requestJson wrappers in service modules', 
     result.stderr + result.stdout,
     /phase3Api\.js still defines duplicated API helper\/header: function requestJson/,
   );
+});
+
+test('api-client guard requires p0-toolchain to run contract and api-client guards', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-p0-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'package.json'),
+    JSON.stringify(
+      {
+        scripts: {
+          contract: 'node scripts/frontend_api_contract_guard.mjs',
+          'api-client': 'node scripts/frontend_api_client_guard.mjs',
+          'p0-toolchain': 'npm run lint && npm run test:unit',
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /p0-toolchain must run contract and api-client guards/);
 });
 
 test('api-client guard rejects missing raw file protection', () => {
