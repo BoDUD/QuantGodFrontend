@@ -245,6 +245,8 @@ const caseMemoryPanel = read('src/components/USDJPYCaseMemoryPanel.vue');
 for (const marker of [
   '样本类型晋级门',
   '历史 freshness 门禁',
+  '补证分类',
+  'coveragePlan',
   'missingCaseMemoryCategories',
   'staleHistoryTimeframes',
   'caseMemoryArtifactManifest',

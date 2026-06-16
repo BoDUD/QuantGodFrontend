@@ -79,6 +79,14 @@
       </article>
     </div>
 
+    <div v-if="missingCoverageRows.length" class="qg-usdjpy-evolution__mini-list">
+      <article v-for="item in missingCoverageRows" :key="item.category">
+        <span>补证分类</span>
+        <strong>{{ item.category }}</strong>
+        <p>{{ item.nextActionZh }} 来源：{{ item.source }}。</p>
+      </article>
+    </div>
+
     <div v-if="candidatePenaltyRows.length" class="qg-usdjpy-evolution__table-wrap">
       <table class="qg-usdjpy-evolution__table qg-usdjpy-evolution__table--compact">
         <thead>
@@ -161,6 +169,14 @@ const props = defineProps({
 });
 
 const report = computed(() => props.payload?.report || props.payload || {});
+const coveragePlan = computed(() => report.value?.coveragePlan || {});
+const coverageRows = computed(() => {
+  const rows = coveragePlan.value?.rows || [];
+  return Array.isArray(rows) ? rows : [];
+});
+const missingCoverageRows = computed(() =>
+  coverageRows.value.filter((row) => row?.status === 'MISSING').slice(0, 6),
+);
 const coreReport = computed(() => props.coreEvidence?.report?.coreRuntimeEvidenceIntegrity || props.coreEvidence || {});
 const coreArtifacts = computed(() => {
   const rows = coreReport.value?.artifacts || [];
@@ -201,7 +217,7 @@ const caseCount = computed(
 );
 const gaSeedCount = computed(() => report.value?.gaSeedCount || gaSeedRows.value.length || 0);
 const missingCaseMemoryCategories = computed(() => {
-  const rows = caseMemoryPromotionGate.value?.missingCategories || [];
+  const rows = coveragePlan.value?.missingCategories || caseMemoryPromotionGate.value?.missingCategories || [];
   return Array.isArray(rows) ? rows : [];
 });
 const staleHistoryTimeframes = computed(() => {
@@ -211,7 +227,7 @@ const staleHistoryTimeframes = computed(() => {
     .map(([timeframe]) => timeframe);
 });
 const caseMemoryPromotionStatusText = computed(() => {
-  const status = caseMemoryPromotionGate.value?.status || coreReport.value?.promotionGateStatus;
+  const status = coveragePlan.value?.status || caseMemoryPromotionGate.value?.status || coreReport.value?.promotionGateStatus;
   if (status === 'PASS') return '样本类型已覆盖';
   if (status === 'BLOCKED') return '样本类型不足';
   return '等待样本门禁';
@@ -220,7 +236,11 @@ const caseMemoryPromotionReason = computed(() => {
   if (missingCaseMemoryCategories.value.length) {
     return `缺少 ${missingCaseMemoryCategories.value.join(' / ')}；这些样本补齐前不能把候选升为 champion。`;
   }
-  return caseMemoryPromotionGate.value?.statusZh || '等待 Core Runtime Evidence 输出 Case Memory taxonomy gate。';
+  return (
+    coveragePlan.value?.statusZh ||
+    caseMemoryPromotionGate.value?.statusZh ||
+    '等待 Core Runtime Evidence 输出 Case Memory taxonomy gate。'
+  );
 });
 const historyPromotionStatusText = computed(() => {
   const status = historyPromotionGate.value?.status || coreReport.value?.promotionGateStatus;
