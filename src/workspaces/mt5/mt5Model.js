@@ -53,6 +53,13 @@ function present(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.rows)) return value.rows;
+  return [];
+}
+
 function freshnessLine(freshness = {}) {
   if (!present(freshness)) return '';
   const ageSeconds = Number(freshness.ageSeconds);
@@ -205,13 +212,16 @@ function freshnessStatusLabel(freshness = {}) {
 }
 
 function freshnessRecoveryHint(freshness = {}, fallback = '') {
-  return (
+  const action =
     freshness.nextActionZh ||
     freshness.nextAction ||
     freshnessLine(freshness) ||
     fallback ||
-    '等待 MT5 快照刷新'
-  );
+    '等待 MT5 快照刷新';
+  const steps = toArray(freshness.recoveryStepsZh || freshness.recoverySteps)
+    .map((step) => String(step).trim())
+    .filter(Boolean);
+  return [action, steps.length ? steps.join(' / ') : ''].filter(Boolean).join('；');
 }
 
 function format(value) {
@@ -1533,7 +1543,15 @@ function accountRecoveryRow(account = {}) {
             ? '新鲜'
             : '待同步';
   const nextStep = processMissing
-    ? '恢复对应 terminal64/wine 与 EA dashboard writer，再判断账号、持仓和交易权限。'
+    ? [
+        account.hostProcessLine || '未检测到 terminal64/wine 进程',
+        freshnessRecoveryHint(
+          freshness,
+          '恢复对应 terminal64/wine 与 EA dashboard writer，再判断账号、持仓和交易权限。',
+        ),
+      ]
+        .filter(Boolean)
+        .join('；')
     : freshnessRecoveryHint(
         freshness,
         '等待只读桥返回 MT5 dashboard 新鲜度证据，再判断当前账号状态。',

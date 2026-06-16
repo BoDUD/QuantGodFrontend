@@ -379,6 +379,24 @@ function snapshotRecovery(raw = {}) {
     : '等待 HFM Crypto shadow 证据';
   const profitTargetReady = endpointAvailable(raw.profitTarget);
   const processMissing = primaryProcessMissing || secondaryProcessMissing;
+  const primaryProcessLine = hostProcessLine(raw.mt5Snapshot);
+  const secondaryProcessLine = hostProcessLine(raw.secondaryMt5Snapshot);
+  const primaryRecoveryAction = recoveryActionLine({
+    processMissing: primaryProcessMissing,
+    processLine: primaryProcessLine,
+    freshness: primary,
+    fallback: '恢复主账号 MT5/EA dashboard writer。',
+  });
+  const secondaryRecoveryAction = recoveryActionLine({
+    processMissing: secondaryProcessMissing,
+    processLine: secondaryProcessLine,
+    freshness: secondary,
+    fallback: '恢复 Live16 MT5/EA dashboard writer。',
+  });
+  const scopedRecoveryActions = [
+    primaryProcessMissing || stalePrimary ? `Live12: ${primaryRecoveryAction}` : '',
+    secondaryProcessMissing || staleSecondary ? `Live16: ${secondaryRecoveryAction}` : '',
+  ].filter(Boolean);
   const status = processMissing ? 'blocked' : staleSources.length ? 'warn' : 'ok';
   const label = processMissing
     ? 'MT5/EA dashboard writer 未运行'
@@ -386,7 +404,9 @@ function snapshotRecovery(raw = {}) {
       ? '实时快照过期'
       : '实时快照新鲜';
   const nextAction = processMissing
-    ? '先恢复对应 MT5 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入；恢复前不要把账户、持仓或执行状态当成当前实盘。'
+    ? scopedRecoveryActions.length
+      ? scopedRecoveryActions.join('；')
+      : '先恢复对应 MT5 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入；恢复前不要把账户、持仓或执行状态当成当前实盘。'
     : staleSources.length
       ? latest.nextActionZh ||
         primary.nextActionZh ||
@@ -400,8 +420,11 @@ function snapshotRecovery(raw = {}) {
     label,
     staleSources,
     processMissing,
-    primaryProcessLine: hostProcessLine(raw.mt5Snapshot),
-    secondaryProcessLine: hostProcessLine(raw.secondaryMt5Snapshot),
+    primaryProcessLine,
+    secondaryProcessLine,
+    primaryRecoveryAction,
+    secondaryRecoveryAction,
+    recoveryChecklistLine: scopedRecoveryActions.join('；'),
     realtimeUsable: !staleSources.length && !processMissing,
     liveLoopUsable: Boolean(liveLoop.ready) && !liveLoop.hardStale,
     liveLoopLine: liveLoop.statusZh || '等待 USDJPY live-loop 证据',
@@ -488,15 +511,20 @@ function mt5BridgeHint({ line, freshness = {}, processLine = '', processMissing 
 
 function recoveryActionLine({ processMissing = false, processLine = '', freshness = {}, fallback = '' }) {
   const action = freshness.nextActionZh || freshness.nextAction || fallback;
+  const steps = toArray(freshness.recoveryStepsZh || freshness.recoverySteps)
+    .map((step) => String(step).trim())
+    .filter(Boolean);
+  const checklist = steps.length ? steps.join(' / ') : '';
   if (processMissing) {
     return [
       processLine || '未检测到 terminal64/wine 进程',
       action || '恢复对应 MT5 终端和 EA dashboard writer。',
+      checklist,
     ]
       .filter(Boolean)
       .join('；');
   }
-  return action || processLine || fallback;
+  return [action || processLine || fallback, checklist].filter(Boolean).join('；');
 }
 
 function formatIsoMinute(value) {

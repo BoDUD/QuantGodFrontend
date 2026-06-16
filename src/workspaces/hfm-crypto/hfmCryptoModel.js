@@ -125,6 +125,14 @@ function mt5FreshnessLine(freshness = {}) {
   return 'MT5 dashboard 新鲜度待确认';
 }
 
+function mt5RecoveryActionLine(freshness = {}, fallback = WAITING) {
+  const action = freshness.nextActionZh || freshness.nextAction || fallback;
+  const steps = toArray(freshness.recoveryStepsZh || freshness.recoverySteps)
+    .map((step) => String(step).trim())
+    .filter(Boolean);
+  return [action, steps.length ? steps.join(' / ') : ''].filter(Boolean).join('；');
+}
+
 function mt5HostProcess(payload = {}) {
   const terminal = isObject(payload.terminal) ? payload.terminal : {};
   const process = isObject(payload.hostProcess) ? payload.hostProcess : {};
@@ -195,10 +203,14 @@ function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, 
   const blocked = mt5SnapshotBlocked(freshness, process);
   const snapshotState = processMissing ? 'writer 未运行' : stale ? '快照过期' : fresh ? '新鲜' : '待确认';
   const snapshotAction = processMissing
-    ? '恢复 Live16 terminal64/wine 与 EA dashboard writer，再判断当前账号、BTC/crypto tick 和执行准备度。'
-    : freshness.nextActionZh ||
-      freshness.nextAction ||
-      '等待 Live16 只读桥返回新鲜快照后，再把账号状态作为当前证据。';
+    ? mt5RecoveryActionLine(
+        freshness,
+        '恢复 Live16 terminal64/wine 与 EA dashboard writer，再判断当前账号、BTC/crypto tick 和执行准备度。',
+      )
+    : mt5RecoveryActionLine(
+        freshness,
+        '等待 Live16 只读桥返回新鲜快照后，再把账号状态作为当前证据。',
+      );
   return [
     {
       区域: 'Live16 当前账号快照',

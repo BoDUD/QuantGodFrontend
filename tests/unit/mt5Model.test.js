@@ -190,6 +190,7 @@ describe('mt5Model ledgers', () => {
           fresh: false,
           ageSeconds: 875085,
           nextActionZh: '恢复 Live12 MT5/EA writer。',
+          recoveryStepsZh: ['确认 Live12 HFM/MT5 终端正在运行。', '确认 EA 持续写出 QuantGod_Dashboard.json。'],
         },
         hostProcess: {
           status: 'MISSING',
@@ -230,6 +231,8 @@ describe('mt5Model ledgers', () => {
       端点: '/api/mt5-readonly/snapshot',
       状态: 'writer 未运行',
     });
+    expect(rows[0].下一步).toContain('未检测到 terminal64/wine 进程');
+    expect(rows[0].下一步).toContain('确认 Live12 HFM/MT5 终端正在运行');
     expect(rows[0].可信范围).toContain('旧快照只作历史参考');
     expect(rows[1]).toMatchObject({
       账户: '第二账号 / HFMarketsGlobal-Live16',

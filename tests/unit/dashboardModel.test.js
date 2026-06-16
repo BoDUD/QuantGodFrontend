@@ -232,6 +232,7 @@ describe('dashboardModel', () => {
           fresh: false,
           ageSeconds: 542273,
           nextAction: 'Restore the MT5 terminal/EA dashboard writer process.',
+          recoveryStepsZh: ['确认 Live12 HFM/MT5 终端正在运行。', '确认 EA 持续写出 QuantGod_Dashboard.json。'],
           blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
         },
       },
@@ -250,6 +251,7 @@ describe('dashboardModel', () => {
           fresh: false,
           ageSeconds: 878748,
           nextAction: 'Restore the Live16 MT5 terminal/EA dashboard writer process.',
+          recoveryStepsZh: ['确认 Live16 HFM/MT5 终端正在运行。', '刷新 /api/mt5-readonly-secondary/snapshot。'],
           blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
         },
       },
@@ -304,6 +306,10 @@ describe('dashboardModel', () => {
       hfmShadowUsable: true,
       liveLoopUsable: false,
     });
+    expect(snapshot.snapshotRecovery.nextAction).toContain('Live12: 未检测到 terminal64/wine 进程');
+    expect(snapshot.snapshotRecovery.nextAction).toContain('确认 Live12 HFM/MT5 终端正在运行');
+    expect(snapshot.snapshotRecovery.nextAction).toContain('Live16: 未检测到 terminal64/wine 进程');
+    expect(snapshot.snapshotRecovery.nextAction).toContain('刷新 /api/mt5-readonly-secondary/snapshot');
     expect(snapshot.usdJpyLiveLoopStale).toBe(true);
     expect(metrics.find((item) => item.label === 'USDJPY Live Loop')).toMatchObject({
       value: '严重过期',

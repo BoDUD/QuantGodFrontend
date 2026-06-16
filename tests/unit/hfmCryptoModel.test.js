@@ -15,6 +15,7 @@ describe('hfmCryptoModel', () => {
           fresh: false,
           ageSeconds: 875085,
           nextAction: 'Restore the Live16 EA dashboard writer.',
+          recoveryStepsZh: ['确认对应 HFM/MT5 终端正在运行。', '刷新 /api/mt5-readonly-secondary/snapshot。'],
           blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
         },
         hostProcess: {
@@ -63,6 +64,7 @@ describe('hfmCryptoModel', () => {
       区域: 'Live16 当前账号快照',
       状态: 'writer 未运行',
     });
+    expect(model.tables.mt5RecoveryRows[0].下一步).toContain('确认对应 HFM/MT5 终端正在运行');
     expect(model.tables.mt5RecoveryRows[0].可信范围).toContain('旧快照只作历史参考');
     expect(model.accountItems.find((item) => item.label === 'Tick 年龄')).toMatchObject({
       status: 'blocked',
