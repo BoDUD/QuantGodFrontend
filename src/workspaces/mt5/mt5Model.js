@@ -64,6 +64,35 @@ function freshnessLine(freshness = {}) {
   return 'MT5 dashboard 新鲜度待确认';
 }
 
+function mt5HostProcess(payload = {}) {
+  const source = unwrap(payload) || {};
+  const terminal = isObject(source.terminal) ? source.terminal : {};
+  const process = isObject(source.hostProcess) ? source.hostProcess : {};
+  return {
+    status: process.status || terminal.hostProcessStatus || '',
+    terminalProcessDetected:
+      process.terminalProcessDetected ??
+      terminal.hostProcessDetected ??
+      terminal.terminalProcessDetected ??
+      null,
+    matchingProcessCount: numberValue(process.matchingProcessCount),
+  };
+}
+
+function mt5HostProcessMissing(process = {}) {
+  return process.terminalProcessDetected === false || String(process.status).toUpperCase() === 'MISSING';
+}
+
+function mt5HostProcessLine(process = {}) {
+  if (process.terminalProcessDetected === true) {
+    const count = process.matchingProcessCount === null ? '' : ` ${process.matchingProcessCount} 个`;
+    return `检测到 terminal64/wine 进程${count}`;
+  }
+  if (mt5HostProcessMissing(process)) return '未检测到 terminal64/wine 进程';
+  if (process.status) return humanizeStatus(process.status);
+  return '进程状态待确认';
+}
+
 function freshnessFromReadonlyPayload(payload = {}) {
   const source = unwrap(payload) || {};
   if (isObject(source._freshness) && present(source._freshness)) {
@@ -526,6 +555,7 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}) {
   );
   const runtime = firstObject(accountEnvelope.runtime, snapshotEnvelope.runtime);
   const terminal = firstObject(accountEnvelope.terminal, snapshotEnvelope.terminal);
+  const hostProcess = mt5HostProcess(source);
   const latestAuthorization = isObject(terminal.lastAuthorization) ? terminal.lastAuthorization : {};
   const login = pick(
     { account, source, latestAuthorization },
@@ -621,6 +651,10 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}) {
     account,
     runtime,
     terminal,
+    hostProcess,
+    hostProcessKnown: Boolean(hostProcess.status || hostProcess.terminalProcessDetected !== null),
+    hostProcessMissing: mt5HostProcessMissing(hostProcess),
+    hostProcessLine: mt5HostProcessLine(hostProcess),
     snapshotFresh: source.snapshotFresh ?? freshness.fresh,
     freshness,
     sourceFile: source.source?.file || freshness.sourceFile || '',
@@ -817,6 +851,22 @@ function accountCard(account = {}, fallback = {}) {
     items: [
       { label: '账号', value: account.login || '—' },
       { label: '服务器', value: account.server || '—' },
+      ...(account.hostProcessKnown
+        ? [
+            {
+              label: 'MT5 进程',
+              value: account.hostProcessLine || '进程状态待确认',
+              status: account.hostProcessMissing
+                ? 'blocked'
+                : account.hostProcess?.terminalProcessDetected
+                  ? 'ok'
+                  : 'warn',
+              hint: account.hostProcessMissing
+                ? '先恢复对应 terminal64/wine 与 EA dashboard writer，再判断当前账号、持仓和交易权限。'
+                : '按只读桥 hostProcess 证据判断。',
+            },
+          ]
+        : []),
       {
         label: '当前持仓',
         value: accountSnapshotStale

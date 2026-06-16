@@ -15,6 +15,12 @@ describe('hfmCryptoModel', () => {
           fresh: false,
           ageSeconds: 875085,
           nextAction: 'Restore the Live16 EA dashboard writer.',
+          blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
+        },
+        hostProcess: {
+          status: 'MISSING',
+          terminalProcessDetected: false,
+          matchingProcessCount: 0,
         },
         account: {
           login: 198135388,
@@ -40,6 +46,13 @@ describe('hfmCryptoModel', () => {
       value: '快照过期',
       status: 'blocked',
     });
+    expect(model.accountItems.find((item) => item.label === 'MT5 进程')).toMatchObject({
+      value: '未检测到 terminal64/wine 进程',
+      status: 'blocked',
+    });
+    expect(model.metrics.find((item) => item.label === 'MT5 账号链路').hint).toContain(
+      '未检测到 terminal64/wine 进程',
+    );
     expect(model.accountItems.find((item) => item.label === 'Tick 年龄')).toMatchObject({
       status: 'blocked',
     });

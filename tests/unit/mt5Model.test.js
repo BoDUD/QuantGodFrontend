@@ -347,6 +347,52 @@ describe('mt5Model ledgers', () => {
     });
   });
 
+  it('surfaces missing terminal process as the stale snapshot root cause', () => {
+    const snapshot = normalizeMt5Snapshot({
+      snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        hostProcess: {
+          status: 'MISSING',
+          terminalProcessDetected: false,
+          matchingProcessCount: 0,
+        },
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 603109,
+          maxAgeSeconds: 180,
+          blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
+          nextAction: 'Restore the MT5 terminal/EA dashboard writer process.',
+        },
+        account: {
+          login: '186054398',
+          server: 'HFMarketsGlobal-Live12',
+          currency: 'USC',
+          equity: 10020.5,
+          balance: 10020.5,
+        },
+      },
+    });
+
+    const centItems = buildMt5AccountCards(snapshot)[0].items;
+
+    expect(centItems.find((item) => item.label === 'MT5 进程')).toMatchObject({
+      value: '未检测到 terminal64/wine 进程',
+      status: 'blocked',
+    });
+    expect(centItems.find((item) => item.label === '当前持仓')).toMatchObject({
+      value: '不可确认',
+      status: 'warn',
+    });
+    expect(centItems.find((item) => item.label === '快照新鲜度')).toMatchObject({
+      value: '过期',
+      status: 'warn',
+    });
+  });
+
   it('does not mark MT5 account cards fresh when freshness is present but unconfirmed', () => {
     const snapshot = normalizeMt5Snapshot({
       latest: {

@@ -125,6 +125,36 @@ function mt5FreshnessLine(freshness = {}) {
   return 'MT5 dashboard 新鲜度待确认';
 }
 
+function mt5HostProcess(payload = {}) {
+  const terminal = isObject(payload.terminal) ? payload.terminal : {};
+  const process = isObject(payload.hostProcess) ? payload.hostProcess : {};
+  return {
+    status: process.status || terminal.hostProcessStatus || '',
+    terminalProcessDetected:
+      process.terminalProcessDetected ??
+      terminal.hostProcessDetected ??
+      terminal.terminalProcessDetected ??
+      null,
+    matchingProcessCount: Number.isFinite(Number(process.matchingProcessCount))
+      ? Number(process.matchingProcessCount)
+      : null,
+  };
+}
+
+function mt5HostProcessMissing(process = {}) {
+  return process.terminalProcessDetected === false || String(process.status).toUpperCase() === 'MISSING';
+}
+
+function mt5HostProcessLine(process = {}) {
+  if (process.terminalProcessDetected === true) {
+    const count = process.matchingProcessCount === null ? '' : ` ${process.matchingProcessCount} 个`;
+    return `检测到 terminal64/wine 进程${count}`;
+  }
+  if (mt5HostProcessMissing(process)) return '未检测到 terminal64/wine 进程';
+  if (process.status) return humanizeStatus(process.status);
+  return WAITING;
+}
+
 function mt5FreshnessRows(freshness = {}, payload = {}) {
   const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
   const fresh = freshness.fresh === true;
@@ -1527,6 +1557,10 @@ export function buildHfmCryptoModel(state = {}) {
   const mt5Snapshot = mt5SnapshotPayload(state);
   const mt5Freshness = mt5SnapshotFreshness(mt5Snapshot);
   const mt5SnapshotStale = mt5Freshness.stale === true || mt5Freshness.status === 'STALE_EA_SNAPSHOT';
+  const mt5Process = mt5HostProcess(mt5Snapshot);
+  const mt5ProcessKnown = Boolean(mt5Process.status || mt5Process.terminalProcessDetected !== null);
+  const mt5ProcessMissing = mt5HostProcessMissing(mt5Process);
+  const mt5ProcessLine = mt5HostProcessLine(mt5Process);
   const mt5UpgradeBundle = mt5UpgradeBundlePayload(state);
   const mt5ExporterDeployPlan = mt5ExporterDeployPlanPayload(state);
   const standaloneExporterBundle = standaloneExporterBundlePayload(state);
@@ -1781,8 +1815,10 @@ export function buildHfmCryptoModel(state = {}) {
       {
         label: 'MT5 账号链路',
         value: mt5Connected ? `已连接 ${mt5Server}` : '未连上 MT5 快照',
-        hint: `${mt5Login} / ${mt5Currency} / ${mt5FreshnessLine(mt5Freshness)}`,
-        status: mt5SnapshotStale ? 'blocked' : mt5Connected ? 'ok' : 'warn',
+        hint: `${mt5Login} / ${mt5Currency} / ${
+          mt5ProcessKnown ? `${mt5ProcessLine} / ` : ''
+        }${mt5FreshnessLine(mt5Freshness)}`,
+        status: mt5ProcessMissing || mt5SnapshotStale ? 'blocked' : mt5Connected ? 'ok' : 'warn',
       },
       {
         label: 'Crypto 接入卡点',
@@ -2518,6 +2554,18 @@ export function buildHfmCryptoModel(state = {}) {
       status: checklistTone(row),
     })),
     accountItems: [
+      ...(mt5ProcessKnown
+        ? [
+            {
+              label: 'MT5 进程',
+              value: mt5ProcessLine,
+              hint: mt5ProcessMissing
+                ? '先恢复 Live16 terminal64/wine 与 EA dashboard writer，再判断当前账号和 BTC/crypto 执行准备度。'
+                : '按只读桥 hostProcess 证据判断。',
+              status: mt5ProcessMissing ? 'blocked' : mt5Process.terminalProcessDetected ? 'ok' : 'warn',
+            },
+          ]
+        : []),
       {
         label: 'MT5 快照',
         value: mt5SnapshotStale ? '快照过期' : mt5Snapshot.status || mt5Snapshot.bridgeStatus || WAITING,
