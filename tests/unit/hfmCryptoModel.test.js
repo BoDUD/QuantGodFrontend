@@ -79,10 +79,11 @@ describe('hfmCryptoModel', () => {
     });
     expect(model.tables.mt5FreshnessRows[0]).toMatchObject({
       来源: 'Live16 MT5 dashboard',
-      状态: '快照过期',
+      状态: 'writer 未运行',
       年龄: '10.1 天',
-      动作: '恢复 Live16 MT5/EA 进程并刷新 QuantGod_Dashboard.json；不要把旧快照当成当前实盘状态。',
     });
+    expect(model.tables.mt5FreshnessRows[0].动作).toContain('/api/mt5-readonly-secondary/snapshot');
+    expect(model.tables.mt5RecoveryRows[0].下一步).toContain('/api/mt5-readonly-secondary/snapshot');
   });
 
   it('surfaces an authorized HFM account with zero crypto CFD symbols as an account blocker', () => {

@@ -283,7 +283,7 @@ describe('dashboardModel', () => {
           fresh: false,
           ageSeconds: 878748,
           nextAction: 'Restore the Live16 MT5 terminal/EA dashboard writer process.',
-          recoveryStepsZh: ['确认 Live16 HFM/MT5 终端正在运行。', '刷新 /api/mt5-readonly-secondary/snapshot。'],
+          recoveryStepsZh: ['确认 Live16 HFM/MT5 终端正在运行。', '刷新 /api/mt5-readonly/snapshot。'],
           blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
         },
       },
@@ -391,6 +391,9 @@ describe('dashboardModel', () => {
       影响: 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认',
       验收标准: 'Live16 只读桥 fresh=true，BTC/crypto tick 再作为当前账号证据。',
     });
+    expect(rows.find((row) => row.区域 === 'Live16 / HFM Crypto').下一步).toContain(
+      '/api/mt5-readonly-secondary/snapshot',
+    );
     expect(rows.find((row) => row.区域 === 'HFM Crypto shadow')).toMatchObject({
       状态: '研究证据可用',
       打开页面: '/vue/?workspace=hfm-crypto',

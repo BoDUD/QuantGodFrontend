@@ -387,12 +387,14 @@ function snapshotRecovery(raw = {}) {
     processLine: primaryProcessLine,
     freshness: primary,
     fallback: '恢复主账号 MT5/EA dashboard writer。',
+    refreshEndpoint: '/api/mt5-readonly/snapshot',
   });
   const secondaryRecoveryAction = recoveryActionLine({
     processMissing: secondaryProcessMissing,
     processLine: secondaryProcessLine,
     freshness: secondary,
     fallback: '恢复 Live16 MT5/EA dashboard writer。',
+    refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
   });
   const scopedRecoveryActions = [
     primaryProcessMissing || stalePrimary ? `Live12: ${primaryRecoveryAction}` : '',
@@ -516,11 +518,26 @@ function mt5BridgeHint({ line, freshness = {}, processLine = '', processMissing 
   return line || freshness.sourceFile || fallback;
 }
 
-function recoveryActionLine({ processMissing = false, processLine = '', freshness = {}, fallback = '' }) {
+function scopedRecoveryStep(step, refreshEndpoint = '') {
+  const text = String(step || '').trim();
+  if (!text || !refreshEndpoint) return text;
+  return text.replace(/\/api\/mt5-readonly(?:-secondary)?\/snapshot/g, refreshEndpoint);
+}
+
+function recoveryActionLine({
+  processMissing = false,
+  processLine = '',
+  freshness = {},
+  fallback = '',
+  refreshEndpoint = '',
+}) {
   const action = freshness.nextActionZh || freshness.nextAction || fallback;
   const steps = toArray(freshness.recoveryStepsZh || freshness.recoverySteps)
-    .map((step) => String(step).trim())
+    .map((step) => scopedRecoveryStep(step, refreshEndpoint))
     .filter(Boolean);
+  if (refreshEndpoint && !steps.some((step) => step.includes(refreshEndpoint))) {
+    steps.push(`刷新 ${refreshEndpoint}，直到 freshness 重新变为 fresh。`);
+  }
   const checklist = steps.length ? steps.join(' / ') : '';
   if (processMissing) {
     return [
@@ -2427,6 +2444,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         processLine: recovery.primaryProcessLine,
         freshness: snapshot.mt5SnapshotFreshness,
         fallback: '等待主账号只读桥',
+        refreshEndpoint: '/api/mt5-readonly/snapshot',
       }),
     },
     {
@@ -2450,6 +2468,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         processLine: recovery.secondaryProcessLine,
         freshness: snapshot.secondaryMt5SnapshotFreshness,
         fallback: '等待 Live16 只读桥',
+        refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
       }),
     },
     {
@@ -2550,6 +2569,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
         processLine: recovery.primaryProcessLine,
         freshness: snapshot.mt5SnapshotFreshness,
         fallback: '恢复主账号 MT5/EA dashboard writer。',
+        refreshEndpoint: '/api/mt5-readonly/snapshot',
       }),
     },
     {
@@ -2569,6 +2589,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
         processLine: recovery.secondaryProcessLine,
         freshness: snapshot.secondaryMt5SnapshotFreshness,
         fallback: recovery.hfmLine || '恢复 Live16 MT5/EA dashboard writer。',
+        refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
       }),
     },
     {

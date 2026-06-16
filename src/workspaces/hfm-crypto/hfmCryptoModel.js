@@ -125,11 +125,20 @@ function mt5FreshnessLine(freshness = {}) {
   return 'MT5 dashboard 新鲜度待确认';
 }
 
-function mt5RecoveryActionLine(freshness = {}, fallback = WAITING) {
+function scopedRecoveryStep(step, refreshEndpoint = '') {
+  const text = String(step || '').trim();
+  if (!text || !refreshEndpoint) return text;
+  return text.replace(/\/api\/mt5-readonly(?:-secondary)?\/snapshot/g, refreshEndpoint);
+}
+
+function mt5RecoveryActionLine(freshness = {}, fallback = WAITING, refreshEndpoint = '') {
   const action = freshness.nextActionZh || freshness.nextAction || fallback;
   const steps = toArray(freshness.recoveryStepsZh || freshness.recoverySteps)
-    .map((step) => String(step).trim())
+    .map((step) => scopedRecoveryStep(step, refreshEndpoint))
     .filter(Boolean);
+  if (refreshEndpoint && !steps.some((step) => step.includes(refreshEndpoint))) {
+    steps.push(`刷新 ${refreshEndpoint}，直到 freshness 重新变为 fresh。`);
+  }
   return [action, steps.length ? steps.join(' / ') : ''].filter(Boolean).join('；');
 }
 
@@ -163,25 +172,33 @@ function mt5HostProcessLine(process = {}) {
   return WAITING;
 }
 
-function mt5FreshnessRows(freshness = {}, payload = {}) {
+function mt5FreshnessRows(freshness = {}, payload = {}, process = {}) {
+  const processMissing = mt5HostProcessMissing(process);
   const stale = freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT';
   const fresh = freshness.fresh === true;
   return [
     {
       来源: 'Live16 MT5 dashboard',
       端点: '/api/mt5-readonly-secondary/snapshot',
-      状态: stale ? '快照过期' : fresh ? '新鲜' : '待确认',
+      状态: processMissing ? 'writer 未运行' : stale ? '快照过期' : fresh ? '新鲜' : '待确认',
       年龄: formatAgeSeconds(freshness.ageSeconds),
       阈值: formatAgeSeconds(freshness.maxAgeSeconds),
       源文件: freshness.sourceFile || payload.source?.file || WAITING,
-      动作:
-        freshness.nextActionZh ||
-        freshness.nextAction ||
-        (stale
-          ? '恢复 Live16 MT5/EA dashboard writer，再判断 HFM Crypto 当前账号与 BTC/crypto 执行准备度。'
-          : fresh
-            ? 'Live16 EA 快照新鲜，可继续 shadow-only 研究验证。'
-            : '等待只读桥返回新鲜度证据。'),
+      动作: processMissing
+        ? mt5RecoveryActionLine(
+            freshness,
+            '恢复 Live16 terminal64/wine 与 EA dashboard writer，再判断当前账号、BTC/crypto tick 和执行准备度。',
+            '/api/mt5-readonly-secondary/snapshot',
+          )
+        : mt5RecoveryActionLine(
+            freshness,
+            stale
+              ? '恢复 Live16 MT5/EA dashboard writer，再判断 HFM Crypto 当前账号与 BTC/crypto 执行准备度。'
+              : fresh
+                ? 'Live16 EA 快照新鲜，可继续 shadow-only 研究验证。'
+                : '等待只读桥返回新鲜度证据。',
+            '/api/mt5-readonly-secondary/snapshot',
+          ),
     },
   ];
 }
@@ -206,10 +223,12 @@ function hfmMt5SnapshotRecoveryRows(freshness = {}, payload = {}, process = {}, 
     ? mt5RecoveryActionLine(
         freshness,
         '恢复 Live16 terminal64/wine 与 EA dashboard writer，再判断当前账号、BTC/crypto tick 和执行准备度。',
+        '/api/mt5-readonly-secondary/snapshot',
       )
     : mt5RecoveryActionLine(
         freshness,
         '等待 Live16 只读桥返回新鲜快照后，再把账号状态作为当前证据。',
+        '/api/mt5-readonly-secondary/snapshot',
       );
   return [
     {
@@ -3201,7 +3220,7 @@ export function buildHfmCryptoModel(state = {}) {
       },
     ].filter(visibleKeyValueRow),
     tables: {
-      mt5FreshnessRows: mt5FreshnessRows(mt5Freshness, mt5Snapshot),
+      mt5FreshnessRows: mt5FreshnessRows(mt5Freshness, mt5Snapshot, mt5Process),
       mt5RecoveryRows,
       findings,
       symbolEvidenceSources,
