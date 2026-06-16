@@ -10,6 +10,7 @@ import {
   buildRuntimeSourceDiagnosticRows,
   buildSnapshotRecoveryItems,
   buildSnapshotRecoveryRows,
+  buildFrontendSnapshotRecoveryRows,
   buildRuntimeItems,
   buildProfitTargetItems,
   normalizeDashboardSnapshot,
@@ -231,6 +232,7 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const items = buildSnapshotRecoveryItems(snapshot);
     const rows = buildSnapshotRecoveryRows(snapshot);
+    const frontendRows = buildFrontendSnapshotRecoveryRows(snapshot);
     const metrics = buildDashboardMetrics(snapshot);
     const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
     const liveLoopHealth = buildEndpointHealth(raw).find(
@@ -282,6 +284,26 @@ describe('dashboardModel', () => {
     });
     expect(rows.find((row) => row.区域 === 'USDJPY live-loop')).toMatchObject({
       状态: '依赖运行快照严重过期',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'Dashboard 首页')).toMatchObject({
+      状态: 'MT5/EA dashboard writer 未运行',
+      修复优先级: 'P0',
+      可信范围: '研究证据可读；账户、持仓、执行状态只能当历史参考',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'MT5 工作台')).toMatchObject({
+      状态: 'writer 未运行',
+      修复优先级: 'P0',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'HFM Crypto 工作台')).toMatchObject({
+      状态: '研究证据可看 / Live16 账号快照阻断',
+      修复优先级: 'P0',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'USDJPY Live Loop')).toMatchObject({
+      状态: '依赖运行快照严重过期',
+      修复优先级: 'P1',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'Sim-to-live 闸门')).toMatchObject({
+      可信范围: '只展示 readiness / token / gate 证据；当前前端不签收、不启用实盘执行',
     });
   });
 

@@ -27,6 +27,17 @@
     <section class="qg-domain-panel qg-domain-panel--primary">
       <div class="qg-domain-panel__header">
         <div>
+          <p class="qg-eyebrow">整体前端诊断</p>
+          <h2>快照过期影响哪些页面</h2>
+        </div>
+        <span class="qg-muted">区分当前账号状态、研究证据和实盘释放闸门</span>
+      </div>
+      <LedgerTable title="整体前端修复优先级" :rows="frontendSnapshotRecoveryRows" :limit="8" />
+    </section>
+
+    <section class="qg-domain-panel qg-domain-panel--primary">
+      <div class="qg-domain-panel__header">
+        <div>
           <p class="qg-eyebrow">数据源诊断</p>
           <h2>运行快照恢复优先级</h2>
         </div>
@@ -357,6 +368,7 @@ import {
   buildRuntimeSourceDiagnosticRows,
   buildSnapshotRecoveryItems,
   buildSnapshotRecoveryRows,
+  buildFrontendSnapshotRecoveryRows,
   buildRuntimeItems,
   buildDailyItems,
   buildAgentOpsItems,
@@ -422,6 +434,7 @@ const endpointHealth = computed(() => buildEndpointHealth(state));
 const runtimeSourceRows = computed(() => buildRuntimeSourceDiagnosticRows(state));
 const snapshotRecoveryItems = computed(() => buildSnapshotRecoveryItems(snapshot.value));
 const snapshotRecoveryRows = computed(() => buildSnapshotRecoveryRows(snapshot.value));
+const frontendSnapshotRecoveryRows = computed(() => buildFrontendSnapshotRecoveryRows(snapshot.value));
 const runtimeItems = computed(() => buildRuntimeItems(snapshot.value));
 const dailyItems = computed(() => buildDailyItems(snapshot.value));
 const agentOpsItems = computed(() => buildAgentOpsItems(state));

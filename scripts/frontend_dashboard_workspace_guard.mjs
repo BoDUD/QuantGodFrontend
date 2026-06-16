@@ -64,6 +64,10 @@ function checkDashboardWorkspace(root) {
     '/api/live-automation/forex-live12-runtime-handoff?scope=secondary',
     'buildReleaseGateRows',
     '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5"',
+    '整体前端诊断',
+    '快照过期影响哪些页面',
+    'buildFrontendSnapshotRecoveryRows',
+    '<LedgerTable title="整体前端修复优先级" :rows="frontendSnapshotRecoveryRows" :limit="8"',
     '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="6"',
   ]) {
     if (!text.includes(required)) errors.push(`${rel(root, workspace)}: missing ${required}`);
@@ -91,6 +95,7 @@ function checkDashboardModel(root) {
     'buildAgentOpsRows',
     'buildRouteRows',
     'buildChampionMemoryItems',
+    'buildFrontendSnapshotRecoveryRows',
   ]) {
     if (!text.includes(`export function ${exportedName}`)) {
       errors.push(`${rel(root, model)}: missing export ${exportedName}`);
@@ -129,6 +134,7 @@ function checkDashboardModel(root) {
     'coreRuntimeEvidence',
     'Core Runtime Evidence',
     '核心证据晋级闸',
+    'Sim-to-live 闸门',
   ]) {
     if (!text.includes(marker)) errors.push(`${rel(root, model)}: missing ${marker}`);
   }

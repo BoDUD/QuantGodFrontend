@@ -2303,6 +2303,92 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
   ];
 }
 
+export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
+  const recovery = snapshot.snapshotRecovery || {};
+  const realtimeBlocked = recovery.realtimeUsable !== true;
+  const live16Blocked = snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale;
+  const primaryBlocked = snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale;
+  const liveLoopBlocked = snapshot.usdJpyLiveLoopStale === true;
+  const coreBlocked = snapshot.coreRuntimeEvidence?.promotionBlocked === true;
+  const executionBlocked =
+    snapshot.authorizationVsExecution?.status === 'blocked' ||
+    snapshot.executionReleaseGateSummary?.status === 'blocked' ||
+    Boolean(snapshot.liveExecutionBlockerLine);
+  return [
+    {
+      前端区域: 'Dashboard 首页',
+      状态: realtimeBlocked ? recovery.label || '实时快照不可用' : '实时快照可用',
+      可信范围: realtimeBlocked ? '研究证据可读；账户、持仓、执行状态只能当历史参考' : '账户、持仓、执行状态可作为当前快照',
+      修复优先级: realtimeBlocked ? 'P0' : 'OK',
+      下一步: recovery.nextAction || '保持 MT5/EA dashboard writer 正常刷新。',
+    },
+    {
+      前端区域: 'MT5 工作台',
+      状态: primaryBlocked ? (snapshot.mt5HostProcessMissing ? 'writer 未运行' : '快照过期') : '主账号快照新鲜',
+      可信范围: primaryBlocked ? '外币/RSI 当前账号状态不可确认' : '可继续只读观察 Live12 当前账号状态',
+      修复优先级: primaryBlocked ? 'P0' : 'OK',
+      下一步:
+        (snapshot.mt5HostProcessMissing ? recovery.primaryProcessLine : '') ||
+        snapshot.mt5SnapshotFreshness?.nextActionZh ||
+        snapshot.mt5SnapshotFreshness?.nextAction ||
+        '恢复主账号 MT5/EA dashboard writer。',
+    },
+    {
+      前端区域: 'HFM Crypto 工作台',
+      状态: live16Blocked
+        ? '研究证据可看 / Live16 账号快照阻断'
+        : snapshot.hfmCryptoStatusZh || snapshot.hfmCryptoStatus || 'Live16 快照可用',
+      可信范围: live16Blocked
+        ? 'Crypto symbol、spec、Moss/backtest 证据可读；BTC/crypto 当前账号、tick、权限不可确认'
+        : '可把 Live16 快照作为当前账号证据，但仍保持 shadow-only 安全边界',
+      修复优先级: live16Blocked ? 'P0' : 'OK',
+      下一步:
+        (snapshot.secondaryMt5HostProcessMissing ? recovery.secondaryProcessLine : '') ||
+        snapshot.secondaryMt5SnapshotFreshness?.nextActionZh ||
+        snapshot.secondaryMt5SnapshotFreshness?.nextAction ||
+        recovery.hfmLine ||
+        '恢复 Live16 MT5/EA dashboard writer。',
+    },
+    {
+      前端区域: 'USDJPY Live Loop',
+      状态: liveLoopBlocked ? '依赖运行快照严重过期' : liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+      可信范围: liveLoopBlocked ? '策略闭环只可用于旧证据诊断' : '可辅助判断 RSI 路线和入场阻断',
+      修复优先级: liveLoopBlocked ? 'P1' : 'OK',
+      下一步:
+        snapshot.usdJpyLiveLoopFreshness?.nextActionZh ||
+        snapshot.usdJpyLiveLoopFreshness?.reasonLine ||
+        '刷新 USDJPY live-loop 证据。',
+    },
+    {
+      前端区域: 'Evolution / GA',
+      状态: coreBlocked ? snapshot.coreRuntimeEvidence.value || '晋级阻断' : '研究页可读',
+      可信范围: coreBlocked
+        ? '回测、Case Memory、GA 证据可看；晋级仍被 production evidence gate 阻断'
+        : '研究证据可用于只读复核',
+      修复优先级: coreBlocked ? 'P1' : 'OK',
+      下一步:
+        snapshot.coreRuntimeEvidence?.detailLine ||
+        snapshot.coreRuntimeEvidence?.nextActionZh ||
+        '继续补齐 history freshness 与 Case Memory 覆盖证据。',
+    },
+    {
+      前端区域: 'Sim-to-live 闸门',
+      状态: executionBlocked
+        ? '执行释放仍阻断'
+        : snapshot.dualTargetReached
+          ? '模拟目标达标，等待独立 release lane'
+          : '等待模拟目标证据',
+      可信范围: '只展示 readiness / token / gate 证据；当前前端不签收、不启用实盘执行',
+      修复优先级: executionBlocked || snapshot.dualTargetReached ? 'P1' : 'P2',
+      下一步:
+        snapshot.liveExecutionBlockerLine ||
+        snapshot.profitExecutionConclusionLine ||
+        snapshot.executionReleaseGateSummary?.nextActionZh ||
+        '继续收集 release token 与无副作用证据。',
+    },
+  ];
+}
+
 export function buildRuntimeItems(snapshot) {
   if (snapshot.latestDashboardStale) {
     const hint = dashboardFreshnessHint(snapshot);
