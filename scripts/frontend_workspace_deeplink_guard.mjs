@@ -91,7 +91,7 @@ assertNotIncludes(appShell, 'fetch(', 'src/app/AppShell.vue');
 assertNotIncludes(appShell, '/QuantGod_', 'src/app/AppShell.vue');
 
 for (const required of [
-  'loadDashboardWorkspaceCore',
+  'loadSnapshotHealthCore',
   'normalizeDashboardSnapshot',
   'buildSnapshotRootCauseBanner',
   'buildSnapshotImpactSummary',

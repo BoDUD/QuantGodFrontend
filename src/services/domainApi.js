@@ -154,6 +154,53 @@ export async function loadDashboardWorkspaceCore(options = {}) {
   );
 }
 
+export async function loadSnapshotHealthCore(options = {}) {
+  return loadNamedEntries(
+    [
+      ['latest', (requestOptions) => fetchJson('/api/latest', null, { ...requestOptions, timeoutMs: 5000 })],
+      [
+        'mt5Snapshot',
+        (requestOptions) =>
+          fetchJson('/api/mt5-readonly/snapshot', null, { ...requestOptions, timeoutMs: 5000 }),
+      ],
+      [
+        'secondaryMt5Snapshot',
+        (requestOptions) =>
+          fetchJson('/api/mt5-readonly-secondary/snapshot', null, {
+            ...requestOptions,
+            timeoutMs: 5000,
+          }),
+      ],
+      [
+        'hfmCrypto',
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, {
+            ...requestOptions,
+            timeoutMs: 5000,
+          }),
+      ],
+      [
+        'profitTarget',
+        (requestOptions) =>
+          fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, {
+            ...requestOptions,
+            timeoutMs: 5000,
+          }),
+      ],
+      [
+        'usdJpyLiveLoop',
+        (requestOptions) =>
+          fetchJson('/api/usdjpy-strategy-lab/live-loop', null, {
+            ...requestOptions,
+            timeoutMs: 5000,
+          }),
+      ],
+    ],
+    options,
+    4,
+  );
+}
+
 export async function loadDashboardWorkspace(options = {}) {
   return loadNamedEntries(
     [

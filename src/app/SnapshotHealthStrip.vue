@@ -40,7 +40,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive } from 'vue';
-import { loadDashboardWorkspaceCore } from '../services/domainApi.js';
+import { loadSnapshotHealthCore } from '../services/domainApi.js';
 import {
   buildFrontendSnapshotRecoveryRows,
   buildSnapshotImpactSummary,
@@ -123,7 +123,7 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const coreState = await loadDashboardWorkspaceCore({ signal: controller.signal });
+    const coreState = await loadSnapshotHealthCore({ signal: controller.signal });
     if (controller.signal.aborted || runId !== loadRunId) return;
     Object.assign(state, coreState);
     initialized.value = true;

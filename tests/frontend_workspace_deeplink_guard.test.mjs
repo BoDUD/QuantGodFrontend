@@ -54,7 +54,7 @@ function makeFixture() {
   );
   write(
     'src/app/SnapshotHealthStrip.vue',
-    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div><a v-for="row in rows" :title="row.核对端点">{{ row.可信范围 }}{{ row.下一步 }}</a></section></template><script setup>import { loadDashboardWorkspaceCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; const rows = []; setInterval(load, 30000); function load(){ return loadDashboardWorkspaceCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
+    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div><a v-for="row in rows" :title="row.核对端点">{{ row.可信范围 }}{{ row.下一步 }}</a></section></template><script setup>import { loadSnapshotHealthCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; const rows = []; setInterval(load, 30000); function load(){ return loadSnapshotHealthCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
     root,
   );
   write(
@@ -99,6 +99,34 @@ test('snapshot health core load includes whole-frontend execution readiness sign
     '/api/live-automation/sim-target-execution-review-summary',
   ]) {
     assert.match(coreLoadBody, new RegExp(required.replaceAll('/', '\\/')));
+  }
+});
+
+test('snapshot health strip first paint uses only fast snapshot endpoints', () => {
+  const service = fs.readFileSync(path.join(repoRoot, 'src', 'services', 'domainApi.js'), 'utf8');
+  const healthStart = service.indexOf('export async function loadSnapshotHealthCore(options = {})');
+  const fullStart = service.indexOf('export async function loadDashboardWorkspace(options = {})');
+  const healthLoadBody = service.slice(healthStart, fullStart);
+
+  assert.notEqual(healthStart, -1, 'loadSnapshotHealthCore should exist');
+  for (const required of [
+    '/api/latest',
+    '/api/mt5-readonly/snapshot',
+    '/api/mt5-readonly-secondary/snapshot',
+    '/api/hfm-crypto/status',
+    '/api/profit-target/status',
+    '/api/usdjpy-strategy-lab/live-loop',
+  ]) {
+    assert.match(healthLoadBody, new RegExp(required.replaceAll('/', '\\/')));
+  }
+  for (const slowReviewEndpoint of [
+    '/api/live-automation/orchestrator',
+    '/api/live-automation/release-readiness-refresh',
+    '/api/live-automation/release-token-evidence-review',
+    '/api/live-automation/lane-selector',
+    '/api/live-automation/sim-target-execution-review-summary',
+  ]) {
+    assert.doesNotMatch(healthLoadBody, new RegExp(slowReviewEndpoint.replaceAll('/', '\\/')));
   }
 });
 
