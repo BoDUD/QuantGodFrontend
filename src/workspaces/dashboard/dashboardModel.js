@@ -920,6 +920,8 @@ function enrichCaseMemoryRecoveryRow(row = {}, byCategory = new Map()) {
     : isObject(sourceRow.sourceGap)
       ? sourceRow.sourceGap
       : {};
+  const genericNextAction = `补齐 Case Memory ${row.category} 样本；只允许 shadow/tester/read-only 证据。`;
+  const rowNextAction = row.nextActionZh && row.nextActionZh !== genericNextAction ? row.nextActionZh : '';
   return {
     ...sourceRow,
     ...row,
@@ -933,7 +935,7 @@ function enrichCaseMemoryRecoveryRow(row = {}, byCategory = new Map()) {
     remainingCount: row.remainingCount ?? sourceRow.remainingCount,
     evidenceGapZh: row.evidenceGapZh || sourceRow.evidenceGapZh || sourceGap.evidenceGapZh || '',
     sourceGap,
-    nextActionZh: row.nextActionZh || sourceRow.nextActionZh,
+    nextActionZh: rowNextAction || sourceGap.nextActionZh || sourceRow.nextActionZh || row.nextActionZh,
     acceptanceZh: row.acceptanceZh || sourceRow.acceptanceZh,
   };
 }
@@ -2775,13 +2777,16 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
     状态: row.status || '待处理',
     优先级: row.priority || 'PENDING',
     源缺口状态: row.sourceGap?.status || '—',
+    缺口来源: row.sourceGapArtifact || row.sourceGap?.sourceArtifact || row.artifactPath || '—',
     证据缺口: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '—',
+    前置命令: row.prerequisiteCommand || row.sourceGap?.prerequisiteCommand || '—',
     CopyRates: row.copyRatesExportFreshnessStatus || (row.copyRatesExportStale ? 'STALE' : '—'),
     导出延迟: row.copyRatesExportGeneratedLagHours
       ? formatHourValue(row.copyRatesExportGeneratedLagHours)
       : '—',
     周期延迟: row.copyRatesExportLatestLagHours ? formatHourValue(row.copyRatesExportLatestLagHours) : '—',
     证据源:
+      row.collectionCommand ||
       row.collectionEndpoint ||
       row.refreshCommand ||
       row.artifactPath ||

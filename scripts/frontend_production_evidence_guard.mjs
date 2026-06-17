@@ -74,8 +74,12 @@ for (const marker of [
   'Case Memory 缺失分类',
   'production-evidence-mini-table--case-memory',
   'production-evidence-mini-table__row--case-memory',
+  '源状态',
   '证据缺口',
+  '前置命令',
   '补证命令',
+  'sourceGapStatus',
+  'prerequisiteCommand',
   'evidenceGapZh',
   'coverage',
   'collectionCommand',
@@ -95,10 +99,10 @@ assertCondition(
   'production evidence history recovery table must use a dedicated six-column grid',
 );
 assertCondition(
-  /production-evidence-mini-table__head--case-memory,\s*\.production-evidence-mini-table__row--case-memory\s*\{[\s\S]*minmax\(240px,\s*1\.8fr\)/.test(
+  /production-evidence-mini-table__head--case-memory,\s*\.production-evidence-mini-table__row--case-memory\s*\{[\s\S]*minmax\(260px,\s*1\.8fr\)/.test(
     panel,
   ),
-  'production evidence Case Memory table must use a dedicated seven-column grid',
+  'production evidence Case Memory table must use a dedicated nine-column grid',
 );
 assertCondition(
   /overflow-wrap:\s*anywhere/.test(panel),

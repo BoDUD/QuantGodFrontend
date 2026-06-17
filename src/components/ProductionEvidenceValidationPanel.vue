@@ -78,7 +78,9 @@
           <span role="columnheader">优先级</span>
           <span role="columnheader">状态</span>
           <span role="columnheader">样本缺口</span>
+          <span role="columnheader">源状态</span>
           <span role="columnheader">证据缺口</span>
+          <span role="columnheader">前置命令</span>
           <span role="columnheader">补证命令</span>
           <span role="columnheader">下一步</span>
         </div>
@@ -92,7 +94,9 @@
           <span role="cell">{{ row.priority }}</span>
           <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
           <span role="cell">{{ row.observedCount }} / {{ row.targetCount }}</span>
+          <span role="cell">{{ row.sourceGapStatus || '—' }}</span>
           <span role="cell">{{ row.evidenceGapZh || row.sourceGapStatus || '—' }}</span>
+          <span role="cell">{{ row.prerequisiteCommand || '—' }}</span>
           <span role="cell">{{ row.collectionCommand || row.collectionEndpoint || row.source }}</span>
           <span role="cell">{{ row.nextActionZh }}</span>
         </div>
@@ -148,9 +152,11 @@ const caseMemoryRows = computed(() => {
     remainingCount: row.remainingCount ?? 0,
     evidenceGapZh: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '',
     sourceGapStatus: row.sourceGap?.status || '',
+    sourceGapArtifact: row.sourceGap?.sourceArtifact || '',
     source: row.source || 'Case Memory evidence',
     collectionEndpoint: row.collectionEndpoint || '',
     collectionCommand: row.collectionCommand || '',
+    prerequisiteCommand: row.prerequisiteCommand || row.sourceGap?.prerequisiteCommand || '',
     caseMemoryBuildCommand: row.caseMemoryBuildCommand || '',
     verifyCommand: row.verifyCommand || '',
     acceptanceZh: row.acceptanceZh || '',
@@ -356,7 +362,8 @@ onMounted(load);
 .production-evidence-mini-table__row--case-memory {
   grid-template-columns:
     minmax(130px, 1fr) minmax(78px, 0.55fr) minmax(96px, 0.65fr) minmax(88px, 0.55fr)
-    minmax(240px, 1.7fr) minmax(190px, 1.3fr) minmax(240px, 1.8fr);
+    minmax(150px, 1fr) minmax(240px, 1.7fr) minmax(230px, 1.5fr) minmax(220px, 1.4fr)
+    minmax(260px, 1.8fr);
 }
 
 .production-evidence-mini-table__head {

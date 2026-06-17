@@ -842,12 +842,20 @@ describe('dashboardModel', () => {
                 observedCount: 0,
                 targetCount: 2,
                 collectionEndpoint: '/api/usdjpy-strategy-lab/ga/blockers',
-                evidenceGapZh: 'GA walk-forward 尚未证明 train/forward 失配。',
+                evidenceGapZh:
+                  'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
+                prerequisiteCommand:
+                  'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
                 sourceGap: {
-                  status: 'WAITING_WALK_FORWARD_DELTA',
-                  evidenceGapZh: 'GA walk-forward 尚未证明 train/forward 失配。',
+                  status: 'BLOCKED_BY_HISTORY_FRESHNESS',
+                  sourceArtifact: 'production_validation/QuantGod_GAMultiGenerationStabilityReport.json',
+                  evidenceGapZh:
+                    'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
+                  prerequisiteCommand:
+                    'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
                 },
-                nextActionZh: '补齐 GA blocker 与 walk-forward 失效样本。',
+                nextActionZh:
+                  '先刷新 M1/M5/M15/H1 history freshness，再重跑 GA stability；不要把 stale-history 淘汰样本写成过拟合。',
               },
             ],
           },
@@ -912,6 +920,8 @@ describe('dashboardModel', () => {
       CopyRates: 'STALE',
       导出延迟: '11.0 天',
       周期延迟: '11.0 天',
+      前置命令: '—',
+      缺口来源: '—',
       下一步:
         '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status；随后 M1 最新 K 线延迟超阈值；刷新 history freshness。',
     });
@@ -920,9 +930,23 @@ describe('dashboardModel', () => {
       状态: 'MISSING_CATEGORY',
       优先级: 'HIGH',
       源缺口状态: 'WAITING_ENTRY_CONTEXT',
+      缺口来源: '—',
       证据缺口: 'bad-entry replay 缺 entryContext，不能证明坏入场。',
+      前置命令: '—',
       下一步:
-        'bad-entry replay 缺 entryContext，不能证明坏入场；随后 补齐 Case Memory BAD_ENTRY 样本；只允许 shadow/tester/read-only 证据。',
+        'bad-entry replay 缺 entryContext，不能证明坏入场；随后 收集带 entryContext 的坏入场样本。',
+    });
+    expect(coreRecoveryRows[2]).toMatchObject({
+      任务: 'Case Memory GA_OVERFIT',
+      状态: 'MISSING_CATEGORY',
+      优先级: 'HIGH',
+      源缺口状态: 'BLOCKED_BY_HISTORY_FRESHNESS',
+      缺口来源: 'production_validation/QuantGod_GAMultiGenerationStabilityReport.json',
+      证据缺口: 'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
+      前置命令:
+        'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
+      下一步:
+        'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本；随后 先刷新 M1/M5/M15/H1 history freshness，再重跑 GA stability；不要把 stale-history 淘汰样本写成过拟合。',
     });
     expect(sourceRow).toMatchObject({
       状态: '晋级阻断',
