@@ -235,6 +235,21 @@ test('api-client guard rejects newly added service modules without apiClient', (
   );
 });
 
+test('api-client guard rejects raw QuantGod runtime paths in any service module', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-raw-service-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase2Api.js'),
+    "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchPhase2Json(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postPhase2Json(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport const rawDashboardPath = '/QuantGod_Dashboard.json';\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /phase2Api\.js must not reference raw QuantGod runtime JSON\/CSV files/,
+  );
+});
+
 test('api-client guard rejects legacy requestJson wrappers in service modules', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-request-json-'));
   writeFixture(root);

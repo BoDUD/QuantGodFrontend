@@ -140,6 +140,9 @@ for (const filePath of serviceFiles) {
   if (/\bfetch\s*\(/.test(source)) {
     fail(`${relativePath} must not call fetch() directly; use apiClient.js helpers`);
   }
+  if (/\/QuantGod_[^\s'"?#]+\.(json|csv)\b/i.test(source)) {
+    fail(`${relativePath} must not reference raw QuantGod runtime JSON/CSV files`);
+  }
   if (relativePath !== 'src/services/domainApi.js' && /from\s+['"]\.\/domainApi\.js['"]/.test(source)) {
     fail(`${relativePath} must import API helpers from apiClient.js instead of domainApi.js`);
   }
