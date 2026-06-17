@@ -146,6 +146,7 @@ for (const filePath of serviceFiles) {
     'const CSRF_HEADERS',
     'async function fetchJson',
     'async function postJson',
+    'function postJson',
     'function requestJson',
   ]) {
     if (source.includes(token)) {

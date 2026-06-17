@@ -215,6 +215,21 @@ test('api-client guard rejects legacy requestJson wrappers in service modules', 
   );
 });
 
+test('api-client guard rejects legacy postJson wrappers in service modules', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-post-json-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase3Api.js'),
+    "import { postJsonOrFallback } from './apiClient.js';\nfunction postJson(url, body = {}) { return postJsonOrFallback(url, body); }\nexport const phase3Api = { run: () => postJson('/api/latest') };\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /phase3Api\.js still defines duplicated API helper\/header: function postJson/,
+  );
+});
+
 test('api-client guard requires p0-toolchain to run contract and api-client guards', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-p0-'));
   writeFixture(root);
