@@ -1,9 +1,27 @@
 import { fetchJson, fetchRows as fetchRowsJson, postJson } from './apiClient.js';
 
+async function loadLegacyDashboardEntries(entries) {
+  const results = {};
+  await Promise.all(
+    entries.map(async ([key, loadEntry]) => {
+      try {
+        results[key] = await loadEntry();
+      } catch (error) {
+        results[key] = {
+          ok: false,
+          error: error?.message || String(error),
+          endpointLoadFailed: true,
+        };
+      }
+    }),
+  );
+  return results;
+}
+
 export async function loadDashboardState(query = '') {
   void query;
 
-  const [
+  const {
     latest,
     mt5Snapshot,
     governance,
@@ -36,39 +54,39 @@ export async function loadDashboardState(query = '') {
     regimeEvaluationRows,
     tradingAuditRows,
     manualAlphaRows,
-  ] = await Promise.all([
-    fetchJson('/api/latest'),
-    fetchJson('/api/mt5-readonly/snapshot'),
-    fetchJson('/api/governance/advisor'),
-    fetchJson('/api/dashboard/backtest-summary'),
-    fetchJson('/api/paramlab/status'),
-    fetchJson('/api/paramlab/results'),
-    fetchJson('/api/paramlab/scheduler'),
-    fetchJson('/api/paramlab/report-watcher'),
-    fetchJson('/api/paramlab/recovery'),
-    fetchJson('/api/paramlab/tester-window'),
-    fetchJson('/api/daily-review'),
-    fetchJson('/api/daily-autopilot'),
-    fetchJson('/api/research/stats'),
-    fetchJson('/api/governance/version-registry'),
-    fetchJson('/api/hfm-crypto/status?view=summary&scope=secondary'),
-    fetchJson('/api/profit-target/status?scope=secondary'),
-    fetchRowsJson('/api/shadow/signals?limit=500'),
-    fetchRowsJson('/api/shadow/outcomes?limit=500'),
-    fetchRowsJson('/api/shadow/candidates?limit=500'),
-    fetchRowsJson('/api/shadow/candidate-outcomes?limit=500'),
-    fetchRowsJson('/api/trades/close-history?limit=500'),
-    fetchRowsJson('/api/trades/journal?limit=500'),
-    fetchRowsJson('/api/paramlab/results-ledger?limit=500'),
-    fetchRowsJson('/api/paramlab/scheduler-ledger?limit=500'),
-    fetchRowsJson('/api/paramlab/report-watcher-ledger?limit=500'),
-    fetchRowsJson('/api/paramlab/recovery-ledger?limit=500'),
-    fetchRowsJson('/api/paramlab/tester-window-ledger?limit=500'),
-    fetchRowsJson('/api/research/stats-ledger?limit=500'),
-    fetchRowsJson('/api/research/strategy-evaluation?limit=500'),
-    fetchRowsJson('/api/research/regime-evaluation?limit=500'),
-    fetchRowsJson('/api/trades/trading-audit?limit=500'),
-    fetchRowsJson('/api/research/manual-alpha?limit=500'),
+  } = await loadLegacyDashboardEntries([
+    ['latest', () => fetchJson('/api/latest')],
+    ['mt5Snapshot', () => fetchJson('/api/mt5-readonly/snapshot')],
+    ['governance', () => fetchJson('/api/governance/advisor')],
+    ['backtest', () => fetchJson('/api/dashboard/backtest-summary')],
+    ['paramStatus', () => fetchJson('/api/paramlab/status')],
+    ['paramResults', () => fetchJson('/api/paramlab/results')],
+    ['paramAutoScheduler', () => fetchJson('/api/paramlab/scheduler')],
+    ['paramReportWatcher', () => fetchJson('/api/paramlab/report-watcher')],
+    ['runRecovery', () => fetchJson('/api/paramlab/recovery')],
+    ['autoTesterWindow', () => fetchJson('/api/paramlab/tester-window')],
+    ['dailyReview', () => fetchJson('/api/daily-review')],
+    ['dailyAutopilot', () => fetchJson('/api/daily-autopilot')],
+    ['mt5ResearchStats', () => fetchJson('/api/research/stats')],
+    ['strategyRegistry', () => fetchJson('/api/governance/version-registry')],
+    ['hfmCrypto', () => fetchJson('/api/hfm-crypto/status?view=summary&scope=secondary')],
+    ['profitTarget', () => fetchJson('/api/profit-target/status?scope=secondary')],
+    ['shadowSignalRows', () => fetchRowsJson('/api/shadow/signals?limit=500')],
+    ['shadowOutcomeRows', () => fetchRowsJson('/api/shadow/outcomes?limit=500')],
+    ['shadowCandidateRows', () => fetchRowsJson('/api/shadow/candidates?limit=500')],
+    ['shadowCandidateOutcomeRows', () => fetchRowsJson('/api/shadow/candidate-outcomes?limit=500')],
+    ['closeHistoryRows', () => fetchRowsJson('/api/trades/close-history?limit=500')],
+    ['tradeJournalRows', () => fetchRowsJson('/api/trades/journal?limit=500')],
+    ['paramLabResultRows', () => fetchRowsJson('/api/paramlab/results-ledger?limit=500')],
+    ['paramLabAutoSchedulerRows', () => fetchRowsJson('/api/paramlab/scheduler-ledger?limit=500')],
+    ['paramLabReportWatcherRows', () => fetchRowsJson('/api/paramlab/report-watcher-ledger?limit=500')],
+    ['paramLabRunRecoveryRows', () => fetchRowsJson('/api/paramlab/recovery-ledger?limit=500')],
+    ['autoTesterWindowRows', () => fetchRowsJson('/api/paramlab/tester-window-ledger?limit=500')],
+    ['mt5ResearchStatsRows', () => fetchRowsJson('/api/research/stats-ledger?limit=500')],
+    ['strategyEvaluationRows', () => fetchRowsJson('/api/research/strategy-evaluation?limit=500')],
+    ['regimeEvaluationRows', () => fetchRowsJson('/api/research/regime-evaluation?limit=500')],
+    ['tradingAuditRows', () => fetchRowsJson('/api/trades/trading-audit?limit=500')],
+    ['manualAlphaRows', () => fetchRowsJson('/api/research/manual-alpha?limit=500')],
   ]);
 
   return {

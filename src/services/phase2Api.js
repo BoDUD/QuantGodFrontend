@@ -41,12 +41,12 @@ export const PHASE2_ENDPOINTS = Object.freeze({
   ],
 });
 
-export async function fetchPhase2Json(url, fallback = null) {
-  return fetchJsonOrFallback(url, fallback);
+export async function fetchPhase2Json(url, fallback = null, options = {}) {
+  return fetchJsonOrFallback(url, fallback, options);
 }
 
-export async function postPhase2Json(url, payload = {}, fallback = null) {
-  return postJsonOrFallback(url, payload, fallback);
+export async function postPhase2Json(url, payload = {}, fallback = null, options = {}) {
+  return postJsonOrFallback(url, payload, fallback, options);
 }
 
 export function extractRows(payload) {

@@ -197,6 +197,35 @@ for (const token of ['fetchJsonOrThrow', 'postJsonOrThrow']) {
   }
 }
 
+const legacyApiSource = serviceSources.get('src/services/api.js') || '';
+if (
+  legacyApiSource.includes('loadDashboardState') &&
+  !legacyApiSource.includes('loadLegacyDashboardEntries')
+) {
+  fail('src/services/api.js loadDashboardState must use per-endpoint fallback loading');
+}
+if (
+  /const\s*\[[\s\S]*?\]\s*=\s*await\s*Promise\.all\s*\(\s*\[/.test(legacyApiSource) ||
+  /return\s+Promise\.all\s*\(\s*\[/.test(legacyApiSource)
+) {
+  fail('src/services/api.js must not use blocking Promise.all array loaders for dashboard state');
+}
+
+const phase2Source = serviceSources.get('src/services/phase2Api.js') || '';
+if (!phase2Source.includes('function fetchPhase2Json')) {
+  fail('src/services/phase2Api.js must expose semantic fetchPhase2Json wrapper');
+}
+if (!phase2Source.includes('function postPhase2Json')) {
+  fail('src/services/phase2Api.js must expose semantic postPhase2Json wrapper');
+}
+for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
+  const firstIndex = phase2Source.indexOf(token);
+  const secondIndex = firstIndex < 0 ? -1 : phase2Source.indexOf(token, firstIndex + token.length);
+  if (secondIndex >= 0) {
+    fail(`src/services/phase2Api.js must call ${token} only inside its semantic wrapper`);
+  }
+}
+
 const phase3Source = serviceSources.get('src/services/phase3Api.js') || '';
 if (!phase3Source.includes('function fetchPhase3Json')) {
   fail('src/services/phase3Api.js must expose semantic fetchPhase3Json wrapper');

@@ -65,6 +65,7 @@ const foundationFiles = [
   'tests/frontend_usdjpy_strategy_lab_guard.test.mjs',
   'tests/frontend_hfm_crypto_workspace_guard.test.mjs',
   'tests/backtest_ai_api.test.mjs',
+  'tests/legacy_dashboard_api.test.mjs',
   'tests/number_format.test.mjs',
   'tests/unit/**/*.test.js',
 ];

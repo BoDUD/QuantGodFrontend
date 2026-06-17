@@ -82,6 +82,13 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
       );
       continue;
     }
+    if (servicePath === 'src/services/phase2Api.js') {
+      fs.writeFileSync(
+        target,
+        "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchPhase2Json(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postPhase2Json(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport async function load() { return fetchPhase2Json('/api/latest'); }\nexport async function run() { return postPhase2Json('/api/latest'); }\n",
+      );
+      continue;
+    }
     if (servicePath === 'src/services/phase3Api.js') {
       fs.writeFileSync(
         target,
@@ -319,6 +326,42 @@ test('api-client guard rejects generic phase2 apiGet/apiPost wrappers', () => {
     result.stderr + result.stdout,
     /phase2Api\.js still defines duplicated API helper\/header: async function apiGet/,
   );
+});
+
+test('api-client guard rejects blocking legacy dashboard Promise.all loaders', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-legacy-dashboard-loader-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/api.js'),
+    "import { fetchJson } from './apiClient.js';\nexport async function loadDashboardState() { const [latest, snapshot] = await Promise.all([fetchJson('/api/latest'), fetchJson('/api/mt5-readonly/snapshot')]); return { latest, snapshot }; }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /api\.js loadDashboardState must use per-endpoint fallback/);
+});
+
+test('api-client guard requires Phase 2 semantic wrappers', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase2-semantic-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase2Api.js'),
+    "import { fetchJsonOrFallback } from './apiClient.js';\nexport async function load() { return fetchJsonOrFallback('/api/latest'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase2Api\.js must expose semantic fetchPhase2Json wrapper/);
+});
+
+test('api-client guard rejects naked fallback helpers in Phase 2 service methods', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase2-fallback-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase2Api.js'),
+    "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchPhase2Json(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postPhase2Json(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport async function load() { return fetchJsonOrFallback('/api/latest'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase2Api\.js must call fetchJsonOrFallback\(/);
 });
 
 test('api-client guard requires USDJPY Strategy Lab semantic wrappers', () => {

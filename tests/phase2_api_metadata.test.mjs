@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { afterEach, test } from 'node:test';
 
 import {
   endpointErrorMessage,
   endpointFailureDetail,
   endpointSummary,
+  fetchPhase2Json,
+  postPhase2Json,
 } from '../src/services/phase2Api.js';
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function jsonResponse(payload, status = 200) {
+  return new globalThis.Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
 
 test('endpointSummary exposes API failure metadata for operator pages', () => {
   const payload = {
@@ -54,4 +69,44 @@ test('endpointErrorMessage prefers backend Chinese status when present', () => {
 
   assert.equal(endpointErrorMessage(payload), 'MT5 dashboard 快照已过期');
   assert.match(endpointFailureDetail(payload), /GET 无响应/);
+});
+
+test('fetchPhase2Json uses apiClient metadata and no-store options', async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return jsonResponse({ ok: true, status: 'READY' });
+  };
+
+  const payload = await fetchPhase2Json('/api/notify/config', { ok: false });
+
+  assert.equal(payload.ok, true);
+  assert.equal(payload.status, 'READY');
+  assert.equal(payload._api.endpoint, '/api/notify/config');
+  assert.equal(payload._api.method, 'GET');
+  assert.equal(payload._api.status, 200);
+  assert.equal(calls[0].options.cache, 'no-store');
+  assert.equal(calls[0].options.method, 'GET');
+});
+
+test('postPhase2Json uses local POST guard header and preserves fallback envelopes', async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return jsonResponse({ error: 'notify_test_failed' }, 503);
+  };
+
+  const payload = await postPhase2Json(
+    '/api/notify/test',
+    { message: 'dry-run', dryRun: true },
+    { ok: false, error: 'fallback' },
+  );
+
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, 'notify_test_failed');
+  assert.equal(payload._api.endpoint, '/api/notify/test');
+  assert.equal(payload._api.method, 'POST');
+  assert.equal(payload._api.status, 503);
+  assert.equal(calls[0].options.headers['X-QuantGod-Local'], '1');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { message: 'dry-run', dryRun: true });
 });
