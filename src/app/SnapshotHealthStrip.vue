@@ -87,7 +87,9 @@ const detailLine = computed(() => {
 });
 const actionLine = computed(() => {
   if (error.value || !initialized.value) return '';
-  return [impactSummary.value.trustedScopeLine, impactSummary.value.nextActionLine].filter(Boolean).join('；');
+  return [impactSummary.value.trustedScopeLine, impactSummary.value.nextActionLine]
+    .filter(Boolean)
+    .join('；');
 });
 
 function abortLoad() {
