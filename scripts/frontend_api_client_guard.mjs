@@ -176,6 +176,24 @@ for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
   }
 }
 
+const phase3Source = serviceSources.get('src/services/phase3Api.js') || '';
+if (!phase3Source.includes('function fetchPhase3Json')) {
+  fail('src/services/phase3Api.js must expose semantic fetchPhase3Json wrapper');
+}
+if (!phase3Source.includes('function postPhase3Json')) {
+  fail('src/services/phase3Api.js must expose semantic postPhase3Json wrapper');
+}
+for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
+  const firstIndex = phase3Source.indexOf(token);
+  const secondIndex = firstIndex < 0 ? -1 : phase3Source.indexOf(token, firstIndex + token.length);
+  if (secondIndex >= 0) {
+    fail(`src/services/phase3Api.js must call ${token} only inside its semantic wrapper`);
+  }
+}
+if (/\bfunction\s+getJson\b/.test(phase3Source)) {
+  fail('src/services/phase3Api.js must not use generic getJson wrapper; use fetchPhase3Json');
+}
+
 if (!domainApi.includes('queryString as params')) {
   fail('domainApi.js should alias queryString as params to preserve loader readability');
 }

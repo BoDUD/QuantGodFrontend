@@ -75,6 +75,13 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
       );
       continue;
     }
+    if (servicePath === 'src/services/phase3Api.js') {
+      fs.writeFileSync(
+        target,
+        "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchPhase3Json(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postPhase3Json(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport const phase3Api = { latest: () => fetchPhase3Json('/api/latest'), run: () => postPhase3Json('/api/latest') };\n",
+      );
+      continue;
+    }
     fs.writeFileSync(
       target,
       "import { fetchJson } from './apiClient.js';\nexport async function load() { return fetchJson('/api/latest'); }\n",
@@ -235,6 +242,30 @@ test('api-client guard rejects legacy postJson wrappers in service modules', () 
     result.stderr + result.stdout,
     /phase3Api\.js still defines duplicated API helper\/header: function postJson/,
   );
+});
+
+test('api-client guard requires Phase 3 semantic wrappers', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase3-wrapper-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase3Api.js'),
+    "import { fetchJsonOrFallback } from './apiClient.js';\nexport const phase3Api = { latest: () => fetchJsonOrFallback('/api/latest') };\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase3Api\.js must expose semantic fetchPhase3Json wrapper/);
+});
+
+test('api-client guard rejects generic getJson wrapper in Phase 3 service', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase3-get-json-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase3Api.js'),
+    "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchPhase3Json(path) { return fetchJsonOrFallback(path); }\nfunction postPhase3Json(path, payload = {}) { return postJsonOrFallback(path, payload); }\nfunction getJson(path) { return fetchPhase3Json(path); }\nexport const phase3Api = { latest: () => getJson('/api/latest') };\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase3Api\.js must not use generic getJson wrapper/);
 });
 
 test('api-client guard rejects generic phase2 apiGet/apiPost wrappers', () => {

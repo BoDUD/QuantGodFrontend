@@ -1,37 +1,37 @@
-import { fetchJsonOrFallback, postJson } from './apiClient.js';
+import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';
 
 const FETCH_FALLBACK = Object.freeze({ ok: false, error: 'phase3_fetch_failed' });
 const POST_FALLBACK = Object.freeze({ ok: false, error: 'phase3_post_failed' });
 
-function getJson(url, options = {}) {
+function fetchPhase3Json(url, options = {}) {
   return fetchJsonOrFallback(url, FETCH_FALLBACK, { signal: options.signal });
 }
 
 function postPhase3Json(url, body = {}, options = {}) {
-  return postJson(url, body || {}, POST_FALLBACK, { signal: options.signal });
+  return postJsonOrFallback(url, body || {}, POST_FALLBACK, { signal: options.signal });
 }
 
 export const phase3Api = {
-  vibeConfig: () => getJson('/api/vibe-coding/config'),
+  vibeConfig: () => fetchPhase3Json('/api/vibe-coding/config'),
   generateStrategy: (body) => postPhase3Json('/api/vibe-coding/generate', body),
   iterateStrategy: (body) => postPhase3Json('/api/vibe-coding/iterate', body),
   backtestStrategy: (body) => postPhase3Json('/api/vibe-coding/backtest', body),
   analyzeBacktest: (body) => postPhase3Json('/api/vibe-coding/analyze', body),
-  listStrategies: () => getJson('/api/vibe-coding/strategies'),
+  listStrategies: () => fetchPhase3Json('/api/vibe-coding/strategies'),
   getStrategy: (strategyId, version) =>
-    getJson(
+    fetchPhase3Json(
       `/api/vibe-coding/strategy/${encodeURIComponent(strategyId)}${version ? `?version=${encodeURIComponent(version)}` : ''}`,
     ),
-  aiV2Config: () => getJson('/api/ai-analysis-v2/config'),
+  aiV2Config: () => fetchPhase3Json('/api/ai-analysis-v2/config'),
   runAiV2: (body) => postPhase3Json('/api/ai-analysis-v2/run', body),
-  aiV2Latest: () => getJson('/api/ai-analysis-v2/latest'),
+  aiV2Latest: () => fetchPhase3Json('/api/ai-analysis-v2/latest'),
   aiV2History: (params = {}) =>
-    getJson(`/api/ai-analysis-v2/history?${new URLSearchParams(params).toString()}`),
+    fetchPhase3Json(`/api/ai-analysis-v2/history?${new URLSearchParams(params).toString()}`),
   klineAiOverlays: (params = {}) =>
-    getJson(`/api/kline/ai-overlays?${new URLSearchParams(params).toString()}`),
+    fetchPhase3Json(`/api/kline/ai-overlays?${new URLSearchParams(params).toString()}`),
   klineVibeIndicators: (params = {}) =>
-    getJson(`/api/kline/vibe-indicators?${new URLSearchParams(params).toString()}`),
-  klineRealtimeConfig: () => getJson('/api/kline/realtime-config'),
+    fetchPhase3Json(`/api/kline/vibe-indicators?${new URLSearchParams(params).toString()}`),
+  klineRealtimeConfig: () => fetchPhase3Json('/api/kline/realtime-config'),
 };
 
 export default phase3Api;
