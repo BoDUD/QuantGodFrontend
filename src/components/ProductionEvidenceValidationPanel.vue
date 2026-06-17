@@ -79,7 +79,7 @@
           <span role="columnheader">状态</span>
           <span role="columnheader">样本缺口</span>
           <span role="columnheader">证据缺口</span>
-          <span role="columnheader">来源</span>
+          <span role="columnheader">补证命令</span>
           <span role="columnheader">下一步</span>
         </div>
         <div
@@ -93,7 +93,7 @@
           <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
           <span role="cell">{{ row.observedCount }} / {{ row.targetCount }}</span>
           <span role="cell">{{ row.evidenceGapZh || row.sourceGapStatus || '—' }}</span>
-          <span role="cell">{{ row.collectionEndpoint || row.source }}</span>
+          <span role="cell">{{ row.collectionCommand || row.collectionEndpoint || row.source }}</span>
           <span role="cell">{{ row.nextActionZh }}</span>
         </div>
       </div>
@@ -150,6 +150,9 @@ const caseMemoryRows = computed(() => {
     sourceGapStatus: row.sourceGap?.status || '',
     source: row.source || 'Case Memory evidence',
     collectionEndpoint: row.collectionEndpoint || '',
+    collectionCommand: row.collectionCommand || '',
+    caseMemoryBuildCommand: row.caseMemoryBuildCommand || '',
+    verifyCommand: row.verifyCommand || '',
     acceptanceZh: row.acceptanceZh || '',
     nextActionZh: row.nextActionZh || '继续补齐 shadow/tester 样本证据。',
   }));
