@@ -50,11 +50,18 @@ function runFixtureGuard(root, options = {}) {
   });
 }
 
-test('allows service-layer /api fetches', () => {
+test('allows apiClient-layer /api fetches', () => {
+  const root = makeRepo();
+  write(root, 'src/services/apiClient.js', "export const load = () => fetch('/api/dashboard/state')\n");
+  const errors = runFixtureGuard(root);
+  assert.deepEqual(errors, []);
+});
+
+test('blocks raw fetch calls from service modules outside apiClient', () => {
   const root = makeRepo();
   write(root, 'src/services/api.js', "export const load = () => fetch('/api/dashboard/state')\n");
   const errors = runFixtureGuard(root);
-  assert.deepEqual(errors, []);
+  assert.ok(errors.some((error) => error.message.includes('outside src/services/apiClient.js')));
 });
 
 test('blocks direct QuantGod JSON and CSV runtime artifact paths', () => {
@@ -75,7 +82,7 @@ test('blocks raw fetch calls from UI components', () => {
   const root = makeRepo();
   write(root, 'src/components/BadPanel.vue', "<script setup>fetch('/api/dashboard/state')</script>\n");
   const errors = runFixtureGuard(root);
-  assert.ok(errors.some((error) => error.message.includes('raw fetch() outside src/services')));
+  assert.ok(errors.some((error) => error.message.includes('raw fetch() outside src/services/apiClient.js')));
 });
 
 test('blocks split-boundary directories in frontend repo', () => {
@@ -87,7 +94,7 @@ test('blocks split-boundary directories in frontend repo', () => {
 
 test('blocks non-api local fetch targets', () => {
   const root = makeRepo();
-  write(root, 'src/services/api.js', "export const load = () => fetch('/QuantGod_Dashboard.json')\n");
+  write(root, 'src/services/apiClient.js', "export const load = () => fetch('/healthz')\n");
   const errors = runFixtureGuard(root);
   assert.ok(errors.some((error) => error.message.includes('non-API fetch target')));
 });
@@ -98,7 +105,7 @@ test('checks frontend static api paths against docs contract when contract is av
     '/api/dashboard/state',
     '/api/mt5-readonly/:endpoint',
   ]);
-  write(root, 'src/services/api.js', "export const load = () => fetch('/api/dashboard/state')\n");
+  write(root, 'src/services/api.js', "export const load = () => fetchJson('/api/dashboard/state')\n");
   write(root, 'src/components/Preview.vue', '<template><JsonPreview source="/api/mt5-readonly/account" /></template>\n');
   const errors = runFrontendApiContractGuard(root, { apiContractPath: contractPath });
   assert.deepEqual(errors, []);
@@ -107,7 +114,7 @@ test('checks frontend static api paths against docs contract when contract is av
 test('rejects frontend static api paths missing from docs contract', () => {
   const root = makeRepo();
   const contractPath = writeApiContract(root, ['/api/dashboard/state']);
-  write(root, 'src/services/newApi.js', "export const load = () => fetch('/api/unregistered/status')\n");
+  write(root, 'src/services/newApi.js', "export const load = () => fetchJson('/api/unregistered/status')\n");
   const errors = runFrontendApiContractGuard(root, { apiContractPath: contractPath });
   assert.ok(errors.some((error) => error.message.includes('/api/unregistered/status')));
 });

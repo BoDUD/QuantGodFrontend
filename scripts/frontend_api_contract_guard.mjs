@@ -4,7 +4,8 @@
  * Phase 2 split rule:
  * - Frontend source must not read QuantGod_*.json / QuantGod_*.csv runtime files directly.
  * - Frontend must access runtime data through /api/* endpoints exposed by QuantGodBackend.
- * - Raw fetch() calls should stay in src/services so UI components use the service layer.
+ * - Raw fetch() calls must stay in src/services/apiClient.js so every endpoint uses
+ *   the same timeout, error envelope, path guard, and observability metadata.
  *
  * This script is dependency-free and runs in CI via `npm run contract`.
  */
@@ -56,9 +57,9 @@ function lineNumberForIndex(text, index) {
   return text.slice(0, index).split(/\r?\n/).length;
 }
 
-function isServiceFile(repoRoot, filePath) {
+function isApiClientFile(repoRoot, filePath) {
   const normalized = rel(repoRoot, filePath);
-  return normalized.startsWith('src/services/') || normalized === 'src/services.js';
+  return normalized === 'src/services/apiClient.js';
 }
 
 function normalizeApiPath(pathValue) {
@@ -161,13 +162,14 @@ function checkSourceFile(repoRoot, filePath) {
     });
   }
 
-  if (!isServiceFile(repoRoot, filePath)) {
+  if (!isApiClientFile(repoRoot, filePath)) {
     let match;
     while ((match = RAW_FETCH_RE.exec(text)) !== null) {
       errors.push({
         file: relativePath,
         line: lineNumberForIndex(text, match.index),
-        message: 'raw fetch() outside src/services is forbidden; add a service wrapper and call that from components',
+        message:
+          'raw fetch() outside src/services/apiClient.js is forbidden; add an apiClient-backed service wrapper',
       });
     }
   }
