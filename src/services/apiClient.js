@@ -270,8 +270,7 @@ export async function fetchRows(path, options = {}) {
 
 export function apiFallback(result, fallback = null, endpoint = '') {
   if (result?.ok) return attachApiMeta(result.data, result, endpoint);
-  const payload =
-    result?.error?.body ||
+  const payload = result?.error?.body ||
     fallback || {
       ok: false,
       error: result?.error?.message || `HTTP ${result?.status || 0}`,

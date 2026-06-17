@@ -50,7 +50,7 @@ describe('dashboardModel', () => {
     expect(snapshot.runtimeState).toBe('STALE_DASHBOARD_SNAPSHOT');
     expect(equityMetric).toMatchObject({
       value: '快照过期',
-      status: 'warn',
+      status: 'blocked',
     });
     expect(equityMetric.hint).toContain('MT5 dashboard 快照已过期');
     expect(equityMetric.hint).toContain('历史净值: 10220.35 USC，仅作参考');
@@ -60,17 +60,17 @@ describe('dashboardModel', () => {
     });
     expect(positionsMetric).toMatchObject({
       value: '不可确认',
-      status: 'warn',
+      status: 'blocked',
     });
     expect(positionsMetric.hint).toContain('旧快照持仓 0 笔，仅作历史参考');
     expect(runtimeItems[0]).toMatchObject({
       label: '运行状态',
       value: '快照过期',
-      status: 'warn',
+      status: 'blocked',
       hint: 'MT5 dashboard 快照已过期',
     });
     expect(latestHealth).toMatchObject({
-      status: 'warn',
+      status: 'blocked',
       statusLabel: '快照过期',
       description: '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
     });
@@ -162,15 +162,15 @@ describe('dashboardModel', () => {
     expect(snapshot.secondaryMt5SnapshotStale).toBe(true);
     expect(live16Metric).toMatchObject({
       value: '快照过期',
-      status: 'warn',
+      status: 'blocked',
     });
     expect(live16Health).toMatchObject({
-      status: 'warn',
+      status: 'blocked',
       statusLabel: '快照过期',
     });
     expect(runtimeItems.find((item) => item.label === 'Live16 只读桥')).toMatchObject({
       value: '快照过期',
-      status: 'warn',
+      status: 'blocked',
     });
     expect(sourceRows.find((row) => row.数据源 === 'Live16 只读桥')).toMatchObject({
       状态: '快照过期',
@@ -382,16 +382,16 @@ describe('dashboardModel', () => {
     expect(snapshot.mt5SnapshotStale).toBe(true);
     expect(equityMetric).toMatchObject({
       value: '快照过期',
-      status: 'warn',
+      status: 'blocked',
     });
     expect(equityMetric.hint).toContain('历史净值: 10020.50 USC，仅作参考');
     expect(balanceMetric).toMatchObject({
       value: '快照过期',
-      status: 'warn',
+      status: 'blocked',
     });
     expect(positionsMetric).toMatchObject({
       value: '不可确认',
-      status: 'warn',
+      status: 'blocked',
     });
   });
 
@@ -933,8 +933,7 @@ describe('dashboardModel', () => {
       缺口来源: '—',
       证据缺口: 'bad-entry replay 缺 entryContext，不能证明坏入场。',
       前置命令: '—',
-      下一步:
-        'bad-entry replay 缺 entryContext，不能证明坏入场；随后 收集带 entryContext 的坏入场样本。',
+      下一步: 'bad-entry replay 缺 entryContext，不能证明坏入场；随后 收集带 entryContext 的坏入场样本。',
     });
     expect(coreRecoveryRows[2]).toMatchObject({
       任务: 'Case Memory GA_OVERFIT',

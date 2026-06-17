@@ -124,14 +124,11 @@ if (/\/QuantGod_[^\s'"?#]+\.(json|csv)\b/i.test(domainApi)) {
 }
 
 const serviceDir = path.join(root, 'src/services');
-const requiredApiClientServices = [
-  'src/services/api.js',
-  'src/services/backtestAiApi.js',
-  'src/services/phase1Api.js',
-  'src/services/phase2Api.js',
-  'src/services/phase3Api.js',
-];
-for (const filePath of walkFiles(serviceDir)) {
+const serviceFiles = walkFiles(serviceDir);
+const servicePaths = serviceFiles
+  .map((filePath) => path.relative(root, filePath).replaceAll(path.sep, '/'))
+  .sort();
+for (const filePath of serviceFiles) {
   const relativePath = path.relative(root, filePath).replaceAll(path.sep, '/');
   if (relativePath === 'src/services/apiClient.js') continue;
   const source = fs.readFileSync(filePath, 'utf8');
@@ -170,7 +167,7 @@ if (!p0Toolchain.includes('npm run contract') || !p0Toolchain.includes('npm run 
   fail('package.json p0-toolchain must run contract and api-client guards before frontend acceptance');
 }
 
-for (const servicePath of requiredApiClientServices) {
+for (const servicePath of servicePaths) {
   for (const scriptName of ['lint', 'format:check']) {
     if (!String(pkg.scripts?.[scriptName] || '').includes(servicePath)) {
       fail(`package.json ${scriptName} must include ${servicePath}`);

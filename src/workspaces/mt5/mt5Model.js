@@ -1500,7 +1500,7 @@ function accountRecoveryRow(account = {}) {
   const unavailable = freshnessUnavailable(freshness);
   const stale = freshnessStale(freshness);
   const unconfirmed = freshnessUnconfirmed(freshness);
-  const status = processMissing || missing || unavailable ? 'blocked' : stale || unconfirmed ? 'warn' : 'ok';
+  const status = processMissing || missing || unavailable || stale ? 'blocked' : unconfirmed ? 'warn' : 'ok';
   const state = processMissing
     ? 'writer 未运行'
     : missing
@@ -1557,8 +1557,7 @@ export function buildMt5SnapshotRootCauseBanner(snapshot = {}) {
   const recoveryRows = (snapshot.accountConnections || []).map(accountRecoveryRow);
   const blockers = recoveryRows.filter((row) => row.blocksCurrentState);
   const processMissing = blockers.some((row) => row.processMissing);
-  const bridgeUnavailable = blockers.some((row) => row.account?.freshness?.unavailable === true);
-  const status = blockers.length ? (processMissing || bridgeUnavailable ? 'blocked' : 'warn') : 'ok';
+  const status = blockers.length ? 'blocked' : 'ok';
   const label = processMissing ? 'MT5/EA writer 未运行' : blockers.length ? '实时快照不可用' : '实时快照新鲜';
   const rootCauseLine = blockers.length
     ? blockers.map((row) => `${accountRecoveryLabel(row.account)}：${row.state}`).join(' / ')

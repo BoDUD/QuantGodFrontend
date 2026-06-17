@@ -9,6 +9,23 @@ import { fileURLToPath } from 'node:url';
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const overlayRoot = path.resolve(testDir, '..');
 const guardPath = path.join(overlayRoot, 'scripts/frontend_api_client_guard.mjs');
+const fixtureServicePaths = [
+  'src/services/api.js',
+  'src/services/apiClient.js',
+  'src/services/automationChainApi.js',
+  'src/services/backtestAiApi.js',
+  'src/services/caseMemoryApi.js',
+  'src/services/domainApi.js',
+  'src/services/gaFactoryApi.js',
+  'src/services/gaStabilityApi.js',
+  'src/services/phase1Api.js',
+  'src/services/phase2Api.js',
+  'src/services/phase3Api.js',
+  'src/services/productionEvidenceApi.js',
+  'src/services/strategyGaFactoryApi.js',
+  'src/services/telegramGatewayOpsApi.js',
+  'src/services/usdjpyStrategyLabApi.js',
+];
 
 function writeFixture(root, overrides = {}) {
   fs.mkdirSync(path.join(root, 'src/services'), { recursive: true });
@@ -48,29 +65,27 @@ export async function loadDashboardWorkspace() { return fetchJson('/api/latest')
 export { fetchJson, fetchRows, postJson, rowsFromPayload };
 `,
   );
+  for (const servicePath of fixtureServicePaths) {
+    const target = path.join(root, servicePath);
+    if (fs.existsSync(target)) continue;
+    fs.writeFileSync(
+      target,
+      "import { fetchJson } from './apiClient.js';\nexport async function load() { return fetchJson('/api/latest'); }\n",
+    );
+  }
 
   fs.writeFileSync(
     path.join(root, 'eslint.config.js'),
     overrides.eslintConfig ??
       `
 const foundationFiles = [
-  'src/services/api.js',
-  'src/services/backtestAiApi.js',
-  'src/services/phase1Api.js',
-  'src/services/phase2Api.js',
-  'src/services/phase3Api.js',
+${fixtureServicePaths.map((servicePath) => `  '${servicePath}',`).join('\n')}
 ];
 export default [{ files: foundationFiles }];
 `,
   );
 
-  const guardedServices = [
-    'src/services/api.js',
-    'src/services/backtestAiApi.js',
-    'src/services/phase1Api.js',
-    'src/services/phase2Api.js',
-    'src/services/phase3Api.js',
-  ].join(' ');
+  const guardedServices = fixtureServicePaths.join(' ');
 
   fs.writeFileSync(
     path.join(root, 'package.json'),
@@ -175,11 +190,14 @@ test('api-client guard rejects newly added service modules without apiClient', (
   writeFixture(root);
   fs.writeFileSync(
     path.join(root, 'src/services/newResearchApi.js'),
-    "export async function loadResearchSummary() { return { ok: false }; }\n",
+    'export async function loadResearchSummary() { return { ok: false }; }\n',
   );
   const result = runGuard(root);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr + result.stdout, /newResearchApi\.js must import API helpers from apiClient\.js/);
+  assert.match(
+    result.stderr + result.stdout,
+    /newResearchApi\.js must import API helpers from apiClient\.js/,
+  );
 });
 
 test('api-client guard rejects legacy requestJson wrappers in service modules', () => {

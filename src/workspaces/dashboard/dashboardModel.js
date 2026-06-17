@@ -399,9 +399,9 @@ function snapshotRecovery(raw = {}) {
     latest.fresh === true || primary.fresh === true || secondary.fresh === true;
   const realtimeUsable = hasFreshRealtimeEvidence && !staleSources.length && !processMissing;
   const status =
-    processMissing || bridgeUnavailable
+    processMissing || bridgeUnavailable || staleSources.length
       ? 'blocked'
-      : staleSources.length || !hasFreshRealtimeEvidence
+      : !hasFreshRealtimeEvidence
         ? 'warn'
         : 'ok';
   const label = processMissing
@@ -516,7 +516,7 @@ function primaryAccountSnapshotState(snapshot = {}) {
     stale,
     unconfirmed,
     value: processMissing ? '不可确认' : stale ? '快照过期' : unconfirmed ? '待确认' : '',
-    status: processMissing ? 'blocked' : blocked ? 'warn' : undefined,
+    status: processMissing || stale ? 'blocked' : blocked ? 'warn' : undefined,
     hint,
   };
 }
@@ -544,7 +544,7 @@ function mt5BridgeValue({ stale, fresh, processMissing }) {
 
 function mt5BridgeStatus({ stale, fresh, processMissing }) {
   if (processMissing) return 'blocked';
-  if (stale) return 'warn';
+  if (stale) return 'blocked';
   if (fresh) return 'ok';
   return 'warn';
 }
@@ -1778,7 +1778,7 @@ export function buildDashboardMetrics(snapshot) {
       status: latestDashboardProcessMissing
         ? 'blocked'
         : snapshot.latestDashboardStale
-          ? 'warn'
+          ? 'blocked'
           : snapshot.latestDashboardFresh
             ? 'ok'
             : 'warn',
@@ -2170,7 +2170,7 @@ export function buildEndpointHealth(raw = {}) {
             : readonlyUnavailable
               ? 'blocked'
               : staleLatest || staleReadonly
-                ? 'warn'
+                ? 'blocked'
                 : hasPayload && !unavailable
                   ? 'ok'
                   : 'warn',
@@ -2608,7 +2608,7 @@ export function buildSnapshotRootCauseBanner(snapshot = {}) {
   if (snapshot.usdJpyLiveLoopStale) rootCauses.push('USDJPY live-loop 运行快照严重过期');
   if (snapshot.latestDashboardStale && !rootCauses.length) rootCauses.push('总览 dashboard 快照过期');
   const realtimeBlocked = recovery.realtimeUsable !== true;
-  const status = realtimeBlocked ? (recovery.processMissing ? 'blocked' : 'warn') : 'ok';
+  const status = realtimeBlocked ? (recovery.status === 'blocked' ? 'blocked' : 'warn') : 'ok';
   const blockedScopes = [];
   if (realtimeBlocked) blockedScopes.push('当前账户/净值/持仓/执行状态');
   if (snapshot.usdJpyLiveLoopStale) blockedScopes.push('USDJPY live-loop 当前闭环');
@@ -2634,7 +2634,13 @@ export function buildSnapshotRootCauseBanner(snapshot = {}) {
   if (snapshot.coreRuntimeEvidence?.promotionBlocked) {
     recoveryPath.push('Dashboard/Evolution 的核心证据恢复队列');
   }
-  const hardBlocked = recovery.processMissing === true || recovery.bridgeUnavailable === true;
+  const hardBlocked =
+    recovery.processMissing === true ||
+    recovery.bridgeUnavailable === true ||
+    snapshot.latestDashboardStale === true ||
+    snapshot.mt5SnapshotStale === true ||
+    snapshot.secondaryMt5SnapshotStale === true ||
+    snapshot.usdJpyLiveLoopStale === true;
   return {
     status: realtimeBlocked ? (hardBlocked ? 'blocked' : status) : status,
     label: recovery.label || (realtimeBlocked ? '实时快照不可用' : '实时快照新鲜'),
@@ -2930,7 +2936,7 @@ export function buildRuntimeItems(snapshot) {
       {
         label: '运行状态',
         value: processMissing ? 'writer 未运行' : '快照过期',
-        status: processMissing ? 'blocked' : 'warn',
+        status: 'blocked',
         hint: processMissing ? snapshot.snapshotRecovery?.nextAction || hint : hint,
       },
       { label: '更新时间', value: snapshot.updatedAt, hint: 'MT5 dashboard 文件 mtime' },
