@@ -14,6 +14,7 @@ import {
   buildFrontendSnapshotRecoveryRows,
   buildCoreEvidenceRecoveryRows,
   buildRuntimeItems,
+  buildSnapshotImpactSummary,
   buildProfitTargetItems,
   normalizeDashboardSnapshot,
   buildReleaseGateRows,
@@ -546,6 +547,7 @@ describe('dashboardModel', () => {
       (item) => item.endpoint === '/api/usdjpy-strategy-lab/live-loop',
     );
     const rootCause = buildSnapshotRootCauseBanner(snapshot);
+    const impactSummary = buildSnapshotImpactSummary(snapshot);
 
     expect(snapshot.snapshotRecovery).toMatchObject({
       status: 'blocked',
@@ -580,6 +582,17 @@ describe('dashboardModel', () => {
     expect(rootCause.usableLine).toContain('模拟收益目标证据');
     expect(rootCause.recoveryPathLine).toContain('/vue/?workspace=mt5');
     expect(rootCause.recoveryPathLine).toContain('/vue/?workspace=hfm-crypto');
+    expect(impactSummary).toMatchObject({
+      status: 'blocked',
+      p0Count: 3,
+    });
+    expect(impactSummary.priorityLine).toContain('P0 3');
+    expect(impactSummary.affectedAreaLine).toContain('Dashboard 首页:MT5/EA dashboard writer 未运行');
+    expect(impactSummary.affectedAreaLine).toContain('HFM Crypto 工作台:研究证据可看 / Live16 账号快照阻断');
+    expect(impactSummary.trustedScopeLine).toContain('当前账户/净值/持仓/执行状态');
+    expect(impactSummary.usableLine).toContain('HFM Crypto shadow/spec/Moss 研究证据');
+    expect(impactSummary.nextActionLine).toContain('Live12: 恢复 MT5/EA writer');
+    expect(impactSummary.nextActionLine).toContain('Live16: 恢复 MT5/EA writer');
     expect(sourceRows.find((row) => row.数据源 === 'USDJPY Live Loop')).toMatchObject({
       状态: '严重过期',
       源文件: '/tmp/runtime/QuantGod_MT5RuntimeSnapshot_USDJPYc.json',

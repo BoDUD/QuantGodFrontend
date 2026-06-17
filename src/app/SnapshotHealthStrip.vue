@@ -5,10 +5,22 @@
       <p class="snapshot-health__eyebrow">系统数据源</p>
       <strong>{{ title }}</strong>
       <span>{{ detailLine }}</span>
+      <span v-if="actionLine" class="snapshot-health__action">{{ actionLine }}</span>
+      <div v-if="initialized" class="snapshot-health__badges" aria-label="Snapshot recovery priority">
+        <span>P0 {{ impactSummary.p0Count }}</span>
+        <span>P1 {{ impactSummary.p1Count }}</span>
+        <span>P2 {{ impactSummary.p2Count }}</span>
+      </div>
     </div>
 
     <div class="snapshot-health__lanes" aria-label="Snapshot bridge impact">
-      <a v-for="row in laneRows" :key="row.前端区域" class="snapshot-health__lane" :href="row.打开页面">
+      <a
+        v-for="row in laneRows"
+        :key="row.前端区域"
+        class="snapshot-health__lane"
+        :data-priority="row.修复优先级"
+        :href="row.打开页面"
+      >
         <span>{{ row.前端区域 }}</span>
         <strong>{{ row.状态 }}</strong>
       </a>
@@ -25,6 +37,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowReactive } from 'vue'
 import { loadDashboardWorkspaceCore } from '../services/domainApi.js';
 import {
   buildFrontendSnapshotRecoveryRows,
+  buildSnapshotImpactSummary,
   buildSnapshotRootCauseBanner,
   normalizeDashboardSnapshot,
 } from '../workspaces/dashboard/dashboardModel.js';
@@ -49,7 +62,8 @@ let loadRunId = 0;
 
 const snapshot = computed(() => normalizeDashboardSnapshot(state));
 const rootCause = computed(() => buildSnapshotRootCauseBanner(snapshot.value));
-const laneRows = computed(() => buildFrontendSnapshotRecoveryRows(snapshot.value).slice(0, 4));
+const impactSummary = computed(() => buildSnapshotImpactSummary(snapshot.value));
+const laneRows = computed(() => buildFrontendSnapshotRecoveryRows(snapshot.value));
 const tone = computed(() => {
   if (error.value) return 'blocked';
   if (!initialized.value) return 'warn';
@@ -63,7 +77,11 @@ const title = computed(() => {
 const detailLine = computed(() => {
   if (error.value) return error.value;
   if (!initialized.value) return '正在读取 /api/latest、Live12、Live16 和 HFM Crypto 核心状态。';
-  return rootCause.value.rootCauseLine || rootCause.value.nextAction;
+  return [rootCause.value.rootCauseLine, impactSummary.value.priorityLine].filter(Boolean).join('；');
+});
+const actionLine = computed(() => {
+  if (error.value || !initialized.value) return '';
+  return [impactSummary.value.trustedScopeLine, impactSummary.value.nextActionLine].filter(Boolean).join('；');
 });
 
 function abortLoad() {
@@ -109,7 +127,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .snapshot-health {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr) auto;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 1fr) auto;
   gap: 12px;
   align-items: center;
   min-width: 0;
@@ -151,15 +169,40 @@ onBeforeUnmount(() => {
 }
 
 .snapshot-health__summary span {
+  display: block;
+  max-height: 34px;
+  overflow: hidden;
   overflow-wrap: anywhere;
   color: var(--qg-text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
 
+.snapshot-health__action {
+  color: rgb(226 232 240 / 92%);
+}
+
+.snapshot-health__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.snapshot-health__badges span {
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgb(255 255 255 / 5%);
+  color: var(--qg-text);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .snapshot-health__lanes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
 }
@@ -179,6 +222,16 @@ onBeforeUnmount(() => {
 .snapshot-health__lane:hover {
   border-color: rgb(56 189 248 / 42%);
   background: rgb(56 189 248 / 9%);
+}
+
+.snapshot-health__lane[data-priority='P0'] {
+  border-color: rgb(255 107 134 / 32%);
+  background: rgb(255 107 134 / 8%);
+}
+
+.snapshot-health__lane[data-priority='P1'] {
+  border-color: rgb(251 191 36 / 28%);
+  background: rgb(251 191 36 / 7%);
 }
 
 .snapshot-health__lane span {
@@ -214,6 +267,16 @@ onBeforeUnmount(() => {
 
 @media (width <= 960px) {
   .snapshot-health {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .snapshot-health__lanes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 360px) {
+  .snapshot-health__lanes {
     grid-template-columns: minmax(0, 1fr);
   }
 }

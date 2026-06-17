@@ -54,7 +54,7 @@ function makeFixture() {
   );
   write(
     'src/app/SnapshotHealthStrip.vue',
-    '<template><section aria-label="Snapshot bridge impact">系统数据源</section></template><script setup>import { loadDashboardWorkspaceCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; setInterval(load, 30000); function load(){ return loadDashboardWorkspaceCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildFrontendSnapshotRecoveryRows); }</script>',
+    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div></section></template><script setup>import { loadDashboardWorkspaceCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; setInterval(load, 30000); function load(){ return loadDashboardWorkspaceCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
     root,
   );
   write(

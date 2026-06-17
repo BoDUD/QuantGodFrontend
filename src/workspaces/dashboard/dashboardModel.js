@@ -2940,6 +2940,58 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
   ];
 }
 
+function priorityValue(priority = '') {
+  const match = String(priority).match(/^P(\d+)/);
+  if (match) return Number(match[1]);
+  return priority === 'OK' ? 99 : 50;
+}
+
+export function buildSnapshotImpactSummary(snapshot = {}) {
+  const rootCause = buildSnapshotRootCauseBanner(snapshot);
+  const rows = buildFrontendSnapshotRecoveryRows(snapshot);
+  const blockedRows = rows
+    .filter((row) => row.修复优先级 && row.修复优先级 !== 'OK')
+    .sort((left, right) => priorityValue(left.修复优先级) - priorityValue(right.修复优先级));
+  const p0Count = rows.filter((row) => row.修复优先级 === 'P0').length;
+  const p1Count = rows.filter((row) => row.修复优先级 === 'P1').length;
+  const p2Count = rows.filter((row) => row.修复优先级 === 'P2').length;
+  const affectedAreaLine = blockedRows.length
+    ? blockedRows
+        .slice(0, 5)
+        .map((row) => `${row.前端区域}:${row.状态}`)
+        .join(' / ')
+    : 'Dashboard、MT5、HFM Crypto 当前无快照阻断';
+  const shortActions = [
+    snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale || snapshot.latestDashboardStale
+      ? 'Live12: 恢复 MT5/EA writer 后刷新 /api/mt5-readonly/snapshot'
+      : '',
+    snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale
+      ? 'Live16: 恢复 MT5/EA writer 后刷新 /api/mt5-readonly-secondary/snapshot'
+      : '',
+    snapshot.usdJpyLiveLoopStale ? 'Live-loop: 等 runtime snapshot fresh 后再诊断' : '',
+    snapshot.coreRuntimeEvidence?.promotionBlocked ? 'GA: 先补 history freshness / Case Memory' : '',
+  ].filter(Boolean);
+  const nextActionLine = shortActions.length
+    ? shortActions.join('；')
+    : rootCause.nextAction || blockedRows.find((row) => row.下一步)?.下一步 || '保持只读快照桥正常刷新。';
+  return {
+    status: rootCause.status,
+    p0Count,
+    p1Count,
+    p2Count,
+    priorityLine: blockedRows.length
+      ? `P0 ${p0Count} / P1 ${p1Count} / P2 ${p2Count}`
+      : '所有前端区域当前无快照阻断',
+    affectedAreaLine,
+    trustedScopeLine: rootCause.blockedLine
+      ? `不可直接信任：${rootCause.blockedLine}`
+      : '账户、持仓和执行状态可作为当前快照。',
+    usableLine: rootCause.usableLine || '等待研究证据同步。',
+    nextActionLine,
+    rows: blockedRows,
+  };
+}
+
 export function buildRuntimeItems(snapshot) {
   if (snapshot.latestDashboardStale) {
     const hint = dashboardFreshnessHint(snapshot);

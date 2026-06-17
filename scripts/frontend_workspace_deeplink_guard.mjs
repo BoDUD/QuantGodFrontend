@@ -94,10 +94,12 @@ for (const required of [
   'loadDashboardWorkspaceCore',
   'normalizeDashboardSnapshot',
   'buildSnapshotRootCauseBanner',
+  'buildSnapshotImpactSummary',
   'buildFrontendSnapshotRecoveryRows',
   'setInterval(load, 30000)',
   '系统数据源',
   'Snapshot bridge impact',
+  'Snapshot recovery priority',
 ]) {
   assertIncludes(snapshotHealthStrip, required, 'src/app/SnapshotHealthStrip.vue');
 }
