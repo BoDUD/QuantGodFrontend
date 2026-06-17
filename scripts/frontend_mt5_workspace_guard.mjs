@@ -36,6 +36,7 @@ function checkMt5Workspace(root) {
   const text = read(workspace);
   for (const required of [
     './mt5Model.js',
+    'loadMt5WorkspaceCore',
     'loadMt5Workspace',
     'EndpointHealthGrid',
     'KeyValueList',
@@ -159,6 +160,9 @@ function checkDomainApi(root) {
   const text = read(api);
   if (!text.includes('/api/usdjpy-strategy-lab/evidence-os/status')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load USDJPY Evidence OS status through API facade`);
+  }
+  if (!text.includes('loadMt5WorkspaceCore')) {
+    errors.push(`${rel(root, api)}: MT5 workspace must expose a core snapshot load for first paint`);
   }
   if (!text.includes('/api/mt5/account-profiles')) {
     errors.push(`${rel(root, api)}: MT5 workspace must load account profile registry through API facade`);

@@ -31,6 +31,7 @@ const packageJson = JSON.parse(readFile(packagePath));
 
 const requiredWorkspaceMarkers = [
   'buildHfmCryptoModel',
+  'loadHfmCryptoWorkspaceCore',
   'loadHfmCryptoWorkspaceDetails',
   'loadTechnicalEvidenceDetails',
   'technicalEvidenceDetailsLoaded',
@@ -327,6 +328,7 @@ const requiredServiceMarkers = [
   'HFM_CRYPTO_ACCOUNT_SCOPE',
   'scopedHfmCryptoPath',
   'scopedLiveAutomationPath',
+  'loadHfmCryptoWorkspaceCore',
   'loadHfmCryptoWorkspace',
   'loadHfmCryptoWorkspaceDetails',
   '/api/mt5-readonly-secondary/snapshot',

@@ -86,6 +86,18 @@ test('keeps release readiness summary in initial HFM workspace load', () => {
   assert.match(quickLoadBody, /\/api\/live-automation\/release-readiness-refresh/);
 });
 
+test('keeps Live16 stale root cause in the HFM core load', () => {
+  const coreStart = service.indexOf('export async function loadHfmCryptoWorkspaceCore(options = {})');
+  const quickStart = service.indexOf('export async function loadHfmCryptoWorkspace(options = {})');
+  const coreLoadBody = service.slice(coreStart, quickStart);
+  assert.match(coreLoadBody, /\/api\/mt5-readonly-secondary\/snapshot/);
+  assert.match(coreLoadBody, /\/api\/hfm-crypto\/status/);
+  assert.match(coreLoadBody, /profitTarget/);
+  assert.match(coreLoadBody, /releaseReadinessRefresh/);
+  assert.doesNotMatch(coreLoadBody, /\/api\/hfm-crypto\/standalone-exporter-bundle/);
+  assert.doesNotMatch(coreLoadBody, /\/api\/hfm-crypto\/mt5-exporter-review/);
+});
+
 test('requires POST body signoff input review service', () => {
   const root = makeFixture({
     service: service

@@ -363,6 +363,43 @@ export async function loadDashboardWorkspace(options = {}) {
   );
 }
 
+export async function loadMt5WorkspaceCore(options = {}) {
+  return loadNamedEntries(
+    [
+      ['status', (requestOptions) => fetchJson('/api/mt5-readonly/status', null, requestOptions)],
+      ['accountProfiles', (requestOptions) => fetchJson('/api/mt5/account-profiles', null, requestOptions)],
+      ['account', (requestOptions) => fetchJson('/api/mt5-readonly/account', null, requestOptions)],
+      [
+        'secondaryAccount',
+        (requestOptions) =>
+          fetchJson('/api/mt5-readonly-secondary/account', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      ['positions', (requestOptions) => fetchJson('/api/mt5-readonly/positions', null, requestOptions)],
+      ['orders', (requestOptions) => fetchJson('/api/mt5-readonly/orders', null, requestOptions)],
+      ['symbols', (requestOptions) => fetchJson('/api/mt5-symbol-registry/symbols', null, requestOptions)],
+      ['snapshot', (requestOptions) => fetchJson('/api/mt5-readonly/snapshot', null, requestOptions)],
+      [
+        'secondarySnapshot',
+        (requestOptions) =>
+          fetchJson('/api/mt5-readonly-secondary/snapshot', null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      ['latest', (requestOptions) => fetchJson('/api/latest', null, requestOptions)],
+      [
+        'usdJpyLiveLoop',
+        (requestOptions) => fetchJson('/api/usdjpy-strategy-lab/live-loop', null, requestOptions),
+      ],
+    ],
+    options,
+    6,
+  );
+}
+
 export async function loadMt5Workspace(options = {}) {
   const focusSymbol = 'USDJPYc';
   const shadowLimit = 180;
@@ -557,6 +594,37 @@ export async function loadResearchWorkspace(query = {}) {
     regimeEvaluation,
     manualAlpha,
   };
+}
+
+export async function loadHfmCryptoWorkspaceCore(options = {}) {
+  return loadNamedEntries(
+    [
+      [
+        'mt5Snapshot',
+        (requestOptions) => fetchJson('/api/mt5-readonly-secondary/snapshot', null, requestOptions),
+      ],
+      [
+        'status',
+        (requestOptions) =>
+          fetchJson(scopedHfmCryptoPath('/api/hfm-crypto/status', { view: 'summary' }), null, requestOptions),
+      ],
+      [
+        'profitTarget',
+        (requestOptions) =>
+          fetchJson(scopedProfitTargetPath('/api/profit-target/status'), null, requestOptions),
+      ],
+      [
+        'releaseReadinessRefresh',
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-readiness-refresh'), null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+    ],
+    options,
+    4,
+  );
 }
 
 export async function loadHfmCryptoWorkspace(options = {}) {

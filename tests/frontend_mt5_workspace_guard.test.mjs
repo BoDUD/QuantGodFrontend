@@ -47,7 +47,7 @@ const model = [
 const workspace = [
   '<template><EndpointHealthGrid /><KeyValueList /><LedgerTable title="账号连接矩阵" /><LedgerTable title="MT5 账号 Profiles" /><LedgerTable title="第二账号信息" /><LedgerTable title="RSI 入场诊断" /><LedgerTable title="MT5 快照恢复矩阵" :rows="snapshotRecoveryRows" /><StatusPill />全局快照恢复 {{ snapshotRootCause }} 执行反馈与下一代修复 Safety Envelope Raw MT5 evidence</template>',
   '<script setup>',
-  "import { loadMt5Workspace } from '../../services/domainApi.js';",
+  "import { loadMt5Workspace, loadMt5WorkspaceCore } from '../../services/domainApi.js';",
   "import { normalizeMt5Snapshot } from './mt5Model.js';",
   '</script>',
 ].join('\n');
@@ -59,6 +59,10 @@ const validFiles = {
   'src/workspaces/mt5/mt5Model.js': model,
   'src/workspaces/mt5/Mt5Workspace.vue': workspace,
   'src/services/domainApi.js': `
+export async function loadMt5WorkspaceCore() {
+  fetchJson('/api/mt5-readonly/snapshot');
+  fetchJson('/api/mt5-readonly-secondary/snapshot');
+}
 export async function loadMt5Workspace() {
   const focusSymbol = 'USDJPYc';
   fetchJson('/api/mt5/account-profiles');
@@ -81,6 +85,18 @@ export async function loadMt5Workspace() {
 test('accepts structured MT5 workspace', () => {
   const root = makeProject(validFiles);
   assert.deepEqual(checkProject(root), []);
+});
+
+test('keeps MT5 snapshot root cause in a core first-paint load', () => {
+  const service = fs.readFileSync(new URL('../src/services/domainApi.js', import.meta.url), 'utf8');
+  const coreStart = service.indexOf('export async function loadMt5WorkspaceCore(options = {})');
+  const fullStart = service.indexOf('export async function loadMt5Workspace(options = {})');
+  const coreLoadBody = service.slice(coreStart, fullStart);
+  assert.match(coreLoadBody, /\/api\/mt5-readonly\/snapshot/);
+  assert.match(coreLoadBody, /\/api\/mt5-readonly-secondary\/snapshot/);
+  assert.match(coreLoadBody, /\/api\/latest/);
+  assert.doesNotMatch(coreLoadBody, /\/api\/shadow\/signals/);
+  assert.doesNotMatch(coreLoadBody, /\/api\/usdjpy-strategy-lab\/evidence-os\/execution-feedback/);
 });
 
 test('rejects direct fetch in MT5 workspace', () => {

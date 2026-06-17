@@ -613,6 +613,7 @@ import {
   buildLiveRuntimePreflight,
   buildLiveReviewPacket,
   buildSimToLivePipeline,
+  loadHfmCryptoWorkspaceCore,
   loadHfmCryptoWorkspaceDetails,
   loadHfmCryptoWorkspace,
 } from '../../services/domainApi.js';
@@ -795,8 +796,40 @@ async function withLoading(action, fallbackMessage) {
 
 async function load() {
   technicalEvidenceDetailsLoaded.value = false;
-  await withLoading((signal) => loadHfmCryptoWorkspace({ signal }), 'HFM Crypto CFD 状态加载失败');
-  void loadTechnicalEvidenceDetails();
+  abortLoad();
+  const runId = loadRunId + 1;
+  loadRunId = runId;
+  const controller = new globalThis.AbortController();
+  loadController = controller;
+  loading.value = true;
+  error.value = '';
+  let coreLoaded = false;
+  let shouldLoadDetails = false;
+  try {
+    const coreState = await loadHfmCryptoWorkspaceCore({ signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, coreState);
+    coreLoaded = true;
+    shouldLoadDetails = true;
+    loading.value = false;
+
+    const nextState = await loadHfmCryptoWorkspace({ signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, nextState);
+  } catch (exc) {
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    if (!coreLoaded) {
+      error.value = exc?.message || 'HFM Crypto CFD 状态加载失败';
+    } else {
+      technicalEvidenceDetailsError.value = exc?.message || 'HFM Crypto CFD 详情加载失败';
+    }
+  } finally {
+    if (runId === loadRunId) {
+      loading.value = false;
+      loadController = null;
+    }
+  }
+  if (shouldLoadDetails) void loadTechnicalEvidenceDetails();
 }
 
 async function loadTechnicalEvidenceDetails() {

@@ -316,7 +316,7 @@
 
 <script setup>
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowReactive } from 'vue';
-import { loadMt5Workspace } from '../../services/domainApi.js';
+import { loadMt5Workspace, loadMt5WorkspaceCore } from '../../services/domainApi.js';
 import LoadingState from '../../components/LoadingState.vue';
 import WorkspaceFrame from '../shared/WorkspaceFrame.vue';
 import MetricGrid from '../shared/MetricGrid.vue';
@@ -444,13 +444,22 @@ async function load(options = {}) {
   loadInFlight = true;
   if (!options.silent) loading.value = true;
   error.value = '';
+  let coreLoaded = false;
   try {
+    const coreState = await loadMt5WorkspaceCore({ signal: controller.signal });
+    if (controller.signal.aborted || runId !== loadRunId) return;
+    Object.assign(state, coreState);
+    coreLoaded = true;
+    if (!options.silent) loading.value = false;
+
     const nextState = await loadMt5Workspace({ signal: controller.signal });
     if (controller.signal.aborted || runId !== loadRunId) return;
     Object.assign(state, nextState);
   } catch (exc) {
     if (controller.signal.aborted || runId !== loadRunId) return;
-    error.value = exc?.message || 'MT5 实盘监控加载失败';
+    if (!coreLoaded) {
+      error.value = exc?.message || 'MT5 实盘监控加载失败';
+    }
   } finally {
     if (runId === loadRunId) {
       loadInFlight = false;
