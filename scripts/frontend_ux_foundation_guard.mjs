@@ -37,22 +37,45 @@ for (const file of requiredFiles) {
 }
 
 const main = exists('src/main.js') ? read('src/main.js') : '';
-if (!main.includes("./styles/tokens.css")) fail('src/main.js must import src/styles/tokens.css');
-if (!main.includes("./styles/themes.css")) fail('src/main.js must import src/styles/themes.css');
-if (!main.includes('installOperatorExperience')) fail('src/main.js must install operator experience bootstrap');
+if (!main.includes('./styles/tokens.css')) fail('src/main.js must import src/styles/tokens.css');
+if (!main.includes('./styles/themes.css')) fail('src/main.js must import src/styles/themes.css');
+if (!main.includes('installOperatorExperience'))
+  fail('src/main.js must install operator experience bootstrap');
 
 const dashboard = exists('src/workspaces/dashboard/DashboardWorkspace.vue')
   ? read('src/workspaces/dashboard/DashboardWorkspace.vue')
   : '';
-if (!dashboard.includes('DashboardUpgradePanel')) fail('DashboardWorkspace.vue must mount DashboardUpgradePanel');
-if (!dashboard.includes("./DashboardUpgradePanel.vue")) fail('DashboardWorkspace.vue must import DashboardUpgradePanel');
+if (!dashboard.includes('DashboardUpgradePanel'))
+  fail('DashboardWorkspace.vue must mount DashboardUpgradePanel');
+if (!dashboard.includes('./DashboardUpgradePanel.vue'))
+  fail('DashboardWorkspace.vue must import DashboardUpgradePanel');
+
+const dashboardUpgradePanel = exists('src/workspaces/dashboard/DashboardUpgradePanel.vue')
+  ? read('src/workspaces/dashboard/DashboardUpgradePanel.vue')
+  : '';
+for (const marker of [
+  'positionSnapshotHint',
+  'positionSnapshotBadge',
+  'mt5DailyPnlDetail',
+  '当前持仓不可确认',
+  '旧持仓和账号状态只作历史参考',
+]) {
+  if (!dashboardUpgradePanel.includes(marker)) {
+    fail(`DashboardUpgradePanel.vue must keep stale snapshot-aware marker: ${marker}`);
+  }
+}
+if (dashboardUpgradePanel.includes('实时持仓来自 HFM MT5 EA 快照；无持仓时显示空状态。')) {
+  fail('DashboardUpgradePanel.vue must not describe stale account snapshots as realtime positions');
+}
 
 const packageJson = JSON.parse(read('package.json'));
 if (!packageJson.scripts?.['ux-foundation']) fail('package.json must expose npm run ux-foundation');
-if (!String(packageJson.scripts?.test || '').includes('node --test')) fail('package.json test script must remain node --test based');
+if (!String(packageJson.scripts?.test || '').includes('node --test'))
+  fail('package.json test script must remain node --test based');
 
 const tokens = exists('src/styles/tokens.css') ? read('src/styles/tokens.css') : '';
-if (!tokens.includes('font-variant-numeric: tabular-nums')) fail('tokens.css must enforce tabular numeric rendering');
+if (!tokens.includes('font-variant-numeric: tabular-nums'))
+  fail('tokens.css must enforce tabular numeric rendering');
 if (!tokens.includes('qg-command-palette')) fail('tokens.css must include command palette styles');
 
 const themes = exists('src/styles/themes.css') ? read('src/styles/themes.css') : '';

@@ -20,7 +20,7 @@
         title="MT5 今日盈亏"
         :value="kpis.mt5DailyPnlText"
         :tone="kpis.mt5DailyPnlTone"
-        detail="来自 MT5 平仓复盘"
+        :detail="mt5DailyPnlDetail"
       />
       <KpiCard
         title="HFM Crypto 证据"
@@ -75,9 +75,9 @@
         <div class="qg-ux-widget__header">
           <div>
             <h3>{{ labels.positionSnapshot }}</h3>
-            <p>实时持仓来自 HFM MT5 EA 快照；无持仓时显示空状态。</p>
+            <p>{{ positionSnapshotHint }}</p>
           </div>
-          <span class="qg-ux-pill">MT5 实盘</span>
+          <span class="qg-ux-pill">{{ positionSnapshotBadge }}</span>
         </div>
         <ul v-if="positionRows.length" class="qg-ux-list">
           <li v-for="row in positionRows" :key="row.id">
@@ -359,6 +359,24 @@ const positionRows = computed(() => {
     };
   });
 });
+
+const positionSnapshotHint = computed(() => {
+  if (realtimeSnapshotBlocked.value) {
+    return [
+      snapshotImpact.value.trustedScopeLine || '当前账号、持仓和执行准备度不可确认；旧快照只作历史参考。',
+      snapshotImpact.value.nextActionLine || '恢复 MT5/EA dashboard writer 后再确认当前持仓。',
+    ]
+      .filter(Boolean)
+      .join('；');
+  }
+  return 'MT5 只读快照新鲜时才显示当前持仓；无持仓时显示空状态。';
+});
+
+const positionSnapshotBadge = computed(() => (realtimeSnapshotBlocked.value ? '当前不可确认' : 'MT5 只读'));
+
+const mt5DailyPnlDetail = computed(() =>
+  realtimeSnapshotBlocked.value ? '快照阻断；金额只作历史平仓复盘' : '来自 MT5 平仓复盘',
+);
 
 const positionEmptyState = computed(() => {
   if (realtimeSnapshotBlocked.value) {
