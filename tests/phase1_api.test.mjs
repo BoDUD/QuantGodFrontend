@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 function jsonResponse(payload, status = 200) {
-  return new Response(JSON.stringify(payload), {
+  return new globalThis.Response(JSON.stringify(payload), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });

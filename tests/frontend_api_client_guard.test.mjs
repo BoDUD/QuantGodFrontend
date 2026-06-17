@@ -89,6 +89,13 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
       );
       continue;
     }
+    if (servicePath === 'src/services/usdjpyStrategyLabApi.js') {
+      fs.writeFileSync(
+        target,
+        "import { fetchJson, postJson } from './apiClient.js';\nfunction fetchUSDJPYLabJson(path, options = {}) { return fetchJson(path, null, options); }\nfunction postUSDJPYLabJson(path, payload = {}, options = {}) { return postJson(path, payload, null, options); }\nexport async function load() { return fetchUSDJPYLabJson('/api/usdjpy-strategy-lab/status'); }\nexport async function run() { return postUSDJPYLabJson('/api/usdjpy-strategy-lab/run', { focusSymbol: 'USDJPYc' }); }\n",
+      );
+      continue;
+    }
     fs.writeFileSync(
       target,
       "import { fetchJson } from './apiClient.js';\nexport async function load() { return fetchJson('/api/latest'); }\n",
@@ -311,6 +318,36 @@ test('api-client guard rejects generic phase2 apiGet/apiPost wrappers', () => {
   assert.match(
     result.stderr + result.stdout,
     /phase2Api\.js still defines duplicated API helper\/header: async function apiGet/,
+  );
+});
+
+test('api-client guard requires USDJPY Strategy Lab semantic wrappers', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-usdjpy-wrapper-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/usdjpyStrategyLabApi.js'),
+    "import { fetchJson } from './apiClient.js';\nexport async function load() { return fetchJson('/api/usdjpy-strategy-lab/status'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /usdjpyStrategyLabApi\.js must expose semantic fetchUSDJPYLabJson wrapper/,
+  );
+});
+
+test('api-client guard rejects generic getJson wrapper in USDJPY Strategy Lab service', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-usdjpy-get-json-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/usdjpyStrategyLabApi.js'),
+    "import { fetchJson, postJson } from './apiClient.js';\nfunction fetchUSDJPYLabJson(path, options = {}) { return fetchJson(path, null, options); }\nfunction postUSDJPYLabJson(path, payload = {}, options = {}) { return postJson(path, payload, null, options); }\nfunction getJson(path, options = {}) { return fetchUSDJPYLabJson(path, options); }\nexport async function load() { return getJson('/api/usdjpy-strategy-lab/status'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /usdjpyStrategyLabApi\.js must not use generic getJson wrapper/,
   );
 });
 

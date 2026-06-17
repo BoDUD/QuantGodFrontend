@@ -151,6 +151,7 @@ for (const filePath of serviceFiles) {
     'async function apiGet',
     'async function apiPost',
     'function postJson',
+    'function getJson',
     'function apiGet',
     'function apiPost',
     'function requestJson',
@@ -212,6 +213,24 @@ for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
 }
 if (/\bfunction\s+getJson\b/.test(phase3Source)) {
   fail('src/services/phase3Api.js must not use generic getJson wrapper; use fetchPhase3Json');
+}
+
+const usdJpyLabSource = serviceSources.get('src/services/usdjpyStrategyLabApi.js') || '';
+if (!usdJpyLabSource.includes('function fetchUSDJPYLabJson')) {
+  fail('src/services/usdjpyStrategyLabApi.js must expose semantic fetchUSDJPYLabJson wrapper');
+}
+if (!usdJpyLabSource.includes('function postUSDJPYLabJson')) {
+  fail('src/services/usdjpyStrategyLabApi.js must expose semantic postUSDJPYLabJson wrapper');
+}
+for (const token of ['fetchJson(', 'postJson(']) {
+  const firstIndex = usdJpyLabSource.indexOf(token);
+  const secondIndex = firstIndex < 0 ? -1 : usdJpyLabSource.indexOf(token, firstIndex + token.length);
+  if (secondIndex >= 0) {
+    fail(`src/services/usdjpyStrategyLabApi.js must call ${token} only inside its semantic wrapper`);
+  }
+}
+if (/\bfunction\s+getJson\b/.test(usdJpyLabSource)) {
+  fail('src/services/usdjpyStrategyLabApi.js must not use generic getJson wrapper; use fetchUSDJPYLabJson');
 }
 
 if (!domainApi.includes('queryString as params')) {
