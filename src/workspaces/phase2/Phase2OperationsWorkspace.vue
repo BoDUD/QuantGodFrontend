@@ -181,10 +181,10 @@ import ATag from 'ant-design-vue/es/tag';
 import 'ant-design-vue/dist/reset.css';
 import {
   PHASE2_ENDPOINTS,
-  apiGet,
   endpointSummary,
   endpointErrorMessage,
   extractRows,
+  fetchPhase2Json,
   loadNotifyConfig,
   loadNotifyHistory,
   loadAiMonitorConfig,
@@ -243,7 +243,7 @@ async function loadActive() {
   if (!activeEndpoint.value) return;
   loading.value = true;
   error.value = '';
-  const next = await apiGet(activeEndpoint.value);
+  const next = await fetchPhase2Json(activeEndpoint.value);
   payload.value = next;
   if (next?.ok === false) {
     error.value = endpointErrorMessage(next);

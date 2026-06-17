@@ -41,11 +41,11 @@ export const PHASE2_ENDPOINTS = Object.freeze({
   ],
 });
 
-export async function apiGet(url, fallback = null) {
+export async function fetchPhase2Json(url, fallback = null) {
   return fetchJsonOrFallback(url, fallback);
 }
 
-export async function apiPost(url, payload = {}, fallback = null) {
+export async function postPhase2Json(url, payload = {}, fallback = null) {
   return postJsonOrFallback(url, payload, fallback);
 }
 
@@ -170,27 +170,30 @@ export function endpointFailureDetail(payload) {
 }
 
 export function loadNotifyConfig() {
-  return apiGet('/api/notify/config', { ok: false, error: 'notify_config_failed' });
+  return fetchPhase2Json('/api/notify/config', { ok: false, error: 'notify_config_failed' });
 }
 
 export function loadNotifyHistory(limit = 50) {
-  return apiGet(`/api/notify/history?limit=${Number(limit) || 50}`, { ok: false, items: [] });
+  return fetchPhase2Json(`/api/notify/history?limit=${Number(limit) || 50}`, { ok: false, items: [] });
 }
 
 export function sendNotifyTest(message, dryRun = false) {
-  return apiPost('/api/notify/test', { message, dryRun }, { ok: false, error: 'notify_test_failed' });
+  return postPhase2Json('/api/notify/test', { message, dryRun }, { ok: false, error: 'notify_test_failed' });
 }
 
 export function sendNotifyDailyDigest(dryRun = false) {
-  return apiPost('/api/notify/daily-digest', { dryRun }, { ok: false, error: 'daily_digest_failed' });
+  return postPhase2Json('/api/notify/daily-digest', { dryRun }, { ok: false, error: 'daily_digest_failed' });
 }
 
 export function sendNotifyRuntimeScan(dryRun = true) {
-  return apiPost('/api/notify/runtime-scan', { dryRun }, { ok: false, error: 'runtime_scan_failed' });
+  return postPhase2Json('/api/notify/runtime-scan', { dryRun }, { ok: false, error: 'runtime_scan_failed' });
 }
 
 export function loadAiMonitorConfig() {
-  return apiGet('/api/notify/mt5-ai-monitor/config', { ok: false, error: 'ai_monitor_config_failed' });
+  return fetchPhase2Json('/api/notify/mt5-ai-monitor/config', {
+    ok: false,
+    error: 'ai_monitor_config_failed',
+  });
 }
 
 export function runMt5AiMonitor({
@@ -200,7 +203,7 @@ export function runMt5AiMonitor({
   timeframes = 'M15,H1',
   noDeepseek = false,
 } = {}) {
-  return apiPost(
+  return postPhase2Json(
     '/api/notify/mt5-ai-monitor/run',
     { send, dryRun, symbols, timeframes, noDeepseek },
     { ok: false, error: 'mt5_ai_monitor_failed' },

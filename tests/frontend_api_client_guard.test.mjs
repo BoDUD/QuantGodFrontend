@@ -230,6 +230,21 @@ test('api-client guard rejects legacy postJson wrappers in service modules', () 
   );
 });
 
+test('api-client guard rejects generic phase2 apiGet/apiPost wrappers', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase2-wrapper-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase2Api.js'),
+    "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nexport async function apiGet(url) { return fetchJsonOrFallback(url); }\nexport async function apiPost(url, body = {}) { return postJsonOrFallback(url, body); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /phase2Api\.js still defines duplicated API helper\/header: async function apiGet/,
+  );
+});
+
 test('api-client guard requires p0-toolchain to run contract and api-client guards', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-p0-'));
   writeFixture(root);
