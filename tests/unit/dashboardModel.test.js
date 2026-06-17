@@ -506,6 +506,7 @@ describe('dashboardModel', () => {
     const snapshot = normalizeDashboardSnapshot(raw);
     const rootCause = buildSnapshotRootCauseBanner(snapshot);
     const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
+    const endpointRows = buildEndpointHealth(raw);
     const frontendRows = buildFrontendSnapshotRecoveryRows(snapshot);
 
     expect(snapshot.secondaryMt5SnapshotFreshness).toMatchObject({
@@ -523,6 +524,13 @@ describe('dashboardModel', () => {
     });
     expect(rootCause.rootCauseLine).toContain('Live16 MT5/EA writer 未运行');
     expect(rootCause.rootCauseLine).not.toContain('Live16 只读桥不可用');
+    expect(endpointRows.find((row) => row.endpoint === '/api/latest')).toMatchObject({
+      status: 'ok',
+      statusLabel: '正常',
+    });
+    expect(sourceRows.find((row) => row.数据源 === '总览 MT5 dashboard')).toMatchObject({
+      状态: '新鲜',
+    });
     expect(sourceRows.find((row) => row.数据源 === 'Live16 只读桥')).toMatchObject({
       状态: 'writer 未运行',
     });

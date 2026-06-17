@@ -2218,7 +2218,7 @@ export function buildEndpointHealth(raw = {}) {
     const staleLiveLoop = loopFreshness.hardStale === true;
     const coreBlocked = coreGate.promotionBlocked === true || coreGate.integrityOk === false;
     const processMissing =
-      (endpoint === '/api/latest' && (primaryProcessMissing || secondaryProcessMissing)) ||
+      (endpoint === '/api/latest' && primaryProcessMissing) ||
       (endpoint === '/api/mt5-readonly/snapshot' && primaryProcessMissing) ||
       (endpoint === '/api/mt5-readonly-secondary/snapshot' && secondaryProcessMissing);
     const hasPayload = present(payload);
@@ -2298,7 +2298,7 @@ export function buildRuntimeSourceDiagnosticRows(raw = {}) {
       '总览 MT5 dashboard',
       '/api/latest',
       latest,
-      primaryProcessMissing || secondaryProcessMissing,
+      primaryProcessMissing,
       '恢复主 MT5/EA 进程并刷新 QuantGod_Dashboard.json。',
     ),
     processAwareFreshnessRow(
