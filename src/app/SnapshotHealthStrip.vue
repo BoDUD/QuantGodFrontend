@@ -23,9 +23,12 @@
         class="snapshot-health__lane"
         :data-priority="row.修复优先级"
         :href="row.打开页面"
+        :title="`${row.前端区域}｜${row.核对端点}｜${row.下一步}`"
       >
-        <span>{{ row.前端区域 }}</span>
+        <span>{{ row.前端区域 }} · {{ row.修复优先级 }}</span>
         <strong>{{ row.状态 }}</strong>
+        <small>{{ row.可信范围 }}</small>
+        <small class="snapshot-health__lane-action">{{ row.下一步 }}</small>
       </a>
     </div>
 
@@ -276,6 +279,20 @@ onBeforeUnmount(() => {
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.snapshot-health__lane small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--qg-text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.snapshot-health__lane-action {
+  color: rgb(226 232 240 / 82%);
 }
 
 .snapshot-health__refresh {

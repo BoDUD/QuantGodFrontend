@@ -186,6 +186,20 @@ const marketPrice = computed(() => {
   if (Number.isFinite(last) && last > 0) return last;
   return Number(latestBar.value?.close);
 });
+
+function phase1ApiErrorMessage(payload, fallback) {
+  return (
+    payload?.statusZh ||
+    payload?.error ||
+    payload?.message ||
+    payload?._api?.error?.bodyStatusZh ||
+    payload?._api?.error?.bodyError ||
+    payload?._api?.error?.bodyMessage ||
+    payload?._api?.error?.message ||
+    fallback
+  );
+}
+
 const marketRangeLabel = computed(() => (bidAskText.value ? '买价 / 卖价' : '区间高低'));
 const marketRangeText = computed(() => bidAskText.value || rangeText.value);
 const marketSecondaryLabel = computed(() => (bidAskText.value ? '点差' : '波动状态'));
@@ -278,6 +292,12 @@ async function loadChart() {
       getShadowSignals({ symbol: symbol.value, days: 7, signal: controller.signal }),
     ]);
     if (controller.signal.aborted || runId !== loadRunId) return;
+    const failedPayload = [klinePayload, tradesPayload, shadowPayload].find(
+      (payload) => payload?.ok === false,
+    );
+    if (failedPayload) {
+      error.value = phase1ApiErrorMessage(failedPayload, '图表数据暂不可用。');
+    }
     bars.value = klinePayload.bars || [];
     trades.value = tradesPayload.items || [];
     shadowSignals.value = shadowPayload.items || [];
@@ -303,7 +323,7 @@ async function loadQuote() {
     }
     quotePayload.value = payload;
     if (!quote?.ok)
-      quoteWarning.value = payload?.error || quote?.error || '实时报价暂不可用，已回退到 K 线收盘价。';
+      quoteWarning.value = phase1ApiErrorMessage(payload, '实时报价暂不可用，已回退到 K 线收盘价。');
   } catch (loadError) {
     if (controller.signal.aborted) return;
     quoteWarning.value = loadError.message || String(loadError);

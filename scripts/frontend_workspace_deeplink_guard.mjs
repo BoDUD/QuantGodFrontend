@@ -100,6 +100,9 @@ for (const required of [
   '系统数据源',
   'Snapshot bridge impact',
   'Snapshot recovery priority',
+  'row.可信范围',
+  'row.核对端点',
+  'row.下一步',
 ]) {
   assertIncludes(snapshotHealthStrip, required, 'src/app/SnapshotHealthStrip.vue');
 }

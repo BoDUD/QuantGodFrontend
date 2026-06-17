@@ -54,7 +54,7 @@ function makeFixture() {
   );
   write(
     'src/app/SnapshotHealthStrip.vue',
-    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div></section></template><script setup>import { loadDashboardWorkspaceCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; setInterval(load, 30000); function load(){ return loadDashboardWorkspaceCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
+    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div><a v-for="row in rows" :title="row.核对端点">{{ row.可信范围 }}{{ row.下一步 }}</a></section></template><script setup>import { loadDashboardWorkspaceCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; const rows = []; setInterval(load, 30000); function load(){ return loadDashboardWorkspaceCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
     root,
   );
   write(
@@ -112,6 +112,9 @@ test('snapshot health strip surfaces root cause and affected frontend scope on f
     ':title="rootCause.rootCauseLine"',
     ':title="detailLine"',
     ':title="evidenceLine"',
+    'row.可信范围',
+    'row.核对端点',
+    'row.下一步',
   ]) {
     assert.match(component, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }

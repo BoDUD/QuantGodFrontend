@@ -176,6 +176,26 @@ for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
   }
 }
 
+const phase1Source = serviceSources.get('src/services/phase1Api.js') || '';
+if (!phase1Source.includes('function fetchPhase1Json')) {
+  fail('src/services/phase1Api.js must expose semantic fetchPhase1Json wrapper');
+}
+if (!phase1Source.includes('function postPhase1Json')) {
+  fail('src/services/phase1Api.js must expose semantic postPhase1Json wrapper');
+}
+for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
+  const firstIndex = phase1Source.indexOf(token);
+  const secondIndex = firstIndex < 0 ? -1 : phase1Source.indexOf(token, firstIndex + token.length);
+  if (secondIndex >= 0) {
+    fail(`src/services/phase1Api.js must call ${token} only inside its semantic wrapper`);
+  }
+}
+for (const token of ['fetchJsonOrThrow', 'postJsonOrThrow']) {
+  if (phase1Source.includes(token)) {
+    fail(`src/services/phase1Api.js must not use throwing helper ${token}; return API envelopes`);
+  }
+}
+
 const phase3Source = serviceSources.get('src/services/phase3Api.js') || '';
 if (!phase3Source.includes('function fetchPhase3Json')) {
   fail('src/services/phase3Api.js must expose semantic fetchPhase3Json wrapper');

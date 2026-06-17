@@ -75,6 +75,13 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
       );
       continue;
     }
+    if (servicePath === 'src/services/phase1Api.js') {
+      fs.writeFileSync(
+        target,
+        "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchPhase1Json(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postPhase1Json(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport async function load() { return fetchPhase1Json('/api/latest'); }\nexport async function run() { return postPhase1Json('/api/latest'); }\n",
+      );
+      continue;
+    }
     if (servicePath === 'src/services/phase3Api.js') {
       fs.writeFileSync(
         target,
@@ -242,6 +249,30 @@ test('api-client guard rejects legacy postJson wrappers in service modules', () 
     result.stderr + result.stdout,
     /phase3Api\.js still defines duplicated API helper\/header: function postJson/,
   );
+});
+
+test('api-client guard requires Phase 1 semantic wrappers', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase1-wrapper-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase1Api.js'),
+    "import { fetchJsonOrFallback } from './apiClient.js';\nexport async function load() { return fetchJsonOrFallback('/api/latest'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase1Api\.js must expose semantic fetchPhase1Json wrapper/);
+});
+
+test('api-client guard rejects throwing helpers in Phase 1 service', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-phase1-throw-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/phase1Api.js'),
+    "import { fetchJsonOrFallback, postJsonOrFallback, fetchJsonOrThrow } from './apiClient.js';\nfunction fetchPhase1Json(path) { return fetchJsonOrFallback(path); }\nfunction postPhase1Json(path, payload = {}) { return postJsonOrFallback(path, payload); }\nexport async function load() { return fetchJsonOrThrow('/api/latest'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /phase1Api\.js must not use throwing helper fetchJsonOrThrow/);
 });
 
 test('api-client guard requires Phase 3 semantic wrappers', () => {

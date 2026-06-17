@@ -148,7 +148,12 @@ async function runAnalysis() {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
-    report.value = await runAiAnalysis({ symbol: symbol.value, timeframes });
+    const payload = await runAiAnalysis({ symbol: symbol.value, timeframes });
+    if (payload?.ok === false) {
+      error.value = phase1ApiErrorMessage(payload, 'AI 分析暂不可用。');
+    } else {
+      report.value = payload;
+    }
     await loadHistory();
   } catch (runError) {
     error.value = runError.message || String(runError);
@@ -165,13 +170,18 @@ async function runDeepSeekTelegramPush(send) {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
-    telegramReport.value = await runDeepSeekTelegram({
+    const payload = await runDeepSeekTelegram({
       symbols: [symbol.value],
       timeframes,
       send,
       force: true,
       noDeepseek: false,
     });
+    if (payload?.ok === false) {
+      telegramError.value = phase1ApiErrorMessage(payload, 'DeepSeek Telegram 分析暂不可用。');
+    } else {
+      telegramReport.value = payload;
+    }
   } catch (runError) {
     telegramError.value = runError.message || String(runError);
   } finally {
@@ -191,10 +201,28 @@ async function loadHistory() {
 async function loadHistoryItem(id) {
   if (!id) return;
   try {
-    report.value = await getAiHistoryItem(id);
+    const payload = await getAiHistoryItem(id);
+    if (payload?.ok === false) {
+      error.value = phase1ApiErrorMessage(payload, '历史分析暂不可用。');
+    } else {
+      report.value = payload;
+    }
   } catch (historyItemError) {
     error.value = historyItemError.message || String(historyItemError);
   }
+}
+
+function phase1ApiErrorMessage(payload, fallback) {
+  return (
+    payload?.statusZh ||
+    payload?.error ||
+    payload?.message ||
+    payload?._api?.error?.bodyStatusZh ||
+    payload?._api?.error?.bodyError ||
+    payload?._api?.error?.bodyMessage ||
+    payload?._api?.error?.message ||
+    fallback
+  );
 }
 
 function itemStatusText(item) {
