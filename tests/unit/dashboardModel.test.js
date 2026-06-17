@@ -1033,6 +1033,10 @@ describe('dashboardModel', () => {
                   'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
                 prerequisiteCommand:
                   'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
+                continuousSyncStatus: 'MISSING',
+                continuousSyncRunning: false,
+                continuousSyncNextActionZh:
+                  '启动只读 history sync loop，并先刷新 MQL5 CopyRates exporter；不写订单、不改 preset。',
                 nextActionZh:
                   '先刷新 M1/M5/M15/H1 history freshness，再重跑 GA stability；不要把 stale-history 淘汰样本写成过拟合。',
                 forbiddenSideEffects: ['ORDER_SEND', 'POSITION_CLOSE'],
@@ -1069,7 +1073,9 @@ describe('dashboardModel', () => {
       证据缺口: 'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
       前置命令:
         'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
+      SyncLoop: 'MISSING',
     });
+    expect(coreRecoveryRows[0].下一步).toContain('history sync loop');
   });
 
   it('does not mark ok false endpoint envelopes as normal health', () => {

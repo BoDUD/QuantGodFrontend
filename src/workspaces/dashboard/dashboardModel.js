@@ -2791,6 +2791,13 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
     证据缺口: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '—',
     前置命令: row.prerequisiteCommand || row.sourceGap?.prerequisiteCommand || '—',
     CopyRates: row.copyRatesExportFreshnessStatus || (row.copyRatesExportStale ? 'STALE' : '—'),
+    SyncLoop:
+      row.continuousSyncStatus ||
+      (row.continuousSyncRunning === true
+        ? 'RUNNING'
+        : row.continuousSyncRunning === false
+          ? 'MISSING'
+          : '—'),
     导出延迟: row.copyRatesExportGeneratedLagHours
       ? formatHourValue(row.copyRatesExportGeneratedLagHours)
       : '—',
@@ -2803,6 +2810,7 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
       row.artifactId ||
       'runtime evidence',
     下一步: chainedActionLine([
+      row.continuousSyncNextActionZh,
       row.copyRatesExportNextActionZh,
       row.evidenceGapZh || row.sourceGap?.evidenceGapZh,
       row.nextActionZh || '继续只读补齐晋级证据。',
