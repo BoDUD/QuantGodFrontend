@@ -68,6 +68,13 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
   for (const servicePath of fixtureServicePaths) {
     const target = path.join(root, servicePath);
     if (fs.existsSync(target)) continue;
+    if (servicePath === 'src/services/backtestAiApi.js') {
+      fs.writeFileSync(
+        target,
+        "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchBacktestAiJson(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postBacktestAiJson(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport async function loadBacktestAiState() { return fetchBacktestAiJson('/api/latest'); }\n",
+      );
+      continue;
+    }
     fs.writeFileSync(
       target,
       "import { fetchJson } from './apiClient.js';\nexport async function load() { return fetchJson('/api/latest'); }\n",
@@ -243,6 +250,18 @@ test('api-client guard rejects generic phase2 apiGet/apiPost wrappers', () => {
     result.stderr + result.stdout,
     /phase2Api\.js still defines duplicated API helper\/header: async function apiGet/,
   );
+});
+
+test('api-client guard rejects naked fallback helpers in Backtest AI service methods', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-backtest-fallback-'));
+  writeFixture(root);
+  fs.writeFileSync(
+    path.join(root, 'src/services/backtestAiApi.js'),
+    "import { fetchJsonOrFallback, postJsonOrFallback } from './apiClient.js';\nfunction fetchBacktestAiJson(path, fallback = null) { return fetchJsonOrFallback(path, fallback); }\nfunction postBacktestAiJson(path, payload = {}, fallback = null) { return postJsonOrFallback(path, payload, fallback); }\nexport async function loadBacktestAiState() { return fetchJsonOrFallback('/api/latest'); }\n",
+  );
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /backtestAiApi\.js must call fetchJsonOrFallback\(/);
 });
 
 test('api-client guard requires p0-toolchain to run contract and api-client guards', () => {

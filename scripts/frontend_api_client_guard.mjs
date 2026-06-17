@@ -128,10 +128,12 @@ const serviceFiles = walkFiles(serviceDir);
 const servicePaths = serviceFiles
   .map((filePath) => path.relative(root, filePath).replaceAll(path.sep, '/'))
   .sort();
+const serviceSources = new Map();
 for (const filePath of serviceFiles) {
   const relativePath = path.relative(root, filePath).replaceAll(path.sep, '/');
   if (relativePath === 'src/services/apiClient.js') continue;
   const source = fs.readFileSync(filePath, 'utf8');
+  serviceSources.set(relativePath, source);
   if (!source.includes("from './apiClient.js'")) {
     fail(`${relativePath} must import API helpers from apiClient.js`);
   }
@@ -156,6 +158,21 @@ for (const filePath of serviceFiles) {
     if (source.includes(token)) {
       fail(`${relativePath} still defines duplicated API helper/header: ${token}`);
     }
+  }
+}
+
+const backtestAiSource = serviceSources.get('src/services/backtestAiApi.js') || '';
+if (!backtestAiSource.includes('function fetchBacktestAiJson')) {
+  fail('src/services/backtestAiApi.js must expose semantic fetchBacktestAiJson wrapper');
+}
+if (!backtestAiSource.includes('function postBacktestAiJson')) {
+  fail('src/services/backtestAiApi.js must expose semantic postBacktestAiJson wrapper');
+}
+for (const token of ['fetchJsonOrFallback(', 'postJsonOrFallback(']) {
+  const firstIndex = backtestAiSource.indexOf(token);
+  const secondIndex = firstIndex < 0 ? -1 : backtestAiSource.indexOf(token, firstIndex + token.length);
+  if (secondIndex >= 0) {
+    fail(`src/services/backtestAiApi.js must call ${token} only inside its semantic wrapper`);
   }
 }
 

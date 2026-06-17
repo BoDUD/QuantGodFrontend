@@ -17,6 +17,14 @@ const SAFETY = Object.freeze({
   telegramCommandExecutionAllowed: false,
 });
 
+function fetchBacktestAiJson(path, fallback = null) {
+  return fetchJsonOrFallback(path, fallback);
+}
+
+function postBacktestAiJson(path, payload = {}, fallback = null) {
+  return postJsonOrFallback(path, payload, fallback);
+}
+
 function toArray(value) {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.rows)) return value.rows;
@@ -225,10 +233,10 @@ export function buildBacktestTelegramMessage({ backtest, ai, symbols }) {
 
 export async function loadBacktestAiState() {
   const [backtest, aiLatest, notifyConfig, notifyHistory] = await Promise.all([
-    fetchJsonOrFallback('/api/mt5-backtest-loop'),
-    fetchJsonOrFallback('/api/ai-analysis/deepseek-telegram/latest', { ok: false, items: [] }),
-    fetchJsonOrFallback('/api/notify/config', { ok: false }),
-    fetchJsonOrFallback('/api/notify/history?limit=20', { ok: false, items: [] }),
+    fetchBacktestAiJson('/api/mt5-backtest-loop'),
+    fetchBacktestAiJson('/api/ai-analysis/deepseek-telegram/latest', { ok: false, items: [] }),
+    fetchBacktestAiJson('/api/notify/config', { ok: false }),
+    fetchBacktestAiJson('/api/notify/history?limit=20', { ok: false, items: [] }),
   ]);
   return {
     backtest,
@@ -252,8 +260,8 @@ export async function runBacktestAiCycle({
     days: String(Math.max(7, Math.min(365, Number(days) || 180))),
     maxTasks: String(Math.max(1, Math.min(50, Number(maxTasks) || 20))),
   });
-  const backtest = await fetchJsonOrFallback(`/api/mt5-backtest-loop/run?${params.toString()}`);
-  const ai = await postJsonOrFallback('/api/ai-analysis/deepseek-telegram/run', {
+  const backtest = await fetchBacktestAiJson(`/api/mt5-backtest-loop/run?${params.toString()}`);
+  const ai = await postBacktestAiJson('/api/ai-analysis/deepseek-telegram/run', {
     symbols: normalizedSymbols,
     timeframes,
     send: sendTelegram,
@@ -263,7 +271,7 @@ export async function runBacktestAiCycle({
   });
   let notify = null;
   if (sendTelegram) {
-    notify = await postJsonOrFallback('/api/notify/test', {
+    notify = await postBacktestAiJson('/api/notify/test', {
       eventType: 'BACKTEST_AI',
       message: buildBacktestTelegramMessage({ backtest, ai, symbols: normalizedSymbols }),
       dryRun: false,
