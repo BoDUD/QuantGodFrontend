@@ -19,6 +19,7 @@ const SPLIT_FORBIDDEN_DIRS = ['Dashboard', 'MQL5', 'tools', 'cloudflare'];
 
 const DIRECT_RUNTIME_ARTIFACT_RE = /['"`]\/QuantGod_[A-Za-z0-9_.-]+\.(?:json|csv)['"`]/i;
 const DIRECT_RUNTIME_PATH_RE = /\/(?:QuantGod_[A-Za-z0-9_.-]+\.(?:json|csv))/i;
+const STATIC_API_PATH_RE = /\/api\/[A-Za-z0-9_./:-]+/g;
 const RAW_FETCH_RE = /\bfetch\s*\(/g;
 const FETCH_STRING_RE = /\bfetch\s*\(\s*(['"`])([^'"`]+)\1/g;
 
@@ -58,6 +59,77 @@ function lineNumberForIndex(text, index) {
 function isServiceFile(repoRoot, filePath) {
   const normalized = rel(repoRoot, filePath);
   return normalized.startsWith('src/services/') || normalized === 'src/services.js';
+}
+
+function normalizeApiPath(pathValue) {
+  return String(pathValue || '').split('?', 1)[0].replace(/\/+$/, '') || '/api';
+}
+
+function placeholderPrefix(placeholderPath) {
+  for (const token of [':endpoint', ':id', ':ticket', ':action', ':seedId']) {
+    if (placeholderPath.includes(token)) {
+      return placeholderPath.split(token, 1)[0];
+    }
+  }
+  return '';
+}
+
+function pathCoveredByContract(pathValue, documentedPaths) {
+  const path = normalizeApiPath(pathValue);
+  if (documentedPaths.has(path)) return true;
+  for (const documentedPath of documentedPaths) {
+    const prefix = placeholderPrefix(documentedPath);
+    if (prefix && path.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+function collectContractPaths(contract) {
+  const paths = new Set();
+  const groups = Array.isArray(contract?.endpointGroups) ? contract.endpointGroups : [];
+  for (const group of groups) {
+    const endpoints = Array.isArray(group?.endpoints) ? group.endpoints : [];
+    for (const endpoint of endpoints) {
+      if (typeof endpoint?.path === 'string' && endpoint.path.startsWith('/api/')) {
+        paths.add(normalizeApiPath(endpoint.path));
+      }
+    }
+  }
+  return paths;
+}
+
+function defaultApiContractPath(repoRoot) {
+  return path.resolve(repoRoot, '..', 'QuantGodDocs', 'docs', 'contracts', 'api-contract.json');
+}
+
+function loadApiContract(repoRoot, options = {}) {
+  if (options.skipApiContractCoverage) return null;
+  const contractPath =
+    options.apiContractPath ||
+    process.env.QG_API_CONTRACT_PATH ||
+    defaultApiContractPath(repoRoot);
+  if (!contractPath || !fs.existsSync(contractPath)) return null;
+  return {
+    contractPath,
+    paths: collectContractPaths(JSON.parse(fs.readFileSync(contractPath, 'utf8'))),
+  };
+}
+
+function collectStaticApiReferences(repoRoot, sourceDir) {
+  const references = [];
+  for (const filePath of walkFiles(repoRoot, sourceDir)) {
+    const text = fs.readFileSync(filePath, 'utf8');
+    const relativePath = rel(repoRoot, filePath);
+    let match;
+    while ((match = STATIC_API_PATH_RE.exec(text)) !== null) {
+      references.push({
+        path: normalizeApiPath(match[0]),
+        file: relativePath,
+        line: lineNumberForIndex(text, match.index),
+      });
+    }
+  }
+  return references;
 }
 
 function checkSplitBoundary(repoRoot) {
@@ -121,6 +193,20 @@ export function runFrontendApiContractGuard(repoRoot = process.cwd(), options = 
   const errors = [...checkSplitBoundary(root)];
   for (const filePath of walkFiles(root, sourceDir)) {
     errors.push(...checkSourceFile(root, filePath));
+  }
+  const apiContract = loadApiContract(root, options);
+  if (apiContract) {
+    for (const reference of collectStaticApiReferences(root, sourceDir)) {
+      if (!pathCoveredByContract(reference.path, apiContract.paths)) {
+        errors.push({
+          file: reference.file,
+          line: reference.line,
+          message:
+            `frontend API path ${reference.path} is not documented in ` +
+            `${path.relative(root, apiContract.contractPath).replaceAll(path.sep, '/')}`,
+        });
+      }
+    }
   }
   return errors;
 }
