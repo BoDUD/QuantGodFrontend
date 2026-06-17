@@ -822,10 +822,13 @@ function historyProductionStatus(raw = {}) {
   ];
   const production = candidates.find((candidate) => isObject(candidate)) || {};
   const copyRatesFreshness = copyRatesExportFreshness(raw, production, evidenceReport);
+  const continuousSync = historyContinuousSync(raw, production, evidenceReport);
   if (!present(freshnessReview)) {
-    return present(copyRatesFreshness)
-      ? { ...production, copyRatesExportFreshness: copyRatesFreshness }
-      : production;
+    return {
+      ...production,
+      ...(present(copyRatesFreshness) ? { copyRatesExportFreshness: copyRatesFreshness } : {}),
+      ...(present(continuousSync) ? { continuousSync } : {}),
+    };
   }
 
   const blocksPromotion = historyFreshnessBlocksPromotion(freshnessReview);
@@ -850,6 +853,7 @@ function historyProductionStatus(raw = {}) {
     staleTimeframes: toArray(freshnessReview.staleTimeframes),
     latestLagHoursByTimeframe: freshnessReview.latestLagHoursByTimeframe || {},
     ...(present(copyRatesFreshness) ? { copyRatesExportFreshness: copyRatesFreshness } : {}),
+    ...(present(continuousSync) ? { continuousSync } : {}),
   };
 }
 
@@ -903,6 +907,26 @@ function copyRatesExportFreshness(raw = {}, production = {}, evidenceReport = {}
   return candidates.find((candidate) => isObject(candidate)) || {};
 }
 
+function historyContinuousSync(raw = {}, production = {}, evidenceReport = {}) {
+  const core = coreRuntimeEvidenceIntegrity(raw);
+  const historyArtifact = rowsFromObjectList(core?.artifacts).find(
+    (row) => row.artifactId === 'historyProductionStatus',
+  );
+  const historyGate = isObject(historyArtifact?.promotionGate) ? historyArtifact.promotionGate : {};
+  const candidates = [
+    production?.continuousSync,
+    evidenceReport?.historyProduction?.continuousSync,
+    evidenceReport?.historyProductionStatus?.continuousSync,
+    historyGate?.continuousSync,
+    raw?.state?.historyProductionStatus?.continuousSync,
+    raw?.state?.data?.historyProductionStatus?.continuousSync,
+    raw?.backtest?.historyProductionStatus?.continuousSync,
+    raw?.backtest?.qualityReport?.historyProductionStatus?.continuousSync,
+    raw?.backtest?.data?.historyProductionStatus?.continuousSync,
+  ];
+  return candidates.find((candidate) => isObject(candidate)) || {};
+}
+
 function copyRatesFreshnessIsStale(freshness = {}) {
   const status = String(freshness.status || '').toUpperCase();
   return Boolean(freshness.stale === true || status === 'STALE' || status === 'FAIL' || status === 'FAILED');
@@ -927,6 +951,19 @@ function copyRatesFreshnessLine(freshness = {}) {
     Number.isFinite(Number(generatedLag)) ? `导出 ${formatHourValue(generatedLag)}未刷新` : '',
     staleTimeframes.length ? `周期 ${staleTimeframes.join('/')}` : '',
     freshness.nextActionZh || '',
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
+
+function continuousSyncLine(sync = {}) {
+  if (!present(sync)) return '';
+  const status = sync.statusZh || sync.status || (sync.running === true ? 'RUNNING' : '');
+  const parts = [
+    status ? `SyncLoop ${status}` : 'SyncLoop 待确认',
+    sync.schemaVersion ? `v${sync.schemaVersion}` : '',
+    sync.probePermissionDenied ? '本地探针权限受限' : '',
+    sync.hostProbeCommand ? `宿主机核对 ${sync.hostProbeCommand}` : '',
+    sync.nextActionZh || '',
   ].filter(Boolean);
   return parts.join(' · ');
 }
@@ -1045,6 +1082,7 @@ function coreEvidencePromotionRecoveryQueue(
       priority: row.priority,
       latestLagHours: row.latestLagHours,
       maxLatestLagHours: row.maxLatestLagHours,
+      copyRatesExportSchemaVersion: row.copyRatesExportSchemaVersion,
       copyRatesExportFreshnessStatus: row.copyRatesExportFreshnessStatus,
       copyRatesExportStale: row.copyRatesExportStale,
       copyRatesExportGeneratedAtServer: row.copyRatesExportGeneratedAtServer,
@@ -1052,6 +1090,19 @@ function coreEvidencePromotionRecoveryQueue(
       copyRatesExportLatestLagHours: row.copyRatesExportLatestLagHours,
       copyRatesExportStaleTimeframes: row.copyRatesExportStaleTimeframes,
       copyRatesExportNextActionZh: row.copyRatesExportNextActionZh,
+      continuousSyncSchemaVersion: row.continuousSyncSchemaVersion,
+      continuousSyncStatus: row.continuousSyncStatus,
+      continuousSyncRunning: row.continuousSyncRunning,
+      continuousSyncMode: row.continuousSyncMode,
+      continuousSyncScript: row.continuousSyncScript,
+      continuousSyncStartupCommand: row.continuousSyncStartupCommand,
+      continuousSyncOnceCommand: row.continuousSyncOnceCommand,
+      continuousSyncHostProbeCommand: row.continuousSyncHostProbeCommand,
+      continuousSyncProbePermissionDenied: row.continuousSyncProbePermissionDenied,
+      continuousSyncNextActionZh: row.continuousSyncNextActionZh,
+      continuousSyncAllowedLanes: row.continuousSyncAllowedLanes,
+      continuousSyncForbiddenSideEffects: row.continuousSyncForbiddenSideEffects,
+      continuousSyncRequiresFreshCopyRatesExporter: row.continuousSyncRequiresFreshCopyRatesExporter,
       nextActionZh: row.nextActionZh,
       acceptanceZh: row.acceptanceZh,
       allowedLanes: row.allowedLanes,
@@ -2881,6 +2932,7 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
     证据缺口: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '—',
     前置命令: row.prerequisiteCommand || row.sourceGap?.prerequisiteCommand || '—',
     CopyRates: row.copyRatesExportFreshnessStatus || (row.copyRatesExportStale ? 'STALE' : '—'),
+    CopyRates版本: row.copyRatesExportSchemaVersion ? `v${row.copyRatesExportSchemaVersion}` : '—',
     SyncLoop:
       row.continuousSyncStatus ||
       (row.continuousSyncRunning === true
@@ -2888,6 +2940,10 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
         : row.continuousSyncRunning === false
           ? 'MISSING'
           : '—'),
+    SyncLoop版本: row.continuousSyncSchemaVersion ? `v${row.continuousSyncSchemaVersion}` : '—',
+    同步探针: row.continuousSyncProbePermissionDenied
+      ? `PROBE_BLOCKED · ${row.continuousSyncHostProbeCommand || '宿主机只读核对'}`
+      : row.continuousSyncHostProbeCommand || '—',
     导出延迟: row.copyRatesExportGeneratedLagHours
       ? formatHourValue(row.copyRatesExportGeneratedLagHours)
       : '—',
@@ -2901,6 +2957,7 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
       'runtime evidence',
     下一步: chainedActionLine([
       row.continuousSyncNextActionZh,
+      row.continuousSyncProbePermissionDenied ? row.continuousSyncHostProbeCommand : '',
       row.copyRatesExportNextActionZh,
       row.evidenceGapZh || row.sourceGap?.evidenceGapZh,
       row.nextActionZh || '继续只读补齐晋级证据。',
@@ -3230,6 +3287,7 @@ export function buildRuntimeItems(snapshot) {
 export function buildDailyItems(snapshot) {
   const history = snapshot.historyProductionStatus || {};
   const copyRatesFreshness = history.copyRatesExportFreshness || {};
+  const continuousSync = history.continuousSync || {};
   const copyRatesStale = copyRatesFreshnessIsStale(copyRatesFreshness);
   const historyStatus = String(history.status || '').toUpperCase();
   const historyPromotionStatus = String(history.promotionGateStatus || '').toUpperCase();
@@ -3258,6 +3316,7 @@ export function buildDailyItems(snapshot) {
     codeListLine(history.blockers),
     historyTimeframes.length ? `周期 ${historyTimeframes.join('/')}` : '',
     copyRatesFreshnessLine(copyRatesFreshness),
+    continuousSyncLine(continuousSync),
     history.reasonZh || (!historyPass ? '未 PASS 时只允许 shadow/tester 观察' : ''),
   ]
     .filter(Boolean)

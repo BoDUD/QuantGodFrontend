@@ -77,6 +77,15 @@ for (const marker of [
   'refreshCommand',
   'verifyCommand',
   'latestLagHours',
+  'CopyRates',
+  'SyncLoop',
+  'copyRatesLine',
+  'syncLoopLine',
+  'recoveryCommandLine',
+  'copyRatesExportSchemaVersion',
+  'continuousSyncSchemaVersion',
+  'continuousSyncProbePermissionDenied',
+  'continuousSyncHostProbeCommand',
   'Case Memory 覆盖',
   'caseMemoryCoverage',
   'Case Memory 缺失分类',
@@ -110,7 +119,7 @@ assertCondition(
   /production-evidence-mini-table__head--history,\s*\.production-evidence-mini-table__row--history\s*\{[\s\S]*minmax\(280px,\s*2fr\)/.test(
     panel,
   ),
-  'production evidence history recovery table must use a dedicated six-column grid',
+  'production evidence history recovery table must use a dedicated eight-column grid',
 );
 assertCondition(
   /production-evidence-mini-table__head--case-memory,\s*\.production-evidence-mini-table__row--case-memory\s*\{[\s\S]*minmax\(260px,\s*1\.8fr\)/.test(

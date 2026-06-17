@@ -895,6 +895,7 @@ describe('dashboardModel', () => {
                   status: 'BLOCKED',
                   copyRatesExportFreshness: {
                     status: 'STALE',
+                    schemaVersion: 1,
                     stale: true,
                     generatedLagHours: 263.4,
                     staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
@@ -907,6 +908,7 @@ describe('dashboardModel', () => {
                       priority: 'HIGH',
                       latestLagHours: 240,
                       maxLatestLagHours: 96,
+                      copyRatesExportSchemaVersion: 1,
                       copyRatesExportFreshnessStatus: 'STALE',
                       copyRatesExportStale: true,
                       copyRatesExportGeneratedLagHours: 263.4,
@@ -914,6 +916,13 @@ describe('dashboardModel', () => {
                       copyRatesExportStaleTimeframes: ['M1', 'M5', 'M15', 'H1'],
                       copyRatesExportNextActionZh:
                         '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status。',
+                      continuousSyncSchemaVersion: 1,
+                      continuousSyncStatus: 'PROBE_BLOCKED',
+                      continuousSyncRunning: false,
+                      continuousSyncProbePermissionDenied: true,
+                      continuousSyncHostProbeCommand: 'ps ax | rg run_mac_usdjpy_history_sync_loop.sh',
+                      continuousSyncNextActionZh:
+                        '在宿主机只读确认 history sync loop 状态，并刷新 MQL5 CopyRates exporter；不写订单、不改 preset。',
                       nextActionZh: 'M1 最新 K 线延迟超阈值；刷新 history freshness。',
                       acceptanceZh: 'M1 freshnessOk=true、passed=true。',
                     },
@@ -1032,12 +1041,16 @@ describe('dashboardModel', () => {
       状态: 'FRESHNESS_STALE',
       优先级: 'HIGH',
       CopyRates: 'STALE',
+      CopyRates版本: 'v1',
+      SyncLoop: 'PROBE_BLOCKED',
+      SyncLoop版本: 'v1',
+      同步探针: 'PROBE_BLOCKED · ps ax | rg run_mac_usdjpy_history_sync_loop.sh',
       导出延迟: '11.0 天',
       周期延迟: '11.0 天',
       前置命令: '—',
       缺口来源: '—',
       下一步:
-        '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status；随后 M1 最新 K 线延迟超阈值；刷新 history freshness。',
+        '在宿主机只读确认 history sync loop 状态，并刷新 MQL5 CopyRates exporter；不写订单、不改 preset；随后 ps ax | rg run_mac_usdjpy_history_sync_loop.sh；随后 先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status；随后 M1 最新 K 线延迟超阈值；刷新 history freshness。',
     });
     expect(coreRecoveryRows[1]).toMatchObject({
       任务: 'Case Memory BAD_ENTRY',
@@ -1088,10 +1101,19 @@ describe('dashboardModel', () => {
             staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
             copyRatesExportFreshness: {
               status: 'STALE',
+              schemaVersion: 1,
               stale: true,
               generatedLagHours: 263.4,
               staleTimeframes: ['M1', 'M5', 'M15', 'H1'],
               nextActionZh: '先刷新 MQL5 CopyRates exporter，再运行 sync-klines 与 production-status。',
+            },
+            continuousSync: {
+              status: 'PROBE_BLOCKED',
+              schemaVersion: 1,
+              running: false,
+              probePermissionDenied: true,
+              hostProbeCommand: 'ps ax | rg run_mac_usdjpy_history_sync_loop.sh',
+              nextActionZh: '在宿主机只读确认 history sync loop 状态。',
             },
           },
         },
@@ -1112,6 +1134,8 @@ describe('dashboardModel', () => {
     expect(item.hint).toContain('CopyRates STALE');
     expect(item.hint).toContain('导出 11.0 天未刷新');
     expect(item.hint).toContain('先刷新 MQL5 CopyRates exporter');
+    expect(item.hint).toContain('SyncLoop PROBE_BLOCKED');
+    expect(item.hint).toContain('宿主机核对 ps ax | rg run_mac_usdjpy_history_sync_loop.sh');
   });
 
   it('surfaces compact core runtime evidence summary without manifest artifacts', () => {
@@ -1147,10 +1171,13 @@ describe('dashboardModel', () => {
                   'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
                 prerequisiteCommand:
                   'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
-                continuousSyncStatus: 'MISSING',
+                continuousSyncSchemaVersion: 1,
+                continuousSyncStatus: 'PROBE_BLOCKED',
                 continuousSyncRunning: false,
+                continuousSyncProbePermissionDenied: true,
+                continuousSyncHostProbeCommand: 'ps ax | rg run_mac_usdjpy_history_sync_loop.sh',
                 continuousSyncNextActionZh:
-                  '启动只读 history sync loop，并先刷新 MQL5 CopyRates exporter；不写订单、不改 preset。',
+                  '在宿主机只读确认 history sync loop 状态，并刷新 MQL5 CopyRates exporter；不写订单、不改 preset。',
                 nextActionZh:
                   '先刷新 M1/M5/M15/H1 history freshness，再重跑 GA stability；不要把 stale-history 淘汰样本写成过拟合。',
                 forbiddenSideEffects: ['ORDER_SEND', 'POSITION_CLOSE'],
@@ -1187,9 +1214,12 @@ describe('dashboardModel', () => {
       证据缺口: 'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
       前置命令:
         'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
-      SyncLoop: 'MISSING',
+      SyncLoop: 'PROBE_BLOCKED',
+      SyncLoop版本: 'v1',
+      同步探针: 'PROBE_BLOCKED · ps ax | rg run_mac_usdjpy_history_sync_loop.sh',
     });
-    expect(coreRecoveryRows[0].下一步).toContain('history sync loop');
+    expect(coreRecoveryRows[0].下一步).toContain('宿主机只读确认 history sync loop');
+    expect(coreRecoveryRows[0].下一步).toContain('ps ax | rg run_mac_usdjpy_history_sync_loop.sh');
   });
 
   it('does not mark ok false endpoint envelopes as normal health', () => {

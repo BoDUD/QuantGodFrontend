@@ -79,6 +79,8 @@
           <span role="columnheader">周期</span>
           <span role="columnheader">优先级</span>
           <span role="columnheader">状态</span>
+          <span role="columnheader">CopyRates</span>
+          <span role="columnheader">SyncLoop</span>
           <span role="columnheader">最新延迟</span>
           <span role="columnheader">恢复命令</span>
           <span role="columnheader">验收</span>
@@ -92,8 +94,10 @@
           <span role="cell">{{ row.timeframe }}</span>
           <span role="cell">{{ row.priority }}</span>
           <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
+          <span role="cell">{{ row.copyRatesLine }}</span>
+          <span role="cell">{{ row.syncLoopLine }}</span>
           <span role="cell">{{ row.latestLagHours }}h / {{ row.maxLatestLagHours }}h</span>
-          <span role="cell">{{ row.refreshCommand }}</span>
+          <span role="cell">{{ row.recoveryCommandLine }}</span>
           <span role="cell">{{ row.acceptanceZh }}</span>
         </div>
       </div>
@@ -186,7 +190,10 @@ const historyRows = computed(() => {
     latestLagHours: row.latestLagHours ?? '待确认',
     maxLatestLagHours: row.maxLatestLagHours ?? 96,
     excessLagHours: row.excessLagHours ?? 0,
+    copyRatesLine: copyRatesRecoveryLine(row),
+    syncLoopLine: syncLoopRecoveryLine(row),
     refreshCommand: row.refreshCommand || '等待 sync-klines 恢复命令',
+    recoveryCommandLine: recoveryCommandLine(row),
     verifyCommand: row.verifyCommand || '',
     nextActionZh: row.nextActionZh || '继续刷新 USDJPY 历史 K 线。',
     acceptanceZh: row.acceptanceZh || 'spanOk / densityOk / freshnessOk 均为 true。',
@@ -301,6 +308,33 @@ function promotionEvidenceGapLine(row = {}) {
     return `report ${row.reportStatus || '待确认'}; promotionAllowed=${row.promotionAllowed === true ? 'true' : 'false'}`;
   }
   return compactList(row.blockers);
+}
+
+function copyRatesRecoveryLine(row = {}) {
+  const status = row.copyRatesExportFreshnessStatus || (row.copyRatesExportStale ? 'STALE' : '待确认');
+  const version = row.copyRatesExportSchemaVersion ? `v${row.copyRatesExportSchemaVersion}` : '';
+  const lag = row.copyRatesExportGeneratedLagHours
+    ? `导出 ${Number(row.copyRatesExportGeneratedLagHours).toFixed(1)}h`
+    : '';
+  return [status, version, lag].filter(Boolean).join(' · ');
+}
+
+function syncLoopRecoveryLine(row = {}) {
+  const status =
+    row.continuousSyncStatus ||
+    (row.continuousSyncRunning === true
+      ? 'RUNNING'
+      : row.continuousSyncRunning === false
+        ? 'MISSING'
+        : '待确认');
+  const version = row.continuousSyncSchemaVersion ? `v${row.continuousSyncSchemaVersion}` : '';
+  const probe = row.continuousSyncProbePermissionDenied ? '探针受限' : '';
+  return [status, version, probe].filter(Boolean).join(' · ');
+}
+
+function recoveryCommandLine(row = {}) {
+  const hostProbe = row.continuousSyncProbePermissionDenied ? row.continuousSyncHostProbeCommand : '';
+  return [hostProbe, row.refreshCommand || '等待 sync-klines 恢复命令'].filter(Boolean).join('；');
 }
 
 function safetyBoundaryLine(row = {}) {
@@ -467,8 +501,8 @@ onMounted(load);
 .production-evidence-mini-table__head--history,
 .production-evidence-mini-table__row--history {
   grid-template-columns:
-    minmax(84px, 0.7fr) minmax(76px, 0.55fr) minmax(116px, 0.8fr) minmax(128px, 0.9fr)
-    minmax(260px, 1.8fr) minmax(280px, 2fr);
+    minmax(84px, 0.55fr) minmax(76px, 0.5fr) minmax(116px, 0.7fr) minmax(150px, 1fr)
+    minmax(170px, 1.05fr) minmax(128px, 0.8fr) minmax(280px, 1.8fr) minmax(280px, 2fr);
 }
 
 .production-evidence-mini-table__head--core-blockers,
