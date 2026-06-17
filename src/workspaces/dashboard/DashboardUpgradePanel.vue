@@ -92,8 +92,8 @@
         </ul>
         <EmptyState
           v-else
-          title="暂无持仓快照"
-          description="等待 MT5 只读快照返回持仓；无持仓时保持空状态。"
+          :title="positionEmptyState.title"
+          :description="positionEmptyState.description"
         />
       </article>
 
@@ -128,6 +128,7 @@ import {
 } from '../../composables/useNumberFormat.js';
 import { formatDisplayValue, humanizeStatus } from '../../utils/displayText.js';
 import { t } from '../../i18n/index.js';
+import { buildSnapshotImpactSummary } from './dashboardModel.js';
 
 const props = defineProps({
   state: { type: Object, required: true },
@@ -151,6 +152,9 @@ const labels = computed(() => ({
   systemHealth: t('dashboard.systemHealth', locale.value),
   reviewQueue: t('dashboard.reviewQueue', locale.value),
 }));
+
+const snapshotImpact = computed(() => buildSnapshotImpactSummary(props.snapshot));
+const realtimeSnapshotBlocked = computed(() => snapshotImpact.value.status === 'blocked');
 
 function readPath(source, path) {
   return String(path)
@@ -206,7 +210,7 @@ function friendlySource(value) {
 }
 
 const kpis = computed(() => {
-  const positions = countRows([
+  const livePositions = countRows([
     'latest.positions',
     'latest.openTrades',
     'mt5Snapshot.positions.items',
@@ -245,21 +249,34 @@ const kpis = computed(() => {
   ]);
   const hfmCryptoReady = String(first(['hfmCrypto.status'], '')).includes('READY');
   return {
-    positions,
+    positions: realtimeSnapshotBlocked.value ? '不可确认' : livePositions,
     dailyPnl: mt5Pnl ?? 0,
     mt5DailyPnlText: formatSignedAmount(mt5Pnl, 'USC'),
-    mt5DailyPnlTone: numberTone(mt5Pnl),
+    mt5DailyPnlTone: realtimeSnapshotBlocked.value ? 'warning' : numberTone(mt5Pnl),
     hfmCryptoEvidence,
     hfmCryptoTone: hfmCryptoReady ? 'positive' : 'warning',
     signals24h: Number.isFinite(signals) ? signals : 0,
     alerts,
-    positionDetail: positions ? '来自 HFM MT5 实盘快照' : '当前无持仓',
+    positionDetail: realtimeSnapshotBlocked.value
+      ? 'MT5 writer 停止；旧持仓不可当当前状态'
+      : livePositions
+        ? '来自 HFM MT5 实盘快照'
+        : '当前无持仓',
     signalDetail: 'AI 与 HFM Crypto 资料只做建议',
-    alertDetail: alerts ? 'Agent 已标记异常，硬风控会自动暂停或回滚' : '当前无未读异常',
+    alertDetail: realtimeSnapshotBlocked.value
+      ? snapshotImpact.value.priorityLine
+      : alerts
+        ? 'Agent 已标记异常，硬风控会自动暂停或回滚'
+        : '当前无未读异常',
   };
 });
 
 const summaryItems = computed(() => [
+  {
+    key: 'snapshot-impact',
+    label: '快照影响',
+    value: snapshotImpact.value.priorityLine,
+  },
   {
     key: 'snapshot',
     label: '快照来源',
@@ -270,14 +287,22 @@ const summaryItems = computed(() => [
   {
     key: 'fresh',
     label: '运行快照新鲜',
-    value: formatDisplayValue(first(['runtimeFresh', 'latest.runtimeFresh'], '待确认')),
+    value: realtimeSnapshotBlocked.value
+      ? snapshotImpact.value.affectedAreaLine
+      : formatDisplayValue(first(['runtimeFresh', 'latest.runtimeFresh'], '待确认')),
   },
+  { key: 'trusted-scope', label: '可信范围', value: snapshotImpact.value.trustedScopeLine },
   { key: 'pnl', label: 'MT5 今日盈亏', value: kpis.value.mt5DailyPnlText },
   { key: 'metrics', label: '现有指标卡片', value: formatNumber(props.metrics?.length || 0) },
 ]);
 
 const alertRows = computed(() => {
-  const rows = [];
+  const rows = snapshotImpact.value.rows.slice(0, 4).map((row, index) => ({
+    id: `snapshot-impact-${index}`,
+    label: `${row.前端区域} · ${row.修复优先级}`,
+    status: row.状态,
+    toneClass: row.修复优先级 === 'P0' ? 'qg-text-negative' : 'qg-text-warning',
+  }));
   const killSwitch = first(
     ['killSwitchStatus', 'kill_switch_status', 'latest.kill_switch', 'state.kill_switch'],
     'unknown',
@@ -309,6 +334,7 @@ const alertRows = computed(() => {
 });
 
 const positionRows = computed(() => {
+  if (realtimeSnapshotBlocked.value) return [];
   const rows = asArray(
     first(
       [
@@ -338,13 +364,41 @@ const positionRows = computed(() => {
   });
 });
 
+const positionEmptyState = computed(() => {
+  if (realtimeSnapshotBlocked.value) {
+    return {
+      title: '当前持仓不可确认',
+      description:
+        snapshotImpact.value.nextActionLine ||
+        'MT5/EA dashboard writer 停止刷新；恢复 fresh 前，旧持仓和账号状态只作历史参考。',
+    };
+  }
+  return {
+    title: '暂无持仓快照',
+    description: 'MT5 只读快照已返回但当前无持仓；保持只读观察。',
+  };
+});
+
 const healthRows = computed(() => [
-  { key: 'api', label: '本地数据面', value: '正常', toneClass: 'qg-text-positive' },
+  {
+    key: 'api',
+    label: '前端数据面',
+    value: realtimeSnapshotBlocked.value ? snapshotImpact.value.priorityLine : '正常',
+    toneClass: realtimeSnapshotBlocked.value ? 'qg-text-negative' : 'qg-text-positive',
+  },
   {
     key: 'runtime',
     label: '运行状态',
-    value: humanizeStatus(first(['runtimeState', 'status', 'latest.status'], '待确认')),
-    toneClass: 'qg-text-muted',
+    value: realtimeSnapshotBlocked.value
+      ? snapshotImpact.value.affectedAreaLine
+      : humanizeStatus(first(['runtimeState', 'status', 'latest.status'], '待确认')),
+    toneClass: realtimeSnapshotBlocked.value ? 'qg-text-negative' : 'qg-text-muted',
+  },
+  {
+    key: 'next-action',
+    label: '恢复动作',
+    value: snapshotImpact.value.nextActionLine || '保持只读快照桥正常刷新',
+    toneClass: realtimeSnapshotBlocked.value ? 'qg-text-warning' : 'qg-text-positive',
   },
   {
     key: 'kill',
