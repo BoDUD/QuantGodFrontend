@@ -102,6 +102,19 @@ test('snapshot health core load includes whole-frontend execution readiness sign
   }
 });
 
+test('snapshot health strip surfaces root cause and affected frontend scope on first paint', () => {
+  const component = fs.readFileSync(path.join(repoRoot, 'src', 'app', 'SnapshotHealthStrip.vue'), 'utf8');
+
+  for (const required of [
+    'rootCause.value.label',
+    'impactSummary.value.affectedAreaLine',
+    ':title="rootCause.rootCauseLine"',
+    ':title="detailLine"',
+  ]) {
+    assert.match(component, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
 test('deep-link guard accepts a valid fixture', () => {
   const root = makeFixture();
   const result = spawnSync(process.execPath, [guardPath], {

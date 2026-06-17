@@ -3,9 +3,9 @@
   <section class="snapshot-health" :class="`snapshot-health--${tone}`" aria-live="polite">
     <div class="snapshot-health__summary">
       <p class="snapshot-health__eyebrow">系统数据源</p>
-      <strong>{{ title }}</strong>
-      <span>{{ detailLine }}</span>
-      <span v-if="actionLine" class="snapshot-health__action">{{ actionLine }}</span>
+      <strong :title="rootCause.rootCauseLine">{{ title }}</strong>
+      <span :title="detailLine">{{ detailLine }}</span>
+      <span v-if="actionLine" class="snapshot-health__action" :title="actionLine">{{ actionLine }}</span>
       <div v-if="initialized" class="snapshot-health__badges" aria-label="Snapshot recovery priority">
         <span>P0 {{ impactSummary.p0Count }}</span>
         <span>P1 {{ impactSummary.p1Count }}</span>
@@ -78,12 +78,15 @@ const tone = computed(() => {
 const title = computed(() => {
   if (error.value) return '核心快照桥读取失败';
   if (!initialized.value) return '正在核对全局快照桥';
+  if (rootCause.value.status === 'blocked' && rootCause.value.label) return rootCause.value.label;
   return rootCause.value.title;
 });
 const detailLine = computed(() => {
   if (error.value) return error.value;
   if (!initialized.value) return '正在读取 /api/latest、Live12、Live16 和 HFM Crypto 核心状态。';
-  return [rootCause.value.rootCauseLine, impactSummary.value.priorityLine].filter(Boolean).join('；');
+  return [rootCause.value.rootCauseLine, impactSummary.value.affectedAreaLine, impactSummary.value.priorityLine]
+    .filter(Boolean)
+    .join('；');
 });
 const actionLine = computed(() => {
   if (error.value || !initialized.value) return '';
