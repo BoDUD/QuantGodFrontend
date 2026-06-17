@@ -49,6 +49,18 @@ test('fetchJsonOrFallback keeps failure metadata on fallback envelopes', async (
   assert.equal(payload._api.status, 503);
 });
 
+test('fetchJson keeps failure metadata instead of returning null waiting state', async () => {
+  globalThis.fetch = async () => jsonResponse({ error: 'snapshot_bridge_down' }, 503);
+
+  const payload = await fetchJson('/api/mt5-readonly-secondary/snapshot', null);
+
+  assert.equal(payload.ok, false);
+  assert.equal(payload.error, 'snapshot_bridge_down');
+  assert.equal(payload._api.ok, false);
+  assert.equal(payload._api.endpoint, '/api/mt5-readonly-secondary/snapshot');
+  assert.equal(payload._api.status, 503);
+});
+
 test('fetchRows leaves array payloads as arrays while the underlying request remains no-store', async () => {
   const calls = [];
   globalThis.fetch = async (url, options = {}) => {

@@ -67,6 +67,23 @@ function recoveryStepsZh(refreshEndpoint = '') {
   ].filter(Boolean);
 }
 
+function scopedRecoveryStep(step, refreshEndpoint = '') {
+  const text = String(step || '').trim();
+  if (!text || !refreshEndpoint) return text;
+  return text.replace(/\/api\/mt5-readonly(?:-secondary)?\/snapshot/g, refreshEndpoint);
+}
+
+function normalizeRecoverySteps(freshness = {}, refreshEndpoint = '') {
+  const rawSteps = freshness.recoveryStepsZh || freshness.recoverySteps || recoveryStepsZh(refreshEndpoint);
+  const steps = (Array.isArray(rawSteps) ? rawSteps : [rawSteps])
+    .map((step) => scopedRecoveryStep(step, refreshEndpoint))
+    .filter(Boolean);
+  if (refreshEndpoint && !steps.some((step) => step.includes(refreshEndpoint))) {
+    steps.push(`刷新 ${refreshEndpoint}，直到 freshness 重新变为 fresh。`);
+  }
+  return steps;
+}
+
 function unavailableReason(source = {}) {
   const error = source.error;
   if (typeof error === 'string' && error.trim()) return error;
@@ -141,7 +158,12 @@ function normalizeFreshnessEnvelope(source = {}, freshness = {}, options = {}) {
     status === 'MT5_READONLY_BRIDGE_UNCONFIGURED' ||
     status === 'UNAVAILABLE' ||
     status === 'UNCONFIGURED';
-  const stale = freshness.stale === true || status === 'STALE_EA_SNAPSHOT' || missing || unavailable;
+  const stale =
+    terminalProcessMissing ||
+    freshness.stale === true ||
+    status === 'STALE_EA_SNAPSHOT' ||
+    missing ||
+    unavailable;
   const fresh = freshness.fresh === true && !stale;
   const scopeLabel = options.scopeLabel || 'MT5';
   const statusZh = terminalProcessMissing
@@ -183,8 +205,7 @@ function normalizeFreshnessEnvelope(source = {}, freshness = {}, options = {}) {
           : freshness.status,
     statusZh,
     nextActionZh,
-    recoveryStepsZh:
-      freshness.recoveryStepsZh || freshness.recoverySteps || recoveryStepsZh(options.refreshEndpoint),
+    recoveryStepsZh: normalizeRecoverySteps(freshness, options.refreshEndpoint),
   };
 }
 

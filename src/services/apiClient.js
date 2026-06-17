@@ -236,12 +236,12 @@ export async function postApiJson(path, payload = {}, options = {}) {
 
 export async function fetchJson(path, fallback = null, options = {}) {
   const result = await fetchApiJson(path, options);
-  return attachApiMeta(result.ok ? result.data : fallback, result, path);
+  return apiFallback(result, fallback, path);
 }
 
 export async function postJson(path, payload = {}, fallback = null, options = {}) {
   const result = await postApiJson(path, payload, options);
-  return attachApiMeta(result.ok ? result.data : fallback, result, path);
+  return apiFallback(result, fallback, path);
 }
 
 export async function fetchRows(path, options = {}) {

@@ -214,6 +214,7 @@ describe('mt5Model ledgers', () => {
           fresh: false,
           ageSeconds: 875085,
           nextActionZh: '恢复 Live16 MT5/EA writer。',
+          recoveryStepsZh: ['确认 Live16 HFM/MT5 终端正在运行。', '刷新 /api/mt5-readonly/snapshot。'],
         },
       },
     });
@@ -246,6 +247,8 @@ describe('mt5Model ledgers', () => {
       打开页面: '/vue/?workspace=mt5',
       验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
     });
+    expect(rows[1].下一步).toContain('/api/mt5-readonly-secondary/snapshot');
+    expect(rows[1].下一步).not.toContain('刷新 /api/mt5-readonly/snapshot');
   });
 
   it('shows readonly bridge unavailable instead of waiting when secondary MT5 is unconfigured', () => {
