@@ -8,6 +8,9 @@
       <span v-if="evidenceLine" class="snapshot-health__evidence" :title="evidenceLine">
         {{ evidenceLine }}
       </span>
+      <span v-if="usableLine" class="snapshot-health__usable" :title="usableLine">
+        {{ usableLine }}
+      </span>
       <span v-if="actionLine" class="snapshot-health__action" :title="actionLine">{{ actionLine }}</span>
       <div v-if="initialized" class="snapshot-health__badges" aria-label="Snapshot recovery priority">
         <span>P0 {{ impactSummary.p0Count }}</span>
@@ -101,6 +104,10 @@ const detailLine = computed(() => {
 const evidenceLine = computed(() => {
   if (error.value || !initialized.value) return '';
   return rootCause.value.evidenceLine || impactSummary.value.evidenceLine || '';
+});
+const usableLine = computed(() => {
+  if (error.value || !initialized.value) return '';
+  return impactSummary.value.usableLine || rootCause.value.usableLine || '';
 });
 const actionLine = computed(() => {
   if (error.value || !initialized.value) return '';
@@ -209,6 +216,11 @@ onBeforeUnmount(() => {
 
 .snapshot-health__evidence {
   color: rgb(255 255 255 / 78%);
+  font-size: 11px;
+}
+
+.snapshot-health__usable {
+  color: rgb(134 239 172 / 88%);
   font-size: 11px;
 }
 

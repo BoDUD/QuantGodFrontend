@@ -96,6 +96,7 @@ for (const required of [
   'buildSnapshotRootCauseBanner',
   'buildSnapshotImpactSummary',
   'buildFrontendSnapshotRecoveryRows',
+  'usableLine',
   'setInterval(load, 30000)',
   '系统数据源',
   'Snapshot bridge impact',

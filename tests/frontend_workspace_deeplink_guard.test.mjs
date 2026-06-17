@@ -54,7 +54,7 @@ function makeFixture() {
   );
   write(
     'src/app/SnapshotHealthStrip.vue',
-    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div><a v-for="row in rows" :title="row.核对端点">{{ row.可信范围 }}{{ row.下一步 }}</a></section></template><script setup>import { loadSnapshotHealthCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; const rows = []; setInterval(load, 30000); function load(){ return loadSnapshotHealthCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
+    '<template><section aria-label="Snapshot bridge impact"><div aria-label="Snapshot recovery priority">系统数据源</div><span :title="usableLine">{{ usableLine }}</span><a v-for="row in rows" :title="row.核对端点">{{ row.可信范围 }}{{ row.下一步 }}</a></section></template><script setup>import { loadSnapshotHealthCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildSnapshotImpactSummary, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; const rows = []; const usableLine = ""; setInterval(load, 30000); function load(){ return loadSnapshotHealthCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildSnapshotImpactSummary).then(buildFrontendSnapshotRecoveryRows); }</script>',
     root,
   );
   write(
@@ -110,6 +110,7 @@ test('snapshot health strip first paint uses only fast snapshot endpoints', () =
 
   assert.notEqual(healthStart, -1, 'loadSnapshotHealthCore should exist');
   for (const required of [
+    '/api/dashboard/state',
     '/api/latest',
     '/api/mt5-readonly/snapshot',
     '/api/mt5-readonly-secondary/snapshot',
@@ -136,10 +137,13 @@ test('snapshot health strip surfaces root cause and affected frontend scope on f
   for (const required of [
     'rootCause.value.label',
     'impactSummary.value.affectedAreaLine',
+    'impactSummary.value.usableLine',
     'rootCause.value.evidenceLine',
+    'usableLine',
     ':title="rootCause.rootCauseLine"',
     ':title="detailLine"',
     ':title="evidenceLine"',
+    ':title="usableLine"',
     'row.可信范围',
     'row.核对端点',
     'row.下一步',

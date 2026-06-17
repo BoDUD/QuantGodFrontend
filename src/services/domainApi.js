@@ -159,6 +159,10 @@ export async function loadSnapshotHealthCore(options = {}) {
     [
       ['latest', (requestOptions) => fetchJson('/api/latest', null, { ...requestOptions, timeoutMs: 5000 })],
       [
+        'state',
+        (requestOptions) => fetchJson('/api/dashboard/state', null, { ...requestOptions, timeoutMs: 5000 }),
+      ],
+      [
         'mt5Snapshot',
         (requestOptions) =>
           fetchJson('/api/mt5-readonly/snapshot', null, { ...requestOptions, timeoutMs: 5000 }),
