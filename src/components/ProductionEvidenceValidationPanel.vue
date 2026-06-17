@@ -31,8 +31,15 @@
 
     <div v-if="historyRows.length" class="production-evidence-history">
       <h4>History Freshness 恢复队列</h4>
-      <div class="production-evidence-mini-table" role="table" aria-label="History freshness recovery">
-        <div class="production-evidence-mini-table__head" role="row">
+      <div
+        class="production-evidence-mini-table production-evidence-mini-table--history"
+        role="table"
+        aria-label="History freshness recovery"
+      >
+        <div
+          class="production-evidence-mini-table__head production-evidence-mini-table__head--history"
+          role="row"
+        >
           <span role="columnheader">周期</span>
           <span role="columnheader">优先级</span>
           <span role="columnheader">状态</span>
@@ -43,7 +50,7 @@
         <div
           v-for="row in historyRows"
           :key="row.timeframe"
-          class="production-evidence-mini-table__row"
+          class="production-evidence-mini-table__row production-evidence-mini-table__row--history"
           role="row"
         >
           <span role="cell">{{ row.timeframe }}</span>
@@ -58,8 +65,15 @@
 
     <div v-if="caseMemoryRows.length" class="production-evidence-case-memory">
       <h4>Case Memory 缺失分类</h4>
-      <div class="production-evidence-mini-table" role="table" aria-label="Case Memory coverage">
-        <div class="production-evidence-mini-table__head" role="row">
+      <div
+        class="production-evidence-mini-table production-evidence-mini-table--case-memory"
+        role="table"
+        aria-label="Case Memory coverage"
+      >
+        <div
+          class="production-evidence-mini-table__head production-evidence-mini-table__head--case-memory"
+          role="row"
+        >
           <span role="columnheader">分类</span>
           <span role="columnheader">优先级</span>
           <span role="columnheader">状态</span>
@@ -71,7 +85,7 @@
         <div
           v-for="row in caseMemoryRows"
           :key="row.category"
-          class="production-evidence-mini-table__row"
+          class="production-evidence-mini-table__row production-evidence-mini-table__row--case-memory"
           role="row"
         >
           <span role="cell">{{ row.category }}</span>
@@ -308,19 +322,38 @@ onMounted(load);
   display: grid;
   gap: 6px;
   margin-top: 8px;
+  overflow-x: auto;
 }
 
 .production-evidence-mini-table__head,
 .production-evidence-mini-table__row {
   display: grid;
-  grid-template-columns:
-    minmax(120px, 1fr) minmax(72px, 0.5fr) minmax(80px, 0.6fr) minmax(72px, 0.5fr)
-    minmax(220px, 1.8fr) minmax(180px, 1.4fr) minmax(220px, 2fr);
   gap: 8px;
   align-items: start;
   padding: 8px 10px;
   border-radius: 10px;
   background: rgb(15 23 42 / 36%);
+}
+
+.production-evidence-mini-table__head > span,
+.production-evidence-mini-table__row > span,
+.production-evidence-mini-table__row > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.production-evidence-mini-table__head--history,
+.production-evidence-mini-table__row--history {
+  grid-template-columns:
+    minmax(84px, 0.7fr) minmax(76px, 0.55fr) minmax(116px, 0.8fr) minmax(128px, 0.9fr)
+    minmax(260px, 1.8fr) minmax(280px, 2fr);
+}
+
+.production-evidence-mini-table__head--case-memory,
+.production-evidence-mini-table__row--case-memory {
+  grid-template-columns:
+    minmax(130px, 1fr) minmax(78px, 0.55fr) minmax(96px, 0.65fr) minmax(88px, 0.55fr)
+    minmax(240px, 1.7fr) minmax(190px, 1.3fr) minmax(240px, 1.8fr);
 }
 
 .production-evidence-mini-table__head {

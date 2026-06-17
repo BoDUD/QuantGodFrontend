@@ -64,12 +64,16 @@ assertCondition(
 for (const marker of [
   'History Freshness 恢复队列',
   'freshnessRecoveryQueue',
+  'production-evidence-mini-table--history',
+  'production-evidence-mini-table__row--history',
   'refreshCommand',
   'verifyCommand',
   'latestLagHours',
   'Case Memory 覆盖',
   'caseMemoryCoverage',
   'Case Memory 缺失分类',
+  'production-evidence-mini-table--case-memory',
+  'production-evidence-mini-table__row--case-memory',
   '证据缺口',
   'evidenceGapZh',
   'coverage',
@@ -79,6 +83,23 @@ for (const marker of [
 ]) {
   assertCondition(panel.includes(marker), `production evidence panel must surface ${marker}`);
 }
+
+assertCondition(
+  /production-evidence-mini-table__head--history,\s*\.production-evidence-mini-table__row--history\s*\{[\s\S]*minmax\(280px,\s*2fr\)/.test(
+    panel,
+  ),
+  'production evidence history recovery table must use a dedicated six-column grid',
+);
+assertCondition(
+  /production-evidence-mini-table__head--case-memory,\s*\.production-evidence-mini-table__row--case-memory\s*\{[\s\S]*minmax\(240px,\s*1\.8fr\)/.test(
+    panel,
+  ),
+  'production evidence Case Memory table must use a dedicated seven-column grid',
+);
+assertCondition(
+  /overflow-wrap:\s*anywhere/.test(panel),
+  'production evidence recovery tables must wrap long commands and source gaps',
+);
 
 assertCondition(
   scripts['production-evidence'] === 'node scripts/frontend_production_evidence_guard.mjs',
