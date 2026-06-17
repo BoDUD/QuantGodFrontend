@@ -37,6 +37,11 @@ function sourceMaxAgeOf(source = {}, freshness = {}) {
   return freshness.maxAgeSeconds ?? source?.source?.maxAgeSeconds ?? source?.maxAgeSeconds;
 }
 
+function apiFailed(source = {}) {
+  const api = isObject(source._api) ? source._api : {};
+  return source.ok === false || source.endpointLoadFailed === true || api.ok === false;
+}
+
 function terminalMissing(source = {}) {
   const terminal = isObject(source.terminal) ? source.terminal : {};
   const process = isObject(source.hostProcess) ? source.hostProcess : {};
@@ -88,6 +93,10 @@ function unavailableReason(source = {}) {
   const error = source.error;
   if (typeof error === 'string' && error.trim()) return error;
   if (typeof error?.message === 'string' && error.message.trim()) return error.message;
+  const apiError = isObject(source._api?.error) ? source._api.error : {};
+  if (typeof apiError.bodyError === 'string' && apiError.bodyError.trim()) return apiError.bodyError;
+  if (typeof apiError.bodyMessage === 'string' && apiError.bodyMessage.trim()) return apiError.bodyMessage;
+  if (typeof apiError.message === 'string' && apiError.message.trim()) return apiError.message;
   if (source.detail?.reason) return source.detail.reason;
   return '';
 }
@@ -218,8 +227,7 @@ export function normalizeMt5ReadonlyFreshness(payload = {}, options = {}) {
 
   const rawStatus = statusOf(source.status);
   if (
-    source.ok === false ||
-    source.endpointLoadFailed === true ||
+    apiFailed(source) ||
     rawStatus === 'UNAVAILABLE' ||
     rawStatus === 'UNCONFIGURED' ||
     rawStatus === 'MISSING_EA_SNAPSHOT'

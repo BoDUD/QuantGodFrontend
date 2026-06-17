@@ -249,6 +249,99 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('turns API failure metadata into blocked recovery rows instead of waiting copy', () => {
+    const raw = {
+      latest: {
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      mt5Snapshot: {
+        ok: true,
+        status: 'FRESH_EA_SNAPSHOT',
+        snapshotFresh: true,
+        _freshness: {
+          status: 'FRESH_EA_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      secondaryMt5Snapshot: {
+        _api: {
+          ok: false,
+          endpoint: '/api/mt5-readonly-secondary/snapshot',
+          status: 503,
+          error: {
+            message: 'HTTP 503',
+            bodyError: 'snapshot_bridge_down',
+          },
+        },
+      },
+      hfmCrypto: {
+        _api: {
+          ok: false,
+          endpoint: '/api/hfm-crypto/status?view=summary&scope=secondary',
+          status: 503,
+          error: {
+            message: 'HTTP 503',
+            bodyError: 'hfm_crypto_status_down',
+          },
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const rootCause = buildSnapshotRootCauseBanner(snapshot);
+    const recoveryItems = buildSnapshotRecoveryItems(snapshot);
+    const recoveryRows = buildSnapshotRecoveryRows(snapshot);
+    const frontendRows = buildFrontendSnapshotRecoveryRows(snapshot);
+    const endpointRows = buildEndpointHealth(raw);
+
+    expect(snapshot.secondaryMt5SnapshotFreshness).toMatchObject({
+      status: 'MT5_READONLY_BRIDGE_UNAVAILABLE',
+      unavailable: true,
+      stale: true,
+    });
+    expect(snapshot.snapshotRecovery).toMatchObject({
+      status: 'blocked',
+      label: 'MT5 只读桥不可用',
+      bridgeUnavailable: true,
+      hfmShadowUsable: false,
+      hfmShadowUnavailable: true,
+    });
+    expect(snapshot.snapshotRecovery.hfmLine).toBe('hfm_crypto_status_down');
+    expect(rootCause.rootCauseLine).toContain('Live16 只读桥不可用');
+    expect(recoveryItems.find((item) => item.label === 'HFM Crypto 研究证据')).toMatchObject({
+      value: '接口不可用',
+      status: 'blocked',
+      hint: 'hfm_crypto_status_down',
+    });
+    expect(recoveryRows.find((row) => row.区域 === 'HFM Crypto shadow')).toMatchObject({
+      状态: '接口不可用',
+      影响: 'HFM Crypto 工作台不能确认 crypto CFD 研究状态',
+      下一步: 'hfm_crypto_status_down',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'HFM Crypto 工作台')).toMatchObject({
+      状态: '研究证据可看 / Live16 账号快照阻断',
+      修复优先级: 'P0',
+    });
+    expect(endpointRows.find((row) => row.endpoint === '/api/mt5-readonly-secondary/snapshot')).toMatchObject(
+      {
+        status: 'blocked',
+        statusLabel: '只读桥不可用',
+      },
+    );
+    expect(
+      endpointRows.find((row) => row.endpoint === '/api/hfm-crypto/status?view=summary&scope=secondary'),
+    ).toMatchObject({
+      status: 'warn',
+      statusLabel: '不可用',
+      description: 'hfm_crypto_status_down',
+    });
+  });
+
   it('marks account metrics historical when the primary readonly bridge is stale even if /api/latest is fresh', () => {
     const raw = {
       latest: {

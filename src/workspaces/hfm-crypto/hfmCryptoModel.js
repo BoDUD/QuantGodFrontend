@@ -337,11 +337,18 @@ function safetyValue(safety, key) {
 
 function endpointStatus(payload) {
   if (!isObject(payload) || !Object.keys(payload).length) return 'unknown';
-  return payload.ok === false ? 'blocked' : 'ok';
+  return endpointFailed(payload) ? 'blocked' : 'ok';
 }
 
 function endpointLoaded(payload) {
-  return isObject(payload) && Object.keys(payload).length > 0 && !payload.endpointLoadFailed;
+  return isObject(payload) && Object.keys(payload).length > 0 && !endpointFailed(payload);
+}
+
+function endpointFailed(payload) {
+  const api = isObject(payload?._api) ? payload._api : {};
+  return (
+    isObject(payload) && (payload.ok === false || payload.endpointLoadFailed === true || api.ok === false)
+  );
 }
 
 function sourceFileHint(payload, key, fallback = WAITING) {

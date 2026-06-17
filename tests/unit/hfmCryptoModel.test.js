@@ -133,6 +133,55 @@ describe('hfmCryptoModel', () => {
     });
   });
 
+  it('treats API failure metadata as a blocked Live16 snapshot endpoint', () => {
+    const model = buildHfmCryptoModel({
+      mt5Snapshot: {
+        _api: {
+          ok: false,
+          endpoint: '/api/mt5-readonly-secondary/snapshot',
+          status: 503,
+          error: {
+            message: 'HTTP 503',
+            bodyError: 'snapshot_bridge_down',
+          },
+        },
+      },
+      status: {
+        _api: {
+          ok: false,
+          endpoint: '/api/hfm-crypto/status?view=summary&scope=secondary',
+          status: 503,
+          error: {
+            message: 'HTTP 503',
+            bodyError: 'hfm_crypto_status_down',
+          },
+        },
+      },
+    });
+
+    expect(model.mt5Freshness).toMatchObject({
+      status: 'MT5_READONLY_BRIDGE_UNAVAILABLE',
+      statusZh: 'Live16 只读桥不可用',
+      unavailable: true,
+      stale: true,
+    });
+    expect(model.snapshotRootCause).toMatchObject({
+      status: 'blocked',
+      label: 'Live16 只读桥不可用',
+    });
+    expect(
+      model.endpoints.find((item) => item.endpoint === '/api/mt5-readonly-secondary/snapshot'),
+    ).toMatchObject({
+      status: 'blocked',
+      statusLabel: '只读桥不可用',
+    });
+    expect(
+      model.endpoints.find((item) => item.endpoint === '/api/hfm-crypto/status?view=summary&scope=secondary'),
+    ).toMatchObject({
+      status: 'blocked',
+    });
+  });
+
   it('surfaces an authorized HFM account with zero crypto CFD symbols as an account blocker', () => {
     const model = buildHfmCryptoModel({
       mt5Snapshot: {

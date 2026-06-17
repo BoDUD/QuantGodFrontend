@@ -94,7 +94,10 @@ function present(value) {
 }
 
 function endpointUnavailable(payload) {
-  return isObject(payload) && payload.ok === false;
+  const api = isObject(payload?._api) ? payload._api : {};
+  return (
+    isObject(payload) && (payload.ok === false || payload.endpointLoadFailed === true || api.ok === false)
+  );
 }
 
 function endpointAvailable(payload) {
@@ -106,8 +109,13 @@ function endpointUnavailableDescription(payload, fallback) {
   const error = payload.error;
   if (typeof error === 'string' && error.trim()) return error;
   if (typeof error?.message === 'string' && error.message.trim()) return error.message;
+  const apiError = isObject(payload._api?.error) ? payload._api.error : {};
+  if (typeof apiError.bodyError === 'string' && apiError.bodyError.trim()) return apiError.bodyError;
+  if (typeof apiError.bodyMessage === 'string' && apiError.bodyMessage.trim()) return apiError.bodyMessage;
+  if (typeof apiError.message === 'string' && apiError.message.trim()) return apiError.message;
   if (typeof payload.statusZh === 'string' && payload.statusZh.trim()) return payload.statusZh;
   if (typeof payload.status === 'string' && payload.status.trim()) return humanizeStatus(payload.status);
+  if (payload._api?.status) return `HTTP ${payload._api.status}`;
   return '后端返回 ok=false，当前证据不可用。';
 }
 
@@ -354,11 +362,17 @@ function snapshotRecovery(raw = {}) {
     staleLiveLoop ? 'USDJPY live-loop' : '',
   ].filter(Boolean);
   const hfmCryptoReady = endpointAvailable(raw.hfmCrypto);
+  const hfmCryptoUnavailable = endpointUnavailable(raw.hfmCrypto);
   const hfmStatus = raw.hfmCrypto?.statusZh || humanizeStatus(raw.hfmCrypto?.status, '等待 HFM Crypto CFD');
   const hfmEvidenceCount = hfmCryptoEvidenceSymbolCount(raw);
   const hfmLine = hfmCryptoReady
     ? `${hfmStatus}${hfmEvidenceCount ? ` / ${hfmEvidenceCount} 条 crypto/spec 证据` : ''}`
-    : '等待 HFM Crypto shadow 证据';
+    : hfmCryptoUnavailable
+      ? endpointUnavailableDescription(
+          raw.hfmCrypto,
+          'HFM Crypto 状态接口不可用；先恢复后端 API 或 runtime fallback。',
+        )
+      : '等待 HFM Crypto shadow 证据';
   const profitTargetReady = endpointAvailable(raw.profitTarget);
   const processMissing = primaryProcessMissing || secondaryProcessMissing;
   const primaryProcessLine = hostProcessRecoveryLine(raw.mt5Snapshot, primaryProcessMissing);
@@ -430,6 +444,7 @@ function snapshotRecovery(raw = {}) {
     liveLoopNextAction: liveLoop.nextActionZh,
     liveLoopFreshness: liveLoop,
     hfmShadowUsable: hfmCryptoReady,
+    hfmShadowUnavailable: hfmCryptoUnavailable,
     hfmLine,
     profitTargetLine: profitTargetReady
       ? profitTargetLine(raw) || profitTargetStatusLabel(raw)
@@ -2132,25 +2147,31 @@ export function buildEndpointHealth(raw = {}) {
           ? loopFreshness.nextActionZh || loopFreshness.reasonLine || description
           : coreBlocked
             ? coreGate.detailLine || coreGate.nextActionZh || description
-            : staleLatest || staleReadonly
-              ? freshness.nextActionZh ||
-                endpointFreshness.nextActionZh ||
+            : readonlyUnavailable
+              ? endpointFreshness.nextActionZh ||
                 endpointFreshness.nextAction ||
-                description
-              : unavailable
-                ? endpointUnavailableDescription(payload, description)
-                : description,
+                endpointUnavailableDescription(payload, description)
+              : staleLatest || staleReadonly
+                ? freshness.nextActionZh ||
+                  endpointFreshness.nextActionZh ||
+                  endpointFreshness.nextAction ||
+                  description
+                : unavailable
+                  ? endpointUnavailableDescription(payload, description)
+                  : description,
       status: processMissing
         ? 'blocked'
         : staleLiveLoop
           ? 'blocked'
           : coreBlocked
             ? 'blocked'
-            : staleLatest || staleReadonly
-              ? 'warn'
-              : hasPayload && !unavailable
-                ? 'ok'
-                : 'warn',
+            : readonlyUnavailable
+              ? 'blocked'
+              : staleLatest || staleReadonly
+                ? 'warn'
+                : hasPayload && !unavailable
+                  ? 'ok'
+                  : 'warn',
       statusLabel: processMissing
         ? 'writer 未运行'
         : staleLiveLoop
@@ -2534,8 +2555,12 @@ export function buildSnapshotRecoveryItems(snapshot = {}) {
     },
     {
       label: 'HFM Crypto 研究证据',
-      value: recovery.hfmShadowUsable ? '仍可用于 shadow 研究' : '等待证据',
-      status: recovery.hfmShadowUsable ? 'ok' : 'warn',
+      value: recovery.hfmShadowUsable
+        ? '仍可用于 shadow 研究'
+        : recovery.hfmShadowUnavailable
+          ? '接口不可用'
+          : '等待证据',
+      status: recovery.hfmShadowUsable ? 'ok' : recovery.hfmShadowUnavailable ? 'blocked' : 'warn',
       hint: recovery.hfmLine,
     },
     {
@@ -2708,10 +2733,16 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
       区域: 'HFM Crypto shadow',
       打开页面: '/vue/?workspace=hfm-crypto',
       核对端点: '/api/hfm-crypto/status?view=summary&scope=secondary',
-      状态: recovery.hfmShadowUsable ? '研究证据可用' : '等待研究证据',
+      状态: recovery.hfmShadowUsable
+        ? '研究证据可用'
+        : recovery.hfmShadowUnavailable
+          ? '接口不可用'
+          : '等待研究证据',
       影响: recovery.hfmShadowUsable
         ? 'symbol/spec/Moss/backtest 证据仍可看；不能替代当前账号快照'
-        : '无法判断 crypto CFD 研究状态',
+        : recovery.hfmShadowUnavailable
+          ? 'HFM Crypto 工作台不能确认 crypto CFD 研究状态'
+          : '无法判断 crypto CFD 研究状态',
       验收标准: 'symbol/spec/Moss 证据可读；若要看当前账号状态仍必须等待 Live16 fresh。',
       下一步: recovery.hfmLine || '刷新 HFM Crypto 状态',
     },
@@ -2770,6 +2801,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
   const realtimeBlocked = recovery.realtimeUsable !== true;
   const live16Blocked = snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale;
   const primaryBlocked = snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale;
+  const hfmCryptoBlocked = recovery.hfmShadowUnavailable === true;
   const liveLoopBlocked = snapshot.usdJpyLiveLoopStale === true;
   const coreBlocked = snapshot.coreRuntimeEvidence?.promotionBlocked === true;
   const executionBlocked =
@@ -2815,19 +2847,26 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
       核对端点: '/api/mt5-readonly-secondary/snapshot + /api/hfm-crypto/status?view=summary&scope=secondary',
       状态: live16Blocked
         ? '研究证据可看 / Live16 账号快照阻断'
-        : snapshot.hfmCryptoStatusZh || snapshot.hfmCryptoStatus || 'Live16 快照可用',
+        : hfmCryptoBlocked
+          ? 'HFM Crypto API 不可用'
+          : snapshot.hfmCryptoStatusZh || snapshot.hfmCryptoStatus || 'Live16 快照可用',
       可信范围: live16Blocked
         ? 'Crypto symbol、spec、Moss/backtest 证据可读；BTC/crypto 当前账号、tick、权限不可确认'
-        : '可把 Live16 快照作为当前账号证据，但仍保持 shadow-only 安全边界',
-      修复优先级: live16Blocked ? 'P0' : 'OK',
+        : hfmCryptoBlocked
+          ? 'HFM Crypto 研究状态不可确认；账号执行仍保持 shadow-only 安全边界'
+          : '可把 Live16 快照作为当前账号证据，但仍保持 shadow-only 安全边界',
+      修复优先级: live16Blocked || hfmCryptoBlocked ? 'P0' : 'OK',
       验收标准: 'Live16 快照新鲜后，BTC/crypto tick 与账号准备度才可作为当前证据。',
-      下一步: recoveryActionLine({
-        processMissing: snapshot.secondaryMt5HostProcessMissing,
-        processLine: recovery.secondaryProcessLine,
-        freshness: snapshot.secondaryMt5SnapshotFreshness,
-        fallback: recovery.hfmLine || '恢复 Live16 MT5/EA dashboard writer。',
-        refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
-      }),
+      下一步:
+        !live16Blocked && hfmCryptoBlocked
+          ? recovery.hfmLine || '恢复 HFM Crypto API 后再刷新工作台。'
+          : recoveryActionLine({
+              processMissing: snapshot.secondaryMt5HostProcessMissing,
+              processLine: recovery.secondaryProcessLine,
+              freshness: snapshot.secondaryMt5SnapshotFreshness,
+              fallback: recovery.hfmLine || '恢复 Live16 MT5/EA dashboard writer。',
+              refreshEndpoint: '/api/mt5-readonly-secondary/snapshot',
+            }),
     },
     {
       前端区域: 'USDJPY Live Loop',
