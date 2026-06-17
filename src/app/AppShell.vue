@@ -44,6 +44,7 @@
           </button>
         </div>
       </header>
+      <SnapshotHealthStrip />
 
       <section :key="activeWorkspace" class="app-shell__content-frame">
         <Suspense>
@@ -63,6 +64,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import LoadingState from '../components/LoadingState.vue';
+import SnapshotHealthStrip from './SnapshotHealthStrip.vue';
 import { WORKSPACE_GROUPS } from './navigation.js';
 import { resolveWorkspaceComponent, workspaceMeta } from './workspaceRegistry.js';
 import { useWorkspaceStore } from '../stores/workspaceStore.js';
@@ -215,7 +217,7 @@ async function copyLink() {
 
 .app-shell__main {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-width: 0;
   min-height: 100vh;
   overflow: visible;

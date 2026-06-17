@@ -58,6 +58,7 @@ function extractNavigationKeys(content) {
 }
 
 const appShell = read('src/app/AppShell.vue');
+const snapshotHealthStrip = read('src/app/SnapshotHealthStrip.vue');
 const store = read('src/stores/workspaceStore.js');
 const workspaceUrl = read('src/app/workspaceUrl.js');
 const registry = read('src/app/workspaceRegistry.js');
@@ -84,9 +85,24 @@ assertIncludes(appShell, 'activeWorkspaceUrl', 'src/app/AppShell.vue');
 assertIncludes(appShell, 'copyLink', 'src/app/AppShell.vue');
 assertIncludes(appShell, 'app-shell__workspace-url', 'src/app/AppShell.vue');
 assertIncludes(appShell, ':is="activeComponent"', 'src/app/AppShell.vue');
+assertIncludes(appShell, 'SnapshotHealthStrip', 'src/app/AppShell.vue');
 assertNotIncludes(appShell, "activeWorkspace === 'dashboard'", 'src/app/AppShell.vue');
 assertNotIncludes(appShell, 'fetch(', 'src/app/AppShell.vue');
 assertNotIncludes(appShell, '/QuantGod_', 'src/app/AppShell.vue');
+
+for (const required of [
+  'loadDashboardWorkspaceCore',
+  'normalizeDashboardSnapshot',
+  'buildSnapshotRootCauseBanner',
+  'buildFrontendSnapshotRecoveryRows',
+  'setInterval(load, 30000)',
+  '系统数据源',
+  'Snapshot bridge impact',
+]) {
+  assertIncludes(snapshotHealthStrip, required, 'src/app/SnapshotHealthStrip.vue');
+}
+assertNotIncludes(snapshotHealthStrip, 'fetch(', 'src/app/SnapshotHealthStrip.vue');
+assertNotIncludes(snapshotHealthStrip, '/QuantGod_', 'src/app/SnapshotHealthStrip.vue');
 
 assertIncludes(navigation, "DEFAULT_WORKSPACE = 'dashboard'", 'src/app/navigation.js');
 assertIncludes(registry, 'workspaceExists', 'src/app/workspaceRegistry.js');
@@ -106,7 +122,9 @@ const componentWorkspaceKeys = extractWorkspaceComponentKeys(registry);
 const navigationWorkspaceKeys = extractNavigationKeys(navigation);
 for (const key of componentWorkspaceKeys) {
   if (!navigationWorkspaceKeys.has(key)) {
-    fail(`src/app/navigation.js must include registered workspace ${key} in WORKSPACE_GROUPS or HIDDEN_WORKSPACES`);
+    fail(
+      `src/app/navigation.js must include registered workspace ${key} in WORKSPACE_GROUPS or HIDDEN_WORKSPACES`,
+    );
   }
 }
 

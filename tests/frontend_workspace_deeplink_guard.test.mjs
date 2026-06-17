@@ -49,7 +49,12 @@ function makeFixture() {
   );
   write(
     'src/app/AppShell.vue',
-    '<template><span class="app-shell__workspace-url" :data-url="activeWorkspaceUrl"></span><component :is="activeComponent" /></template><script setup>const activeWorkspaceUrl = ""; const activeComponent = {}; function copyLink(){} function initializeWorkspaceUrlSync(){}</script>',
+    '<template><span class="app-shell__workspace-url" :data-url="activeWorkspaceUrl"></span><SnapshotHealthStrip /><component :is="activeComponent" /></template><script setup>import SnapshotHealthStrip from "./SnapshotHealthStrip.vue"; const activeWorkspaceUrl = ""; const activeComponent = {}; function copyLink(){} function initializeWorkspaceUrlSync(){}</script>',
+    root,
+  );
+  write(
+    'src/app/SnapshotHealthStrip.vue',
+    '<template><section aria-label="Snapshot bridge impact">系统数据源</section></template><script setup>import { loadDashboardWorkspaceCore } from "../services/domainApi.js"; import { normalizeDashboardSnapshot, buildSnapshotRootCauseBanner, buildFrontendSnapshotRecoveryRows } from "../workspaces/dashboard/dashboardModel.js"; setInterval(load, 30000); function load(){ return loadDashboardWorkspaceCore().then(normalizeDashboardSnapshot).then(buildSnapshotRootCauseBanner).then(buildFrontendSnapshotRecoveryRows); }</script>',
     root,
   );
   write(
