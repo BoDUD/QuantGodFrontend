@@ -124,12 +124,49 @@ export function tableColumns(rows) {
 
 export function endpointSummary(payload) {
   const source = payload?.source || payload?._api || payload?._phase2 || {};
+  const method = String(source.method || '').toUpperCase();
+  const status = Number(source.status || 0);
+  const durationMs = Number(source.durationMs || 0);
   return {
     ok: payload?.ok !== false,
+    endpoint: source.endpoint || payload?.endpoint || '--',
+    httpStatus: status > 0 ? `${method || 'GET'} ${status}` : method ? `${method} 无响应` : '--',
     fileName: source.fileName || '--',
     mtimeIso: source.mtimeIso || '--',
+    fetchedAt: source.fetchedAt || '--',
+    durationLabel: Number.isFinite(durationMs) && durationMs > 0 ? `${durationMs} ms` : '--',
     returnedRows: payload?.data?.returnedRows ?? extractRows(payload).length,
+    error: endpointErrorMessage(payload),
+    failureDetail: endpointFailureDetail(payload),
   };
+}
+
+export function endpointErrorMessage(payload) {
+  if (!payload || payload.ok !== false) return '';
+  const apiError = payload?._api?.error || {};
+  return (
+    payload.statusZh ||
+    payload.error ||
+    payload.message ||
+    apiError.bodyStatusZh ||
+    apiError.bodyError ||
+    apiError.bodyMessage ||
+    apiError.message ||
+    'API 请求失败'
+  );
+}
+
+export function endpointFailureDetail(payload) {
+  if (!payload || payload.ok !== false) return '';
+  const source = payload._api || {};
+  const parts = [];
+  if (source.endpoint) parts.push(`端点 ${source.endpoint}`);
+  if (source.method || source.status) {
+    parts.push(`${String(source.method || 'GET').toUpperCase()} ${Number(source.status || 0) || '无响应'}`);
+  }
+  if (source.fetchedAt) parts.push(`读取 ${source.fetchedAt}`);
+  if (Number(source.durationMs || 0) > 0) parts.push(`耗时 ${Number(source.durationMs)} ms`);
+  return parts.join(' · ');
 }
 
 export function loadNotifyConfig() {

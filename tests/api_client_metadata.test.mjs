@@ -47,6 +47,8 @@ test('fetchJsonOrFallback keeps failure metadata on fallback envelopes', async (
   assert.equal(payload._api.endpoint, '/api/dashboard/state');
   assert.equal(payload._api.method, 'GET');
   assert.equal(payload._api.status, 503);
+  assert.equal(payload._api.error.message, 'HTTP 503');
+  assert.equal(payload._api.error.bodyError, 'backend_unavailable');
 });
 
 test('fetchJson keeps failure metadata instead of returning null waiting state', async () => {

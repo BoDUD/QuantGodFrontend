@@ -31,6 +31,19 @@ function asErrorPayload(error) {
   };
 }
 
+function apiErrorMeta(error) {
+  if (!error) return null;
+  const body = isPlainObject(error.body) ? error.body : {};
+  return {
+    name: error.name || '',
+    message: error.message || body.message || body.error || '',
+    bodyError: body.error || '',
+    bodyMessage: body.message || '',
+    bodyStatus: body.status || '',
+    bodyStatusZh: body.statusZh || '',
+  };
+}
+
 function requestAbortController(externalSignal, timeoutMs) {
   const controller = new AbortController();
   let timer = null;
@@ -132,17 +145,24 @@ function normalizeFetchOptions(options = {}) {
 export function attachApiMeta(payload, result = {}, endpoint = '') {
   if (!isPlainObject(payload)) return payload;
   const existing = isPlainObject(payload._api) ? payload._api : {};
+  const error = apiErrorMeta(result.error);
+  const meta = {
+    ...existing,
+    ok: Boolean(result.ok),
+    endpoint: endpoint || result.endpoint || existing.endpoint || '',
+    method: String(result.method || existing.method || '').toUpperCase(),
+    status: Number(result.status || 0),
+    fetchedAt: result.fetchedAt || existing.fetchedAt || '',
+    durationMs: Number(result.durationMs || 0),
+  };
+  if (error) {
+    meta.error = error;
+  } else if (existing.error !== undefined) {
+    meta.error = existing.error;
+  }
   return {
     ...payload,
-    _api: {
-      ...existing,
-      ok: Boolean(result.ok),
-      endpoint: endpoint || result.endpoint || existing.endpoint || '',
-      method: String(result.method || existing.method || '').toUpperCase(),
-      status: Number(result.status || 0),
-      fetchedAt: result.fetchedAt || existing.fetchedAt || '',
-      durationMs: Number(result.durationMs || 0),
-    },
+    _api: meta,
   };
 }
 

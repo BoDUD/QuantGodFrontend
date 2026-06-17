@@ -34,7 +34,14 @@
           <a-select v-model:value="activeEndpoint" :options="endpointOptions" class="phase2-select" />
         </label>
 
-        <a-alert v-if="error" type="error" show-icon :message="error" class="phase2-alert" />
+        <a-alert
+          v-if="error"
+          type="error"
+          show-icon
+          :message="error"
+          :description="summary.failureDetail"
+          class="phase2-alert"
+        />
 
         <div v-if="rows.length" class="phase2-record-list">
           <article v-for="row in rows.slice(0, 12)" :key="row._phase2RowId" class="phase2-record">
@@ -57,6 +64,14 @@
         <a-card title="当前数据状态" :bordered="false" class="phase2-card">
           <dl class="phase2-summary">
             <div>
+              <dt>端点</dt>
+              <dd>{{ summary.endpoint }}</dd>
+            </div>
+            <div>
+              <dt>HTTP</dt>
+              <dd>{{ summary.httpStatus }}</dd>
+            </div>
+            <div>
               <dt>文件</dt>
               <dd>{{ summary.fileName }}</dd>
             </div>
@@ -65,8 +80,20 @@
               <dd>{{ summary.mtimeIso }}</dd>
             </div>
             <div>
+              <dt>读取时间</dt>
+              <dd>{{ summary.fetchedAt }}</dd>
+            </div>
+            <div>
+              <dt>耗时</dt>
+              <dd>{{ summary.durationLabel }}</dd>
+            </div>
+            <div>
               <dt>返回行数</dt>
               <dd>{{ summary.returnedRows }}</dd>
+            </div>
+            <div v-if="summary.error">
+              <dt>错误</dt>
+              <dd>{{ summary.error }}</dd>
             </div>
           </dl>
           <a-alert
@@ -156,6 +183,7 @@ import {
   PHASE2_ENDPOINTS,
   apiGet,
   endpointSummary,
+  endpointErrorMessage,
   extractRows,
   loadNotifyConfig,
   loadNotifyHistory,
@@ -218,7 +246,7 @@ async function loadActive() {
   const next = await apiGet(activeEndpoint.value);
   payload.value = next;
   if (next?.ok === false) {
-    error.value = next.error || 'API 请求失败';
+    error.value = endpointErrorMessage(next);
   }
   lastLoaded.value = new Date().toLocaleTimeString();
   loading.value = false;
