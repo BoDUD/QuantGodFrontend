@@ -944,9 +944,13 @@ function coreRuntimeEvidenceIntegrity(raw = {}) {
   const report = productionEvidenceReport(raw);
   const candidates = [
     report?.coreRuntimeEvidenceIntegrity,
+    report?.coreRuntimeEvidenceSummary,
     raw?.coreRuntimeEvidenceIntegrity,
+    raw?.coreRuntimeEvidenceSummary,
     raw?.state?.coreRuntimeEvidenceIntegrity,
+    raw?.state?.coreRuntimeEvidenceSummary,
     raw?.state?.data?.coreRuntimeEvidenceIntegrity,
+    raw?.state?.data?.coreRuntimeEvidenceSummary,
   ];
   return candidates.find((candidate) => isObject(candidate)) || {};
 }
@@ -2782,7 +2786,7 @@ export function buildCoreEvidenceRecoveryRows(snapshot = {}) {
     任务: promotionRecoveryTaskLabel(row),
     状态: row.status || '待处理',
     优先级: row.priority || 'PENDING',
-    源缺口状态: row.sourceGap?.status || '—',
+    源缺口状态: row.sourceGapStatus || row.sourceGap?.status || '—',
     缺口来源: row.sourceGapArtifact || row.sourceGap?.sourceArtifact || row.artifactPath || '—',
     证据缺口: row.evidenceGapZh || row.sourceGap?.evidenceGapZh || '—',
     前置命令: row.prerequisiteCommand || row.sourceGap?.prerequisiteCommand || '—',

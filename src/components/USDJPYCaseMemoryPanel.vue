@@ -184,7 +184,11 @@ const missingCoverageRows = computed(() =>
   coverageRows.value.filter((row) => row?.status === 'MISSING').slice(0, 6),
 );
 const coreReport = computed(
-  () => props.coreEvidence?.report?.coreRuntimeEvidenceIntegrity || props.coreEvidence || {},
+  () =>
+    props.coreEvidence?.report?.coreRuntimeEvidenceIntegrity ||
+    props.coreEvidence?.report?.coreRuntimeEvidenceSummary ||
+    props.coreEvidence ||
+    {},
 );
 const coreArtifacts = computed(() => {
   const rows = coreReport.value?.artifacts || [];

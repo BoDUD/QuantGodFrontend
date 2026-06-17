@@ -1294,7 +1294,10 @@ const historyProduction = computed(
     {},
 );
 const coreRuntimeEvidence = computed(
-  () => productionEvidencePayload.value?.report?.coreRuntimeEvidenceIntegrity || {},
+  () =>
+    productionEvidencePayload.value?.report?.coreRuntimeEvidenceIntegrity ||
+    productionEvidencePayload.value?.report?.coreRuntimeEvidenceSummary ||
+    {},
 );
 const historyProductionStatusZh = computed(() => {
   const status = String(historyProduction.value?.status || 'MISSING').toUpperCase();

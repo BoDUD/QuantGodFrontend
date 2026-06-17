@@ -1000,6 +1000,78 @@ describe('dashboardModel', () => {
     expect(item.hint).toContain('先刷新 MQL5 CopyRates exporter');
   });
 
+  it('surfaces compact core runtime evidence summary without manifest artifacts', () => {
+    const raw = {
+      productionEvidenceValidation: {
+        ok: true,
+        report: {
+          coreRuntimeEvidenceSummary: {
+            schema: 'quantgod.core_runtime_evidence_summary.v1',
+            status: 'PASS',
+            statusZh: '核心运行证据完整',
+            ok: true,
+            blockerCount: 0,
+            blockers: [],
+            promotionGateStatus: 'BLOCKED',
+            promotionGatePassed: false,
+            promotionBlockerCount: 2,
+            promotionBlockers: [
+              'gaMultiGenerationStabilityReport:stability_grade:NEGATIVE_SELECTION_CLOSED',
+              'caseMemoryArtifactManifest:missing_category:GA_OVERFIT',
+            ],
+            promotionRecoveryQueueCount: 1,
+            promotionRecoveryQueue: [
+              {
+                kind: 'case_memory_category',
+                artifactId: 'caseMemoryArtifactManifest',
+                category: 'GA_OVERFIT',
+                status: 'MISSING_CATEGORY',
+                priority: 'HIGH',
+                sourceGapStatus: 'BLOCKED_BY_HISTORY_FRESHNESS',
+                sourceGapArtifact: 'production_validation/QuantGod_GAMultiGenerationStabilityReport.json',
+                evidenceGapZh:
+                  'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
+                prerequisiteCommand:
+                  'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
+                nextActionZh:
+                  '先刷新 M1/M5/M15/H1 history freshness，再重跑 GA stability；不要把 stale-history 淘汰样本写成过拟合。',
+                forbiddenSideEffects: ['ORDER_SEND', 'POSITION_CLOSE'],
+              },
+            ],
+            nextActionZh: '核心证据文件完整，但 promotion gate 仍阻断晋级。',
+          },
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const coreRecoveryRows = buildCoreEvidenceRecoveryRows(snapshot);
+    const metric = buildDashboardMetrics(snapshot).find((item) => item.label === '核心证据晋级闸');
+
+    expect(snapshot.coreRuntimeEvidence).toMatchObject({
+      integrityOk: true,
+      promotionBlocked: true,
+      promotionGateStatus: 'BLOCKED',
+      value: '晋级阻断',
+      recoveryQueueLine: 'case:GA_OVERFIT',
+      promotionRecoveryQueueCount: 1,
+    });
+    expect(metric).toMatchObject({
+      value: '晋级阻断',
+      status: 'blocked',
+    });
+    expect(coreRecoveryRows).toHaveLength(1);
+    expect(coreRecoveryRows[0]).toMatchObject({
+      任务: 'Case Memory GA_OVERFIT',
+      状态: 'MISSING_CATEGORY',
+      源缺口状态: 'BLOCKED_BY_HISTORY_FRESHNESS',
+      缺口来源: 'production_validation/QuantGod_GAMultiGenerationStabilityReport.json',
+      证据缺口: 'GA 当前主要被 HISTORY_PRODUCTION_NOT_READY 阻断；这不是可转写的 GA_OVERFIT 样本。',
+      前置命令:
+        'python3 tools/run_usdjpy_strategy_backtest.py --runtime-dir ./runtime sync-klines --months 12 --timeframes M1,M5,M15,H1',
+    });
+  });
+
   it('does not mark ok false endpoint envelopes as normal health', () => {
     const health = buildEndpointHealth({
       hfmCrypto: {
