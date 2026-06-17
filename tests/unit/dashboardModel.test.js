@@ -533,7 +533,7 @@ describe('dashboardModel', () => {
       打开页面: '/vue/?workspace=dashboard',
       核对端点: '/api/latest + /api/mt5-readonly/snapshot + /api/mt5-readonly-secondary/snapshot',
       可信范围: '研究证据可读；账户、持仓、执行状态只能当历史参考',
-      验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示快照过期。',
+      验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示 writer 未运行、只读桥不可用或快照过期。',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'MT5 工作台')).toMatchObject({
       状态: 'writer 未运行',

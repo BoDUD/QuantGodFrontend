@@ -70,7 +70,7 @@ function checkDashboardWorkspace(root) {
     'snapshotRootCause.recoveryPathLine',
     '修复入口',
     '整体前端诊断',
-    '快照过期影响哪些页面',
+    '快照和账号桥影响哪些页面',
     'buildFrontendSnapshotRecoveryRows',
     '<LedgerTable title="整体前端修复优先级" :rows="frontendSnapshotRecoveryRows" :limit="8"',
     '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="6"',

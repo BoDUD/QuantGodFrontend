@@ -585,6 +585,7 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}, options 
   const runtime = firstObject(accountEnvelope.runtime, snapshotEnvelope.runtime);
   const terminal = firstObject(accountEnvelope.terminal, snapshotEnvelope.terminal);
   const hostProcess = mt5HostProcess(source);
+  const hostProcessMissing = mt5HostProcessMissing(hostProcess) || freshness.terminalProcessMissing === true;
   const latestAuthorization = isObject(terminal.lastAuthorization) ? terminal.lastAuthorization : {};
   const login = pick(
     { account, source, latestAuthorization },
@@ -681,9 +682,14 @@ function mt5ConnectionFromPayload(accountPayload, snapshotPayload = {}, options 
     runtime,
     terminal,
     hostProcess,
-    hostProcessKnown: Boolean(hostProcess.status || hostProcess.terminalProcessDetected !== null),
-    hostProcessMissing: mt5HostProcessMissing(hostProcess),
-    hostProcessLine: mt5HostProcessLine(hostProcess),
+    hostProcessKnown: Boolean(
+      hostProcessMissing || hostProcess.status || hostProcess.terminalProcessDetected !== null,
+    ),
+    hostProcessMissing,
+    hostProcessLine:
+      hostProcessMissing && !hostProcess.status && hostProcess.terminalProcessDetected === null
+        ? '未检测到 terminal64/wine 进程'
+        : mt5HostProcessLine(hostProcess),
     snapshotFresh: source.snapshotFresh ?? freshness.fresh,
     freshness,
     sourceFile: source.source?.file || freshness.sourceFile || '',

@@ -55,7 +55,7 @@
       <div class="qg-domain-panel__header">
         <div>
           <p class="qg-eyebrow">整体前端诊断</p>
-          <h2>快照过期影响哪些页面</h2>
+          <h2>快照和账号桥影响哪些页面</h2>
         </div>
         <span class="qg-muted">区分当前账号状态、研究证据和实盘释放闸门</span>
       </div>

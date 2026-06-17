@@ -48,6 +48,17 @@ function terminalMissing(source = {}) {
   );
 }
 
+function freshnessTerminalMissing(source = {}, freshness = {}) {
+  const blockers = Array.isArray(freshness.blockers) ? freshness.blockers : [];
+  return (
+    terminalMissing(source) ||
+    freshness.terminalProcessDetected === false ||
+    freshness.hostProcessDetected === false ||
+    statusOf(freshness.hostProcessStatus) === 'MISSING' ||
+    blockers.includes('mt5_terminal_process_missing')
+  );
+}
+
 function recoveryStepsZh(refreshEndpoint = '') {
   return [
     '确认对应 HFM/MT5 终端正在运行。',
@@ -105,6 +116,7 @@ function normalizeUnavailableFreshness(source = {}, options = {}) {
     stale: true,
     unavailable: !missing,
     missing,
+    terminalProcessMissing: terminalMissing(source),
     ageSeconds: sourceAgeOf(source, {}),
     maxAgeSeconds: sourceMaxAgeOf(source, {}) ?? DEFAULT_MAX_AGE_SECONDS,
     sourceFile: sourceFileOf(source, {}),
@@ -122,6 +134,7 @@ function normalizeUnavailableFreshness(source = {}, options = {}) {
 
 function normalizeFreshnessEnvelope(source = {}, freshness = {}, options = {}) {
   const status = statusOf(freshness.status);
+  const terminalProcessMissing = freshnessTerminalMissing(source, freshness);
   const missing = status === 'MISSING_EA_SNAPSHOT';
   const unavailable =
     status === 'MT5_READONLY_BRIDGE_UNAVAILABLE' ||
@@ -131,10 +144,33 @@ function normalizeFreshnessEnvelope(source = {}, freshness = {}, options = {}) {
   const stale = freshness.stale === true || status === 'STALE_EA_SNAPSHOT' || missing || unavailable;
   const fresh = freshness.fresh === true && !stale;
   const scopeLabel = options.scopeLabel || 'MT5';
+  const statusZh = terminalProcessMissing
+    ? `${scopeLabel} MT5/EA writer 未运行`
+    : freshness.statusZh ||
+      (missing
+        ? `${scopeLabel} dashboard 快照缺失`
+        : unavailable
+          ? unavailableStatusZh({ status }, scopeLabel)
+          : stale
+            ? `${scopeLabel} dashboard 快照已过期`
+            : fresh
+              ? `${scopeLabel} dashboard 新鲜`
+              : '');
+  const nextActionZh = terminalProcessMissing
+    ? `恢复 ${scopeLabel} 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入；恢复前不要把账号、持仓或执行权限当成当前实盘。`
+    : freshness.nextActionZh ||
+      (missing
+        ? `未找到 ${scopeLabel} QuantGod_Dashboard.json；先恢复对应 MT5 终端和 EA dashboard writer。`
+        : unavailable
+          ? unavailableNextActionZh({ status }, scopeLabel)
+          : stale
+            ? `恢复 ${scopeLabel} 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入；不要把旧快照当成当前实盘状态。`
+            : '');
   return {
     ...freshness,
     missing,
     unavailable,
+    terminalProcessMissing,
     fresh,
     stale,
     sourceFile: sourceFileOf(source, freshness),
@@ -145,26 +181,8 @@ function normalizeFreshnessEnvelope(source = {}, freshness = {}, options = {}) {
         : unavailable && status === 'UNCONFIGURED'
           ? 'MT5_READONLY_BRIDGE_UNCONFIGURED'
           : freshness.status,
-    statusZh:
-      freshness.statusZh ||
-      (missing
-        ? `${scopeLabel} dashboard 快照缺失`
-        : unavailable
-          ? unavailableStatusZh({ status }, scopeLabel)
-          : stale
-            ? `${scopeLabel} dashboard 快照已过期`
-            : fresh
-              ? `${scopeLabel} dashboard 新鲜`
-              : ''),
-    nextActionZh:
-      freshness.nextActionZh ||
-      (missing
-        ? `未找到 ${scopeLabel} QuantGod_Dashboard.json；先恢复对应 MT5 终端和 EA dashboard writer。`
-        : unavailable
-          ? unavailableNextActionZh({ status }, scopeLabel)
-          : stale
-            ? `恢复 ${scopeLabel} 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入；不要把旧快照当成当前实盘状态。`
-            : ''),
+    statusZh,
+    nextActionZh,
     recoveryStepsZh:
       freshness.recoveryStepsZh || freshness.recoverySteps || recoveryStepsZh(options.refreshEndpoint),
   };

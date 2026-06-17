@@ -164,6 +164,7 @@ function readonlyFreshness(payload = {}, options = {}) {
 }
 
 function freshnessStatusValue(freshness = {}) {
+  if (freshness.terminalProcessMissing) return 'writer 未运行';
   if (freshness.status === 'MISSING_EA_SNAPSHOT') return '快照缺失';
   if (freshness.unavailable) return '只读桥不可用';
   if (freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT') return '快照过期';
@@ -261,6 +262,12 @@ function hostProcessLine(payload = {}) {
   return '进程状态待确认';
 }
 
+function hostProcessRecoveryLine(payload = {}, processMissing = false) {
+  const line = hostProcessLine(payload);
+  if (processMissing && line === '进程状态待确认') return '未检测到 terminal64/wine 进程';
+  return line;
+}
+
 function liveLoopFreshness(payload = {}) {
   if (!isObject(payload) || !present(payload)) return {};
   const runtime = isObject(payload.runtime) ? payload.runtime : {};
@@ -333,8 +340,10 @@ function snapshotRecovery(raw = {}) {
   const stalePrimary = freshnessIsStale(primary);
   const staleSecondary = freshnessIsStale(secondary);
   const staleLiveLoop = liveLoop.hardStale === true;
-  const primaryProcessMissing = hostProcessMissing(raw.mt5Snapshot);
-  const secondaryProcessMissing = hostProcessMissing(raw.secondaryMt5Snapshot);
+  const primaryProcessMissing =
+    hostProcessMissing(raw.mt5Snapshot) || primary.terminalProcessMissing === true;
+  const secondaryProcessMissing =
+    hostProcessMissing(raw.secondaryMt5Snapshot) || secondary.terminalProcessMissing === true;
   const bridgeUnavailable = primary.unavailable === true || secondary.unavailable === true;
   const staleSources = [
     primary.unavailable ? '主账号只读桥不可用' : '',
@@ -352,8 +361,8 @@ function snapshotRecovery(raw = {}) {
     : '等待 HFM Crypto shadow 证据';
   const profitTargetReady = endpointAvailable(raw.profitTarget);
   const processMissing = primaryProcessMissing || secondaryProcessMissing;
-  const primaryProcessLine = hostProcessLine(raw.mt5Snapshot);
-  const secondaryProcessLine = hostProcessLine(raw.secondaryMt5Snapshot);
+  const primaryProcessLine = hostProcessRecoveryLine(raw.mt5Snapshot, primaryProcessMissing);
+  const secondaryProcessLine = hostProcessRecoveryLine(raw.secondaryMt5Snapshot, secondaryProcessMissing);
   const primaryRecoveryAction = recoveryActionLine({
     processMissing: primaryProcessMissing,
     processLine: primaryProcessLine,
@@ -1568,6 +1577,11 @@ export function normalizeDashboardSnapshot(raw = {}) {
   const usdJpyLiveLoopFreshness = liveLoopFreshness(raw.usdJpyLiveLoop);
   const dashboardStale =
     dashboardFreshness.stale === true || dashboardFreshness.status === 'STALE_DASHBOARD_SNAPSHOT';
+  const primaryHostProcessMissing =
+    hostProcessMissing(raw.mt5Snapshot) || mt5SnapshotFreshness.terminalProcessMissing === true;
+  const secondaryHostProcessMissing =
+    hostProcessMissing(raw.secondaryMt5Snapshot) ||
+    secondaryMt5SnapshotFreshness.terminalProcessMissing === true;
   const recovery = snapshotRecovery(raw);
   const runtimeState = dashboardStale
     ? 'STALE_DASHBOARD_SNAPSHOT'
@@ -1599,13 +1613,13 @@ export function normalizeDashboardSnapshot(raw = {}) {
     mt5SnapshotFreshnessLine: latestFreshnessLine(mt5SnapshotFreshness),
     mt5SnapshotStale:
       mt5SnapshotFreshness.stale === true || mt5SnapshotFreshness.status === 'STALE_EA_SNAPSHOT',
-    mt5HostProcessMissing: hostProcessMissing(raw.mt5Snapshot),
+    mt5HostProcessMissing: primaryHostProcessMissing,
     secondaryMt5SnapshotFreshness,
     secondaryMt5SnapshotFreshnessLine: latestFreshnessLine(secondaryMt5SnapshotFreshness),
     secondaryMt5SnapshotStale:
       secondaryMt5SnapshotFreshness.stale === true ||
       secondaryMt5SnapshotFreshness.status === 'STALE_EA_SNAPSHOT',
-    secondaryMt5HostProcessMissing: hostProcessMissing(raw.secondaryMt5Snapshot),
+    secondaryMt5HostProcessMissing: secondaryHostProcessMissing,
     usdJpyLiveLoop: raw?.usdJpyLiveLoop || {},
     usdJpyLiveLoopFreshness,
     usdJpyLiveLoopStale: usdJpyLiveLoopFreshness.hardStale === true,
@@ -2772,7 +2786,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
         ? '研究证据可读；账户、持仓、执行状态只能当历史参考'
         : '账户、持仓、执行状态可作为当前快照',
       修复优先级: realtimeBlocked ? 'P0' : 'OK',
-      验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示快照过期。',
+      验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示 writer 未运行、只读桥不可用或快照过期。',
       下一步: recovery.nextAction || '保持 MT5/EA dashboard writer 正常刷新。',
     },
     {

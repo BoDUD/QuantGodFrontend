@@ -44,7 +44,7 @@ describe('hfmCryptoModel', () => {
       status: 'blocked',
     });
     expect(model.accountItems.find((item) => item.label === 'MT5 快照')).toMatchObject({
-      value: '快照过期',
+      value: 'writer 未运行',
       status: 'blocked',
     });
     expect(model.accountItems.find((item) => item.label === 'MT5 进程')).toMatchObject({

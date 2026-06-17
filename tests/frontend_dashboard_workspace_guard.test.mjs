@@ -117,7 +117,7 @@ const validFiles = {
     "'修复入口';",
     '<LedgerTable title="影响范围" :rows="snapshotRecoveryRows" :limit="5" />',
     "const overallFrontendTitle = '整体前端诊断';",
-    "const staleImpactTitle = '快照过期影响哪些页面';",
+    "const snapshotBridgeImpactTitle = '快照和账号桥影响哪些页面';",
     '<LedgerTable title="整体前端修复优先级" :rows="frontendSnapshotRecoveryRows" :limit="8" />',
     '<LedgerTable title="运行数据源" :rows="runtimeSourceRows" :limit="6" />',
     "import { loadDashboardWorkspace } from '../../services/domainApi.js';",
