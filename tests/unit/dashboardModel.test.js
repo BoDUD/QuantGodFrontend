@@ -452,6 +452,87 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('prioritizes terminal-missing freshness blockers from successful MT5 payloads', () => {
+    const raw = {
+      latest: {
+        _freshness: {
+          status: 'FRESH_DASHBOARD_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      mt5Snapshot: {
+        ok: true,
+        status: 'FRESH_EA_SNAPSHOT',
+        snapshotFresh: true,
+        _freshness: {
+          status: 'FRESH_EA_SNAPSHOT',
+          fresh: true,
+          stale: false,
+        },
+      },
+      secondaryMt5Snapshot: {
+        ok: true,
+        status: 'STALE_EA_SNAPSHOT',
+        snapshotFresh: false,
+        _api: {
+          ok: true,
+          endpoint: '/api/mt5-readonly-secondary/snapshot',
+          status: 200,
+        },
+        source: {
+          file: '/tmp/live16/MQL5/Files/QuantGod_Dashboard.json',
+          ageSeconds: 1051009,
+          maxAgeSeconds: 180,
+          fresh: false,
+        },
+        _freshness: {
+          status: 'STALE_EA_SNAPSHOT',
+          stale: true,
+          fresh: false,
+          ageSeconds: 1051009,
+          maxAgeSeconds: 180,
+          blockers: ['live_dashboard_snapshot_stale', 'mt5_terminal_process_missing'],
+          nextActionZh: '恢复 Live16 终端和 EA dashboard writer，让 QuantGod_Dashboard.json 重新写入。',
+        },
+      },
+      hfmCrypto: {
+        ok: true,
+        status: 'READY_FOR_SHADOW_RESEARCH',
+        symbolEvidence: { canonicalSymbols: ['BTCUSD'] },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const rootCause = buildSnapshotRootCauseBanner(snapshot);
+    const sourceRows = buildRuntimeSourceDiagnosticRows(raw);
+    const frontendRows = buildFrontendSnapshotRecoveryRows(snapshot);
+
+    expect(snapshot.secondaryMt5SnapshotFreshness).toMatchObject({
+      status: 'STALE_EA_SNAPSHOT',
+      terminalProcessMissing: true,
+      unavailable: false,
+      stale: true,
+    });
+    expect(snapshot.secondaryMt5HostProcessMissing).toBe(true);
+    expect(snapshot.snapshotRecovery).toMatchObject({
+      status: 'blocked',
+      label: 'MT5/EA dashboard writer 未运行',
+      bridgeUnavailable: false,
+      realtimeUsable: false,
+    });
+    expect(rootCause.rootCauseLine).toContain('Live16 MT5/EA writer 未运行');
+    expect(rootCause.rootCauseLine).not.toContain('Live16 只读桥不可用');
+    expect(sourceRows.find((row) => row.数据源 === 'Live16 只读桥')).toMatchObject({
+      状态: 'writer 未运行',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'HFM Crypto 工作台')).toMatchObject({
+      状态: '研究证据可看 / Live16 账号快照阻断',
+      修复优先级: 'P0',
+      数据年龄: expect.stringContaining('Live16: writer 未运行'),
+    });
+  });
+
   it('summarizes stale MT5 snapshots across the whole dashboard without hiding fresh research evidence', () => {
     const raw = {
       latest: {
