@@ -90,11 +90,7 @@
             <strong :class="row.toneClass">{{ row.pnl }}</strong>
           </li>
         </ul>
-        <EmptyState
-          v-else
-          :title="positionEmptyState.title"
-          :description="positionEmptyState.description"
-        />
+        <EmptyState v-else :title="positionEmptyState.title" :description="positionEmptyState.description" />
       </article>
 
       <article class="qg-ux-widget qg-ux-widget--span-4">

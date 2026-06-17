@@ -29,6 +29,42 @@
       </ul>
     </div>
 
+    <div v-if="coreBlockerRows.length" class="production-evidence-core-blockers">
+      <h4>核心晋级阻断摘要</h4>
+      <div
+        class="production-evidence-mini-table production-evidence-mini-table--core-blockers"
+        role="table"
+        aria-label="Core runtime promotion blockers"
+      >
+        <div
+          class="production-evidence-mini-table__head production-evidence-mini-table__head--core-blockers"
+          role="row"
+        >
+          <span role="columnheader">证据</span>
+          <span role="columnheader">优先级</span>
+          <span role="columnheader">状态</span>
+          <span role="columnheader">阻断</span>
+          <span role="columnheader">关键缺口</span>
+          <span role="columnheader">下一步</span>
+          <span role="columnheader">安全边界</span>
+        </div>
+        <div
+          v-for="row in coreBlockerRows"
+          :key="row.key"
+          class="production-evidence-mini-table__row production-evidence-mini-table__row--core-blockers"
+          role="row"
+        >
+          <span role="cell">{{ row.artifactLabel }}</span>
+          <span role="cell">{{ row.priority }}</span>
+          <strong :class="['status', row.statusClass]" role="cell">{{ row.status }}</strong>
+          <span role="cell">{{ row.blockerCount }} 项：{{ row.blockerLine }}</span>
+          <span role="cell">{{ row.evidenceGapLine }}</span>
+          <span role="cell">{{ row.nextActionZh }}</span>
+          <span role="cell">{{ row.safetyLine }}</span>
+        </div>
+      </div>
+    </div>
+
     <div v-if="historyRows.length" class="production-evidence-history">
       <h4>History Freshness 恢复队列</h4>
       <div
@@ -118,6 +154,26 @@ const payload = ref(null);
 
 const report = computed(() => payload.value?.report || payload.value || {});
 const blockers = computed(() => report.value?.blockersZh || []);
+const coreEvidence = computed(
+  () => report.value?.coreRuntimeEvidenceSummary || report.value?.coreRuntimeEvidenceIntegrity || {},
+);
+const coreBlockerRows = computed(() => {
+  const rows = Array.isArray(coreEvidence.value?.promotionBlockerSummary)
+    ? coreEvidence.value.promotionBlockerSummary
+    : [];
+  return rows.map((row) => ({
+    key: row.artifactId || row.gateId || row.category || row.status,
+    artifactLabel: promotionArtifactLabel(row.artifactId, row.category),
+    priority: row.priority || 'HIGH',
+    status: row.status || 'BLOCKED',
+    statusClass: String(row.status || 'BLOCKED').toLowerCase(),
+    blockerCount: row.blockerCount ?? (Array.isArray(row.blockers) ? row.blockers.length : 0),
+    blockerLine: compactList(row.blockers),
+    evidenceGapLine: promotionEvidenceGapLine(row),
+    nextActionZh: row.nextActionZh || '按恢复队列补齐只读证据后重新运行 production evidence。',
+    safetyLine: safetyBoundaryLine(row),
+  }));
+});
 const historyRows = computed(() => {
   const rows = Array.isArray(report.value?.historyProduction?.freshnessRecoveryQueue)
     ? report.value.historyProduction.freshnessRecoveryQueue
@@ -165,7 +221,18 @@ const caseMemoryRows = computed(() => {
 });
 const cards = computed(() => {
   const r = report.value || {};
+  const core = coreEvidence.value || {};
   return [
+    {
+      key: 'core-runtime-evidence',
+      label: '核心证据晋级闸',
+      status:
+        core.promotionGateStatus ||
+        (core.promotionGatePassed === false ? 'BLOCKED' : core.status || 'UNKNOWN'),
+      detail: core.promotionBlockerSummaryCount
+        ? `聚合阻断 ${core.promotionBlockerSummaryCount} 类，恢复队列 ${core.promotionRecoveryQueueCount || 0} 项`
+        : core.nextActionZh || core.statusZh || '等待核心证据摘要',
+    },
     {
       key: 'history',
       label: '历史数据',
@@ -201,6 +268,48 @@ const cards = computed(() => {
     },
   ];
 });
+
+function compactList(value, limit = 3) {
+  const rows = Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+  if (!rows.length) return '—';
+  const head = rows.slice(0, limit).join(' / ');
+  const overflow = rows.length > limit ? ` +${rows.length - limit}` : '';
+  return `${head}${overflow}`;
+}
+
+function promotionArtifactLabel(artifactId = '', category = '') {
+  const labels = {
+    historyProductionStatus: 'History freshness',
+    gaMultiGenerationStabilityReport: 'GA 多代稳定性',
+    caseMemoryArtifactManifest: 'Case Memory 覆盖',
+    strategyParityReport: 'Strategy parity',
+  };
+  return labels[artifactId] || category || artifactId || 'Core evidence';
+}
+
+function promotionEvidenceGapLine(row = {}) {
+  if (Array.isArray(row.staleTimeframes) && row.staleTimeframes.length) {
+    return `历史 freshness 过期 ${row.staleTimeframes.join('/')}; CopyRates ${row.copyRatesExportFreshnessStatus || '待确认'}; SyncLoop ${row.continuousSyncStatus || '待确认'}`;
+  }
+  if (Array.isArray(row.missingCategories) && row.missingCategories.length) {
+    return `缺少样本 ${row.missingCategories.join('/')}; candidate ${row.candidateCount ?? 0}; GA seed ${row.gaSeedCount ?? 0}`;
+  }
+  if (row.stabilityGrade || row.closureMode) {
+    return `稳定性 ${row.stabilityGrade || '待确认'}; closure ${row.closureMode || '待确认'}; elite ${row.eliteCount ?? 0}`;
+  }
+  if (row.reportStatus || row.promotionAllowed === false) {
+    return `report ${row.reportStatus || '待确认'}; promotionAllowed=${row.promotionAllowed === true ? 'true' : 'false'}`;
+  }
+  return compactList(row.blockers);
+}
+
+function safetyBoundaryLine(row = {}) {
+  const forbidden = Array.isArray(row.forbiddenSideEffects) ? row.forbiddenSideEffects : [];
+  if (forbidden.includes('ORDER_SEND') || forbidden.includes('MT5_REQUEST_WRITE')) {
+    return '只读/shadow/tester 补证；禁止下单、写请求、改 preset';
+  }
+  return forbidden.length ? `禁止 ${compactList(forbidden, 2)}` : '保持只读证据面';
+}
 
 async function load() {
   loading.value = true;
@@ -327,6 +436,10 @@ onMounted(load);
   margin-top: 12px;
 }
 
+.production-evidence-core-blockers {
+  margin-top: 12px;
+}
+
 .production-evidence-mini-table {
   display: grid;
   gap: 6px;
@@ -356,6 +469,13 @@ onMounted(load);
   grid-template-columns:
     minmax(84px, 0.7fr) minmax(76px, 0.55fr) minmax(116px, 0.8fr) minmax(128px, 0.9fr)
     minmax(260px, 1.8fr) minmax(280px, 2fr);
+}
+
+.production-evidence-mini-table__head--core-blockers,
+.production-evidence-mini-table__row--core-blockers {
+  grid-template-columns:
+    minmax(150px, 1fr) minmax(78px, 0.5fr) minmax(112px, 0.7fr) minmax(220px, 1.4fr)
+    minmax(280px, 1.8fr) minmax(300px, 2fr) minmax(250px, 1.5fr);
 }
 
 .production-evidence-mini-table__head--case-memory,

@@ -62,6 +62,14 @@ assertCondition(
   'production evidence API must expose the run endpoint',
 );
 for (const marker of [
+  '核心证据晋级闸',
+  '核心晋级阻断摘要',
+  'promotionBlockerSummary',
+  'promotionBlockerSummaryCount',
+  'production-evidence-mini-table--core-blockers',
+  'production-evidence-mini-table__row--core-blockers',
+  'forbiddenSideEffects',
+  '只读/shadow/tester 补证',
   'History Freshness 恢复队列',
   'freshnessRecoveryQueue',
   'production-evidence-mini-table--history',
@@ -92,6 +100,12 @@ for (const marker of [
   assertCondition(panel.includes(marker), `production evidence panel must surface ${marker}`);
 }
 
+assertCondition(
+  /production-evidence-mini-table__head--core-blockers,\s*\.production-evidence-mini-table__row--core-blockers\s*\{[\s\S]*minmax\(300px,\s*2fr\)/.test(
+    panel,
+  ),
+  'production evidence core blocker table must use a dedicated seven-column grid',
+);
 assertCondition(
   /production-evidence-mini-table__head--history,\s*\.production-evidence-mini-table__row--history\s*\{[\s\S]*minmax\(280px,\s*2fr\)/.test(
     panel,
