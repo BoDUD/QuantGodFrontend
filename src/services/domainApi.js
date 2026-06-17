@@ -96,6 +96,58 @@ export async function loadDashboardWorkspaceCore(options = {}) {
             timeoutMs: 10000,
           }),
       ],
+      [
+        'liveAutomationOrchestrator',
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/orchestrator'), null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      [
+        'championPromotionGate',
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/champion-promotion-gate'), null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      [
+        'liveAutomationReleaseReadiness',
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-readiness-refresh'), null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      [
+        'releaseTokenEvidenceReview',
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/release-token-evidence-review'), null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      [
+        'liveExecutionLaneSelector',
+        (requestOptions) =>
+          fetchJson(scopedLiveAutomationPath('/api/live-automation/lane-selector'), null, {
+            ...requestOptions,
+            timeoutMs: 10000,
+          }),
+      ],
+      [
+        'simTargetExecutionReviewSummary',
+        (requestOptions) =>
+          fetchJson(
+            scopedLiveAutomationPath('/api/live-automation/sim-target-execution-review-summary'),
+            null,
+            {
+              ...requestOptions,
+              timeoutMs: 10000,
+            },
+          ),
+      ],
     ],
     options,
     6,

@@ -51,6 +51,12 @@ const state = shallowReactive({
   profitTarget: null,
   usdJpyLiveLoop: null,
   productionEvidenceValidation: null,
+  liveAutomationOrchestrator: null,
+  championPromotionGate: null,
+  liveAutomationReleaseReadiness: null,
+  releaseTokenEvidenceReview: null,
+  liveExecutionLaneSelector: null,
+  simTargetExecutionReviewSummary: null,
 });
 
 const loading = ref(false);

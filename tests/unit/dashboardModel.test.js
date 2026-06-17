@@ -1716,6 +1716,91 @@ describe('dashboardModel', () => {
     });
   });
 
+  it('uses sim-target execution summary as a dashboard fallback when release readiness is not in the core payload', () => {
+    const raw = {
+      profitTarget: {
+        status: 'TARGET_REACHED',
+        executionTargetReached: true,
+        dualTargetReached: true,
+        laneTargets: {
+          forexMt5: { simulationVerifiedUsdProfit: 72, targetReached: true },
+          btcCryptoCfd: { simulationVerifiedUsdProfit: 65.22, targetReached: true },
+        },
+      },
+      simTargetExecutionReviewSummary: {
+        statusZh: '模拟收益目标已达成，但实盘执行模式仍未打开',
+        decision: {
+          targetReachedButLiveStillForbidden: true,
+          nextRequiredActionZh:
+            '收益目标和仓位目标已记录；继续自动刷新 execution-mode、release-token、tester 与 no-side-effect 证据。',
+          orderSendAllowed: false,
+          writesMt5OrderRequest: false,
+        },
+        executionReview: {
+          status: 'WAITING_EXECUTION_MODE_ACTIVATION',
+          statusZh: 'live execution cutover 数据面已通过，等待执行模式闸门',
+          dataPlaneReady: true,
+          executionModeOnlyBlocked: true,
+          primaryActionableBlocker: {
+            code: 'ROLLBACK_AUTO_DISABLE_RELEASE_TOKEN_MISSING',
+            reasonZh: '没有单独审查 release token 时，rollback/auto-disable 不能修改实盘状态或 preset。',
+          },
+          releaseTokenEvidenceReview: {
+            releaseTokenCount: 5,
+            noSideEffectEvidenceCompleteCount: 5,
+            tokenProvidedCount: 0,
+            tokenMissingCount: 5,
+            statusZh: '无副作用证据已完成 5/5；release token 已提供 0/5，保持 review-only',
+          },
+          minimalDiffReview: {
+            statusZh: '收益已达标；最小 diff 审查包已生成，仍待 5 个 release token 和 0 个执行模式闸门',
+            canReleaseExecutionNow: false,
+            releaseTokens: [
+              {
+                gateId: 'broker_order_send_release',
+                labelZh: 'Broker OrderSend',
+                sideEffectZh: '调用 MT5 OrderSend',
+                dataPlaneReady: true,
+                tokenProvided: false,
+                blockerCode: 'BROKER_ORDER_SEND_RELEASE_TOKEN_MISSING',
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    const snapshot = normalizeDashboardSnapshot(raw);
+    const metric = buildDashboardMetrics(snapshot).find((item) => item.label === '合计模拟目标');
+    const releaseRows = buildReleaseGateRows(snapshot);
+    const profitItems = buildProfitTargetItems(snapshot);
+    const frontendRows = buildFrontendSnapshotRecoveryRows(snapshot);
+
+    expect(snapshot.releaseTokenEvidenceProgressLine).toBe('无副作用证据 5/5 / Token 0/5 / 缺 5');
+    expect(snapshot.profitExecutionConclusionLine).toBe(
+      '收益已达标，但执行未释放：BTCUSD：live execution cutover 数据面已通过，等待执行模式闸门；当前主 blocker：没有单独审查 release token 时，rollback/auto-disable 不能修改实盘状态或 preset。',
+    );
+    expect(metric).toMatchObject({
+      value: '达标',
+      hint: snapshot.profitExecutionConclusionLine,
+    });
+    expect(releaseRows[0]).toMatchObject({
+      闸门: 'Broker OrderSend',
+      副作用: '调用 MT5 OrderSend',
+      数据面: '是',
+      ReleaseToken: '否',
+      阻塞码: 'BROKER_ORDER_SEND_RELEASE_TOKEN_MISSING',
+    });
+    expect(profitItems.find((item) => item.label === 'Release Tokens')).toMatchObject({
+      value: '无副作用证据已完成 5/5；release token 已提供 0/5，保持 review-only',
+      hint: '无副作用证据 5/5 / Token 0/5 / 缺 5',
+    });
+    expect(frontendRows.find((row) => row.前端区域 === 'Sim-to-live 闸门')).toMatchObject({
+      状态: '执行释放仍阻断',
+      修复优先级: 'P1',
+    });
+  });
+
   it('surfaces HFM BTC runtime probe blocker from compact standalone exporter summary', () => {
     const raw = {
       hfmCrypto: {

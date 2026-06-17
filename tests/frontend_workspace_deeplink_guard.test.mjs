@@ -78,6 +78,30 @@ test('deep-link guard passes on current repository', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
+test('snapshot health core load includes whole-frontend execution readiness signals', () => {
+  const service = fs.readFileSync(path.join(repoRoot, 'src', 'services', 'domainApi.js'), 'utf8');
+  const coreStart = service.indexOf('export async function loadDashboardWorkspaceCore(options = {})');
+  const fullStart = service.indexOf('export async function loadDashboardWorkspace(options = {})');
+  const coreLoadBody = service.slice(coreStart, fullStart);
+
+  for (const required of [
+    'liveAutomationOrchestrator',
+    '/api/live-automation/orchestrator',
+    'championPromotionGate',
+    '/api/live-automation/champion-promotion-gate',
+    'liveAutomationReleaseReadiness',
+    '/api/live-automation/release-readiness-refresh',
+    'releaseTokenEvidenceReview',
+    '/api/live-automation/release-token-evidence-review',
+    'liveExecutionLaneSelector',
+    '/api/live-automation/lane-selector',
+    'simTargetExecutionReviewSummary',
+    '/api/live-automation/sim-target-execution-review-summary',
+  ]) {
+    assert.match(coreLoadBody, new RegExp(required.replaceAll('/', '\\/')));
+  }
+});
+
 test('deep-link guard accepts a valid fixture', () => {
   const root = makeFixture();
   const result = spawnSync(process.execPath, [guardPath], {

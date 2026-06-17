@@ -1219,11 +1219,17 @@ function profitTargetPayload(raw = {}) {
 }
 
 function liveExecutionReviewPayload(raw = {}) {
-  return profitTargetPayload(raw)?.liveExecutionReview || {};
+  const summary = simTargetExecutionReviewPayload(raw);
+  return profitTargetPayload(raw)?.liveExecutionReview || summary.executionReview || {};
+}
+
+function simTargetExecutionReviewPayload(raw = {}) {
+  return raw?.simTargetExecutionReviewSummary || raw?.simTargetExecutionReview || {};
 }
 
 function simToLiveDecisionPayload(raw = {}) {
-  return profitTargetPayload(raw)?.simToLiveDecision || {};
+  const summary = simTargetExecutionReviewPayload(raw);
+  return profitTargetPayload(raw)?.simToLiveDecision || summary.decision || summary.simToLiveDecision || {};
 }
 
 function authorizationVsExecutionPayload(raw = {}) {
@@ -1239,7 +1245,8 @@ function liveAutomationReleaseReadinessPayload(raw = {}) {
 }
 
 function releaseTokenEvidencePayload(raw = {}) {
-  return raw?.releaseTokenEvidenceReview || {};
+  const summaryExecutionReview = simTargetExecutionReviewPayload(raw).executionReview || {};
+  return raw?.releaseTokenEvidenceReview || summaryExecutionReview.releaseTokenEvidenceReview || {};
 }
 
 function releaseTokenSignoffDraftPayload(raw = {}) {
@@ -1358,11 +1365,14 @@ function releaseGateSummary(raw = {}) {
   const tokenEvidence = releaseTokenEvidencePayload(raw);
   const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
   const orchestrator = liveAutomationOrchestratorPayload(raw);
+  const summaryExecutionReview = simTargetExecutionReviewPayload(raw).executionReview || {};
   const decision = simToLiveDecisionPayload(raw);
   return (
     tokenEvidence.executionReleaseGateSummary ||
     releaseReadiness.executionReleaseGateSummary ||
     orchestrator.executionReleaseGateSummary ||
+    summaryExecutionReview.executionReleaseGateSummary ||
+    summaryExecutionReview.releaseTokenEvidenceReview?.executionReleaseGateSummary ||
     decision.executionReleaseGateSummary ||
     {}
   );
@@ -1370,14 +1380,20 @@ function releaseGateSummary(raw = {}) {
 
 function releaseGateRows(raw = {}) {
   const tokenEvidence = releaseTokenEvidencePayload(raw);
+  const summaryExecutionReview = simTargetExecutionReviewPayload(raw).executionReview || {};
+  const summaryTokenEvidence = summaryExecutionReview.releaseTokenEvidenceReview || {};
   const signoffRowsByGate = Object.fromEntries(
-    rowsFromObjectList(tokenEvidence.manualReleaseReviewRows).map((row) => [row.gateId, row]),
+    rowsFromObjectList(tokenEvidence.manualReleaseReviewRows || summaryTokenEvidence.manualReleaseReviewRows).map(
+      (row) => [row.gateId, row],
+    ),
   );
   const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
   const orchestrator = liveAutomationOrchestratorPayload(raw);
   const decision = simToLiveDecisionPayload(raw);
   const checklist =
     tokenEvidence.evidenceRows ||
+    summaryExecutionReview.minimalDiffReview?.releaseTokens ||
+    summaryExecutionReview.signoffEvidenceMatrix?.gateRows ||
     releaseReadiness.executionReleaseGateChecklist ||
     orchestrator.executionReleaseGateChecklist ||
     decision.executionReleaseGateChecklist;
@@ -1399,10 +1415,13 @@ function releaseGateRows(raw = {}) {
 function releaseReadinessPacket(raw = {}) {
   const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
   const orchestrator = liveAutomationOrchestratorPayload(raw);
+  const summaryExecutionReview = simTargetExecutionReviewPayload(raw).executionReview || {};
   const decision = simToLiveDecisionPayload(raw);
   return (
     releaseReadiness.executionReleaseReadinessPacket ||
     orchestrator.executionReleaseReadinessPacket ||
+    summaryExecutionReview.executionReleaseReadinessPacket ||
+    summaryExecutionReview.minimalDiffReview ||
     decision.executionReleaseReadinessPacket ||
     {}
   );
@@ -1475,8 +1494,11 @@ function primaryExecutionBlocker(raw = {}) {
   const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
   const decision = simToLiveDecisionPayload(raw);
   const review = liveExecutionReviewPayload(raw);
+  const summaryExecutionReview = simTargetExecutionReviewPayload(raw).executionReview || {};
   return (
     releaseReadiness.primaryActionableBlocker ||
+    summaryExecutionReview.primaryActionableBlocker ||
+    toArray(summaryExecutionReview.topBlockers)[0] ||
     toArray(releaseReadiness.fileEvidenceBlockers)[0] ||
     toArray(releaseReadiness.executionModeFileEvidence?.blockingEvidence)[0] ||
     decision.primaryActionableBlocker ||
@@ -1496,7 +1518,8 @@ function liveExecutionBlockerLine(raw = {}) {
   const decision = simToLiveDecisionPayload(raw);
   const authorization = authorizationVsExecutionPayload(raw);
   const review = liveExecutionReviewPayload(raw);
-  if (!present(review) && !present(decision) && !present(releaseReadiness)) return '';
+  const summary = simTargetExecutionReviewPayload(raw);
+  if (!present(review) && !present(decision) && !present(releaseReadiness) && !present(summary)) return '';
   const intent = review.dryRunIntent || decision.dryRunIntent || {};
   const symbol = intent.brokerSymbol || intent.canonicalSymbol || 'BTCUSD';
   if (review.runtimeProbePassed || decision.runtimeProbePassed) return `${symbol} 运行时预检已通过`;
@@ -1516,12 +1539,18 @@ function liveExecutionBlockerLine(raw = {}) {
     ).replace(/[。；;]+$/u, '');
     return blockerReason ? `${symbol}：${status}；当前主 blocker：${blockerReason}` : `${symbol}：${status}`;
   }
-  if (review.runtimePreflightDataPlaneReadyForReview && review.runtimePreflightExecutionModeOnlyBlocked) {
+  const reviewDataPlaneReady = review.runtimePreflightDataPlaneReadyForReview || review.dataPlaneReady;
+  const reviewExecutionModeOnlyBlocked =
+    review.runtimePreflightExecutionModeOnlyBlocked || review.executionModeOnlyBlocked;
+  if (reviewDataPlaneReady && reviewExecutionModeOnlyBlocked) {
     const status = review.statusZh || '数据面已通过，等待执行模式闸门';
     return blockerReason ? `${symbol}：${status}；当前主 blocker：${blockerReason}` : `${symbol}：${status}`;
   }
   const reason =
     blockerReason ||
+    summary.decision?.nextRequiredActionZh ||
+    summary.executionReview?.statusZh ||
+    summary.statusZh ||
     decision.nextRequiredActionZh ||
     decision.statusZh ||
     review.summaryZh ||
