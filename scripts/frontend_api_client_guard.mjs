@@ -43,6 +43,7 @@ function walkFiles(dir, files = []) {
 
 const apiClient = read('src/services/apiClient.js');
 const domainApi = read('src/services/domainApi.js');
+const eslintConfig = read('eslint.config.js');
 const pkg = readJson('package.json');
 const workflow = read('.github/workflows/ci.yml');
 
@@ -167,6 +168,17 @@ if (!pkg.scripts || pkg.scripts['api-client'] !== 'node scripts/frontend_api_cli
 const p0Toolchain = String(pkg.scripts?.['p0-toolchain'] || '');
 if (!p0Toolchain.includes('npm run contract') || !p0Toolchain.includes('npm run api-client')) {
   fail('package.json p0-toolchain must run contract and api-client guards before frontend acceptance');
+}
+
+for (const servicePath of requiredApiClientServices) {
+  for (const scriptName of ['lint', 'format:check']) {
+    if (!String(pkg.scripts?.[scriptName] || '').includes(servicePath)) {
+      fail(`package.json ${scriptName} must include ${servicePath}`);
+    }
+  }
+  if (!eslintConfig.includes(servicePath)) {
+    fail(`eslint.config.js foundationFiles must include ${servicePath}`);
+  }
 }
 
 if (!workflow.includes('npm run api-client')) {

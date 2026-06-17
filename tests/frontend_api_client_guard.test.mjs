@@ -50,18 +50,44 @@ export { fetchJson, fetchRows, postJson, rowsFromPayload };
   );
 
   fs.writeFileSync(
+    path.join(root, 'eslint.config.js'),
+    overrides.eslintConfig ??
+      `
+const foundationFiles = [
+  'src/services/api.js',
+  'src/services/backtestAiApi.js',
+  'src/services/phase1Api.js',
+  'src/services/phase2Api.js',
+  'src/services/phase3Api.js',
+];
+export default [{ files: foundationFiles }];
+`,
+  );
+
+  const guardedServices = [
+    'src/services/api.js',
+    'src/services/backtestAiApi.js',
+    'src/services/phase1Api.js',
+    'src/services/phase2Api.js',
+    'src/services/phase3Api.js',
+  ].join(' ');
+
+  fs.writeFileSync(
     path.join(root, 'package.json'),
-    JSON.stringify(
-      {
-        scripts: {
-          contract: 'node scripts/frontend_api_contract_guard.mjs',
-          'api-client': 'node scripts/frontend_api_client_guard.mjs',
-          'p0-toolchain': 'npm run contract && npm run api-client && npm run lint',
+    overrides.packageJson ??
+      JSON.stringify(
+        {
+          scripts: {
+            contract: 'node scripts/frontend_api_contract_guard.mjs',
+            'api-client': 'node scripts/frontend_api_client_guard.mjs',
+            'p0-toolchain': 'npm run contract && npm run api-client && npm run lint',
+            lint: `eslint ${guardedServices}`,
+            'format:check': `prettier --check ${guardedServices}`,
+          },
         },
-      },
-      null,
-      2,
-    ),
+        null,
+        2,
+      ),
   );
 
   fs.writeFileSync(
@@ -179,6 +205,50 @@ test('api-client guard requires p0-toolchain to run contract and api-client guar
   const result = runGuard(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr + result.stdout, /p0-toolchain must run contract and api-client guards/);
+});
+
+test('api-client guard requires high-risk services in lint and format scripts', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-scripts-'));
+  writeFixture(root, {
+    packageJson: JSON.stringify(
+      {
+        scripts: {
+          contract: 'node scripts/frontend_api_contract_guard.mjs',
+          'api-client': 'node scripts/frontend_api_client_guard.mjs',
+          'p0-toolchain': 'npm run contract && npm run api-client && npm run lint',
+          lint: 'eslint src/services/api.js src/services/backtestAiApi.js src/services/phase1Api.js src/services/phase2Api.js',
+          'format:check':
+            'prettier --check src/services/api.js src/services/backtestAiApi.js src/services/phase1Api.js src/services/phase2Api.js',
+        },
+      },
+      null,
+      2,
+    ),
+  });
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /format:check must include src\/services\/phase3Api\.js/);
+});
+
+test('api-client guard requires high-risk services in eslint foundation files', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qg-api-client-eslint-'));
+  writeFixture(root, {
+    eslintConfig: `
+const foundationFiles = [
+  'src/services/api.js',
+  'src/services/backtestAiApi.js',
+  'src/services/phase1Api.js',
+  'src/services/phase2Api.js',
+];
+export default [{ files: foundationFiles }];
+`,
+  });
+  const result = runGuard(root);
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr + result.stdout,
+    /eslint\.config\.js foundationFiles must include src\/services\/phase3Api\.js/,
+  );
 });
 
 test('api-client guard rejects missing raw file protection', () => {
