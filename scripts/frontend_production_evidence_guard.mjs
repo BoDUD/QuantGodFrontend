@@ -51,6 +51,8 @@ for (const file of files) {
 
 const service = readSource('src/services/productionEvidenceApi.js');
 const panel = readSource('src/components/ProductionEvidenceValidationPanel.vue');
+const pkg = JSON.parse(readSource('package.json'));
+const scripts = pkg.scripts || {};
 assertCondition(
   /\/api\/production-evidence-validation\/status/.test(service),
   'production evidence API must expose the status endpoint',
@@ -76,6 +78,25 @@ for (const marker of [
   'priority',
 ]) {
   assertCondition(panel.includes(marker), `production evidence panel must surface ${marker}`);
+}
+
+assertCondition(
+  scripts['production-evidence'] === 'node scripts/frontend_production_evidence_guard.mjs',
+  'package.json must expose npm run production-evidence',
+);
+assertCondition(
+  scripts['test:production-evidence'] === 'node --test tests/frontend_production_evidence_guard.test.mjs',
+  'package.json must expose npm run test:production-evidence',
+);
+assertCondition(
+  String(scripts['p0-toolchain'] || '').includes('npm run production-evidence'),
+  'package.json p0-toolchain must run production-evidence guard',
+);
+for (const scriptName of ['format:check', 'stylelint']) {
+  assertCondition(
+    String(scripts[scriptName] || '').includes('src/components/ProductionEvidenceValidationPanel.vue'),
+    `package.json ${scriptName} must include ProductionEvidenceValidationPanel.vue`,
+  );
 }
 
 if (failures.length > 0) {

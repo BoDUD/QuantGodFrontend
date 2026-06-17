@@ -7,8 +7,8 @@
         <p class="muted">验证历史数据、策略一致性、执行反馈和 GA 多代稳定性；只读，不触发交易。</p>
       </div>
       <div class="production-evidence-card__actions">
-        <button type="button" @click="load" :disabled="loading">刷新</button>
-        <button type="button" @click="run" :disabled="loading">生成验证报告</button>
+        <button type="button" :disabled="loading" @click="load">刷新</button>
+        <button type="button" :disabled="loading" @click="run">生成验证报告</button>
       </div>
     </header>
 
@@ -208,30 +208,34 @@ onMounted(load);
 
 <style scoped>
 .production-evidence-card {
-  border: 1px solid var(--qg-border, rgba(148, 163, 184, 0.22));
+  border: 1px solid var(--qg-border, rgb(148 163 184 / 22%));
   border-radius: 16px;
   padding: 16px;
-  background: var(--qg-surface, rgba(15, 23, 42, 0.72));
+  background: var(--qg-surface, rgb(15 23 42 / 72%));
   margin-block: 16px;
 }
+
 .production-evidence-card__header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
 }
+
 .production-evidence-card__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .production-evidence-card__actions button {
-  border: 1px solid var(--qg-border, rgba(148, 163, 184, 0.3));
+  border: 1px solid var(--qg-border, rgb(148 163 184 / 30%));
   border-radius: 999px;
   padding: 6px 12px;
   background: transparent;
   color: inherit;
 }
+
 .eyebrow {
   margin: 0 0 4px;
   font-size: 12px;
@@ -239,59 +243,73 @@ onMounted(load);
   text-transform: uppercase;
   opacity: 0.72;
 }
+
 .muted {
   opacity: 0.72;
 }
+
 .error {
   color: #fca5a5;
 }
+
 .production-evidence-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
+
 .production-evidence-cardlet {
   padding: 12px;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgb(15 23 42 / 50%);
   min-width: 0;
 }
+
 .label {
   display: block;
   opacity: 0.72;
   font-size: 12px;
   margin-bottom: 6px;
 }
+
 .status {
   display: block;
   font-size: 18px;
 }
+
 .status.pass {
   color: #86efac;
 }
+
 .status.warn,
 .status.unknown {
   color: #fde68a;
 }
+
 .status.fail,
 .status.blocked,
 .status.missing {
   color: #fca5a5;
 }
+
 .status.covered {
   color: #86efac;
 }
+
 .production-evidence-blockers {
   margin-top: 12px;
 }
+
 .production-evidence-case-memory {
   margin-top: 12px;
 }
+
 .production-evidence-mini-table {
   display: grid;
   gap: 6px;
   margin-top: 8px;
 }
+
 .production-evidence-mini-table__head,
 .production-evidence-mini-table__row {
   display: grid;
@@ -302,27 +320,32 @@ onMounted(load);
   align-items: start;
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(15, 23, 42, 0.36);
+  background: rgb(15 23 42 / 36%);
 }
+
 .production-evidence-mini-table__head {
   font-size: 12px;
   opacity: 0.72;
 }
-@media (max-width: 900px) {
+
+@media (width <= 900px) {
   .production-evidence-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 720px) {
+
+@media (width <= 720px) {
   .production-evidence-mini-table__head,
   .production-evidence-mini-table__row {
     grid-template-columns: 1fr;
   }
 }
-@media (max-width: 520px) {
+
+@media (width <= 520px) {
   .production-evidence-card__header {
     flex-direction: column;
   }
+
   .production-evidence-grid {
     grid-template-columns: 1fr;
   }
