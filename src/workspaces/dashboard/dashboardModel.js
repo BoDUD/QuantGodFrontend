@@ -206,6 +206,33 @@ function freshnessRow(label, endpoint, freshness = {}, fallbackAction = '') {
   };
 }
 
+function compactSnapshotEvidenceLine(label, freshness = {}, options = {}) {
+  const parts = [];
+  if (options.processMissing) {
+    parts.push('writer 未运行');
+  } else if (freshness.unavailable) {
+    parts.push('只读桥不可用');
+  } else if (freshness.hardStale === true) {
+    parts.push('严重过期');
+  } else if (freshness.status === 'STALE_DASHBOARD_SNAPSHOT') {
+    parts.push('dashboard 过期');
+  } else if (freshness.stale === true || freshness.status === 'STALE_EA_SNAPSHOT') {
+    parts.push('快照过期');
+  } else if (freshness.fresh === true) {
+    parts.push('新鲜');
+  } else {
+    parts.push('待确认');
+  }
+  if (freshness.ageSeconds !== undefined || freshness.maxAgeSeconds !== undefined) {
+    parts.push(
+      `${formatFreshnessAgeSeconds(freshness.ageSeconds)} / 阈值 ${formatFreshnessAgeSeconds(freshness.maxAgeSeconds)}`,
+    );
+  }
+  const endpoint = options.endpoint || '';
+  if (endpoint) parts.push(endpoint);
+  return `${label}: ${parts.filter(Boolean).join('，')}`;
+}
+
 function processAwareFreshnessRow(
   label,
   endpoint,
@@ -395,6 +422,28 @@ function snapshotRecovery(raw = {}) {
     primaryProcessMissing || stalePrimary ? `Live12: ${primaryRecoveryAction}` : '',
     secondaryProcessMissing || staleSecondary ? `Live16: ${secondaryRecoveryAction}` : '',
   ].filter(Boolean);
+  const evidenceLine = [
+    present(latest) ? compactSnapshotEvidenceLine('总览', latest, { endpoint: '/api/latest' }) : '',
+    present(primary)
+      ? compactSnapshotEvidenceLine('Live12', primary, {
+          processMissing: primaryProcessMissing,
+          endpoint: '/api/mt5-readonly/snapshot',
+        })
+      : '',
+    present(secondary)
+      ? compactSnapshotEvidenceLine('Live16', secondary, {
+          processMissing: secondaryProcessMissing,
+          endpoint: '/api/mt5-readonly-secondary/snapshot',
+        })
+      : '',
+    present(liveLoop)
+      ? compactSnapshotEvidenceLine('USDJPY live-loop', liveLoop, {
+          endpoint: '/api/usdjpy-strategy-lab/live-loop',
+        })
+      : '',
+  ]
+    .filter(Boolean)
+    .join('；');
   const hasFreshRealtimeEvidence =
     latest.fresh === true || primary.fresh === true || secondary.fresh === true;
   const realtimeUsable = hasFreshRealtimeEvidence && !staleSources.length && !processMissing;
@@ -438,6 +487,7 @@ function snapshotRecovery(raw = {}) {
     primaryRecoveryAction,
     secondaryRecoveryAction,
     recoveryChecklistLine: scopedRecoveryActions.join('；'),
+    evidenceLine,
     realtimeUsable,
     liveLoopUsable: Boolean(liveLoop.ready) && !liveLoop.hardStale,
     liveLoopLine: liveLoop.statusZh || '等待 USDJPY live-loop 证据',
@@ -1383,9 +1433,9 @@ function releaseGateRows(raw = {}) {
   const summaryExecutionReview = simTargetExecutionReviewPayload(raw).executionReview || {};
   const summaryTokenEvidence = summaryExecutionReview.releaseTokenEvidenceReview || {};
   const signoffRowsByGate = Object.fromEntries(
-    rowsFromObjectList(tokenEvidence.manualReleaseReviewRows || summaryTokenEvidence.manualReleaseReviewRows).map(
-      (row) => [row.gateId, row],
-    ),
+    rowsFromObjectList(
+      tokenEvidence.manualReleaseReviewRows || summaryTokenEvidence.manualReleaseReviewRows,
+    ).map((row) => [row.gateId, row]),
   );
   const releaseReadiness = liveAutomationReleaseReadinessPayload(raw);
   const orchestrator = liveAutomationOrchestratorPayload(raw);
@@ -2679,6 +2729,7 @@ export function buildSnapshotRootCauseBanner(snapshot = {}) {
     label: recovery.label || (realtimeBlocked ? '实时快照不可用' : '实时快照新鲜'),
     title: realtimeBlocked ? '真实账号快照不能当作当前状态' : '真实账号快照可用于当前状态',
     rootCauseLine: rootCauses.length ? rootCauses.join(' / ') : '未发现 MT5 writer 或 freshness 阻断。',
+    evidenceLine: recovery.evidenceLine || '',
     blockedLine: blockedScopes.length ? blockedScopes.join(' / ') : '无当前状态阻断。',
     usableLine: stillUsable.length ? stillUsable.join(' / ') : '等待研究证据同步。',
     recoveryPathLine: recoveryPath.length
@@ -2698,6 +2749,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
       打开页面: '/vue/?workspace=dashboard',
       核对端点: '/api/latest + 两个 MT5 只读桥',
       状态: recovery.realtimeUsable ? '可读当前状态' : '实时状态不可确认',
+      数据年龄: recovery.evidenceLine || '等待 freshness 证据',
       影响: recovery.realtimeUsable
         ? '净值、持仓、执行状态可以按当前快照展示'
         : '净值、持仓、执行状态只能作为历史参考',
@@ -2715,6 +2767,10 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
           : snapshot.mt5SnapshotFreshness?.fresh
             ? '新鲜'
             : '待确认',
+      数据年龄: compactSnapshotEvidenceLine('Live12', snapshot.mt5SnapshotFreshness, {
+        processMissing: snapshot.mt5HostProcessMissing,
+      }),
+      进程诊断: recovery.primaryProcessLine || '进程状态待确认',
       影响:
         snapshot.mt5HostProcessMissing || snapshot.mt5SnapshotStale
           ? '外币/RSI 当前执行状态不可确认'
@@ -2739,6 +2795,10 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
           : snapshot.secondaryMt5SnapshotFreshness?.fresh
             ? '新鲜'
             : '待确认',
+      数据年龄: compactSnapshotEvidenceLine('Live16', snapshot.secondaryMt5SnapshotFreshness, {
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+      }),
+      进程诊断: recovery.secondaryProcessLine || '进程状态待确认',
       影响:
         snapshot.secondaryMt5HostProcessMissing || snapshot.secondaryMt5SnapshotStale
           ? 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认'
@@ -2761,6 +2821,7 @@ export function buildSnapshotRecoveryRows(snapshot = {}) {
         : snapshot.usdJpyLiveLoopFreshness?.fresh
           ? '新鲜'
           : liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+      数据年龄: compactSnapshotEvidenceLine('USDJPY live-loop', snapshot.usdJpyLiveLoopFreshness),
       影响: snapshot.usdJpyLiveLoopStale
         ? '策略闭环仍可给出诊断，但不能替代当前 MT5 账号快照'
         : '可辅助判断 USDJPY RSI 路线和入场阻断',
@@ -2866,6 +2927,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
       打开页面: '/vue/?workspace=dashboard',
       核对端点: '/api/latest + /api/mt5-readonly/snapshot + /api/mt5-readonly-secondary/snapshot',
       状态: realtimeBlocked ? recovery.label || '实时快照不可用' : '实时快照可用',
+      数据年龄: recovery.evidenceLine || '等待 freshness 证据',
       可信范围: realtimeBlocked
         ? '研究证据可读；账户、持仓、执行状态只能当历史参考'
         : '账户、持仓、执行状态可作为当前快照',
@@ -2882,6 +2944,9 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
           ? 'writer 未运行'
           : '快照过期'
         : '主账号快照新鲜',
+      数据年龄: compactSnapshotEvidenceLine('Live12', snapshot.mt5SnapshotFreshness, {
+        processMissing: snapshot.mt5HostProcessMissing,
+      }),
       可信范围: primaryBlocked ? '外币/RSI 当前账号状态不可确认' : '可继续只读观察 Live12 当前账号状态',
       修复优先级: primaryBlocked ? 'P0' : 'OK',
       验收标准: '主账号快照状态为新鲜，MT5 权限才重新进入只读判断。',
@@ -2902,6 +2967,9 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
         : hfmCryptoBlocked
           ? 'HFM Crypto API 不可用'
           : snapshot.hfmCryptoStatusZh || snapshot.hfmCryptoStatus || 'Live16 快照可用',
+      数据年龄: compactSnapshotEvidenceLine('Live16', snapshot.secondaryMt5SnapshotFreshness, {
+        processMissing: snapshot.secondaryMt5HostProcessMissing,
+      }),
       可信范围: live16Blocked
         ? 'Crypto symbol、spec、Moss/backtest 证据可读；BTC/crypto 当前账号、tick、权限不可确认'
         : hfmCryptoBlocked
@@ -2925,6 +2993,7 @@ export function buildFrontendSnapshotRecoveryRows(snapshot = {}) {
       打开页面: '/vue/?workspace=mt5',
       核对端点: '/api/usdjpy-strategy-lab/live-loop',
       状态: liveLoopBlocked ? '依赖运行快照严重过期' : liveLoopStatusValue(snapshot.usdJpyLiveLoopFreshness),
+      数据年龄: compactSnapshotEvidenceLine('USDJPY live-loop', snapshot.usdJpyLiveLoopFreshness),
       可信范围: liveLoopBlocked ? '策略闭环只可用于旧证据诊断' : '可辅助判断 RSI 路线和入场阻断',
       修复优先级: liveLoopBlocked ? 'P1' : 'OK',
       验收标准: 'runtime freshness 不再 HARD_STALE，live-loop 可辅助当前诊断。',
@@ -3016,6 +3085,7 @@ export function buildSnapshotImpactSummary(snapshot = {}) {
       ? `不可直接信任：${rootCause.blockedLine}`
       : '账户、持仓和执行状态可作为当前快照。',
     usableLine: rootCause.usableLine || '等待研究证据同步。',
+    evidenceLine: rootCause.evidenceLine || snapshot.snapshotRecovery?.evidenceLine || '',
     nextActionLine,
     rows: blockedRows,
   };

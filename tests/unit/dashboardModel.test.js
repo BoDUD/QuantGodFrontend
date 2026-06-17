@@ -560,6 +560,9 @@ describe('dashboardModel', () => {
     expect(snapshot.snapshotRecovery.nextAction).toContain('确认 Live12 HFM/MT5 终端正在运行');
     expect(snapshot.snapshotRecovery.nextAction).toContain('Live16: 未检测到 terminal64/wine 进程');
     expect(snapshot.snapshotRecovery.nextAction).toContain('刷新 /api/mt5-readonly-secondary/snapshot');
+    expect(snapshot.snapshotRecovery.evidenceLine).toContain('Live12: writer 未运行');
+    expect(snapshot.snapshotRecovery.evidenceLine).toContain('Live16: writer 未运行');
+    expect(snapshot.snapshotRecovery.evidenceLine).toContain('/api/mt5-readonly-secondary/snapshot');
     expect(snapshot.usdJpyLiveLoopStale).toBe(true);
     expect(metrics.find((item) => item.label === 'USDJPY Live Loop')).toMatchObject({
       value: '严重过期',
@@ -577,6 +580,9 @@ describe('dashboardModel', () => {
     expect(rootCause.rootCauseLine).toContain('Live12 MT5/EA writer 未运行');
     expect(rootCause.rootCauseLine).toContain('Live16 MT5/EA writer 未运行');
     expect(rootCause.rootCauseLine).toContain('USDJPY live-loop 运行快照严重过期');
+    expect(rootCause.evidenceLine).toContain('总览: dashboard 过期');
+    expect(rootCause.evidenceLine).toContain('Live12: writer 未运行');
+    expect(rootCause.evidenceLine).toContain('Live16: writer 未运行');
     expect(rootCause.blockedLine).toContain('当前账户/净值/持仓/执行状态');
     expect(rootCause.usableLine).toContain('HFM Crypto shadow/spec/Moss 研究证据');
     expect(rootCause.usableLine).toContain('模拟收益目标证据');
@@ -591,6 +597,7 @@ describe('dashboardModel', () => {
     expect(impactSummary.affectedAreaLine).toContain('HFM Crypto 工作台:研究证据可看 / Live16 账号快照阻断');
     expect(impactSummary.trustedScopeLine).toContain('当前账户/净值/持仓/执行状态');
     expect(impactSummary.usableLine).toContain('HFM Crypto shadow/spec/Moss 研究证据');
+    expect(impactSummary.evidenceLine).toContain('Live16: writer 未运行');
     expect(impactSummary.nextActionLine).toContain('Live12: 恢复 MT5/EA writer');
     expect(impactSummary.nextActionLine).toContain('Live16: 恢复 MT5/EA writer');
     expect(sourceRows.find((row) => row.数据源 === 'USDJPY Live Loop')).toMatchObject({
@@ -617,6 +624,8 @@ describe('dashboardModel', () => {
       打开页面: '/vue/?workspace=hfm-crypto',
       核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: 'writer 未运行',
+      数据年龄: 'Live16: writer 未运行，10.2 天 / 阈值 待确认',
+      进程诊断: '未检测到 terminal64/wine 进程',
       影响: 'HFM Crypto shadow 证据可读，但当前 Live16 账号状态不可确认',
       验收标准: 'Live16 只读桥 fresh=true，BTC/crypto tick 再作为当前账号证据。',
     });
@@ -638,6 +647,7 @@ describe('dashboardModel', () => {
       修复优先级: 'P0',
       打开页面: '/vue/?workspace=dashboard',
       核对端点: '/api/latest + /api/mt5-readonly/snapshot + /api/mt5-readonly-secondary/snapshot',
+      数据年龄: expect.stringContaining('Live12: writer 未运行'),
       可信范围: '研究证据可读；账户、持仓、执行状态只能当历史参考',
       验收标准: '全局根因变为实时快照新鲜，账户/持仓指标不再显示 writer 未运行、只读桥不可用或快照过期。',
     });
@@ -646,12 +656,14 @@ describe('dashboardModel', () => {
       修复优先级: 'P0',
       打开页面: '/vue/?workspace=mt5',
       核对端点: '/api/mt5-readonly/snapshot',
+      数据年龄: 'Live12: writer 未运行，6.3 天 / 阈值 待确认',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'HFM Crypto 工作台')).toMatchObject({
       状态: '研究证据可看 / Live16 账号快照阻断',
       修复优先级: 'P0',
       打开页面: '/vue/?workspace=hfm-crypto',
       核对端点: '/api/mt5-readonly-secondary/snapshot + /api/hfm-crypto/status?view=summary&scope=secondary',
+      数据年龄: 'Live16: writer 未运行，10.2 天 / 阈值 待确认',
       验收标准: 'Live16 快照新鲜后，BTC/crypto tick 与账号准备度才可作为当前证据。',
     });
     expect(frontendRows.find((row) => row.前端区域 === 'USDJPY Live Loop')).toMatchObject({

@@ -5,6 +5,9 @@
       <p class="snapshot-health__eyebrow">系统数据源</p>
       <strong :title="rootCause.rootCauseLine">{{ title }}</strong>
       <span :title="detailLine">{{ detailLine }}</span>
+      <span v-if="evidenceLine" class="snapshot-health__evidence" :title="evidenceLine">
+        {{ evidenceLine }}
+      </span>
       <span v-if="actionLine" class="snapshot-health__action" :title="actionLine">{{ actionLine }}</span>
       <div v-if="initialized" class="snapshot-health__badges" aria-label="Snapshot recovery priority">
         <span>P0 {{ impactSummary.p0Count }}</span>
@@ -84,9 +87,17 @@ const title = computed(() => {
 const detailLine = computed(() => {
   if (error.value) return error.value;
   if (!initialized.value) return '正在读取 /api/latest、Live12、Live16 和 HFM Crypto 核心状态。';
-  return [rootCause.value.rootCauseLine, impactSummary.value.affectedAreaLine, impactSummary.value.priorityLine]
+  return [
+    rootCause.value.rootCauseLine,
+    impactSummary.value.affectedAreaLine,
+    impactSummary.value.priorityLine,
+  ]
     .filter(Boolean)
     .join('；');
+});
+const evidenceLine = computed(() => {
+  if (error.value || !initialized.value) return '';
+  return rootCause.value.evidenceLine || impactSummary.value.evidenceLine || '';
 });
 const actionLine = computed(() => {
   if (error.value || !initialized.value) return '';
@@ -191,6 +202,11 @@ onBeforeUnmount(() => {
 
 .snapshot-health__action {
   color: rgb(226 232 240 / 92%);
+}
+
+.snapshot-health__evidence {
+  color: rgb(255 255 255 / 78%);
+  font-size: 11px;
 }
 
 .snapshot-health__badges {

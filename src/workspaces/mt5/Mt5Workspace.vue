@@ -35,6 +35,10 @@
           {{ snapshotRootCause.usableLine }}
         </span>
         <span>
+          <strong>证据年龄</strong>
+          {{ snapshotRootCause.evidenceLine || '等待 freshness 证据' }}
+        </span>
+        <span>
           <strong>下一步</strong>
           {{ snapshotRootCause.nextAction }}
         </span>

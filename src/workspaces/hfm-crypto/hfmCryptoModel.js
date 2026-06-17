@@ -212,6 +212,8 @@ function hfmMt5SnapshotRecoveryRows(freshness = {}, _payload = {}, process = {},
       打开页面: '/vue/?workspace=hfm-crypto',
       核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: snapshotState,
+      数据年龄: `${formatAgeSeconds(freshness.ageSeconds)} / 阈值 ${formatAgeSeconds(freshness.maxAgeSeconds)}`,
+      进程诊断: mt5HostProcessLine(process),
       可信范围: blocked
         ? '当前账号、BTC/crypto tick、持仓和执行准备度不可确认；旧快照只作历史参考。'
         : '可把 Live16 只读桥快照作为当前账号证据。',
@@ -268,11 +270,15 @@ function hfmMt5SnapshotRootCause(freshness = {}, payload = {}, process = {}, opt
         : freshness.fresh
           ? 'Live16 当前账号快照新鲜。'
           : mt5FreshnessLine(freshness);
+  const evidenceLine = `Live16: ${label}，${formatAgeSeconds(freshness.ageSeconds)} / 阈值 ${formatAgeSeconds(
+    freshness.maxAgeSeconds,
+  )}，/api/mt5-readonly-secondary/snapshot`;
   return {
     status,
     label,
     title: blocked ? 'HFM Crypto 当前账号快照不能当作实时状态' : 'HFM Crypto 当前账号快照可用于只读观察',
     rootCauseLine,
+    evidenceLine,
     blockedLine: blocked
       ? 'Live16 当前账号、BTC/crypto tick、持仓、保证金和执行准备度。'
       : '无 Live16 当前账号状态阻断。',

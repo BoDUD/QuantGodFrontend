@@ -108,8 +108,10 @@ test('snapshot health strip surfaces root cause and affected frontend scope on f
   for (const required of [
     'rootCause.value.label',
     'impactSummary.value.affectedAreaLine',
+    'rootCause.value.evidenceLine',
     ':title="rootCause.rootCauseLine"',
     ':title="detailLine"',
+    ':title="evidenceLine"',
   ]) {
     assert.match(component, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }

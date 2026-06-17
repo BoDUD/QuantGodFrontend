@@ -59,12 +59,15 @@ describe('hfmCryptoModel', () => {
       label: 'Live16 writer 未运行',
       title: 'HFM Crypto 当前账号快照不能当作实时状态',
     });
+    expect(model.snapshotRootCause.evidenceLine).toContain('Live16: Live16 writer 未运行，10.1 天');
     expect(model.snapshotRootCause.blockedLine).toContain('BTC/crypto tick');
     expect(model.tables.mt5RecoveryRows[0]).toMatchObject({
       区域: 'Live16 当前账号快照',
       打开页面: '/vue/?workspace=hfm-crypto',
       核对端点: '/api/mt5-readonly-secondary/snapshot',
       状态: 'writer 未运行',
+      数据年龄: '10.1 天 / 阈值 等待资料',
+      进程诊断: '未检测到 terminal64/wine 进程',
       验收标准: 'Live16 只读桥 fresh=true，terminal64/wine 进程存在。',
     });
     expect(model.tables.mt5RecoveryRows[0].下一步).toContain('确认对应 HFM/MT5 终端正在运行');

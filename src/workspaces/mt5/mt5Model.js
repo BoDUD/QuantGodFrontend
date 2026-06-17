@@ -72,6 +72,20 @@ function freshnessLine(freshness = {}) {
   return 'MT5 dashboard 新鲜度待确认';
 }
 
+function formatAgeSeconds(value) {
+  const ageSeconds = Number(value);
+  if (!Number.isFinite(ageSeconds)) return '待确认';
+  if (ageSeconds < 60) return `${Math.round(ageSeconds)} 秒`;
+  if (ageSeconds < 3600) return `${Math.round(ageSeconds / 60)} 分钟`;
+  if (ageSeconds < 86400) return `${(ageSeconds / 3600).toFixed(1)} 小时`;
+  return `${(ageSeconds / 86400).toFixed(1)} 天`;
+}
+
+function freshnessAgeLine(freshness = {}) {
+  if (!present(freshness)) return '等待 freshness 证据';
+  return `${formatAgeSeconds(freshness.ageSeconds)} / 阈值 ${formatAgeSeconds(freshness.maxAgeSeconds)}`;
+}
+
 function mt5HostProcess(payload = {}) {
   const source = unwrap(payload) || {};
   const terminal = isObject(source.terminal) ? source.terminal : {};
@@ -1532,6 +1546,9 @@ function accountRecoveryRow(account = {}) {
     processMissing,
     blocksCurrentState: processMissing || freshnessBlocksCurrentState(freshness),
     endpoint: accountRecoveryEndpoint(account),
+    evidenceLine: `${accountRecoveryLabel(account)}：${state}，${freshnessAgeLine(freshness)}`,
+    processLine:
+      account.hostProcessLine || (processMissing ? '未检测到 terminal64/wine 进程' : '进程状态待确认'),
     nextStep,
   };
 }
@@ -1544,6 +1561,8 @@ export function buildMt5SnapshotRecoveryRows(snapshot = {}) {
       端点: recovery.endpoint,
       状态: recovery.state,
       打开页面: '/vue/?workspace=mt5',
+      数据年龄: recovery.evidenceLine,
+      进程诊断: recovery.processLine,
       可信范围: recovery.blocksCurrentState
         ? '当前净值、余额、持仓、挂单和 EA 权限不可确认；旧快照只作历史参考。'
         : '可把只读桥快照作为当前账号状态。',
@@ -1562,6 +1581,9 @@ export function buildMt5SnapshotRootCauseBanner(snapshot = {}) {
   const rootCauseLine = blockers.length
     ? blockers.map((row) => `${accountRecoveryLabel(row.account)}：${row.state}`).join(' / ')
     : 'Live12 与 Live16 当前快照没有 freshness 阻断。';
+  const evidenceLine = recoveryRows.length
+    ? recoveryRows.map((row) => row.evidenceLine).join('；')
+    : '等待 Live12 / Live16 freshness 证据';
   const nextAction =
     blockers[0]?.nextStep || '保持 Live12/Live16 MT5 终端和 EA dashboard writer 正常刷新，前端继续只读观察。';
   return {
@@ -1569,6 +1591,7 @@ export function buildMt5SnapshotRootCauseBanner(snapshot = {}) {
     label,
     title: blockers.length ? 'MT5 当前账号快照不能当作实时状态' : 'MT5 当前账号快照可用于只读观察',
     rootCauseLine,
+    evidenceLine,
     blockedLine: blockers.length
       ? '净值、余额、当前持仓、挂单、EA 自动交易权限和执行准备度。'
       : '无当前账号状态阻断。',

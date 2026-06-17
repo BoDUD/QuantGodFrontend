@@ -228,6 +228,8 @@ describe('mt5Model ledgers', () => {
       title: 'MT5 当前账号快照不能当作实时状态',
     });
     expect(banner.rootCauseLine).toContain('主账号 / HFMarketsGlobal-Live12：writer 未运行');
+    expect(banner.evidenceLine).toContain('主账号 / HFMarketsGlobal-Live12：writer 未运行，10.1 天');
+    expect(banner.evidenceLine).toContain('第二账号 / HFMarketsGlobal-Live16：快照过期，10.1 天');
     expect(banner.blockedLine).toContain('当前持仓');
     expect(banner.usableLine).toContain('shadow 账本');
     expect(rows[0]).toMatchObject({
@@ -235,6 +237,8 @@ describe('mt5Model ledgers', () => {
       端点: '/api/mt5-readonly/snapshot',
       状态: 'writer 未运行',
       打开页面: '/vue/?workspace=mt5',
+      数据年龄: '主账号 / HFMarketsGlobal-Live12：writer 未运行，10.1 天 / 阈值 待确认',
+      进程诊断: '未检测到 terminal64/wine 进程',
       验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
     });
     expect(rows[0].下一步).toContain('未检测到 terminal64/wine 进程');
@@ -245,6 +249,7 @@ describe('mt5Model ledgers', () => {
       端点: '/api/mt5-readonly-secondary/snapshot',
       状态: '快照过期',
       打开页面: '/vue/?workspace=mt5',
+      数据年龄: '第二账号 / HFMarketsGlobal-Live16：快照过期，10.1 天 / 阈值 待确认',
       验收标准: '对应只读桥 fresh=true，且 terminal64/wine 进程被检测到。',
     });
     expect(rows[1].下一步).toContain('/api/mt5-readonly-secondary/snapshot');
